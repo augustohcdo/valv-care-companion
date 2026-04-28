@@ -24,6 +24,7 @@ export type Database = {
           id: string
           location: string | null
           notes: string | null
+          reminder_sent_at: string | null
           scheduled_at: string
           status: Database["public"]["Enums"]["appointment_status"]
           updated_at: string
@@ -37,6 +38,7 @@ export type Database = {
           id?: string
           location?: string | null
           notes?: string | null
+          reminder_sent_at?: string | null
           scheduled_at: string
           status?: Database["public"]["Enums"]["appointment_status"]
           updated_at?: string
@@ -50,6 +52,7 @@ export type Database = {
           id?: string
           location?: string | null
           notes?: string | null
+          reminder_sent_at?: string | null
           scheduled_at?: string
           status?: Database["public"]["Enums"]["appointment_status"]
           updated_at?: string
@@ -136,6 +139,36 @@ export type Database = {
           id?: string
           metadata?: Json | null
           title?: string
+        }
+        Relationships: []
+      }
+      case_messages: {
+        Row: {
+          body: string
+          case_id: string
+          created_at: string
+          id: string
+          read_at: string | null
+          sender_id: string
+          sender_role: string
+        }
+        Insert: {
+          body: string
+          case_id: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          sender_id: string
+          sender_role: string
+        }
+        Update: {
+          body?: string
+          case_id?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          sender_id?: string
+          sender_role?: string
         }
         Relationships: []
       }

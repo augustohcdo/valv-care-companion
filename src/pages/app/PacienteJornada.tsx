@@ -11,6 +11,7 @@ import {
 import { CaseDocuments } from "@/components/CaseDocuments";
 import { CaseTimeline } from "@/components/CaseTimeline";
 import { CaseAppointments } from "@/components/CaseAppointments";
+import { CaseChat } from "@/components/CaseChat";
 
 export default function PacienteJornada() {
   const { user } = useAuth();
@@ -122,6 +123,7 @@ export default function PacienteJornada() {
                       <CaseTimeline caseId={c.id} readOnly />
                       <CaseAppointments caseId={c.id} readOnly />
                       <CaseDocuments caseId={c.id} />
+                      <CaseChat caseId={c.id} viewerRole="paciente" />
                     </div>
                   )}
                 </CardContent>
