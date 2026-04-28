@@ -193,6 +193,8 @@ export const AppLayout = () => {
           <Outlet />
         </main>
       </div>
+
+      <CommandPalette />
     </div>
   );
 };
