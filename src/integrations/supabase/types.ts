@@ -196,6 +196,84 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          link: string | null
+          metadata: Json | null
+          read: boolean
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          metadata?: Json | null
+          read?: boolean
+          title: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          metadata?: Json | null
+          read?: boolean
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      patient_documents: {
+        Row: {
+          created_at: string
+          description: string | null
+          document_type: string
+          file_name: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          patient_id: string
+          shared_with_doctor: boolean
+          storage_path: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          document_type?: string
+          file_name: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          patient_id: string
+          shared_with_doctor?: boolean
+          storage_path: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          document_type?: string
+          file_name?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          patient_id?: string
+          shared_with_doctor?: boolean
+          storage_path?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
       patients: {
         Row: {
           city: string | null
@@ -312,6 +390,17 @@ export type Database = {
         Args: { _case_id: string; _user_id: string }
         Returns: boolean
       }
+      create_notification: {
+        Args: {
+          _body?: string
+          _link?: string
+          _metadata?: Json
+          _title: string
+          _type: Database["public"]["Enums"]["notification_type"]
+          _user_id: string
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -339,6 +428,14 @@ export type Database = {
         | "receita"
         | "exame_laboratorial"
         | "outro"
+      notification_type:
+        | "patient_linked"
+        | "patient_unlinked"
+        | "case_created"
+        | "case_updated"
+        | "document_uploaded"
+        | "document_shared"
+        | "system"
       nyha_class: "I" | "II" | "III" | "IV"
       severity_level:
         | "leve"
@@ -500,6 +597,15 @@ export const Constants = {
         "receita",
         "exame_laboratorial",
         "outro",
+      ],
+      notification_type: [
+        "patient_linked",
+        "patient_unlinked",
+        "case_created",
+        "case_updated",
+        "document_uploaded",
+        "document_shared",
+        "system",
       ],
       nyha_class: ["I", "II", "III", "IV"],
       severity_level: [
