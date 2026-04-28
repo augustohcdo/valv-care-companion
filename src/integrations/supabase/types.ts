@@ -451,6 +451,90 @@ export type Database = {
         }
         Relationships: []
       }
+      medication_logs: {
+        Row: {
+          created_at: string
+          id: string
+          log_date: string
+          medication_id: string
+          notes: string | null
+          patient_id: string
+          scheduled_time: string
+          status: Database["public"]["Enums"]["medication_log_status"]
+          taken_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          log_date?: string
+          medication_id: string
+          notes?: string | null
+          patient_id: string
+          scheduled_time: string
+          status?: Database["public"]["Enums"]["medication_log_status"]
+          taken_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          log_date?: string
+          medication_id?: string
+          notes?: string | null
+          patient_id?: string
+          scheduled_time?: string
+          status?: Database["public"]["Enums"]["medication_log_status"]
+          taken_at?: string | null
+        }
+        Relationships: []
+      }
+      medications: {
+        Row: {
+          active: boolean
+          created_at: string
+          dose: string | null
+          end_date: string | null
+          frequency: string | null
+          id: string
+          name: string
+          notes: string | null
+          patient_id: string
+          prescribed_by: string | null
+          start_date: string
+          times: string[]
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          dose?: string | null
+          end_date?: string | null
+          frequency?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          patient_id: string
+          prescribed_by?: string | null
+          start_date?: string
+          times?: string[]
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          dose?: string | null
+          end_date?: string | null
+          frequency?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          patient_id?: string
+          prescribed_by?: string | null
+          start_date?: string
+          times?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
@@ -615,6 +699,63 @@ export type Database = {
         }
         Relationships: []
       }
+      symptom_entries: {
+        Row: {
+          bp_diastolic: number | null
+          bp_systolic: number | null
+          chest_pain: number | null
+          created_at: string
+          dyspnea: number | null
+          edema: boolean
+          entry_date: string
+          fatigue: number | null
+          id: string
+          notes: string | null
+          orthopnea: boolean
+          palpitations: number | null
+          patient_id: string
+          syncope: boolean
+          updated_at: string
+          weight_kg: number | null
+        }
+        Insert: {
+          bp_diastolic?: number | null
+          bp_systolic?: number | null
+          chest_pain?: number | null
+          created_at?: string
+          dyspnea?: number | null
+          edema?: boolean
+          entry_date?: string
+          fatigue?: number | null
+          id?: string
+          notes?: string | null
+          orthopnea?: boolean
+          palpitations?: number | null
+          patient_id: string
+          syncope?: boolean
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Update: {
+          bp_diastolic?: number | null
+          bp_systolic?: number | null
+          chest_pain?: number | null
+          created_at?: string
+          dyspnea?: number | null
+          edema?: boolean
+          entry_date?: string
+          fatigue?: number | null
+          id?: string
+          notes?: string | null
+          orthopnea?: boolean
+          palpitations?: number | null
+          patient_id?: string
+          syncope?: boolean
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -728,6 +869,7 @@ export type Database = {
         | "ressonancia"
         | "tomografia"
         | "outro"
+      medication_log_status: "tomado" | "atrasado" | "esquecido" | "pulado"
       notification_type:
         | "patient_linked"
         | "patient_unlinked"
@@ -935,6 +1077,7 @@ export const Constants = {
         "tomografia",
         "outro",
       ],
+      medication_log_status: ["tomado", "atrasado", "esquecido", "pulado"],
       notification_type: [
         "patient_linked",
         "patient_unlinked",
