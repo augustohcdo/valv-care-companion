@@ -29,6 +29,7 @@ import { CaseExams } from "@/components/CaseExams";
 import { GuidelineRecommendations } from "@/components/GuidelineRecommendations";
 import { CaseCollaborators } from "@/components/CaseCollaborators";
 import { CaseDiscussion } from "@/components/CaseDiscussion";
+import { ClinicalAIPanel } from "@/components/ClinicalAIPanel";
 
 export default function CasoDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -228,6 +229,9 @@ export default function CasoDetalhe() {
 
           {/* Sugestão de conduta baseada em diretrizes */}
           <GuidelineRecommendations caso={caso} />
+
+          {/* IA Clínica (resumo, conduta, tendências, chat) */}
+          <ClinicalAIPanel caseId={caso.id} />
 
           {/* Discussão clínica entre médicos */}
           <CaseDiscussion caseId={caso.id} canComment={canComment} />
