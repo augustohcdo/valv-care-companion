@@ -150,7 +150,7 @@ export default function MedicoHome() {
                 {doctor.verified ? "CRM verificado" : "Verificação pendente"}
               </Badge>
               <span className="text-xs text-muted-foreground">
-                Para verificação acelerada, escreva para verificacao@valvepath.com
+                Para verificação acelerada, escreva para valvepath@gmail.com
               </span>
             </div>
           </CardContent>

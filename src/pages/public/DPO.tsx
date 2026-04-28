@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 
-const DPO_EMAIL = "dpo@valvepath.com";
+const DPO_EMAIL = "valvepath@gmail.com";
 
 const RIGHTS = [
   { id: "confirmacao",     label: "Confirmação de tratamento",         desc: "Confirmar se tratamos seus dados pessoais.",                                          article: "Art. 18, I" },

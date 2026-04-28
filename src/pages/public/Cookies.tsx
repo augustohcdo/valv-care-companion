@@ -8,7 +8,7 @@ const Cookies = () => (
       description: "Quais tecnologias usamos para lembrar suas preferências, manter sua sessão e melhorar a Plataforma — em conformidade com a LGPD e o Guia da ANPD sobre cookies.",
       effectiveDate: "01 de maio de 2026",
       version: "1.0",
-      contact: { dpoEmail: "dpo@valvepath.com" },
+      contact: { dpoEmail: "valvepath@gmail.com" },
       sections: [
         {
           heading: "O que são cookies",

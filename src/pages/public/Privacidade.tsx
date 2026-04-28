@@ -8,7 +8,7 @@ const Privacidade = () => (
       description: "Como coletamos, usamos, compartilhamos e protegemos seus dados pessoais e dados sensíveis de saúde, em conformidade com a LGPD.",
       effectiveDate: "01 de maio de 2026",
       version: "2.0",
-      contact: { dpoEmail: "dpo@valvepath.com", supportEmail: "suporte@valvepath.com" },
+      contact: { dpoEmail: "valvepath@gmail.com", supportEmail: "valvepath@gmail.com" },
       sections: [
         {
           heading: "Quem somos e nosso papel sob a LGPD",

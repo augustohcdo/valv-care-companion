@@ -8,7 +8,7 @@ const Termos = () => (
       description: "Regras para utilização da plataforma ValvePath por médicos e pacientes em conformidade com a legislação brasileira.",
       effectiveDate: "01 de maio de 2026",
       version: "2.0",
-      contact: { dpoEmail: "dpo@valvepath.com", supportEmail: "suporte@valvepath.com" },
+      contact: { dpoEmail: "valvepath@gmail.com", supportEmail: "valvepath@gmail.com" },
       sections: [
         {
           heading: "Aceitação destes Termos",
