@@ -19,6 +19,8 @@ export default function MedicoHome() {
   const { user, profile } = useAuth();
   const [doctor, setDoctor] = useState<any>(null);
   const [patientCount, setPatientCount] = useState(0);
+  const [caseCount, setCaseCount] = useState(0);
+  const [activeCount, setActiveCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -26,11 +28,15 @@ export default function MedicoHome() {
       const { data: doc } = await supabase.from("doctors").select("*").eq("user_id", user.id).maybeSingle();
       setDoctor(doc);
       if (doc) {
-        const { count } = await supabase
-          .from("patients")
-          .select("id", { count: "exact", head: true })
-          .eq("linked_doctor_id", doc.id);
-        setPatientCount(count ?? 0);
+        const [{ count: pc }, { count: cc }, { count: ac }] = await Promise.all([
+          supabase.from("patients").select("id", { count: "exact", head: true }).eq("linked_doctor_id", doc.id),
+          supabase.from("clinical_cases").select("id", { count: "exact", head: true }).eq("doctor_id", doc.id),
+          supabase.from("clinical_cases").select("id", { count: "exact", head: true })
+            .eq("doctor_id", doc.id).in("status", ["avaliacao_inicial", "em_seguimento", "pre_intervencao"]),
+        ]);
+        setPatientCount(pc ?? 0);
+        setCaseCount(cc ?? 0);
+        setActiveCount(ac ?? 0);
       }
     })();
   }, [user]);
@@ -66,8 +72,8 @@ export default function MedicoHome() {
       {/* KPIs */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard icon={Users} label="Pacientes vinculados" value={patientCount.toString()} />
-        <KpiCard icon={FilePlus2} label="Casos ativos" value="—" hint="Disponível na próxima fase" />
-        <KpiCard icon={TrendingUp} label="Avaliações no mês" value="—" hint="Disponível na próxima fase" />
+        <KpiCard icon={FilePlus2} label="Casos ativos" value={activeCount.toString()} />
+        <KpiCard icon={TrendingUp} label="Total de casos" value={caseCount.toString()} />
         <KpiCard
           icon={ShieldCheck}
           label="Verificação"
