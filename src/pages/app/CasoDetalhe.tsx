@@ -26,7 +26,10 @@ import { RiskScoreCard } from "@/components/RiskScoreCard";
 import { exportCasePDF } from "@/lib/casePdf";
 import { CaseChat } from "@/components/CaseChat";
 import { CaseExams } from "@/components/CaseExams";
+import { CaseExams } from "@/components/CaseExams";
 import { GuidelineRecommendations } from "@/components/GuidelineRecommendations";
+import { CaseCollaborators } from "@/components/CaseCollaborators";
+import { CaseDiscussion } from "@/components/CaseDiscussion";
 
 export default function CasoDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -37,6 +40,8 @@ export default function CasoDetalhe() {
   const [status, setStatus] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+  const [canComment, setCanComment] = useState(false);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -51,6 +56,24 @@ export default function CasoDetalhe() {
       setCaso(data);
       setStatus(data.status);
       setNotes(data.clinical_notes || "");
+
+      // Determinar papel: owner ou colaborador
+      const { data: doc } = await supabase
+        .from("doctors").select("id").eq("user_id", user.id).maybeSingle();
+      const owner = !!doc && doc.id === data.doctor_id;
+      setIsOwner(owner);
+
+      if (owner) {
+        setCanComment(true);
+      } else if (doc) {
+        const { data: collab } = await supabase
+          .from("case_collaborators")
+          .select("access_level, status")
+          .eq("case_id", id)
+          .eq("doctor_id", doc.id)
+          .maybeSingle();
+        setCanComment(collab?.status === "aceito" && collab?.access_level === "comentar");
+      }
       setLoading(false);
     })();
   }, [id, user, navigate]);
