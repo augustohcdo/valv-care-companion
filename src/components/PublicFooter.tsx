@@ -47,6 +47,7 @@ export const PublicFooter = () => {
               <li><Link to="/privacidade" className="text-muted-foreground hover:text-primary flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Política de privacidade</Link></li>
               <li><Link to="/cookies" className="text-muted-foreground hover:text-primary flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> Política de cookies</Link></li>
               <li><Link to="/aviso-medico" className="text-muted-foreground hover:text-primary flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5" /> Aviso médico</Link></li>
+              <li><Link to="/dpo" className="text-muted-foreground hover:text-primary flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Encarregado (DPO) e direitos LGPD</Link></li>
             </ul>
           </div>
         </div>
