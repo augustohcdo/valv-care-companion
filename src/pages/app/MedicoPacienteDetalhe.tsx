@@ -26,8 +26,10 @@ export default function MedicoPacienteDetalhe() {
   useEffect(() => {
     if (!id || !user) return;
     (async () => {
-      const { data: doc } = await supabase.from("doctors").select("id").eq("user_id", user.id).maybeSingle();
+      const { data: doc } = await supabase.from("doctors").select("*").eq("user_id", user.id).maybeSingle();
       if (!doc) { navigate("/app/medico/pacientes"); return; }
+      const { data: docProf } = await supabase
+        .from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
 
       const { data: pat, error } = await supabase
         .from("patients").select("*").eq("id", id).eq("linked_doctor_id", doc.id).maybeSingle();
@@ -41,12 +43,53 @@ export default function MedicoPacienteDetalhe() {
       const { data: cs } = await supabase
         .from("clinical_cases").select("*").eq("patient_id", pat.id).eq("doctor_id", doc.id).order("created_at", { ascending: false });
 
+      setDoctor(doc);
+      setDoctorProfile(docProf);
       setPatient(pat);
       setProfile(prof);
       setCases(cs || []);
       setLoading(false);
     })();
   }, [id, user, navigate]);
+
+  const handleExportPdf = async () => {
+    if (!patient) return;
+    setExporting(true);
+    try {
+      const caseIds = cases.map((c) => c.id);
+      const since = new Date(); since.setDate(since.getDate() - 30);
+      const sinceISO = since.toISOString().slice(0, 10);
+
+      const [{ data: exams }, { data: syms }, { data: meds }, { data: logs }] = await Promise.all([
+        caseIds.length
+          ? supabase.from("case_exams").select("*").in("case_id", caseIds).order("exam_date", { ascending: true })
+          : Promise.resolve({ data: [] as any[] }),
+        supabase.from("symptom_entries").select("*").eq("patient_id", patient.id)
+          .gte("entry_date", sinceISO).order("entry_date", { ascending: false }),
+        supabase.from("medications").select("*").eq("patient_id", patient.id).eq("active", true),
+        supabase.from("medication_logs").select("*").eq("patient_id", patient.id).gte("log_date", sinceISO),
+      ]);
+
+      exportPatientPDF({
+        profile, patient,
+        doctor: doctor && doctorProfile ? {
+          full_name: doctorProfile.full_name,
+          crm: doctor.crm, crm_uf: doctor.crm_uf, specialty: doctor.specialty,
+        } : null,
+        cases,
+        exams: exams || [],
+        symptoms: syms || [],
+        medications: meds || [],
+        medLogs: logs || [],
+      });
+      toast.success("Prontuário PDF gerado");
+    } catch (e) {
+      console.error(e);
+      toast.error("Falha ao gerar PDF");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (loading || !patient) {
     return <div className="grid place-items-center min-h-[40vh]"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
