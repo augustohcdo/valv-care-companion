@@ -160,6 +160,18 @@ export default function ListaCasos() {
               <SelectItem value="severity">Severidade ↓</SelectItem>
             </SelectContent>
           </Select>
+          {pendingIds.size > 0 && (
+            <Button
+              variant={pendingOnly ? "default" : "outline"}
+              onClick={() => setPendingOnly((v) => !v)}
+              className="gap-1.5"
+            >
+              <AlertTriangle className="h-4 w-4" /> Pendentes
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-[10px]">
+                {pendingIds.size}
+              </Badge>
+            </Button>
+          )}
         </div>
 
         {showFilters && (
