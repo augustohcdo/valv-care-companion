@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { CookieBanner } from "@/components/CookieBanner";
 
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -32,6 +33,7 @@ const Referencias = lazy(() => import("./pages/public/Referencias"));
 const Termos = lazy(() => import("./pages/public/Termos"));
 const PrivacidadePublic = lazy(() => import("./pages/public/Privacidade"));
 const AvisoMedico = lazy(() => import("./pages/public/AvisoMedico"));
+const CookiesPage = lazy(() => import("./pages/public/Cookies"));
 
 // App (autenticado): lazy — corta drasticamente o bundle inicial
 const MedicoHome = lazy(() => import("./pages/app/MedicoHome"));
@@ -80,6 +82,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <CookieBanner />
           <Routes>
             {/* Auth */}
             <Route path="/auth/login" element={<Login />} />
@@ -134,6 +137,7 @@ const App = () => (
               <Route path="/referencias" element={withSuspense(<Referencias />)} />
               <Route path="/termos" element={withSuspense(<Termos />)} />
               <Route path="/privacidade" element={withSuspense(<PrivacidadePublic />)} />
+              <Route path="/cookies" element={withSuspense(<CookiesPage />)} />
               <Route path="/aviso-medico" element={withSuspense(<AvisoMedico />)} />
 
               <Route

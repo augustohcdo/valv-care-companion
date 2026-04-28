@@ -6,7 +6,9 @@ export type ConsentType =
   | "medical_disclaimer"
   | "data_sharing_doctor"
   | "email_communications"
-  | "ai_processing";
+  | "ai_processing"
+  | "cookies_functional"
+  | "cookies_analytics";
 
 export const CONSENT_VERSION = "1.0";
 
@@ -64,6 +66,22 @@ export const CONSENT_CATALOG: ConsentDefinition[] = [
     title: "Processamento por IA clínica",
     description:
       "Permito que dados do meu caso sejam processados pelo módulo de apoio à decisão clínica baseado em IA, dentro da plataforma.",
+    required: false,
+    audience: "all",
+  },
+  {
+    type: "cookies_functional",
+    title: "Cookies funcionais",
+    description:
+      "Lembrar preferências (idioma, tema, filtros salvos). Não impacta o funcionamento essencial.",
+    required: false,
+    audience: "all",
+  },
+  {
+    type: "cookies_analytics",
+    title: "Cookies analíticos",
+    description:
+      "Métricas agregadas e anônimas de uso para melhorar a experiência. Pode ser revogado a qualquer momento.",
     required: false,
     audience: "all",
   },
