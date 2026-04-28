@@ -208,6 +208,8 @@ export default function CasoDetalhe() {
 
         {/* Coluna lateral */}
         <div className="space-y-6">
+          <RiskScoreCard caso={caso} />
+
           <Card className="shadow-sm-soft">
             <CardHeader><CardTitle className="text-base">Status & evolução</CardTitle></CardHeader>
             <CardContent className="space-y-4">
