@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, MapPin, Phone, Mail, FileText, Loader2, User as UserIcon } from "lucide-react";
+import { ArrowLeft, MapPin, Phone, FileText, Loader2, User as UserIcon, Download } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PatientSymptomsViewer } from "@/components/PatientSymptomsViewer";
+import { exportPatientPDF } from "@/lib/patientPdf";
 
 export default function MedicoPacienteDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -16,14 +17,19 @@ export default function MedicoPacienteDetalhe() {
   const navigate = useNavigate();
   const [patient, setPatient] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [doctor, setDoctor] = useState<any>(null);
+  const [doctorProfile, setDoctorProfile] = useState<any>(null);
   const [cases, setCases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (!id || !user) return;
     (async () => {
-      const { data: doc } = await supabase.from("doctors").select("id").eq("user_id", user.id).maybeSingle();
+      const { data: doc } = await supabase.from("doctors").select("*").eq("user_id", user.id).maybeSingle();
       if (!doc) { navigate("/app/medico/pacientes"); return; }
+      const { data: docProf } = await supabase
+        .from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
 
       const { data: pat, error } = await supabase
         .from("patients").select("*").eq("id", id).eq("linked_doctor_id", doc.id).maybeSingle();
@@ -37,12 +43,53 @@ export default function MedicoPacienteDetalhe() {
       const { data: cs } = await supabase
         .from("clinical_cases").select("*").eq("patient_id", pat.id).eq("doctor_id", doc.id).order("created_at", { ascending: false });
 
+      setDoctor(doc);
+      setDoctorProfile(docProf);
       setPatient(pat);
       setProfile(prof);
       setCases(cs || []);
       setLoading(false);
     })();
   }, [id, user, navigate]);
+
+  const handleExportPdf = async () => {
+    if (!patient) return;
+    setExporting(true);
+    try {
+      const caseIds = cases.map((c) => c.id);
+      const since = new Date(); since.setDate(since.getDate() - 30);
+      const sinceISO = since.toISOString().slice(0, 10);
+
+      const [{ data: exams }, { data: syms }, { data: meds }, { data: logs }] = await Promise.all([
+        caseIds.length
+          ? supabase.from("case_exams").select("*").in("case_id", caseIds).order("exam_date", { ascending: true })
+          : Promise.resolve({ data: [] as any[] }),
+        supabase.from("symptom_entries").select("*").eq("patient_id", patient.id)
+          .gte("entry_date", sinceISO).order("entry_date", { ascending: false }),
+        supabase.from("medications").select("*").eq("patient_id", patient.id).eq("active", true),
+        supabase.from("medication_logs").select("*").eq("patient_id", patient.id).gte("log_date", sinceISO),
+      ]);
+
+      exportPatientPDF({
+        profile, patient,
+        doctor: doctor && doctorProfile ? {
+          full_name: doctorProfile.full_name,
+          crm: doctor.crm, crm_uf: doctor.crm_uf, specialty: doctor.specialty,
+        } : null,
+        cases,
+        exams: exams || [],
+        symptoms: syms || [],
+        medications: meds || [],
+        medLogs: logs || [],
+      });
+      toast.success("Prontuário PDF gerado");
+    } catch (e) {
+      console.error(e);
+      toast.error("Falha ao gerar PDF");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (loading || !patient) {
     return <div className="grid place-items-center min-h-[40vh]"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
@@ -60,9 +107,15 @@ export default function MedicoPacienteDetalhe() {
           { label: profile?.full_name || "Paciente" },
         ]}
         actions={
-          <Button variant="outline" asChild>
-            <Link to="/app/medico/pacientes"><ArrowLeft className="h-4 w-4" /> Voltar</Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExportPdf} disabled={exporting}>
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Exportar prontuário
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/app/medico/pacientes"><ArrowLeft className="h-4 w-4" /> Voltar</Link>
+            </Button>
+          </div>
         }
       />
 
