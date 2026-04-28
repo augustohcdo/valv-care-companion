@@ -12,6 +12,7 @@ import {
   HeartPulse,
   Stethoscope,
   FileText,
+  Calendar,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/Logo";
@@ -31,6 +32,7 @@ const doctorNav = [
   { to: "/app/medico/pacientes", label: "Pacientes", icon: Users },
   { to: "/app/medico/casos", label: "Casos clínicos", icon: FileText },
   { to: "/app/medico/casos/novo", label: "Novo caso", icon: FilePlus2 },
+  { to: "/app/medico/agenda", label: "Agenda", icon: Calendar },
   { to: "/app/medico/biblioteca", label: "Biblioteca", icon: BookOpen },
   { to: "/app/medico/perfil", label: "Perfil", icon: User },
 ];

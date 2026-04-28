@@ -35,6 +35,7 @@ import NovoCaso from "./pages/app/NovoCaso";
 import ListaCasos from "./pages/app/ListaCasos";
 import CasoDetalhe from "./pages/app/CasoDetalhe";
 import MedicoPacientes from "./pages/app/MedicoPacientes";
+import MedicoAgenda from "./pages/app/MedicoAgenda";
 import PacienteJornada from "./pages/app/PacienteJornada";
 import Biblioteca from "./pages/app/Biblioteca";
 import BibliotecaDetalhe from "./pages/app/BibliotecaDetalhe";
@@ -93,6 +94,10 @@ const App = () => (
               <Route
                 path="/app/medico/casos/:id"
                 element={<ProtectedRoute requiredType="medico"><CasoDetalhe /></ProtectedRoute>}
+              />
+              <Route
+                path="/app/medico/agenda"
+                element={<ProtectedRoute requiredType="medico"><MedicoAgenda /></ProtectedRoute>}
               />
               <Route
                 path="/app/medico/biblioteca"
