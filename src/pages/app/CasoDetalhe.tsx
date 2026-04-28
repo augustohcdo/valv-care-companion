@@ -123,6 +123,9 @@ export default function CasoDetalhe() {
         actions={
           <>
             <Button variant="outline" asChild><Link to="/app/medico/casos"><ArrowLeft className="h-4 w-4" /> Voltar</Link></Button>
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="h-4 w-4" /> Exportar PDF
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
