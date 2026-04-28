@@ -38,6 +38,7 @@ import MedicoPacientes from "./pages/app/MedicoPacientes";
 import MedicoPacienteDetalhe from "./pages/app/MedicoPacienteDetalhe";
 import MedicoAgenda from "./pages/app/MedicoAgenda";
 import MedicoColaboracoes from "./pages/app/MedicoColaboracoes";
+import MedicoRelatorios from "./pages/app/MedicoRelatorios";
 import PacienteJornada from "./pages/app/PacienteJornada";
 import Biblioteca from "./pages/app/Biblioteca";
 import BibliotecaDetalhe from "./pages/app/BibliotecaDetalhe";
@@ -110,6 +111,10 @@ const App = () => (
               <Route
                 path="/app/medico/colaboracoes"
                 element={<ProtectedRoute requiredType="medico"><MedicoColaboracoes /></ProtectedRoute>}
+              />
+              <Route
+                path="/app/medico/relatorios"
+                element={<ProtectedRoute requiredType="medico"><MedicoRelatorios /></ProtectedRoute>}
               />
               <Route
                 path="/app/medico/biblioteca"

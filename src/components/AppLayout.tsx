@@ -16,6 +16,7 @@ import {
   UsersRound,
   Activity,
   Pill,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/Logo";
@@ -37,6 +38,7 @@ const doctorNav = [
   { to: "/app/medico/casos/novo", label: "Novo caso", icon: FilePlus2 },
   { to: "/app/medico/agenda", label: "Agenda", icon: Calendar },
   { to: "/app/medico/colaboracoes", label: "Colaborações", icon: UsersRound },
+  { to: "/app/medico/relatorios", label: "Relatórios", icon: BarChart3 },
   { to: "/app/medico/biblioteca", label: "Biblioteca", icon: BookOpen },
   { to: "/app/medico/perfil", label: "Perfil", icon: User },
 ];
