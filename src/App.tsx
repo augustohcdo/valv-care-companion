@@ -61,6 +61,9 @@ const PacienteAprenderDetalhe = lazy(() => import("./pages/app/PacienteAprenderD
 const PacienteDiario = lazy(() => import("./pages/app/PacienteDiario"));
 const PacienteMedicacoes = lazy(() => import("./pages/app/PacienteMedicacoes"));
 const AppPrivacidade = lazy(() => import("./pages/app/Privacidade"));
+const HospitalPortal = lazy(() => import("./pages/app/HospitalPortal"));
+const AdminIntegracoes = lazy(() => import("./pages/app/AdminIntegracoes"));
+const PacienteIntegracoes = lazy(() => import("./pages/app/PacienteIntegracoes"));
 
 // QueryClient com defaults sensatos: cache mais longo, sem refetch agressivo
 const queryClient = new QueryClient({
@@ -126,6 +129,9 @@ const App = () => (
               <Route path="/app/paciente/perfil" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacientePerfil />, "form")}</ProtectedRoute>} />
 
               <Route path="/app/privacidade" element={<ProtectedRoute>{withSuspense(<AppPrivacidade />)}</ProtectedRoute>} />
+              <Route path="/app/hospital" element={<ProtectedRoute>{withSuspense(<HospitalPortal />)}</ProtectedRoute>} />
+              <Route path="/app/admin/integracoes" element={<ProtectedRoute>{withSuspense(<AdminIntegracoes />)}</ProtectedRoute>} />
+              <Route path="/app/paciente/integracoes" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteIntegracoes />)}</ProtectedRoute>} />
             </Route>
 
             {/* Público com layout */}
