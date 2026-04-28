@@ -23,7 +23,7 @@ import {
   caseStatusLabels,
   nyhaLabels,
 } from "@/lib/clinicalLabels";
-import { exportCasesToCsv } from "@/lib/casesCsv";
+import { queueCsvExport } from "@/lib/exporters";
 import { toast } from "sonner";
 
 const ALL = "__all__";
@@ -116,8 +116,12 @@ export default function ListaCasos() {
                   return;
                 }
                 const stamp = new Date().toISOString().slice(0, 10);
-                exportCasesToCsv(filtered as any, `casos-clinicos-${stamp}.csv`);
-                toast.success(`${filtered.length} caso(s) exportado(s)`);
+                queueCsvExport({
+                  label: `CSV — ${filtered.length} caso(s)`,
+                  filename: `casos-clinicos-${stamp}.csv`,
+                  cases: filtered as any,
+                });
+                toast.message("CSV enfileirado", { description: "Acompanhe na barra de exportações." });
               }}
             >
               <Download className="h-4 w-4" /> Exportar CSV
