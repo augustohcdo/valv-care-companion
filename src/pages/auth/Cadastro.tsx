@@ -166,6 +166,11 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
       await supabase.from("profiles").update({ phone: values.phone }).eq("user_id", signupData.user.id);
     }
 
+    // 5) Registra consentimentos granulares (somente se já há sessão)
+    if (signupData.session) {
+      await recordSignupConsents("medico");
+    }
+
     setSubmitting(false);
     toast.success("Conta criada com sucesso");
     navigate("/app/medico", { replace: true });
