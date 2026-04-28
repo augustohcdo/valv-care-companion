@@ -88,6 +88,10 @@ const App = () => (
                 element={<ProtectedRoute requiredType="medico"><MedicoPacientes /></ProtectedRoute>}
               />
               <Route
+                path="/app/medico/pacientes/:id"
+                element={<ProtectedRoute requiredType="medico"><MedicoPacienteDetalhe /></ProtectedRoute>}
+              />
+              <Route
                 path="/app/medico/casos"
                 element={<ProtectedRoute requiredType="medico"><ListaCasos /></ProtectedRoute>}
               />
@@ -139,6 +143,14 @@ const App = () => (
               <Route
                 path="/app/paciente/documentos"
                 element={<ProtectedRoute requiredType="paciente"><PacienteDocumentos /></ProtectedRoute>}
+              />
+              <Route
+                path="/app/paciente/diario"
+                element={<ProtectedRoute requiredType="paciente"><PacienteDiario /></ProtectedRoute>}
+              />
+              <Route
+                path="/app/paciente/medicacoes"
+                element={<ProtectedRoute requiredType="paciente"><PacienteMedicacoes /></ProtectedRoute>}
               />
               <Route
                 path="/app/paciente/aprender"
