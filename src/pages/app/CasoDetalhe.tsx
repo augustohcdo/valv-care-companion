@@ -24,6 +24,7 @@ import { CaseTimeline } from "@/components/CaseTimeline";
 import { CaseAppointments } from "@/components/CaseAppointments";
 import { RiskScoreCard } from "@/components/RiskScoreCard";
 import { exportCasePDF } from "@/lib/casePdf";
+import { CaseChat } from "@/components/CaseChat";
 
 export default function CasoDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -204,6 +205,9 @@ export default function CasoDetalhe() {
 
           {/* Documentos */}
           <CaseDocuments caseId={caso.id} />
+
+          {/* Chat com o paciente (só aparece quando há paciente vinculado) */}
+          {caso.patient_id && <CaseChat caseId={caso.id} viewerRole="medico" />}
         </div>
 
         {/* Coluna lateral */}
