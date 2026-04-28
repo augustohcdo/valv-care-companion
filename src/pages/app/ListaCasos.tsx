@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, FileText } from "lucide-react";
+import { Plus, Search, FileText, SlidersHorizontal, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -9,18 +9,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   valveTypeLabels,
   valveDiseaseLabels,
   severityLabels,
   severityColors,
   caseStatusLabels,
+  nyhaLabels,
 } from "@/lib/clinicalLabels";
+
+const ALL = "__all__";
 
 export default function ListaCasos() {
   const { user } = useAuth();
   const [cases, setCases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [q, setQ] = useState("");
+  const [valve, setValve] = useState<string>(ALL);
+  const [severity, setSeverity] = useState<string>(ALL);
+  const [status, setStatus] = useState<string>(ALL);
+  const [nyha, setNyha] = useState<string>(ALL);
+  const [sortBy, setSortBy] = useState<string>("recent");
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -34,16 +51,54 @@ export default function ListaCasos() {
     })();
   }, [user]);
 
-  const filtered = cases.filter((c) =>
-    !q.trim() || c.patient_name?.toLowerCase().includes(q.toLowerCase())
-  );
+  const activeFilters =
+    (valve !== ALL ? 1 : 0) +
+    (severity !== ALL ? 1 : 0) +
+    (status !== ALL ? 1 : 0) +
+    (nyha !== ALL ? 1 : 0);
+
+  const clearFilters = () => {
+    setValve(ALL);
+    setSeverity(ALL);
+    setStatus(ALL);
+    setNyha(ALL);
+  };
+
+  const filtered = useMemo(() => {
+    let list = cases.filter((c) => {
+      if (q.trim() && !c.patient_name?.toLowerCase().includes(q.toLowerCase())) return false;
+      if (valve !== ALL && c.valve_type !== valve) return false;
+      if (severity !== ALL && c.severity !== severity) return false;
+      if (status !== ALL && c.status !== status) return false;
+      if (nyha !== ALL && c.nyha !== nyha) return false;
+      return true;
+    });
+
+    const severityOrder: Record<string, number> = {
+      critica: 0, importante: 1, moderada: 2, leve: 3, indeterminada: 4,
+    };
+
+    if (sortBy === "recent") {
+      list.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+    } else if (sortBy === "oldest") {
+      list.sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
+    } else if (sortBy === "name") {
+      list.sort((a, b) => a.patient_name.localeCompare(b.patient_name));
+    } else if (sortBy === "severity") {
+      list.sort(
+        (a, b) => (severityOrder[a.severity] ?? 9) - (severityOrder[b.severity] ?? 9)
+      );
+    }
+
+    return list;
+  }, [cases, q, valve, severity, status, nyha, sortBy]);
 
   return (
     <div className="max-w-6xl">
       <PageHeader
         eyebrow="Casos clínicos"
         title="Meus casos"
-        description="Avaliações valvares registradas. Clique em um caso para ver detalhes e anexar exames."
+        description="Avaliações valvares registradas. Use filtros para localizar pacientes específicos rapidamente."
         breadcrumbs={[{ label: "Início", to: "/app/medico" }, { label: "Casos" }]}
         actions={
           <Button asChild>
@@ -52,19 +107,111 @@ export default function ListaCasos() {
         }
       />
 
-      <div className="relative max-w-md mb-5">
-        <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome do paciente..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="pl-9"
-        />
+      <div className="space-y-3 mb-5">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome do paciente..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button
+            variant={showFilters || activeFilters > 0 ? "default" : "outline"}
+            onClick={() => setShowFilters((v) => !v)}
+          >
+            <SlidersHorizontal className="h-4 w-4" /> Filtros
+            {activeFilters > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-[10px]">
+                {activeFilters}
+              </Badge>
+            )}
+          </Button>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="sm:w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recent">Mais recentes</SelectItem>
+              <SelectItem value="oldest">Mais antigos</SelectItem>
+              <SelectItem value="name">Nome (A–Z)</SelectItem>
+              <SelectItem value="severity">Severidade ↓</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {showFilters && (
+          <Card className="shadow-sm-soft">
+            <CardContent className="p-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Valva</label>
+                <Select value={valve} onValueChange={setValve}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL}>Todas</SelectItem>
+                    {Object.entries(valveTypeLabels).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Severidade</label>
+                <Select value={severity} onValueChange={setSeverity}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL}>Todas</SelectItem>
+                    {Object.entries(severityLabels).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Status</label>
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL}>Todos</SelectItem>
+                    {Object.entries(caseStatusLabels).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Classe NYHA</label>
+                <Select value={nyha} onValueChange={setNyha}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL}>Todas</SelectItem>
+                    {Object.entries(nyhaLabels).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {activeFilters > 0 && (
+                <div className="lg:col-span-4 flex justify-end">
+                  <Button variant="ghost" size="sm" onClick={clearFilters}>
+                    <X className="h-4 w-4" /> Limpar filtros
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {!loading && (
+          <p className="text-xs text-muted-foreground">
+            {filtered.length} de {cases.length} {cases.length === 1 ? "caso" : "casos"}
+          </p>
+        )}
       </div>
 
       {loading ? (
         <p className="text-muted-foreground text-sm">Carregando casos...</p>
-      ) : filtered.length === 0 ? (
+      ) : cases.length === 0 ? (
         <Card className="shadow-sm-soft">
           <CardContent className="p-10 text-center">
             <div className="h-14 w-14 rounded-xl bg-secondary mx-auto mb-4 grid place-items-center">
@@ -76,6 +223,16 @@ export default function ListaCasos() {
             </p>
             <Button asChild>
               <Link to="/app/medico/casos/novo"><Plus className="h-4 w-4" /> Criar primeiro caso</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : filtered.length === 0 ? (
+        <Card className="shadow-sm-soft">
+          <CardContent className="p-10 text-center">
+            <Search className="h-7 w-7 text-muted-foreground mx-auto mb-3 opacity-50" />
+            <p className="text-sm text-muted-foreground">Nenhum caso corresponde aos filtros aplicados.</p>
+            <Button variant="outline" size="sm" onClick={clearFilters} className="mt-3">
+              Limpar filtros
             </Button>
           </CardContent>
         </Card>
@@ -102,6 +259,7 @@ export default function ListaCasos() {
                       {severityLabels[c.severity]}
                     </Badge>
                     <Badge variant="secondary">{caseStatusLabels[c.status]}</Badge>
+                    {c.nyha && <Badge variant="outline">NYHA {c.nyha}</Badge>}
                   </div>
                 </CardContent>
               </Card>
