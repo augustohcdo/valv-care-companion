@@ -16,6 +16,10 @@ import {
 } from "recharts";
 import { exportCasesToCsv } from "@/lib/casesCsv";
 import { exportCohortPDF, type CohortMetrics } from "@/lib/cohortPdf";
+import { exportMonthlyReportPDF } from "@/lib/monthlyReportPdf";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { CalendarRange } from "lucide-react";
 import {
   severityLabels, valveTypeLabels, caseStatusLabels,
 } from "@/lib/clinicalLabels";
@@ -152,6 +156,71 @@ export default function MedicoRelatorios() {
     };
     exportCohortPDF(metrics);
     toast.success("Relatório PDF gerado");
+  };
+
+  // ---- Relatório consolidado por período ----
+  const today = new Date().toISOString().slice(0, 10);
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  const [periodFrom, setPeriodFrom] = useState(monthStart.toISOString().slice(0, 10));
+  const [periodTo, setPeriodTo] = useState(today);
+  const [generatingPeriod, setGeneratingPeriod] = useState(false);
+
+  const handleExportPeriodPdf = async () => {
+    if (!doctorInfo) return;
+    if (periodFrom > periodTo) {
+      toast.error("Período inválido");
+      return;
+    }
+    setGeneratingPeriod(true);
+    try {
+      const fromIso = new Date(periodFrom + "T00:00:00").toISOString();
+      const toIso = new Date(periodTo + "T23:59:59").toISOString();
+
+      const periodCases = cases.filter(
+        (c) => c.created_at >= fromIso && c.created_at <= toIso,
+      );
+      const caseIds = periodCases.map((c) => c.id);
+
+      const [{ data: appts }, { data: events }] = await Promise.all([
+        caseIds.length
+          ? supabase
+              .from("appointments")
+              .select("scheduled_at, status, case_id")
+              .in("case_id", caseIds)
+              .gte("scheduled_at", fromIso)
+              .lte("scheduled_at", toIso)
+          : Promise.resolve({ data: [] as any[] }),
+        caseIds.length
+          ? supabase
+              .from("case_events")
+              .select("event_type, event_date, case_id")
+              .in("case_id", caseIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      exportMonthlyReportPDF({
+        doctor:
+          doctorInfo && profile
+            ? {
+                full_name: profile.full_name,
+                crm: doctorInfo.crm,
+                crm_uf: doctorInfo.crm_uf,
+                specialty: doctorInfo.specialty,
+              }
+            : null,
+        periodStart: new Date(periodFrom),
+        periodEnd: new Date(periodTo),
+        cases: periodCases,
+        appointments: (appts ?? []) as any,
+        events: (events ?? []) as any,
+      });
+      toast.success(`Relatório de ${periodCases.length} caso(s) gerado`);
+    } catch (e: any) {
+      toast.error("Falha ao gerar relatório", { description: e.message });
+    } finally {
+      setGeneratingPeriod(false);
+    }
   };
 
   if (loading) {
