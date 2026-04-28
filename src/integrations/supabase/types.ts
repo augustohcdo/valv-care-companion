@@ -1036,6 +1036,8 @@ export type Database = {
         | "data_sharing_doctor"
         | "email_communications"
         | "ai_processing"
+        | "cookies_functional"
+        | "cookies_analytics"
       document_type:
         | "ecocardiograma"
         | "ressonancia"
@@ -1249,6 +1251,8 @@ export const Constants = {
         "data_sharing_doctor",
         "email_communications",
         "ai_processing",
+        "cookies_functional",
+        "cookies_analytics",
       ],
       document_type: [
         "ecocardiograma",
