@@ -1057,7 +1057,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "medico" | "paciente"
+      app_role: "admin" | "medico" | "paciente" | "hospital_admin"
       appointment_status:
         | "agendado"
         | "realizado"
@@ -1089,6 +1089,7 @@ export type Database = {
         | "ai_processing"
         | "cookies_functional"
         | "cookies_analytics"
+        | "integracao_hospitalar"
       document_type:
         | "ecocardiograma"
         | "ressonancia"
@@ -1285,7 +1286,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "medico", "paciente"],
+      app_role: ["admin", "medico", "paciente", "hospital_admin"],
       appointment_status: [
         "agendado",
         "realizado",
@@ -1320,6 +1321,7 @@ export const Constants = {
         "ai_processing",
         "cookies_functional",
         "cookies_analytics",
+        "integracao_hospitalar",
       ],
       document_type: [
         "ecocardiograma",
