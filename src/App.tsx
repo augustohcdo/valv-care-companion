@@ -34,6 +34,7 @@ const Termos = lazy(() => import("./pages/public/Termos"));
 const PrivacidadePublic = lazy(() => import("./pages/public/Privacidade"));
 const AvisoMedico = lazy(() => import("./pages/public/AvisoMedico"));
 const CookiesPage = lazy(() => import("./pages/public/Cookies"));
+const DPOPage = lazy(() => import("./pages/public/DPO"));
 
 // App (autenticado): lazy — corta drasticamente o bundle inicial
 const MedicoHome = lazy(() => import("./pages/app/MedicoHome"));
@@ -138,6 +139,7 @@ const App = () => (
               <Route path="/termos" element={withSuspense(<Termos />)} />
               <Route path="/privacidade" element={withSuspense(<PrivacidadePublic />)} />
               <Route path="/cookies" element={withSuspense(<CookiesPage />)} />
+              <Route path="/dpo" element={withSuspense(<DPOPage />, "form")} />
               <Route path="/aviso-medico" element={withSuspense(<AvisoMedico />)} />
 
               <Route
