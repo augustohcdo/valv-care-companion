@@ -65,7 +65,7 @@ export function CommandPalette() {
   const { user, profile } = useAuth();
   const isDoctor = profile?.account_type === "medico";
 
-  // ⌘K / Ctrl+K
+  // ⌘K / Ctrl+K + evento custom para botões
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -73,8 +73,13 @@ export function CommandPalette() {
         setOpen((o) => !o);
       }
     };
+    const evt = () => setOpen(true);
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener(PALETTE_EVENT, evt);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      window.removeEventListener(PALETTE_EVENT, evt);
+    };
   }, []);
 
   // Busca server-side com debounce
