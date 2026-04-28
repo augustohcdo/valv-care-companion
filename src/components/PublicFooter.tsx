@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Logo } from "./Logo";
-import { ShieldCheck, BookOpen, FileText, Mail } from "lucide-react";
+import { TrustBadges } from "./TrustBadges";
+import { ShieldCheck, BookOpen, FileText } from "lucide-react";
 
 export const PublicFooter = () => {
   return (
@@ -49,13 +50,13 @@ export const PublicFooter = () => {
           </div>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-border flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} ValvePath. Versão de demonstração — não inserir dados reais de pacientes.
-          </p>
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-success" /> LGPD-aware</span>
-            <span>Baseado em diretrizes ESC/EACTS e ACC/AHA</span>
+        <div className="mt-12 pt-6 border-t border-border space-y-4">
+          <TrustBadges />
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <p className="text-xs text-muted-foreground">
+              © {new Date().getFullYear()} ValvePath. Versão de demonstração — não inserir dados reais de pacientes.
+            </p>
+            <span className="text-xs text-muted-foreground">Baseado em diretrizes ESC/EACTS e ACC/AHA</span>
           </div>
         </div>
       </div>
