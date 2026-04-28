@@ -497,6 +497,57 @@ export type Database = {
         }
         Relationships: []
       }
+      dpo_requests: {
+        Row: {
+          created_at: string
+          details: string | null
+          due_at: string
+          id: string
+          legal_basis: string | null
+          requester_cpf: string | null
+          requester_email: string
+          requester_name: string
+          responded_at: string | null
+          response: string | null
+          right_type: Database["public"]["Enums"]["dpo_right_type"]
+          status: Database["public"]["Enums"]["dpo_request_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          due_at?: string
+          id?: string
+          legal_basis?: string | null
+          requester_cpf?: string | null
+          requester_email: string
+          requester_name: string
+          responded_at?: string | null
+          response?: string | null
+          right_type: Database["public"]["Enums"]["dpo_right_type"]
+          status?: Database["public"]["Enums"]["dpo_request_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          due_at?: string
+          id?: string
+          legal_basis?: string | null
+          requester_cpf?: string | null
+          requester_email?: string
+          requester_name?: string
+          responded_at?: string | null
+          response?: string | null
+          right_type?: Database["public"]["Enums"]["dpo_right_type"]
+          status?: Database["public"]["Enums"]["dpo_request_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       medication_logs: {
         Row: {
           created_at: string
@@ -1048,6 +1099,22 @@ export type Database = {
         | "receita"
         | "exame_laboratorial"
         | "outro"
+      dpo_request_status:
+        | "recebido"
+        | "em_verificacao"
+        | "atendido"
+        | "negado"
+        | "parcialmente_atendido"
+      dpo_right_type:
+        | "confirmacao"
+        | "acesso"
+        | "correcao"
+        | "anonimizacao"
+        | "portabilidade"
+        | "eliminacao"
+        | "compartilhamento"
+        | "consentimento"
+        | "revisao"
       event_type:
         | "consulta"
         | "exame"
@@ -1264,6 +1331,24 @@ export const Constants = {
         "receita",
         "exame_laboratorial",
         "outro",
+      ],
+      dpo_request_status: [
+        "recebido",
+        "em_verificacao",
+        "atendido",
+        "negado",
+        "parcialmente_atendido",
+      ],
+      dpo_right_type: [
+        "confirmacao",
+        "acesso",
+        "correcao",
+        "anonimizacao",
+        "portabilidade",
+        "eliminacao",
+        "compartilhamento",
+        "consentimento",
+        "revisao",
       ],
       event_type: [
         "consulta",
