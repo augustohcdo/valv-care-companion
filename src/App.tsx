@@ -129,6 +129,9 @@ const App = () => (
               <Route path="/app/paciente/perfil" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacientePerfil />, "form")}</ProtectedRoute>} />
 
               <Route path="/app/privacidade" element={<ProtectedRoute>{withSuspense(<AppPrivacidade />)}</ProtectedRoute>} />
+              <Route path="/app/hospital" element={<ProtectedRoute>{withSuspense(<HospitalPortal />)}</ProtectedRoute>} />
+              <Route path="/app/admin/integracoes" element={<ProtectedRoute>{withSuspense(<AdminIntegracoes />)}</ProtectedRoute>} />
+              <Route path="/app/paciente/integracoes" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteIntegracoes />)}</ProtectedRoute>} />
             </Route>
 
             {/* Público com layout */}
