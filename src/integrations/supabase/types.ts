@@ -398,6 +398,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "clinical_cases_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "clinical_cases_patient_id_fkey"
             columns: ["patient_id"]
             isOneToOne: false
@@ -697,6 +704,13 @@ export type Database = {
             referencedRelation: "doctors"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "patients_linked_doctor_id_fkey"
+            columns: ["linked_doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -890,7 +904,36 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      doctors_directory: {
+        Row: {
+          city: string | null
+          created_at: string | null
+          crm_uf: string | null
+          id: string | null
+          institution: string | null
+          specialty: string | null
+          verified: boolean | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string | null
+          crm_uf?: string | null
+          id?: string | null
+          institution?: string | null
+          specialty?: string | null
+          verified?: boolean | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string | null
+          crm_uf?: string | null
+          id?: string | null
+          institution?: string | null
+          specialty?: string | null
+          verified?: boolean | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       can_access_case: {
