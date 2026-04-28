@@ -9,6 +9,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import { Button } from "@/components/ui/button";
 import {
   Activity,
   BookOpen,
@@ -17,6 +18,7 @@ import {
   FileText,
   HeartPulse,
   Pill,
+  Search,
   ShieldCheck,
   Stethoscope,
   Users,
@@ -25,6 +27,27 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+
+const PALETTE_EVENT = "valvepath:open-command-palette";
+
+export function CommandPaletteTrigger() {
+  const isMac =
+    typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="hidden md:inline-flex h-9 px-2.5 gap-2 text-muted-foreground"
+      onClick={() => window.dispatchEvent(new Event(PALETTE_EVENT))}
+    >
+      <Search className="h-3.5 w-3.5" />
+      <span className="text-xs">Buscar...</span>
+      <kbd className="ml-1 text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border">
+        {isMac ? "⌘" : "Ctrl"} K
+      </kbd>
+    </Button>
+  );
+}
 
 interface SearchResult {
   result_type: string;
