@@ -30,6 +30,7 @@ import { GuidelineRecommendations } from "@/components/GuidelineRecommendations"
 import { CaseCollaborators } from "@/components/CaseCollaborators";
 import { CaseDiscussion } from "@/components/CaseDiscussion";
 import { ClinicalAIPanel } from "@/components/ClinicalAIPanel";
+import { CaseExternalData } from "@/components/CaseExternalData";
 
 export default function CasoDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -42,6 +43,7 @@ export default function CasoDetalhe() {
   const [saving, setSaving] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [canComment, setCanComment] = useState(false);
+  const [patientUserId, setPatientUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -73,6 +75,11 @@ export default function CasoDetalhe() {
           .eq("doctor_id", doc.id)
           .maybeSingle();
         setCanComment(collab?.status === "aceito" && collab?.access_level === "comentar");
+      }
+
+      if (data.patient_id) {
+        const { data: pat } = await supabase.from("patients").select("user_id").eq("id", data.patient_id).maybeSingle();
+        setPatientUserId(pat?.user_id ?? null);
       }
       setLoading(false);
     })();
@@ -244,6 +251,9 @@ export default function CasoDetalhe() {
 
           {/* Documentos */}
           <CaseDocuments caseId={caso.id} />
+
+          {/* Dados externos (FHIR de hospitais parceiros) */}
+          <CaseExternalData caseId={caso.id} patientUserId={patientUserId} />
 
           {/* Chat com o paciente (somente médico responsável) */}
           {isOwner && caso.patient_id && <CaseChat caseId={caso.id} viewerRole="medico" />}
