@@ -152,6 +152,7 @@ export const AppLayout = () => {
           <div className="lg:hidden"><Logo /></div>
           <div className="flex-1" />
 
+          <CommandPaletteTrigger />
           <NotificationsBell />
 
           <DropdownMenu>
