@@ -17,6 +17,7 @@ import {
   Activity,
   Pill,
   BarChart3,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/Logo";
@@ -171,6 +172,11 @@ export const AppLayout = () => {
               <DropdownMenuItem asChild>
                 <Link to={isDoctor ? "/app/medico/perfil" : "/app/paciente/perfil"}>
                   <User className="h-4 w-4 mr-2" /> Meu perfil
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/app/privacidade">
+                  <ShieldCheck className="h-4 w-4 mr-2" /> Privacidade e LGPD
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
