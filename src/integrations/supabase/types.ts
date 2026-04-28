@@ -142,6 +142,78 @@ export type Database = {
         }
         Relationships: []
       }
+      case_exams: {
+        Row: {
+          bnp: number | null
+          case_id: string
+          created_at: string
+          created_by: string
+          document_id: string | null
+          ejection_fraction: number | null
+          exam_date: string
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          id: string
+          lv_diameter: number | null
+          mean_gradient: number | null
+          notes: string | null
+          nt_probnp: number | null
+          peak_gradient: number | null
+          psap: number | null
+          regurgitation_grade: string | null
+          septal_thickness: number | null
+          six_min_walk: number | null
+          title: string | null
+          updated_at: string
+          valve_area: number | null
+        }
+        Insert: {
+          bnp?: number | null
+          case_id: string
+          created_at?: string
+          created_by: string
+          document_id?: string | null
+          ejection_fraction?: number | null
+          exam_date?: string
+          exam_type?: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          lv_diameter?: number | null
+          mean_gradient?: number | null
+          notes?: string | null
+          nt_probnp?: number | null
+          peak_gradient?: number | null
+          psap?: number | null
+          regurgitation_grade?: string | null
+          septal_thickness?: number | null
+          six_min_walk?: number | null
+          title?: string | null
+          updated_at?: string
+          valve_area?: number | null
+        }
+        Update: {
+          bnp?: number | null
+          case_id?: string
+          created_at?: string
+          created_by?: string
+          document_id?: string | null
+          ejection_fraction?: number | null
+          exam_date?: string
+          exam_type?: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          lv_diameter?: number | null
+          mean_gradient?: number | null
+          notes?: string | null
+          nt_probnp?: number | null
+          peak_gradient?: number | null
+          psap?: number | null
+          regurgitation_grade?: string | null
+          septal_thickness?: number | null
+          six_min_walk?: number | null
+          title?: string | null
+          updated_at?: string
+          valve_area?: number | null
+        }
+        Relationships: []
+      }
       case_messages: {
         Row: {
           body: string
@@ -561,6 +633,15 @@ export type Database = {
         | "mudanca_severidade"
         | "observacao"
         | "medicacao"
+      exam_type:
+        | "eco"
+        | "ecg"
+        | "bnp"
+        | "ergometria"
+        | "hemodinamica"
+        | "ressonancia"
+        | "tomografia"
+        | "outro"
       notification_type:
         | "patient_linked"
         | "patient_unlinked"
@@ -755,6 +836,16 @@ export const Constants = {
         "mudanca_severidade",
         "observacao",
         "medicacao",
+      ],
+      exam_type: [
+        "eco",
+        "ecg",
+        "bnp",
+        "ergometria",
+        "hemodinamica",
+        "ressonancia",
+        "tomografia",
+        "outro",
       ],
       notification_type: [
         "patient_linked",
