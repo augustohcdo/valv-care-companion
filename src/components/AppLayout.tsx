@@ -23,6 +23,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { NotificationsBell } from "@/components/NotificationsBell";
+import { CommandPalette, CommandPaletteTrigger } from "@/components/CommandPalette";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -151,6 +152,7 @@ export const AppLayout = () => {
           <div className="lg:hidden"><Logo /></div>
           <div className="flex-1" />
 
+          <CommandPaletteTrigger />
           <NotificationsBell />
 
           <DropdownMenu>
@@ -191,6 +193,8 @@ export const AppLayout = () => {
           <Outlet />
         </main>
       </div>
+
+      <CommandPalette />
     </div>
   );
 };

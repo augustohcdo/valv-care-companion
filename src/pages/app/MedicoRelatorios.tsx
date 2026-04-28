@@ -16,6 +16,10 @@ import {
 } from "recharts";
 import { exportCasesToCsv } from "@/lib/casesCsv";
 import { exportCohortPDF, type CohortMetrics } from "@/lib/cohortPdf";
+import { exportMonthlyReportPDF } from "@/lib/monthlyReportPdf";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { CalendarRange } from "lucide-react";
 import {
   severityLabels, valveTypeLabels, caseStatusLabels,
 } from "@/lib/clinicalLabels";
@@ -154,6 +158,71 @@ export default function MedicoRelatorios() {
     toast.success("Relatório PDF gerado");
   };
 
+  // ---- Relatório consolidado por período ----
+  const today = new Date().toISOString().slice(0, 10);
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  const [periodFrom, setPeriodFrom] = useState(monthStart.toISOString().slice(0, 10));
+  const [periodTo, setPeriodTo] = useState(today);
+  const [generatingPeriod, setGeneratingPeriod] = useState(false);
+
+  const handleExportPeriodPdf = async () => {
+    if (!doctorInfo) return;
+    if (periodFrom > periodTo) {
+      toast.error("Período inválido");
+      return;
+    }
+    setGeneratingPeriod(true);
+    try {
+      const fromIso = new Date(periodFrom + "T00:00:00").toISOString();
+      const toIso = new Date(periodTo + "T23:59:59").toISOString();
+
+      const periodCases = cases.filter(
+        (c) => c.created_at >= fromIso && c.created_at <= toIso,
+      );
+      const caseIds = periodCases.map((c) => c.id);
+
+      const [{ data: appts }, { data: events }] = await Promise.all([
+        caseIds.length
+          ? supabase
+              .from("appointments")
+              .select("scheduled_at, status, case_id")
+              .in("case_id", caseIds)
+              .gte("scheduled_at", fromIso)
+              .lte("scheduled_at", toIso)
+          : Promise.resolve({ data: [] as any[] }),
+        caseIds.length
+          ? supabase
+              .from("case_events")
+              .select("event_type, event_date, case_id")
+              .in("case_id", caseIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      exportMonthlyReportPDF({
+        doctor:
+          doctorInfo && profile
+            ? {
+                full_name: profile.full_name,
+                crm: doctorInfo.crm,
+                crm_uf: doctorInfo.crm_uf,
+                specialty: doctorInfo.specialty,
+              }
+            : null,
+        periodStart: new Date(periodFrom),
+        periodEnd: new Date(periodTo),
+        cases: periodCases,
+        appointments: (appts ?? []) as any,
+        events: (events ?? []) as any,
+      });
+      toast.success(`Relatório de ${periodCases.length} caso(s) gerado`);
+    } catch (e: any) {
+      toast.error("Falha ao gerar relatório", { description: e.message });
+    } finally {
+      setGeneratingPeriod(false);
+    }
+  };
+
   if (loading) {
     return <div className="grid place-items-center min-h-[40vh]"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   }
@@ -200,6 +269,48 @@ export default function MedicoRelatorios() {
           </CardContent>
         </Card>
       )}
+
+      {/* Relatório consolidado por período */}
+      <Card className="shadow-sm-soft border-primary/20">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarRange className="h-4 w-4 text-primary" />
+            Relatório consolidado por período
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Gere um PDF com volume, severidade, taxa de intervenção, consultas realizadas e
+            tempo médio até intervenção em qualquer intervalo de datas.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 items-end">
+            <div className="flex-1 w-full sm:w-auto">
+              <Label className="text-xs">De</Label>
+              <Input
+                type="date"
+                value={periodFrom}
+                onChange={(e) => setPeriodFrom(e.target.value)}
+              />
+            </div>
+            <div className="flex-1 w-full sm:w-auto">
+              <Label className="text-xs">Até</Label>
+              <Input
+                type="date"
+                value={periodTo}
+                onChange={(e) => setPeriodTo(e.target.value)}
+              />
+            </div>
+            <Button onClick={handleExportPeriodPdf} disabled={generatingPeriod}>
+              {generatingPeriod ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Gerar PDF do período
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Distribuições */}
       <div className="grid lg:grid-cols-2 gap-4">

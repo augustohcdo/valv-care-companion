@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, FileText, SlidersHorizontal, X, Download } from "lucide-react";
+import { Plus, Search, FileText, SlidersHorizontal, X, Download, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -31,6 +31,7 @@ const ALL = "__all__";
 export default function ListaCasos() {
   const { user } = useAuth();
   const [cases, setCases] = useState<any[]>([]);
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   const [q, setQ] = useState("");
@@ -38,17 +39,19 @@ export default function ListaCasos() {
   const [severity, setSeverity] = useState<string>(ALL);
   const [status, setStatus] = useState<string>(ALL);
   const [nyha, setNyha] = useState<string>(ALL);
+  const [pendingOnly, setPendingOnly] = useState(false);
   const [sortBy, setSortBy] = useState<string>("recent");
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("clinical_cases")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [{ data }, { data: pend }] = await Promise.all([
+        supabase.from("clinical_cases").select("*").order("created_at", { ascending: false }),
+        supabase.rpc("cases_pending_action", { _doctor_user_id: user.id }),
+      ]);
       setCases(data || []);
+      setPendingIds(new Set(((pend as any[]) || []).map((p) => p.case_id)));
       setLoading(false);
     })();
   }, [user]);
@@ -73,6 +76,7 @@ export default function ListaCasos() {
       if (severity !== ALL && c.severity !== severity) return false;
       if (status !== ALL && c.status !== status) return false;
       if (nyha !== ALL && c.nyha !== nyha) return false;
+      if (pendingOnly && !pendingIds.has(c.id)) return false;
       return true;
     });
 
@@ -93,7 +97,7 @@ export default function ListaCasos() {
     }
 
     return list;
-  }, [cases, q, valve, severity, status, nyha, sortBy]);
+  }, [cases, q, valve, severity, status, nyha, pendingOnly, pendingIds, sortBy]);
 
   return (
     <div className="max-w-6xl">
@@ -156,6 +160,18 @@ export default function ListaCasos() {
               <SelectItem value="severity">Severidade ↓</SelectItem>
             </SelectContent>
           </Select>
+          {pendingIds.size > 0 && (
+            <Button
+              variant={pendingOnly ? "default" : "outline"}
+              onClick={() => setPendingOnly((v) => !v)}
+              className="gap-1.5"
+            >
+              <AlertTriangle className="h-4 w-4" /> Pendentes
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-[10px]">
+                {pendingIds.size}
+              </Badge>
+            </Button>
+          )}
         </div>
 
         {showFilters && (
@@ -264,6 +280,11 @@ export default function ListaCasos() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-serif text-lg text-primary truncate">{c.patient_name}</h3>
                       {c.patient_age && <span className="text-xs text-muted-foreground">{c.patient_age} anos</span>}
+                      {pendingIds.has(c.id) && (
+                        <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700 bg-amber-50">
+                          <AlertTriangle className="h-3 w-3 mr-1" /> Ação pendente
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground mt-0.5">
                       {valveTypeLabels[c.valve_type]} — {valveDiseaseLabels[c.valve_disease]}

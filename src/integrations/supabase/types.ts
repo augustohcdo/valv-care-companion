@@ -738,6 +738,39 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_filters: {
+        Row: {
+          config: Json
+          created_at: string
+          icon: string | null
+          id: string
+          name: string
+          scope: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          icon?: string | null
+          id?: string
+          name: string
+          scope?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          icon?: string | null
+          id?: string
+          name?: string
+          scope?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       symptom_entries: {
         Row: {
           bp_diastolic: number | null
@@ -868,6 +901,17 @@ export type Database = {
         Args: { _case_id: string; _user_id: string }
         Returns: boolean
       }
+      cases_pending_action: {
+        Args: { _doctor_user_id: string }
+        Returns: {
+          case_id: string
+          days_inactive: number
+          last_activity: string
+          patient_name: string
+          severity: Database["public"]["Enums"]["severity_level"]
+          status: Database["public"]["Enums"]["case_status"]
+        }[]
+      }
       create_notification: {
         Args: {
           _body?: string
@@ -879,6 +923,7 @@ export type Database = {
         }
         Returns: string
       }
+      doctor_weekly_digest: { Args: { _doctor_user_id: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -905,6 +950,16 @@ export type Database = {
           _user_agent?: string
         }
         Returns: string
+      }
+      search_global: {
+        Args: { _query: string; _user_id: string }
+        Returns: {
+          link: string
+          result_id: string
+          result_type: string
+          subtitle: string
+          title: string
+        }[]
       }
     }
     Enums: {
