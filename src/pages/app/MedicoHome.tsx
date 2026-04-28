@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DashboardCharts } from "@/components/DashboardCharts";
+import { AdvancedStats } from "@/components/AdvancedStats";
 
 export default function MedicoHome() {
   const { user, profile } = useAuth();
@@ -35,7 +36,7 @@ export default function MedicoHome() {
           supabase.from("clinical_cases").select("id", { count: "exact", head: true }).eq("doctor_id", doc.id),
           supabase.from("clinical_cases").select("id", { count: "exact", head: true })
             .eq("doctor_id", doc.id).in("status", ["avaliacao_inicial", "em_seguimento", "pre_intervencao"]),
-          supabase.from("clinical_cases").select("valve_type, severity, status, nyha").eq("doctor_id", doc.id),
+          supabase.from("clinical_cases").select("id, created_at, valve_type, severity, status, nyha").eq("doctor_id", doc.id),
         ]);
         setPatientCount(pc ?? 0);
         setCaseCount(cc ?? 0);
@@ -84,6 +85,12 @@ export default function MedicoHome() {
           value={doctor?.verified ? "Verificado" : "Pendente"}
           tone={doctor?.verified ? "success" : "warning"}
         />
+      </div>
+
+      {/* Estatísticas avançadas */}
+      <div>
+        <h2 className="font-serif text-xl text-primary mb-3">Estatísticas avançadas</h2>
+        <AdvancedStats cases={cases} />
       </div>
 
       {/* Dashboards visuais */}
