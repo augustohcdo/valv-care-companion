@@ -36,6 +36,7 @@ export const PublicFooter = () => {
               <li><Link to="/biblioteca" className="text-muted-foreground hover:text-primary">Biblioteca clínica</Link></li>
               <li><Link to="/referencias" className="text-muted-foreground hover:text-primary">Referências e diretrizes</Link></li>
               <li><Link to="/auth/cadastro?type=medico" className="text-muted-foreground hover:text-primary">Cadastro profissional</Link></li>
+              <li><Link to="/parceiros" className="text-muted-foreground hover:text-primary">Para hospitais (FHIR)</Link></li>
             </ul>
           </div>
 
