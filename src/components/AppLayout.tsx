@@ -12,11 +12,11 @@ import {
   HeartPulse,
   Stethoscope,
   FileText,
-  Bell,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
+import { NotificationsBell } from "@/components/NotificationsBell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -139,9 +139,7 @@ export const AppLayout = () => {
           <div className="lg:hidden"><Logo /></div>
           <div className="flex-1" />
 
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
-            <Bell className="h-4 w-4" />
-          </Button>
+          <NotificationsBell />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

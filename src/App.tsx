@@ -40,6 +40,8 @@ import Biblioteca from "./pages/app/Biblioteca";
 import BibliotecaDetalhe from "./pages/app/BibliotecaDetalhe";
 import MedicoPerfil from "./pages/app/MedicoPerfil";
 import PacientePerfil from "./pages/app/PacientePerfil";
+import PacienteMedico from "./pages/app/PacienteMedico";
+import PacienteDocumentos from "./pages/app/PacienteDocumentos";
 
 const queryClient = new QueryClient();
 
@@ -117,19 +119,11 @@ const App = () => (
               />
               <Route
                 path="/app/paciente/medico"
-                element={
-                  <ProtectedRoute requiredType="paciente">
-                    <ComingSoon eyebrow="Próxima fase" title="Meu médico" description="Vincule ou troque seu médico pelo CRM." />
-                  </ProtectedRoute>
-                }
+                element={<ProtectedRoute requiredType="paciente"><PacienteMedico /></ProtectedRoute>}
               />
               <Route
                 path="/app/paciente/documentos"
-                element={
-                  <ProtectedRoute requiredType="paciente">
-                    <ComingSoon eyebrow="Próxima fase" title="Meus documentos" description="Upload organizado de exames e laudos." />
-                  </ProtectedRoute>
-                }
+                element={<ProtectedRoute requiredType="paciente"><PacienteDocumentos /></ProtectedRoute>}
               />
               <Route
                 path="/app/paciente/perfil"
