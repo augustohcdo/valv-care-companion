@@ -24,6 +24,7 @@ import { Logo } from "@/components/Logo";
 import { NotificationsBell } from "@/components/NotificationsBell";
 import { CommandPalette, CommandPaletteTrigger } from "@/components/CommandPalette";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { ExportQueueDock } from "@/components/ExportQueueDock";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -256,6 +257,7 @@ export const AppLayout = () => {
       <MobileBottomNav variant={isDoctor ? "medico" : "paciente"} />
 
       <CommandPalette />
+      <ExportQueueDock />
     </div>
   );
 };

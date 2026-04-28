@@ -14,8 +14,8 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { exportCasesToCsv } from "@/lib/casesCsv";
 import type { CohortMetrics } from "@/lib/cohortPdf";
+import { queueCsvExport, queueCohortPdf, queueMonthlyReportPdf } from "@/lib/exporters";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CalendarRange } from "lucide-react";
@@ -124,11 +124,15 @@ export default function MedicoRelatorios() {
 
   const handleExportCsv = () => {
     if (!cases.length) { toast.error("Sem casos para exportar"); return; }
-    exportCasesToCsv(cases, `valvepath-casos-${new Date().toISOString().slice(0, 10)}.csv`);
-    toast.success("CSV exportado");
+    queueCsvExport({
+      label: "CSV — todos os casos",
+      filename: `valvepath-casos-${new Date().toISOString().slice(0, 10)}.csv`,
+      cases,
+    });
+    toast.message("CSV enfileirado", { description: "Acompanhe na barra de exportações." });
   };
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = () => {
     if (!cases.length) { toast.error("Sem casos para exportar"); return; }
     const metrics: CohortMetrics = {
       doctor: doctorInfo && profile ? {
@@ -153,9 +157,8 @@ export default function MedicoRelatorios() {
           status: c.status, created_at: c.created_at,
         })),
     };
-    const { exportCohortPDF } = await import("@/lib/cohortPdf");
-    exportCohortPDF(metrics);
-    toast.success("Relatório PDF gerado");
+    queueCohortPdf({ label: "Relatório executivo (PDF)", metrics });
+    toast.message("Relatório enfileirado", { description: "Acompanhe na barra de exportações." });
   };
 
   // ---- Relatório consolidado por período ----
@@ -166,62 +169,61 @@ export default function MedicoRelatorios() {
   const [periodTo, setPeriodTo] = useState(today);
   const [generatingPeriod, setGeneratingPeriod] = useState(false);
 
-  const handleExportPeriodPdf = async () => {
+  const handleExportPeriodPdf = () => {
     if (!doctorInfo) return;
     if (periodFrom > periodTo) {
       toast.error("Período inválido");
       return;
     }
     setGeneratingPeriod(true);
-    try {
-      const fromIso = new Date(periodFrom + "T00:00:00").toISOString();
-      const toIso = new Date(periodTo + "T23:59:59").toISOString();
+    queueMonthlyReportPdf({
+      label: `Relatório ${periodFrom} → ${periodTo}`,
+      payload: async () => {
+        const fromIso = new Date(periodFrom + "T00:00:00").toISOString();
+        const toIso = new Date(periodTo + "T23:59:59").toISOString();
 
-      const periodCases = cases.filter(
-        (c) => c.created_at >= fromIso && c.created_at <= toIso,
-      );
-      const caseIds = periodCases.map((c) => c.id);
+        const periodCases = cases.filter(
+          (c) => c.created_at >= fromIso && c.created_at <= toIso,
+        );
+        const caseIds = periodCases.map((c) => c.id);
 
-      const [{ data: appts }, { data: events }] = await Promise.all([
-        caseIds.length
-          ? supabase
-              .from("appointments")
-              .select("scheduled_at, status, case_id")
-              .in("case_id", caseIds)
-              .gte("scheduled_at", fromIso)
-              .lte("scheduled_at", toIso)
-          : Promise.resolve({ data: [] as any[] }),
-        caseIds.length
-          ? supabase
-              .from("case_events")
-              .select("event_type, event_date, case_id")
-              .in("case_id", caseIds)
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
+        const [{ data: appts }, { data: events }] = await Promise.all([
+          caseIds.length
+            ? supabase
+                .from("appointments")
+                .select("scheduled_at, status, case_id")
+                .in("case_id", caseIds)
+                .gte("scheduled_at", fromIso)
+                .lte("scheduled_at", toIso)
+            : Promise.resolve({ data: [] as any[] }),
+          caseIds.length
+            ? supabase
+                .from("case_events")
+                .select("event_type, event_date, case_id")
+                .in("case_id", caseIds)
+            : Promise.resolve({ data: [] as any[] }),
+        ]);
 
-      const { exportMonthlyReportPDF } = await import("@/lib/monthlyReportPdf");
-      exportMonthlyReportPDF({
-        doctor:
-          doctorInfo && profile
-            ? {
-                full_name: profile.full_name,
-                crm: doctorInfo.crm,
-                crm_uf: doctorInfo.crm_uf,
-                specialty: doctorInfo.specialty,
-              }
-            : null,
-        periodStart: new Date(periodFrom),
-        periodEnd: new Date(periodTo),
-        cases: periodCases,
-        appointments: (appts ?? []) as any,
-        events: (events ?? []) as any,
-      });
-      toast.success(`Relatório de ${periodCases.length} caso(s) gerado`);
-    } catch (e: any) {
-      toast.error("Falha ao gerar relatório", { description: e.message });
-    } finally {
-      setGeneratingPeriod(false);
-    }
+        return {
+          doctor:
+            doctorInfo && profile
+              ? {
+                  full_name: profile.full_name,
+                  crm: doctorInfo.crm,
+                  crm_uf: doctorInfo.crm_uf,
+                  specialty: doctorInfo.specialty,
+                }
+              : null,
+          periodStart: new Date(periodFrom),
+          periodEnd: new Date(periodTo),
+          cases: periodCases,
+          appointments: (appts ?? []) as any,
+          events: (events ?? []) as any,
+        };
+      },
+    });
+    setGeneratingPeriod(false);
+    toast.message("Relatório enfileirado", { description: "Acompanhe na barra de exportações." });
   };
 
   if (loading) {

@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PatientSymptomsViewer } from "@/components/PatientSymptomsViewer";
+import { queuePatientPdf } from "@/lib/exporters";
 
 export default function MedicoPacienteDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -54,41 +55,40 @@ export default function MedicoPacienteDetalhe() {
   const handleExportPdf = async () => {
     if (!patient) return;
     setExporting(true);
-    try {
-      const caseIds = cases.map((c) => c.id);
-      const since = new Date(); since.setDate(since.getDate() - 30);
-      const sinceISO = since.toISOString().slice(0, 10);
+    queuePatientPdf({
+      label: `Prontuário — ${profile?.full_name || patient.id}`,
+      data: async () => {
+        const caseIds = cases.map((c) => c.id);
+        const since = new Date(); since.setDate(since.getDate() - 30);
+        const sinceISO = since.toISOString().slice(0, 10);
 
-      const [{ data: exams }, { data: syms }, { data: meds }, { data: logs }] = await Promise.all([
-        caseIds.length
-          ? supabase.from("case_exams").select("*").in("case_id", caseIds).order("exam_date", { ascending: true })
-          : Promise.resolve({ data: [] as any[] }),
-        supabase.from("symptom_entries").select("*").eq("patient_id", patient.id)
-          .gte("entry_date", sinceISO).order("entry_date", { ascending: false }),
-        supabase.from("medications").select("*").eq("patient_id", patient.id).eq("active", true),
-        supabase.from("medication_logs").select("*").eq("patient_id", patient.id).gte("log_date", sinceISO),
-      ]);
+        const [{ data: exams }, { data: syms }, { data: meds }, { data: logs }] = await Promise.all([
+          caseIds.length
+            ? supabase.from("case_exams").select("*").in("case_id", caseIds).order("exam_date", { ascending: true })
+            : Promise.resolve({ data: [] as any[] }),
+          supabase.from("symptom_entries").select("*").eq("patient_id", patient.id)
+            .gte("entry_date", sinceISO).order("entry_date", { ascending: false }),
+          supabase.from("medications").select("*").eq("patient_id", patient.id).eq("active", true),
+          supabase.from("medication_logs").select("*").eq("patient_id", patient.id).gte("log_date", sinceISO),
+        ]);
 
-      const { exportPatientPDF } = await import("@/lib/patientPdf");
-      exportPatientPDF({
-        profile, patient,
-        doctor: doctor && doctorProfile ? {
-          full_name: doctorProfile.full_name,
-          crm: doctor.crm, crm_uf: doctor.crm_uf, specialty: doctor.specialty,
-        } : null,
-        cases,
-        exams: exams || [],
-        symptoms: syms || [],
-        medications: meds || [],
-        medLogs: logs || [],
-      });
-      toast.success("Prontuário PDF gerado");
-    } catch (e) {
-      console.error(e);
-      toast.error("Falha ao gerar PDF");
-    } finally {
-      setExporting(false);
-    }
+        return {
+          profile, patient,
+          doctor: doctor && doctorProfile ? {
+            full_name: doctorProfile.full_name,
+            crm: doctor.crm, crm_uf: doctor.crm_uf, specialty: doctor.specialty,
+          } : null,
+          cases,
+          exams: exams || [],
+          symptoms: syms || [],
+          medications: meds || [],
+          medLogs: logs || [],
+        };
+      },
+    });
+    // Libera o botão imediatamente — o feedback acontece no dock global
+    setExporting(false);
+    toast.message("Prontuário enfileirado", { description: "Acompanhe na barra de exportações." });
   };
 
   if (loading || !patient) {
