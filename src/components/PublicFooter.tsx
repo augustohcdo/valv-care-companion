@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Logo } from "./Logo";
 import { TrustBadges } from "./TrustBadges";
-import { ShieldCheck, BookOpen, FileText } from "lucide-react";
+import { ShieldCheck, BookOpen, FileText, Mail } from "lucide-react";
 
 export const PublicFooter = () => {
   return (
@@ -48,6 +48,7 @@ export const PublicFooter = () => {
               <li><Link to="/cookies" className="text-muted-foreground hover:text-primary flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> Política de cookies</Link></li>
               <li><Link to="/aviso-medico" className="text-muted-foreground hover:text-primary flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5" /> Aviso médico</Link></li>
               <li><Link to="/dpo" className="text-muted-foreground hover:text-primary flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Encarregado (DPO) e direitos LGPD</Link></li>
+              <li><Link to="/contato" className="text-muted-foreground hover:text-primary flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> Fale conosco</Link></li>
             </ul>
           </div>
         </div>
