@@ -36,6 +36,10 @@ import ListaCasos from "./pages/app/ListaCasos";
 import CasoDetalhe from "./pages/app/CasoDetalhe";
 import MedicoPacientes from "./pages/app/MedicoPacientes";
 import PacienteJornada from "./pages/app/PacienteJornada";
+import Biblioteca from "./pages/app/Biblioteca";
+import BibliotecaDetalhe from "./pages/app/BibliotecaDetalhe";
+import MedicoPerfil from "./pages/app/MedicoPerfil";
+import PacientePerfil from "./pages/app/PacientePerfil";
 
 const queryClient = new QueryClient();
 
@@ -88,19 +92,15 @@ const App = () => (
               />
               <Route
                 path="/app/medico/biblioteca"
-                element={
-                  <ProtectedRoute requiredType="medico">
-                    <ComingSoon eyebrow="Próxima fase" title="Biblioteca clínica" description="Resumos de diretrizes por valvopatia." />
-                  </ProtectedRoute>
-                }
+                element={<ProtectedRoute requiredType="medico"><Biblioteca /></ProtectedRoute>}
+              />
+              <Route
+                path="/app/medico/biblioteca/:slug"
+                element={<ProtectedRoute requiredType="medico"><BibliotecaDetalhe /></ProtectedRoute>}
               />
               <Route
                 path="/app/medico/perfil"
-                element={
-                  <ProtectedRoute requiredType="medico">
-                    <ComingSoon eyebrow="Próxima fase" title="Perfil profissional" description="Edite seus dados profissionais e visibilidade." />
-                  </ProtectedRoute>
-                }
+                element={<ProtectedRoute requiredType="medico"><MedicoPerfil /></ProtectedRoute>}
               />
 
               <Route
@@ -133,11 +133,7 @@ const App = () => (
               />
               <Route
                 path="/app/paciente/perfil"
-                element={
-                  <ProtectedRoute requiredType="paciente">
-                    <ComingSoon eyebrow="Próxima fase" title="Meu perfil" description="Atualize seus dados pessoais." />
-                  </ProtectedRoute>
-                }
+                element={<ProtectedRoute requiredType="paciente"><PacientePerfil /></ProtectedRoute>}
               />
             </Route>
 

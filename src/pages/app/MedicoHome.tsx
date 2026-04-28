@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DashboardCharts } from "@/components/DashboardCharts";
 
 export default function MedicoHome() {
   const { user, profile } = useAuth();
@@ -21,6 +22,7 @@ export default function MedicoHome() {
   const [patientCount, setPatientCount] = useState(0);
   const [caseCount, setCaseCount] = useState(0);
   const [activeCount, setActiveCount] = useState(0);
+  const [cases, setCases] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -28,15 +30,17 @@ export default function MedicoHome() {
       const { data: doc } = await supabase.from("doctors").select("*").eq("user_id", user.id).maybeSingle();
       setDoctor(doc);
       if (doc) {
-        const [{ count: pc }, { count: cc }, { count: ac }] = await Promise.all([
+        const [{ count: pc }, { count: cc }, { count: ac }, { data: caseRows }] = await Promise.all([
           supabase.from("patients").select("id", { count: "exact", head: true }).eq("linked_doctor_id", doc.id),
           supabase.from("clinical_cases").select("id", { count: "exact", head: true }).eq("doctor_id", doc.id),
           supabase.from("clinical_cases").select("id", { count: "exact", head: true })
             .eq("doctor_id", doc.id).in("status", ["avaliacao_inicial", "em_seguimento", "pre_intervencao"]),
+          supabase.from("clinical_cases").select("valve_type, severity, status, nyha").eq("doctor_id", doc.id),
         ]);
         setPatientCount(pc ?? 0);
         setCaseCount(cc ?? 0);
         setActiveCount(ac ?? 0);
+        setCases(caseRows ?? []);
       }
     })();
   }, [user]);
@@ -80,6 +84,12 @@ export default function MedicoHome() {
           value={doctor?.verified ? "Verificado" : "Pendente"}
           tone={doctor?.verified ? "success" : "warning"}
         />
+      </div>
+
+      {/* Dashboards visuais */}
+      <div>
+        <h2 className="font-serif text-xl text-primary mb-3">Visão clínica geral</h2>
+        <DashboardCharts cases={cases} />
       </div>
 
       {/* Ações rápidas */}
