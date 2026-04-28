@@ -35,6 +35,7 @@ import NovoCaso from "./pages/app/NovoCaso";
 import ListaCasos from "./pages/app/ListaCasos";
 import CasoDetalhe from "./pages/app/CasoDetalhe";
 import MedicoPacientes from "./pages/app/MedicoPacientes";
+import MedicoPacienteDetalhe from "./pages/app/MedicoPacienteDetalhe";
 import MedicoAgenda from "./pages/app/MedicoAgenda";
 import MedicoColaboracoes from "./pages/app/MedicoColaboracoes";
 import PacienteJornada from "./pages/app/PacienteJornada";
@@ -46,6 +47,8 @@ import PacienteMedico from "./pages/app/PacienteMedico";
 import PacienteDocumentos from "./pages/app/PacienteDocumentos";
 import PacienteAprender from "./pages/app/PacienteAprender";
 import PacienteAprenderDetalhe from "./pages/app/PacienteAprenderDetalhe";
+import PacienteDiario from "./pages/app/PacienteDiario";
+import PacienteMedicacoes from "./pages/app/PacienteMedicacoes";
 
 const queryClient = new QueryClient();
 
@@ -83,6 +86,10 @@ const App = () => (
               <Route
                 path="/app/medico/pacientes"
                 element={<ProtectedRoute requiredType="medico"><MedicoPacientes /></ProtectedRoute>}
+              />
+              <Route
+                path="/app/medico/pacientes/:id"
+                element={<ProtectedRoute requiredType="medico"><MedicoPacienteDetalhe /></ProtectedRoute>}
               />
               <Route
                 path="/app/medico/casos"
@@ -136,6 +143,14 @@ const App = () => (
               <Route
                 path="/app/paciente/documentos"
                 element={<ProtectedRoute requiredType="paciente"><PacienteDocumentos /></ProtectedRoute>}
+              />
+              <Route
+                path="/app/paciente/diario"
+                element={<ProtectedRoute requiredType="paciente"><PacienteDiario /></ProtectedRoute>}
+              />
+              <Route
+                path="/app/paciente/medicacoes"
+                element={<ProtectedRoute requiredType="paciente"><PacienteMedicacoes /></ProtectedRoute>}
               />
               <Route
                 path="/app/paciente/aprender"

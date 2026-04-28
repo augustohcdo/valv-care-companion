@@ -14,6 +14,8 @@ import {
   FileText,
   Calendar,
   UsersRound,
+  Activity,
+  Pill,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/Logo";
@@ -42,6 +44,8 @@ const doctorNav = [
 const patientNav = [
   { to: "/app/paciente", label: "Início", icon: LayoutDashboard, exact: true },
   { to: "/app/paciente/jornada", label: "Minha jornada", icon: HeartPulse },
+  { to: "/app/paciente/diario", label: "Diário", icon: Activity },
+  { to: "/app/paciente/medicacoes", label: "Medicações", icon: Pill },
   { to: "/app/paciente/medico", label: "Meu médico", icon: Stethoscope },
   { to: "/app/paciente/documentos", label: "Documentos", icon: FileText },
   { to: "/app/paciente/aprender", label: "Aprender", icon: BookOpen },

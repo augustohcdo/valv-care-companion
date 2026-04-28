@@ -98,7 +98,7 @@ export default function MedicoPacientes() {
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <FileText className="h-3 w-3" /> {p.caseCount} {p.caseCount === 1 ? "caso" : "casos"}
                   </span>
-                  <Link to="/app/medico/casos" className="text-xs text-primary hover:underline">Ver casos →</Link>
+                  <Link to={`/app/medico/pacientes/${p.id}`} className="text-xs text-primary hover:underline">Ver detalhes →</Link>
                 </div>
               </CardContent>
             </Card>
