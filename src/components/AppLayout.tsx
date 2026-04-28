@@ -29,6 +29,7 @@ import {
 const doctorNav = [
   { to: "/app/medico", label: "Início", icon: LayoutDashboard, exact: true },
   { to: "/app/medico/pacientes", label: "Pacientes", icon: Users },
+  { to: "/app/medico/casos", label: "Casos clínicos", icon: FileText },
   { to: "/app/medico/casos/novo", label: "Novo caso", icon: FilePlus2 },
   { to: "/app/medico/biblioteca", label: "Biblioteca", icon: BookOpen },
   { to: "/app/medico/perfil", label: "Perfil", icon: User },
