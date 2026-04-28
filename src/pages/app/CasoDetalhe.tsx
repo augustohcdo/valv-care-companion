@@ -224,56 +224,71 @@ export default function CasoDetalhe() {
           </Card>
 
           {/* Exames seriados com gráficos */}
-          <CaseExams caseId={caso.id} />
+          <CaseExams caseId={caso.id} readOnly={!isOwner} />
 
           {/* Sugestão de conduta baseada em diretrizes */}
           <GuidelineRecommendations caso={caso} />
 
+          {/* Discussão clínica entre médicos */}
+          <CaseDiscussion caseId={caso.id} canComment={canComment} />
+
           {/* Timeline evolutiva */}
-          <CaseTimeline caseId={caso.id} />
+          <CaseTimeline caseId={caso.id} readOnly={!isOwner} />
 
           {/* Agenda */}
-          <CaseAppointments caseId={caso.id} />
+          <CaseAppointments caseId={caso.id} readOnly={!isOwner} />
 
           {/* Documentos */}
           <CaseDocuments caseId={caso.id} />
 
-          {/* Chat com o paciente (só aparece quando há paciente vinculado) */}
-          {caso.patient_id && <CaseChat caseId={caso.id} viewerRole="medico" />}
+          {/* Chat com o paciente (somente médico responsável) */}
+          {isOwner && caso.patient_id && <CaseChat caseId={caso.id} viewerRole="medico" />}
         </div>
 
         {/* Coluna lateral */}
         <div className="space-y-6">
           <RiskScoreCard caso={caso} />
 
-          <Card className="shadow-sm-soft">
-            <CardHeader><CardTitle className="text-base">Status & evolução</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Status do caso</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(caseStatusLabels).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Notas clínicas</Label>
-                <Textarea
-                  value={notes} onChange={(e) => setNotes(e.target.value)}
-                  className="mt-1.5 min-h-[140px]"
-                  placeholder="Adicione evolução, decisões compartilhadas..."
-                />
-              </div>
-              <Button onClick={saveChanges} disabled={saving} className="w-full">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Salvar alterações
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Colaboradores (segunda opinião) */}
+          <CaseCollaborators caseId={caso.id} isOwner={isOwner} />
+
+          {isOwner && (
+            <Card className="shadow-sm-soft">
+              <CardHeader><CardTitle className="text-base">Status & evolução</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Status do caso</Label>
+                  <Select value={status} onValueChange={setStatus}>
+                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(caseStatusLabels).map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Notas clínicas</Label>
+                  <Textarea
+                    value={notes} onChange={(e) => setNotes(e.target.value)}
+                    className="mt-1.5 min-h-[140px]"
+                    placeholder="Adicione evolução, decisões compartilhadas..."
+                  />
+                </div>
+                <Button onClick={saveChanges} disabled={saving} className="w-full">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Salvar alterações
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {!isOwner && (
+            <div className="text-xs text-muted-foreground bg-primary/5 border border-primary/30 rounded-lg p-3">
+              <p className="font-medium text-foreground mb-0.5">Modo colaborador</p>
+              Você está visualizando este caso como {canComment ? "comentarista" : "leitor"}. Edições são reservadas ao médico responsável.
+            </div>
+          )}
 
           <div className="text-xs text-muted-foreground bg-secondary/40 border border-border rounded-lg p-3">
             ValvePath é apoio à decisão. Não substitui julgamento clínico nem realiza diagnóstico automático.
