@@ -18,6 +18,7 @@ import {
   Pill,
   BarChart3,
   ShieldCheck,
+  Hospital,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/Logo";
@@ -53,6 +54,7 @@ const patientNav = [
   { to: "/app/paciente/medicacoes", label: "Medicações", icon: Pill },
   { to: "/app/paciente/medico", label: "Meu médico", icon: Stethoscope },
   { to: "/app/paciente/documentos", label: "Documentos", icon: FileText },
+  { to: "/app/paciente/integracoes", label: "Integrações", icon: Hospital },
   { to: "/app/paciente/aprender", label: "Aprender", icon: BookOpen },
   { to: "/app/paciente/perfil", label: "Perfil", icon: User },
 ];
