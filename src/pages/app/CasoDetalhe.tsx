@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, Loader2, Save, Activity } from "lucide-react";
+import { ArrowLeft, Trash2, Loader2, Save, Activity, Download } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -22,6 +22,8 @@ import {
 import { CaseDocuments } from "@/components/CaseDocuments";
 import { CaseTimeline } from "@/components/CaseTimeline";
 import { CaseAppointments } from "@/components/CaseAppointments";
+import { RiskScoreCard } from "@/components/RiskScoreCard";
+import { exportCasePDF } from "@/lib/casePdf";
 
 export default function CasoDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -70,6 +72,39 @@ export default function CasoDetalhe() {
     }
   };
 
+  const handleExport = async () => {
+    if (!caso) return;
+    toast.info("Gerando PDF...");
+    // Buscar dados relacionados
+    const [{ data: events }, { data: appts }, { data: docs }, { data: doctor }] = await Promise.all([
+      supabase.from("case_events").select("*").eq("case_id", caso.id).order("event_date", { ascending: false }),
+      supabase.from("appointments").select("*").eq("case_id", caso.id).order("scheduled_at"),
+      supabase.from("case_documents").select("*").eq("case_id", caso.id).order("created_at", { ascending: false }),
+      supabase.from("doctors").select("*").eq("id", caso.doctor_id).maybeSingle(),
+    ]);
+
+    let doctorInfo: any = undefined;
+    if (doctor) {
+      const { data: prof } = await supabase
+        .from("profiles").select("full_name").eq("user_id", doctor.user_id).maybeSingle();
+      doctorInfo = {
+        full_name: prof?.full_name || "—",
+        crm: doctor.crm,
+        crm_uf: doctor.crm_uf,
+        specialty: doctor.specialty,
+      };
+    }
+
+    exportCasePDF({
+      caso,
+      doctor: doctorInfo,
+      events: events || [],
+      appointments: appts || [],
+      documents: docs || [],
+    });
+    toast.success("PDF gerado");
+  };
+
   if (loading || !caso) {
     return <div className="grid place-items-center min-h-[40vh]"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   }
@@ -88,6 +123,9 @@ export default function CasoDetalhe() {
         actions={
           <>
             <Button variant="outline" asChild><Link to="/app/medico/casos"><ArrowLeft className="h-4 w-4" /> Voltar</Link></Button>
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="h-4 w-4" /> Exportar PDF
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
@@ -170,6 +208,8 @@ export default function CasoDetalhe() {
 
         {/* Coluna lateral */}
         <div className="space-y-6">
+          <RiskScoreCard caso={caso} />
+
           <Card className="shadow-sm-soft">
             <CardHeader><CardTitle className="text-base">Status & evolução</CardTitle></CardHeader>
             <CardContent className="space-y-4">
