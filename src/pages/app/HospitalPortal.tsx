@@ -11,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Building2, KeyRound, Send, ShieldCheck, Activity, Loader2 } from "lucide-react";
-import { Helmet } from "react-helmet-async";
 
 const RESOURCE_TYPES = ["Condition", "Observation", "MedicationStatement", "DiagnosticReport", "Procedure", "Encounter"];
 
@@ -111,7 +110,6 @@ export default function HospitalPortal() {
 
   return (
     <div className="container max-w-6xl py-8 space-y-6">
-      <Helmet><title>Portal do Hospital — ValvePath</title></Helmet>
 
       <header className="flex items-center justify-between gap-4 flex-wrap">
         <div>

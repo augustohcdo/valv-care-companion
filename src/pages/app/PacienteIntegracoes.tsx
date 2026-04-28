@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Hospital, Check, X, Copy, ShieldOff, Loader2, FileText } from "lucide-react";
-import { Helmet } from "react-helmet-async";
 
 export default function PacienteIntegracoes() {
   const { user } = useAuth();
@@ -50,7 +49,6 @@ export default function PacienteIntegracoes() {
 
   return (
     <div className="container max-w-5xl py-8 space-y-6">
-      <Helmet><title>Integrações Hospitalares — ValvePath</title></Helmet>
 
       <header>
         <h1 className="text-3xl font-bold flex items-center gap-2"><Hospital className="h-7 w-7 text-primary" /> Integrações Hospitalares</h1>

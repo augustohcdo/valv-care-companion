@@ -10,7 +10,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ShieldCheck, KeyRound, Plus, Loader2, Copy } from "lucide-react";
-import { Helmet } from "react-helmet-async";
 import { Navigate } from "react-router-dom";
 
 export default function AdminIntegracoes() {
@@ -57,12 +56,12 @@ export default function AdminIntegracoes() {
   if (authLoading || isAdmin === null) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   if (!isAdmin) return <Navigate to="/app/medico" replace />;
 
-  const approveHospital = async (id: string, status: "ativo" | "rejeitado") => {
+  const approveHospital = async (id: string, status: "ativo" | "encerrado") => {
     const { error } = await supabase.from("hospitals").update({
       status, approved_at: status === "ativo" ? new Date().toISOString() : null, approved_by: user?.id,
     }).eq("id", id);
     if (error) return toast.error(error.message);
-    toast.success(`Hospital ${status === "ativo" ? "aprovado" : "rejeitado"}.`);
+    toast.success(`Hospital ${status === "ativo" ? "aprovado" : "encerrado"}.`);
     reload();
   };
 
@@ -89,7 +88,6 @@ export default function AdminIntegracoes() {
 
   return (
     <div className="container max-w-6xl py-8 space-y-6">
-      <Helmet><title>Admin — Integrações | ValvePath</title></Helmet>
       <header>
         <h1 className="text-3xl font-bold flex items-center gap-2"><ShieldCheck className="h-7 w-7 text-primary" /> Admin — Integrações Hospitalares</h1>
         <p className="text-muted-foreground">Aprove hospitais, gerencie membros e emita chaves de API.</p>
@@ -115,11 +113,11 @@ export default function AdminIntegracoes() {
                   <div className="text-xs font-mono text-muted-foreground">{h.id}</div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <Badge variant={h.status === "ativo" ? "default" : h.status === "rejeitado" ? "destructive" : "secondary"}>{h.status}</Badge>
+                  <Badge variant={h.status === "ativo" ? "default" : h.status === "encerrado" ? "destructive" : "secondary"}>{h.status}</Badge>
                   {h.status === "pendente" && (
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => approveHospital(h.id, "ativo")}>Aprovar</Button>
-                      <Button size="sm" variant="outline" onClick={() => approveHospital(h.id, "rejeitado")}>Rejeitar</Button>
+                      <Button size="sm" variant="outline" onClick={() => approveHospital(h.id, "encerrado")}>Encerrar</Button>
                     </div>
                   )}
                 </div>
