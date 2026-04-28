@@ -61,6 +61,68 @@ export const documentTypeLabels: Record<string, string> = {
   outro: "Outro",
 };
 
+export const eventTypeLabels: Record<string, string> = {
+  consulta: "Consulta",
+  exame: "Exame",
+  cirurgia: "Cirurgia",
+  internacao: "Internação",
+  alta: "Alta hospitalar",
+  mudanca_nyha: "Mudança de classe NYHA",
+  mudanca_severidade: "Mudança de severidade",
+  observacao: "Observação clínica",
+  medicacao: "Ajuste de medicação",
+};
+
+export const eventTypeColors: Record<string, string> = {
+  consulta: "bg-primary/10 text-primary border-primary/30",
+  exame: "bg-accent/20 text-accent-foreground border-accent/40",
+  cirurgia: "bg-destructive/10 text-destructive border-destructive/30",
+  internacao: "bg-warning/10 text-warning border-warning/30",
+  alta: "bg-success/10 text-success border-success/30",
+  mudanca_nyha: "bg-secondary text-foreground border-border",
+  mudanca_severidade: "bg-secondary text-foreground border-border",
+  observacao: "bg-muted text-muted-foreground border-border",
+  medicacao: "bg-secondary text-foreground border-border",
+};
+
+export const appointmentTypeLabels: Record<string, string> = {
+  consulta_retorno: "Consulta de retorno",
+  exame: "Exame",
+  procedimento: "Procedimento",
+  cirurgia: "Cirurgia",
+  teleconsulta: "Teleconsulta",
+};
+
+export const appointmentStatusLabels: Record<string, string> = {
+  agendado: "Agendado",
+  realizado: "Realizado",
+  cancelado: "Cancelado",
+  remarcado: "Remarcado",
+  faltou: "Faltou",
+};
+
+export const appointmentStatusColors: Record<string, string> = {
+  agendado: "bg-primary/10 text-primary border-primary/30",
+  realizado: "bg-success/10 text-success border-success/30",
+  cancelado: "bg-destructive/10 text-destructive border-destructive/30",
+  remarcado: "bg-warning/10 text-warning border-warning/30",
+  faltou: "bg-muted text-muted-foreground border-border",
+};
+
+// Mapeia valve_type + valve_disease do caso para slug da biblioteca clínica
+export function caseToGuidelineSlug(valveType: string, valveDisease: string): string | null {
+  const map: Record<string, string> = {
+    "aortica:estenose": "estenose-aortica",
+    "aortica:insuficiencia": "insuficiencia-aortica",
+    "mitral:estenose": "estenose-mitral",
+    "mitral:insuficiencia": "insuficiencia-mitral",
+    "mitral:prolapso": "insuficiencia-mitral",
+    "tricuspide:insuficiencia": "insuficiencia-tricuspide",
+    "multipla:mista": "doenca-multivalvar",
+  };
+  return map[`${valveType}:${valveDisease}`] || null;
+}
+
 export const commonSymptoms = [
   "Dispneia aos esforços",
   "Dispneia em repouso",
