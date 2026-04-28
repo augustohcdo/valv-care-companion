@@ -31,6 +31,11 @@ import AuthCallback from "./pages/auth/AuthCallback";
 
 import MedicoHome from "./pages/app/MedicoHome";
 import PacienteHome from "./pages/app/PacienteHome";
+import NovoCaso from "./pages/app/NovoCaso";
+import ListaCasos from "./pages/app/ListaCasos";
+import CasoDetalhe from "./pages/app/CasoDetalhe";
+import MedicoPacientes from "./pages/app/MedicoPacientes";
+import PacienteJornada from "./pages/app/PacienteJornada";
 
 const queryClient = new QueryClient();
 
@@ -67,27 +72,19 @@ const App = () => (
               />
               <Route
                 path="/app/medico/pacientes"
-                element={
-                  <ProtectedRoute requiredType="medico">
-                    <ComingSoon
-                      eyebrow="Próxima fase"
-                      title="Meus pacientes"
-                      description="Lista de pacientes vinculados ao seu CRM, com busca e filtros."
-                    />
-                  </ProtectedRoute>
-                }
+                element={<ProtectedRoute requiredType="medico"><MedicoPacientes /></ProtectedRoute>}
+              />
+              <Route
+                path="/app/medico/casos"
+                element={<ProtectedRoute requiredType="medico"><ListaCasos /></ProtectedRoute>}
               />
               <Route
                 path="/app/medico/casos/novo"
-                element={
-                  <ProtectedRoute requiredType="medico">
-                    <ComingSoon
-                      eyebrow="Próxima fase"
-                      title="Novo caso clínico"
-                      description="Wizard em 3 minutos para registrar avaliação valvar."
-                    />
-                  </ProtectedRoute>
-                }
+                element={<ProtectedRoute requiredType="medico"><NovoCaso /></ProtectedRoute>}
+              />
+              <Route
+                path="/app/medico/casos/:id"
+                element={<ProtectedRoute requiredType="medico"><CasoDetalhe /></ProtectedRoute>}
               />
               <Route
                 path="/app/medico/biblioteca"
@@ -116,11 +113,7 @@ const App = () => (
               />
               <Route
                 path="/app/paciente/jornada"
-                element={
-                  <ProtectedRoute requiredType="paciente">
-                    <ComingSoon eyebrow="Próxima fase" title="Minha jornada" description="Acompanhe etapas de avaliação e seguimento." />
-                  </ProtectedRoute>
-                }
+                element={<ProtectedRoute requiredType="paciente"><PacienteJornada /></ProtectedRoute>}
               />
               <Route
                 path="/app/paciente/medico"
