@@ -270,6 +270,48 @@ export default function MedicoRelatorios() {
         </Card>
       )}
 
+      {/* Relatório consolidado por período */}
+      <Card className="shadow-sm-soft border-primary/20">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarRange className="h-4 w-4 text-primary" />
+            Relatório consolidado por período
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Gere um PDF com volume, severidade, taxa de intervenção, consultas realizadas e
+            tempo médio até intervenção em qualquer intervalo de datas.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 items-end">
+            <div className="flex-1 w-full sm:w-auto">
+              <Label className="text-xs">De</Label>
+              <Input
+                type="date"
+                value={periodFrom}
+                onChange={(e) => setPeriodFrom(e.target.value)}
+              />
+            </div>
+            <div className="flex-1 w-full sm:w-auto">
+              <Label className="text-xs">Até</Label>
+              <Input
+                type="date"
+                value={periodTo}
+                onChange={(e) => setPeriodTo(e.target.value)}
+              />
+            </div>
+            <Button onClick={handleExportPeriodPdf} disabled={generatingPeriod}>
+              {generatingPeriod ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Gerar PDF do período
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Distribuições */}
       <div className="grid lg:grid-cols-2 gap-4">
         <Card className="shadow-sm-soft">
