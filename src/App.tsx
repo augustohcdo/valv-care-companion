@@ -143,6 +143,7 @@ const App = () => (
               <Route path="/cookies" element={withSuspense(<CookiesPage />)} />
               <Route path="/dpo" element={withSuspense(<DPOPage />, "form")} />
               <Route path="/contato" element={withSuspense(<Contato />, "form")} />
+              <Route path="/parceiros" element={withSuspense(<Parceiros />)} />
               <Route path="/aviso-medico" element={withSuspense(<AvisoMedico />)} />
 
               <Route
