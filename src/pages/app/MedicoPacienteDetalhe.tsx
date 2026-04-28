@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, MapPin, Phone, Mail, FileText, Loader2, User as UserIcon } from "lucide-react";
+import { ArrowLeft, MapPin, Phone, FileText, Loader2, User as UserIcon, Download } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PatientSymptomsViewer } from "@/components/PatientSymptomsViewer";
+import { exportPatientPDF } from "@/lib/patientPdf";
 
 export default function MedicoPacienteDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -60,9 +61,14 @@ export default function MedicoPacienteDetalhe() {
           { label: profile?.full_name || "Paciente" },
         ]}
         actions={
-          <Button variant="outline" asChild>
-            <Link to="/app/medico/pacientes"><ArrowLeft className="h-4 w-4" /> Voltar</Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => handleExportPdf()}>
+              <Download className="h-4 w-4" /> Exportar prontuário
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/app/medico/pacientes"><ArrowLeft className="h-4 w-4" /> Voltar</Link>
+            </Button>
+          </div>
         }
       />
 
