@@ -20,6 +20,8 @@ import {
   caseStatusLabels, nyhaLabels,
 } from "@/lib/clinicalLabels";
 import { CaseDocuments } from "@/components/CaseDocuments";
+import { CaseTimeline } from "@/components/CaseTimeline";
+import { CaseAppointments } from "@/components/CaseAppointments";
 
 export default function CasoDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -155,6 +157,12 @@ export default function CasoDetalhe() {
               )}
             </CardContent>
           </Card>
+
+          {/* Timeline evolutiva */}
+          <CaseTimeline caseId={caso.id} />
+
+          {/* Agenda */}
+          <CaseAppointments caseId={caso.id} />
 
           {/* Documentos */}
           <CaseDocuments caseId={caso.id} />
