@@ -14,16 +14,36 @@ export default function Biblioteca() {
   const valves = ["Todas", ...Object.keys(libraryByValve)];
 
   const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase();
     return clinicalLibrary.filter((g) => {
       const matchesValve = valveFilter === "Todas" || g.valve === valveFilter;
-      const matchesQ =
-        !q ||
-        g.title.toLowerCase().includes(q.toLowerCase()) ||
-        g.pathology.toLowerCase().includes(q.toLowerCase()) ||
-        g.summary.toLowerCase().includes(q.toLowerCase());
-      return matchesValve && matchesQ;
+      if (!query) return matchesValve;
+      const haystack = [
+        g.title,
+        g.shortTitle,
+        g.pathology,
+        g.summary,
+        ...g.keyPoints,
+        ...g.sections.flatMap((s) => [s.heading, s.body ?? "", ...(s.bullets ?? [])]),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return matchesValve && haystack.includes(query);
     });
   }, [q, valveFilter]);
+
+  const highlight = (text: string) => {
+    const query = q.trim();
+    if (!query) return text;
+    const parts = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"));
+    return parts.map((p, i) =>
+      p.toLowerCase() === query.toLowerCase() ? (
+        <mark key={i} className="bg-warning/30 text-foreground rounded px-0.5">{p}</mark>
+      ) : (
+        <span key={i}>{p}</span>
+      ),
+    );
+  };
 
   return (
     <div className="space-y-6 max-w-6xl">
@@ -75,31 +95,53 @@ export default function Biblioteca() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        {filtered.map((g) => (
-          <Card key={g.slug} className="shadow-sm-soft hover:shadow-md-soft transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-2 mb-3">
-                <Badge variant="secondary">{g.valve}</Badge>
-                <Badge variant="outline">{g.pathology}</Badge>
-              </div>
-              <h3 className="font-serif text-xl text-primary mb-2">{g.shortTitle}</h3>
-              <p className="text-sm text-muted-foreground mb-4 line-clamp-3">{g.summary}</p>
-              <ul className="text-xs text-muted-foreground space-y-1 mb-4">
-                {g.keyPoints.slice(0, 2).map((k) => (
-                  <li key={k} className="flex gap-2">
-                    <span className="text-primary">•</span>
-                    {k}
-                  </li>
-                ))}
-              </ul>
-              <Button asChild variant="outline" size="sm">
-                <Link to={`/app/medico/biblioteca/${g.slug}`}>
-                  Ler resumo <ArrowRight className="h-3 w-3 ml-1" />
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+        {filtered.map((g) => {
+          // Encontra trecho relevante quando a busca não está no resumo
+          const query = q.trim().toLowerCase();
+          let snippet: string | null = null;
+          if (query && !g.summary.toLowerCase().includes(query)) {
+            const matchPoint = g.keyPoints.find((k) => k.toLowerCase().includes(query));
+            if (matchPoint) snippet = matchPoint;
+            else {
+              for (const s of g.sections) {
+                const inBody = s.body?.toLowerCase().includes(query);
+                const inBullet = s.bullets?.find((b) => b.toLowerCase().includes(query));
+                if (inBody) { snippet = `${s.heading}: ${s.body}`; break; }
+                if (inBullet) { snippet = `${s.heading}: ${inBullet}`; break; }
+              }
+            }
+          }
+          return (
+            <Card key={g.slug} className="shadow-sm-soft hover:shadow-md-soft transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Badge variant="secondary">{g.valve}</Badge>
+                  <Badge variant="outline">{g.pathology}</Badge>
+                </div>
+                <h3 className="font-serif text-xl text-primary mb-2">{highlight(g.shortTitle)}</h3>
+                <p className="text-sm text-muted-foreground mb-3 line-clamp-3">{highlight(g.summary)}</p>
+                {snippet && (
+                  <p className="text-xs text-foreground bg-secondary/50 border-l-2 border-primary px-3 py-2 rounded mb-3 line-clamp-2">
+                    {highlight(snippet)}
+                  </p>
+                )}
+                <ul className="text-xs text-muted-foreground space-y-1 mb-4">
+                  {g.keyPoints.slice(0, 2).map((k) => (
+                    <li key={k} className="flex gap-2">
+                      <span className="text-primary">•</span>
+                      <span>{highlight(k)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button asChild variant="outline" size="sm">
+                  <Link to={`/app/medico/biblioteca/${g.slug}`}>
+                    Ler resumo <ArrowRight className="h-3 w-3 ml-1" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
         {filtered.length === 0 && (
           <p className="text-sm text-muted-foreground col-span-full text-center py-8">
             Nenhum resultado encontrado.
