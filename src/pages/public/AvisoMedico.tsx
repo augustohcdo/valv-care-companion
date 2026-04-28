@@ -8,7 +8,7 @@ const AvisoMedico = () => (
       description: "Esclarecimento, em conformidade com o Conselho Federal de Medicina e a Anvisa, sobre o caráter de apoio do ValvePath e suas limitações.",
       effectiveDate: "01 de maio de 2026",
       version: "2.0",
-      contact: { supportEmail: "suporte@valvepath.com" },
+      contact: { supportEmail: "valvepath@gmail.com" },
       sections: [
         {
           heading: "Natureza da Plataforma",

@@ -116,10 +116,10 @@ const Seguranca = () => {
             Gerenciar meus consentimentos <ArrowRight className="h-4 w-4" />
           </Link>
           <a
-            href="mailto:dpo@valvepath.com"
+            href="mailto:valvepath@gmail.com"
             className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
           >
-            Falar com o DPO (dpo@valvepath.com)
+            Falar com o DPO (valvepath@gmail.com)
           </a>
         </div>
       </section>

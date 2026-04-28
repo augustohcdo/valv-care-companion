@@ -198,8 +198,8 @@ export function PrivacyPreferencesPanel() {
                 <p>
                   Para exclusão definitiva da conta e portabilidade dos seus dados,
                   contate o encarregado de dados (DPO) pelo e-mail{" "}
-                  <a href="mailto:dpo@valvepath.com" className="underline">
-                    dpo@valvepath.com
+                  <a href="mailto:valvepath@gmail.com" className="underline">
+                    valvepath@gmail.com
                   </a>
                   .
                 </p>

@@ -95,7 +95,7 @@ export default function MedicoPerfil() {
           </Badge>
           {!doctor.verified && (
             <span className="text-xs text-muted-foreground">
-              Para acelerar, escreva para verificacao@valvepath.com
+              Para acelerar, escreva para valvepath@gmail.com
             </span>
           )}
         </div>
