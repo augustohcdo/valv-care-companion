@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, FileText, SlidersHorizontal, X } from "lucide-react";
+import { Plus, Search, FileText, SlidersHorizontal, X, Download } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -23,6 +23,8 @@ import {
   caseStatusLabels,
   nyhaLabels,
 } from "@/lib/clinicalLabels";
+import { exportCasesToCsv } from "@/lib/casesCsv";
+import { toast } from "sonner";
 
 const ALL = "__all__";
 
@@ -101,9 +103,25 @@ export default function ListaCasos() {
         description="Avaliações valvares registradas. Use filtros para localizar pacientes específicos rapidamente."
         breadcrumbs={[{ label: "Início", to: "/app/medico" }, { label: "Casos" }]}
         actions={
-          <Button asChild>
-            <Link to="/app/medico/casos/novo"><Plus className="h-4 w-4" /> Novo caso</Link>
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (filtered.length === 0) {
+                  toast.info("Nenhum caso para exportar");
+                  return;
+                }
+                const stamp = new Date().toISOString().slice(0, 10);
+                exportCasesToCsv(filtered as any, `casos-clinicos-${stamp}.csv`);
+                toast.success(`${filtered.length} caso(s) exportado(s)`);
+              }}
+            >
+              <Download className="h-4 w-4" /> Exportar CSV
+            </Button>
+            <Button asChild>
+              <Link to="/app/medico/casos/novo"><Plus className="h-4 w-4" /> Novo caso</Link>
+            </Button>
+          </>
         }
       />
 
