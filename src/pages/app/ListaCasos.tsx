@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, FileText, SlidersHorizontal, X, Download } from "lucide-react";
+import { Plus, Search, FileText, SlidersHorizontal, X, Download, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -31,6 +31,7 @@ const ALL = "__all__";
 export default function ListaCasos() {
   const { user } = useAuth();
   const [cases, setCases] = useState<any[]>([]);
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   const [q, setQ] = useState("");
@@ -38,17 +39,19 @@ export default function ListaCasos() {
   const [severity, setSeverity] = useState<string>(ALL);
   const [status, setStatus] = useState<string>(ALL);
   const [nyha, setNyha] = useState<string>(ALL);
+  const [pendingOnly, setPendingOnly] = useState(false);
   const [sortBy, setSortBy] = useState<string>("recent");
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
-        .from("clinical_cases")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [{ data }, { data: pend }] = await Promise.all([
+        supabase.from("clinical_cases").select("*").order("created_at", { ascending: false }),
+        supabase.rpc("cases_pending_action", { _doctor_user_id: user.id }),
+      ]);
       setCases(data || []);
+      setPendingIds(new Set(((pend as any[]) || []).map((p) => p.case_id)));
       setLoading(false);
     })();
   }, [user]);
