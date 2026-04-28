@@ -23,6 +23,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { NotificationsBell } from "@/components/NotificationsBell";
+import { CommandPalette } from "@/components/CommandPalette";
 import {
   DropdownMenu,
   DropdownMenuContent,
