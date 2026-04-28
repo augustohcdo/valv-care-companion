@@ -128,7 +128,7 @@ export default function MedicoRelatorios() {
     toast.success("CSV exportado");
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     if (!cases.length) { toast.error("Sem casos para exportar"); return; }
     const metrics: CohortMetrics = {
       doctor: doctorInfo && profile ? {
@@ -199,6 +199,7 @@ export default function MedicoRelatorios() {
           : Promise.resolve({ data: [] as any[] }),
       ]);
 
+      const { exportMonthlyReportPDF } = await import("@/lib/monthlyReportPdf");
       exportMonthlyReportPDF({
         doctor:
           doctorInfo && profile
