@@ -26,7 +26,6 @@ import { RiskScoreCard } from "@/components/RiskScoreCard";
 import { exportCasePDF } from "@/lib/casePdf";
 import { CaseChat } from "@/components/CaseChat";
 import { CaseExams } from "@/components/CaseExams";
-import { CaseExams } from "@/components/CaseExams";
 import { GuidelineRecommendations } from "@/components/GuidelineRecommendations";
 import { CaseCollaborators } from "@/components/CaseCollaborators";
 import { CaseDiscussion } from "@/components/CaseDiscussion";
