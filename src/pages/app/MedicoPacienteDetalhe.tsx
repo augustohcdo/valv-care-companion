@@ -108,8 +108,9 @@ export default function MedicoPacienteDetalhe() {
         ]}
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => handleExportPdf()}>
-              <Download className="h-4 w-4" /> Exportar prontuário
+            <Button variant="outline" onClick={handleExportPdf} disabled={exporting}>
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Exportar prontuário
             </Button>
             <Button variant="outline" asChild>
               <Link to="/app/medico/pacientes"><ArrowLeft className="h-4 w-4" /> Voltar</Link>
