@@ -452,6 +452,134 @@ export type Database = {
         }
         Relationships: []
       }
+      data_access_grants: {
+        Row: {
+          direction: string
+          expires_at: string
+          granted_at: string
+          hospital_id: string
+          id: string
+          patient_id: string
+          request_id: string
+          resource_scopes: Database["public"]["Enums"]["fhir_resource_type"][]
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+        }
+        Insert: {
+          direction: string
+          expires_at: string
+          granted_at?: string
+          hospital_id: string
+          id?: string
+          patient_id: string
+          request_id: string
+          resource_scopes: Database["public"]["Enums"]["fhir_resource_type"][]
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Update: {
+          direction?: string
+          expires_at?: string
+          granted_at?: string
+          hospital_id?: string
+          id?: string
+          patient_id?: string
+          request_id?: string
+          resource_scopes?: Database["public"]["Enums"]["fhir_resource_type"][]
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_access_grants_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_access_grants_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "data_access_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_access_requests: {
+        Row: {
+          created_at: string
+          decision_at: string | null
+          decision_note: string | null
+          direction: string
+          expires_at: string
+          hospital_id: string
+          id: string
+          patient_id: string
+          patient_message: string | null
+          purpose: Database["public"]["Enums"]["access_purpose"]
+          purpose_details: string | null
+          requested_by: string
+          requesting_doctor_crm: string | null
+          requesting_doctor_name: string | null
+          resource_scopes: Database["public"]["Enums"]["fhir_resource_type"][]
+          status: Database["public"]["Enums"]["access_request_status"]
+          updated_at: string
+          validity_days: number
+        }
+        Insert: {
+          created_at?: string
+          decision_at?: string | null
+          decision_note?: string | null
+          direction?: string
+          expires_at?: string
+          hospital_id: string
+          id?: string
+          patient_id: string
+          patient_message?: string | null
+          purpose: Database["public"]["Enums"]["access_purpose"]
+          purpose_details?: string | null
+          requested_by: string
+          requesting_doctor_crm?: string | null
+          requesting_doctor_name?: string | null
+          resource_scopes?: Database["public"]["Enums"]["fhir_resource_type"][]
+          status?: Database["public"]["Enums"]["access_request_status"]
+          updated_at?: string
+          validity_days?: number
+        }
+        Update: {
+          created_at?: string
+          decision_at?: string | null
+          decision_note?: string | null
+          direction?: string
+          expires_at?: string
+          hospital_id?: string
+          id?: string
+          patient_id?: string
+          patient_message?: string | null
+          purpose?: Database["public"]["Enums"]["access_purpose"]
+          purpose_details?: string | null
+          requested_by?: string
+          requesting_doctor_crm?: string | null
+          requesting_doctor_name?: string | null
+          resource_scopes?: Database["public"]["Enums"]["fhir_resource_type"][]
+          status?: Database["public"]["Enums"]["access_request_status"]
+          updated_at?: string
+          validity_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_access_requests_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctors: {
         Row: {
           bio: string | null
@@ -547,6 +675,348 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      fhir_resources_inbound: {
+        Row: {
+          case_id: string | null
+          fhir_id: string | null
+          grant_id: string | null
+          hospital_id: string
+          id: string
+          patient_id: string
+          payload: Json
+          processed: boolean
+          received_at: string
+          resource_type: Database["public"]["Enums"]["fhir_resource_type"]
+          summary: string | null
+        }
+        Insert: {
+          case_id?: string | null
+          fhir_id?: string | null
+          grant_id?: string | null
+          hospital_id: string
+          id?: string
+          patient_id: string
+          payload: Json
+          processed?: boolean
+          received_at?: string
+          resource_type: Database["public"]["Enums"]["fhir_resource_type"]
+          summary?: string | null
+        }
+        Update: {
+          case_id?: string | null
+          fhir_id?: string | null
+          grant_id?: string | null
+          hospital_id?: string
+          id?: string
+          patient_id?: string
+          payload?: Json
+          processed?: boolean
+          received_at?: string
+          resource_type?: Database["public"]["Enums"]["fhir_resource_type"]
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fhir_resources_inbound_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "active_data_access_grants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fhir_resources_inbound_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "data_access_grants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fhir_resources_inbound_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fhir_resources_outbound: {
+        Row: {
+          grant_id: string
+          hospital_id: string
+          id: string
+          patient_id: string
+          payload: Json
+          requester_ip: unknown
+          resource_type: Database["public"]["Enums"]["fhir_resource_type"]
+          sent_at: string
+        }
+        Insert: {
+          grant_id: string
+          hospital_id: string
+          id?: string
+          patient_id: string
+          payload: Json
+          requester_ip?: unknown
+          resource_type: Database["public"]["Enums"]["fhir_resource_type"]
+          sent_at?: string
+        }
+        Update: {
+          grant_id?: string
+          hospital_id?: string
+          id?: string
+          patient_id?: string
+          payload?: Json
+          requester_ip?: unknown
+          resource_type?: Database["public"]["Enums"]["fhir_resource_type"]
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fhir_resources_outbound_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "active_data_access_grants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fhir_resources_outbound_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "data_access_grants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fhir_resources_outbound_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hospital_api_keys: {
+        Row: {
+          created_at: string
+          created_by: string
+          expires_at: string
+          hospital_id: string
+          id: string
+          ip_allowlist: unknown[] | null
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          revoked_at: string | null
+          scopes: string[]
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          expires_at?: string
+          hospital_id: string
+          id?: string
+          ip_allowlist?: unknown[] | null
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          hospital_id?: string
+          id?: string
+          ip_allowlist?: unknown[] | null
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_api_keys_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hospital_members: {
+        Row: {
+          active: boolean
+          created_at: string
+          hospital_id: string
+          id: string
+          role: Database["public"]["Enums"]["hospital_member_role"]
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          hospital_id: string
+          id?: string
+          role?: Database["public"]["Enums"]["hospital_member_role"]
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          role?: Database["public"]["Enums"]["hospital_member_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_members_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hospitals: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          city: string | null
+          cnes: string | null
+          cnpj: string
+          contact_email: string
+          contact_phone: string | null
+          created_at: string
+          id: string
+          legal_name: string
+          notes: string | null
+          status: Database["public"]["Enums"]["hospital_status"]
+          technical_responsible_crm: string
+          technical_responsible_name: string
+          technical_responsible_uf: string
+          trade_name: string | null
+          uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          city?: string | null
+          cnes?: string | null
+          cnpj: string
+          contact_email: string
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          legal_name: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["hospital_status"]
+          technical_responsible_crm: string
+          technical_responsible_name: string
+          technical_responsible_uf: string
+          trade_name?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          city?: string | null
+          cnes?: string | null
+          cnpj?: string
+          contact_email?: string
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          legal_name?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["hospital_status"]
+          technical_responsible_crm?: string
+          technical_responsible_name?: string
+          technical_responsible_uf?: string
+          trade_name?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      integration_audit_log: {
+        Row: {
+          action: Database["public"]["Enums"]["audit_action"]
+          actor_user_id: string | null
+          api_key_id: string | null
+          created_at: string
+          error_message: string | null
+          hospital_id: string | null
+          id: string
+          ip_address: unknown
+          metadata: Json | null
+          patient_id: string | null
+          resource_id: string | null
+          resource_type:
+            | Database["public"]["Enums"]["fhir_resource_type"]
+            | null
+          success: boolean
+          user_agent: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["audit_action"]
+          actor_user_id?: string | null
+          api_key_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          hospital_id?: string | null
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          patient_id?: string | null
+          resource_id?: string | null
+          resource_type?:
+            | Database["public"]["Enums"]["fhir_resource_type"]
+            | null
+          success?: boolean
+          user_agent?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["audit_action"]
+          actor_user_id?: string | null
+          api_key_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          hospital_id?: string | null
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          patient_id?: string | null
+          resource_id?: string | null
+          resource_type?:
+            | Database["public"]["Enums"]["fhir_resource_type"]
+            | null
+          success?: boolean
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_audit_log_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "hospital_api_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_audit_log_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       medication_logs: {
         Row: {
@@ -955,6 +1425,69 @@ export type Database = {
       }
     }
     Views: {
+      active_data_access_grants: {
+        Row: {
+          direction: string | null
+          expires_at: string | null
+          granted_at: string | null
+          hospital_id: string | null
+          id: string | null
+          patient_id: string | null
+          request_id: string | null
+          resource_scopes:
+            | Database["public"]["Enums"]["fhir_resource_type"][]
+            | null
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+        }
+        Insert: {
+          direction?: string | null
+          expires_at?: string | null
+          granted_at?: string | null
+          hospital_id?: string | null
+          id?: string | null
+          patient_id?: string | null
+          request_id?: string | null
+          resource_scopes?:
+            | Database["public"]["Enums"]["fhir_resource_type"][]
+            | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Update: {
+          direction?: string | null
+          expires_at?: string | null
+          granted_at?: string | null
+          hospital_id?: string | null
+          id?: string | null
+          patient_id?: string | null
+          request_id?: string | null
+          resource_scopes?:
+            | Database["public"]["Enums"]["fhir_resource_type"][]
+            | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_access_grants_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_access_grants_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "data_access_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctors_directory: {
         Row: {
           city: string | null
@@ -1029,9 +1562,30 @@ export type Database = {
         Args: { _case_id: string; _user_id: string }
         Returns: boolean
       }
+      is_hospital_member: {
+        Args: { _hospital_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_owner_doctor: {
         Args: { _doctor_id: string; _user_id: string }
         Returns: boolean
+      }
+      log_integration_event: {
+        Args: {
+          _action: Database["public"]["Enums"]["audit_action"]
+          _actor: string
+          _api_key: string
+          _error: string
+          _hospital_id: string
+          _ip: unknown
+          _meta: Json
+          _patient_id: string
+          _resource_id: string
+          _resource_type: Database["public"]["Enums"]["fhir_resource_type"]
+          _success: boolean
+          _ua: string
+        }
+        Returns: string
       }
       register_consent: {
         Args: {
@@ -1057,7 +1611,21 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "medico" | "paciente"
+      access_purpose:
+        | "continuidade_cuidado"
+        | "segunda_opiniao"
+        | "pre_operatorio"
+        | "pos_operatorio"
+        | "emergencia"
+        | "pesquisa_consentida"
+        | "outro"
+      access_request_status:
+        | "pendente"
+        | "aprovado"
+        | "recusado"
+        | "expirado"
+        | "revogado"
+      app_role: "admin" | "medico" | "paciente" | "hospital_admin"
       appointment_status:
         | "agendado"
         | "realizado"
@@ -1070,6 +1638,22 @@ export type Database = {
         | "procedimento"
         | "cirurgia"
         | "teleconsulta"
+      audit_action:
+        | "request_created"
+        | "request_approved"
+        | "request_rejected"
+        | "request_expired"
+        | "grant_created"
+        | "grant_revoked"
+        | "grant_expired"
+        | "resource_received"
+        | "resource_sent"
+        | "api_key_created"
+        | "api_key_rotated"
+        | "api_key_revoked"
+        | "auth_failed"
+        | "rate_limited"
+        | "invalid_signature"
       case_status:
         | "avaliacao_inicial"
         | "em_seguimento"
@@ -1089,6 +1673,7 @@ export type Database = {
         | "ai_processing"
         | "cookies_functional"
         | "cookies_analytics"
+        | "integracao_hospitalar"
       document_type:
         | "ecocardiograma"
         | "ressonancia"
@@ -1134,6 +1719,19 @@ export type Database = {
         | "ressonancia"
         | "tomografia"
         | "outro"
+      fhir_resource_type:
+        | "Patient"
+        | "Condition"
+        | "Observation"
+        | "DiagnosticReport"
+        | "Encounter"
+        | "Procedure"
+        | "MedicationStatement"
+        | "AllergyIntolerance"
+        | "CarePlan"
+        | "DocumentReference"
+      hospital_member_role: "admin_ti" | "medico_responsavel" | "operador"
+      hospital_status: "pendente" | "ativo" | "suspenso" | "encerrado"
       medication_log_status: "tomado" | "atrasado" | "esquecido" | "pulado"
       notification_type:
         | "patient_linked"
@@ -1285,7 +1883,23 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "medico", "paciente"],
+      access_purpose: [
+        "continuidade_cuidado",
+        "segunda_opiniao",
+        "pre_operatorio",
+        "pos_operatorio",
+        "emergencia",
+        "pesquisa_consentida",
+        "outro",
+      ],
+      access_request_status: [
+        "pendente",
+        "aprovado",
+        "recusado",
+        "expirado",
+        "revogado",
+      ],
+      app_role: ["admin", "medico", "paciente", "hospital_admin"],
       appointment_status: [
         "agendado",
         "realizado",
@@ -1299,6 +1913,23 @@ export const Constants = {
         "procedimento",
         "cirurgia",
         "teleconsulta",
+      ],
+      audit_action: [
+        "request_created",
+        "request_approved",
+        "request_rejected",
+        "request_expired",
+        "grant_created",
+        "grant_revoked",
+        "grant_expired",
+        "resource_received",
+        "resource_sent",
+        "api_key_created",
+        "api_key_rotated",
+        "api_key_revoked",
+        "auth_failed",
+        "rate_limited",
+        "invalid_signature",
       ],
       case_status: [
         "avaliacao_inicial",
@@ -1320,6 +1951,7 @@ export const Constants = {
         "ai_processing",
         "cookies_functional",
         "cookies_analytics",
+        "integracao_hospitalar",
       ],
       document_type: [
         "ecocardiograma",
@@ -1371,6 +2003,20 @@ export const Constants = {
         "tomografia",
         "outro",
       ],
+      fhir_resource_type: [
+        "Patient",
+        "Condition",
+        "Observation",
+        "DiagnosticReport",
+        "Encounter",
+        "Procedure",
+        "MedicationStatement",
+        "AllergyIntolerance",
+        "CarePlan",
+        "DocumentReference",
+      ],
+      hospital_member_role: ["admin_ti", "medico_responsavel", "operador"],
+      hospital_status: ["pendente", "ativo", "suspenso", "encerrado"],
       medication_log_status: ["tomado", "atrasado", "esquecido", "pulado"],
       notification_type: [
         "patient_linked",
