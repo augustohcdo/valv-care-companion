@@ -21,9 +21,9 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Logo } from "@/components/Logo";
-import { Button } from "@/components/ui/button";
 import { NotificationsBell } from "@/components/NotificationsBell";
 import { CommandPalette, CommandPaletteTrigger } from "@/components/CommandPalette";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,6 +56,37 @@ const patientNav = [
   { to: "/app/paciente/perfil", label: "Perfil", icon: User },
 ];
 
+// Prefetch da chunk da rota ao passar o mouse no link
+const routeLoader: Record<string, () => Promise<unknown>> = {
+  "/app/medico": () => import("@/pages/app/MedicoHome"),
+  "/app/medico/pacientes": () => import("@/pages/app/MedicoPacientes"),
+  "/app/medico/casos": () => import("@/pages/app/ListaCasos"),
+  "/app/medico/casos/novo": () => import("@/pages/app/NovoCaso"),
+  "/app/medico/agenda": () => import("@/pages/app/MedicoAgenda"),
+  "/app/medico/colaboracoes": () => import("@/pages/app/MedicoColaboracoes"),
+  "/app/medico/relatorios": () => import("@/pages/app/MedicoRelatorios"),
+  "/app/medico/biblioteca": () => import("@/pages/app/Biblioteca"),
+  "/app/medico/perfil": () => import("@/pages/app/MedicoPerfil"),
+  "/app/paciente": () => import("@/pages/app/PacienteHome"),
+  "/app/paciente/jornada": () => import("@/pages/app/PacienteJornada"),
+  "/app/paciente/diario": () => import("@/pages/app/PacienteDiario"),
+  "/app/paciente/medicacoes": () => import("@/pages/app/PacienteMedicacoes"),
+  "/app/paciente/medico": () => import("@/pages/app/PacienteMedico"),
+  "/app/paciente/documentos": () => import("@/pages/app/PacienteDocumentos"),
+  "/app/paciente/aprender": () => import("@/pages/app/PacienteAprender"),
+  "/app/paciente/perfil": () => import("@/pages/app/PacientePerfil"),
+};
+
+const prefetched = new Set<string>();
+const prefetch = (to: string) => {
+  if (prefetched.has(to)) return;
+  const loader = routeLoader[to];
+  if (loader) {
+    prefetched.add(to);
+    loader().catch(() => prefetched.delete(to));
+  }
+};
+
 export const AppLayout = () => {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
@@ -81,11 +112,11 @@ export const AppLayout = () => {
   return (
     <div className="min-h-screen bg-secondary/30 flex">
       {/* Sidebar desktop */}
-      <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border bg-card">
+      <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border bg-card sticky top-0 h-screen">
         <div className="h-16 flex items-center px-6 border-b border-border">
           <Logo />
         </div>
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {nav.map((item) => {
             const active = item.exact
               ? location.pathname === item.to
@@ -95,10 +126,12 @@ export const AppLayout = () => {
               <Link
                 key={item.to}
                 to={item.to}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                onMouseEnter={() => prefetch(item.to)}
+                onFocus={() => prefetch(item.to)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                   active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-foreground hover:bg-secondary"
+                    ? "bg-primary text-primary-foreground shadow-sm-soft"
+                    : "text-foreground hover:bg-secondary hover:translate-x-0.5"
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -119,21 +152,34 @@ export const AppLayout = () => {
 
       {/* Sidebar mobile drawer */}
       {open && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="w-64 bg-card flex flex-col">
+        <div className="lg:hidden fixed inset-0 z-50 flex animate-fade-in">
+          <div className="w-72 bg-card flex flex-col animate-slide-in-right">
             <div className="h-16 flex items-center justify-between px-4 border-b border-border">
               <Logo />
-              <button onClick={() => setOpen(false)} className="p-1"><X className="h-5 w-5" /></button>
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Fechar menu"
+                className="p-2 rounded-md hover:bg-secondary transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <nav className="flex-1 p-3 space-y-1">
+            <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
               {nav.map((item) => {
                 const Icon = item.icon;
+                const active = item.exact
+                  ? location.pathname === item.to
+                  : location.pathname.startsWith(item.to);
                 return (
                   <Link
                     key={item.to}
                     to={item.to}
                     onClick={() => setOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground hover:bg-secondary"
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-secondary"
+                    }`}
                   >
                     <Icon className="h-4 w-4" />
                     {item.label}
@@ -142,13 +188,22 @@ export const AppLayout = () => {
               })}
             </nav>
           </div>
-          <div className="flex-1 bg-foreground/40" onClick={() => setOpen(false)} />
+          <div
+            className="flex-1 bg-foreground/40 backdrop-blur-sm"
+            onClick={() => setOpen(false)}
+          />
         </div>
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 bg-card border-b border-border flex items-center px-4 lg:px-8 gap-3 sticky top-0 z-40">
-          <button onClick={() => setOpen(true)} className="lg:hidden p-2 -ml-2"><Menu className="h-5 w-5" /></button>
+        <header className="h-16 bg-card/90 backdrop-blur border-b border-border flex items-center px-4 lg:px-8 gap-3 sticky top-0 z-40">
+          <button
+            onClick={() => setOpen(true)}
+            aria-label="Abrir menu"
+            className="lg:hidden p-2 -ml-2 rounded-md hover:bg-secondary transition-colors"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
           <div className="lg:hidden"><Logo /></div>
           <div className="flex-1" />
 
@@ -157,8 +212,8 @@ export const AppLayout = () => {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2.5 hover:bg-secondary px-2 py-1.5 rounded-lg transition-colors">
-                <div className="h-8 w-8 rounded-full bg-gradient-hero text-primary-foreground grid place-items-center text-xs font-semibold">
+              <button className="flex items-center gap-2.5 hover:bg-secondary px-2 py-1.5 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <div className="h-8 w-8 rounded-full bg-gradient-hero text-primary-foreground grid place-items-center text-xs font-semibold shadow-sm-soft">
                   {initials}
                 </div>
                 <div className="hidden sm:block text-left">
@@ -189,10 +244,16 @@ export const AppLayout = () => {
           </DropdownMenu>
         </header>
 
-        <main className="flex-1 p-4 lg:p-8">
+        <main
+          key={location.pathname}
+          className="flex-1 p-4 lg:p-8 pb-24 lg:pb-8 animate-fade-in"
+        >
           <Outlet />
         </main>
       </div>
+
+      {/* Bottom nav só aparece em mobile/tablet */}
+      <MobileBottomNav variant={isDoctor ? "medico" : "paciente"} />
 
       <CommandPalette />
     </div>

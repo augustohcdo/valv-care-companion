@@ -9,7 +9,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PatientSymptomsViewer } from "@/components/PatientSymptomsViewer";
-import { exportPatientPDF } from "@/lib/patientPdf";
 
 export default function MedicoPacienteDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -70,6 +69,7 @@ export default function MedicoPacienteDetalhe() {
         supabase.from("medication_logs").select("*").eq("patient_id", patient.id).gte("log_date", sinceISO),
       ]);
 
+      const { exportPatientPDF } = await import("@/lib/patientPdf");
       exportPatientPDF({
         profile, patient,
         doctor: doctor && doctorProfile ? {

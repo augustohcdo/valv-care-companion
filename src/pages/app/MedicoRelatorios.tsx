@@ -15,8 +15,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { exportCasesToCsv } from "@/lib/casesCsv";
-import { exportCohortPDF, type CohortMetrics } from "@/lib/cohortPdf";
-import { exportMonthlyReportPDF } from "@/lib/monthlyReportPdf";
+import type { CohortMetrics } from "@/lib/cohortPdf";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CalendarRange } from "lucide-react";
@@ -129,7 +128,7 @@ export default function MedicoRelatorios() {
     toast.success("CSV exportado");
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     if (!cases.length) { toast.error("Sem casos para exportar"); return; }
     const metrics: CohortMetrics = {
       doctor: doctorInfo && profile ? {
@@ -154,6 +153,7 @@ export default function MedicoRelatorios() {
           status: c.status, created_at: c.created_at,
         })),
     };
+    const { exportCohortPDF } = await import("@/lib/cohortPdf");
     exportCohortPDF(metrics);
     toast.success("Relatório PDF gerado");
   };
@@ -199,6 +199,7 @@ export default function MedicoRelatorios() {
           : Promise.resolve({ data: [] as any[] }),
       ]);
 
+      const { exportMonthlyReportPDF } = await import("@/lib/monthlyReportPdf");
       exportMonthlyReportPDF({
         doctor:
           doctorInfo && profile

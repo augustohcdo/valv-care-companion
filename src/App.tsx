@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -8,51 +9,69 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PublicLayout } from "@/components/PublicLayout";
 import { AppLayout } from "@/components/AppLayout";
+import { PageSkeleton } from "@/components/PageSkeleton";
 
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ComingSoon from "./pages/ComingSoon";
 
-import Aprender from "./pages/public/Aprender";
-import TopicDetail from "./pages/public/TopicDetail";
-import Glossario from "./pages/public/Glossario";
-import FAQPage from "./pages/public/FAQPage";
-import Seguranca from "./pages/public/Seguranca";
-import Referencias from "./pages/public/Referencias";
-import Termos from "./pages/public/Termos";
-import Privacidade from "./pages/public/Privacidade";
-import AvisoMedico from "./pages/public/AvisoMedico";
-
+// Auth: pequenas, importadas direto
 import Login from "./pages/auth/Login";
 import Cadastro from "./pages/auth/Cadastro";
 import RecuperarSenha from "./pages/auth/RecuperarSenha";
 import RedefinirSenha from "./pages/auth/RedefinirSenha";
 import AuthCallback from "./pages/auth/AuthCallback";
 
-import MedicoHome from "./pages/app/MedicoHome";
-import PacienteHome from "./pages/app/PacienteHome";
-import NovoCaso from "./pages/app/NovoCaso";
-import ListaCasos from "./pages/app/ListaCasos";
-import CasoDetalhe from "./pages/app/CasoDetalhe";
-import MedicoPacientes from "./pages/app/MedicoPacientes";
-import MedicoPacienteDetalhe from "./pages/app/MedicoPacienteDetalhe";
-import MedicoAgenda from "./pages/app/MedicoAgenda";
-import MedicoColaboracoes from "./pages/app/MedicoColaboracoes";
-import MedicoRelatorios from "./pages/app/MedicoRelatorios";
-import PacienteJornada from "./pages/app/PacienteJornada";
-import Biblioteca from "./pages/app/Biblioteca";
-import BibliotecaDetalhe from "./pages/app/BibliotecaDetalhe";
-import MedicoPerfil from "./pages/app/MedicoPerfil";
-import PacientePerfil from "./pages/app/PacientePerfil";
-import PacienteMedico from "./pages/app/PacienteMedico";
-import PacienteDocumentos from "./pages/app/PacienteDocumentos";
-import PacienteAprender from "./pages/app/PacienteAprender";
-import PacienteAprenderDetalhe from "./pages/app/PacienteAprenderDetalhe";
-import PacienteDiario from "./pages/app/PacienteDiario";
-import PacienteMedicacoes from "./pages/app/PacienteMedicacoes";
-import AppPrivacidade from "./pages/app/Privacidade";
+// Públicas: lazy
+const Aprender = lazy(() => import("./pages/public/Aprender"));
+const TopicDetail = lazy(() => import("./pages/public/TopicDetail"));
+const Glossario = lazy(() => import("./pages/public/Glossario"));
+const FAQPage = lazy(() => import("./pages/public/FAQPage"));
+const Seguranca = lazy(() => import("./pages/public/Seguranca"));
+const Referencias = lazy(() => import("./pages/public/Referencias"));
+const Termos = lazy(() => import("./pages/public/Termos"));
+const PrivacidadePublic = lazy(() => import("./pages/public/Privacidade"));
+const AvisoMedico = lazy(() => import("./pages/public/AvisoMedico"));
 
-const queryClient = new QueryClient();
+// App (autenticado): lazy — corta drasticamente o bundle inicial
+const MedicoHome = lazy(() => import("./pages/app/MedicoHome"));
+const PacienteHome = lazy(() => import("./pages/app/PacienteHome"));
+const NovoCaso = lazy(() => import("./pages/app/NovoCaso"));
+const ListaCasos = lazy(() => import("./pages/app/ListaCasos"));
+const CasoDetalhe = lazy(() => import("./pages/app/CasoDetalhe"));
+const MedicoPacientes = lazy(() => import("./pages/app/MedicoPacientes"));
+const MedicoPacienteDetalhe = lazy(() => import("./pages/app/MedicoPacienteDetalhe"));
+const MedicoAgenda = lazy(() => import("./pages/app/MedicoAgenda"));
+const MedicoColaboracoes = lazy(() => import("./pages/app/MedicoColaboracoes"));
+const MedicoRelatorios = lazy(() => import("./pages/app/MedicoRelatorios"));
+const PacienteJornada = lazy(() => import("./pages/app/PacienteJornada"));
+const Biblioteca = lazy(() => import("./pages/app/Biblioteca"));
+const BibliotecaDetalhe = lazy(() => import("./pages/app/BibliotecaDetalhe"));
+const MedicoPerfil = lazy(() => import("./pages/app/MedicoPerfil"));
+const PacientePerfil = lazy(() => import("./pages/app/PacientePerfil"));
+const PacienteMedico = lazy(() => import("./pages/app/PacienteMedico"));
+const PacienteDocumentos = lazy(() => import("./pages/app/PacienteDocumentos"));
+const PacienteAprender = lazy(() => import("./pages/app/PacienteAprender"));
+const PacienteAprenderDetalhe = lazy(() => import("./pages/app/PacienteAprenderDetalhe"));
+const PacienteDiario = lazy(() => import("./pages/app/PacienteDiario"));
+const PacienteMedicacoes = lazy(() => import("./pages/app/PacienteMedicacoes"));
+const AppPrivacidade = lazy(() => import("./pages/app/Privacidade"));
+
+// QueryClient com defaults sensatos: cache mais longo, sem refetch agressivo
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
+
+const withSuspense = (node: JSX.Element, variant?: "dashboard" | "list" | "detail" | "form") => (
+  <Suspense fallback={<PageSkeleton variant={variant} />}>{node}</Suspense>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -62,7 +81,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            {/* Auth (sem PublicLayout para visual focado) */}
+            {/* Auth */}
             <Route path="/auth/login" element={<Login />} />
             <Route path="/auth/cadastro" element={<Cadastro />} />
             <Route path="/auth/recuperar" element={<RecuperarSenha />} />
@@ -77,120 +96,45 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route
-                path="/app/medico"
-                element={
-                  <ProtectedRoute requiredType="medico">
-                    <MedicoHome />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/app/medico/pacientes"
-                element={<ProtectedRoute requiredType="medico"><MedicoPacientes /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/medico/pacientes/:id"
-                element={<ProtectedRoute requiredType="medico"><MedicoPacienteDetalhe /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/medico/casos"
-                element={<ProtectedRoute requiredType="medico"><ListaCasos /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/medico/casos/novo"
-                element={<ProtectedRoute requiredType="medico"><NovoCaso /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/medico/casos/:id"
-                element={<ProtectedRoute requiredType="medico"><CasoDetalhe /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/medico/agenda"
-                element={<ProtectedRoute requiredType="medico"><MedicoAgenda /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/medico/colaboracoes"
-                element={<ProtectedRoute requiredType="medico"><MedicoColaboracoes /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/medico/relatorios"
-                element={<ProtectedRoute requiredType="medico"><MedicoRelatorios /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/medico/biblioteca"
-                element={<ProtectedRoute requiredType="medico"><Biblioteca /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/medico/biblioteca/:slug"
-                element={<ProtectedRoute requiredType="medico"><BibliotecaDetalhe /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/medico/perfil"
-                element={<ProtectedRoute requiredType="medico"><MedicoPerfil /></ProtectedRoute>}
-              />
+              <Route path="/app/medico" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoHome />)}</ProtectedRoute>} />
+              <Route path="/app/medico/pacientes" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoPacientes />, "list")}</ProtectedRoute>} />
+              <Route path="/app/medico/pacientes/:id" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoPacienteDetalhe />, "detail")}</ProtectedRoute>} />
+              <Route path="/app/medico/casos" element={<ProtectedRoute requiredType="medico">{withSuspense(<ListaCasos />, "list")}</ProtectedRoute>} />
+              <Route path="/app/medico/casos/novo" element={<ProtectedRoute requiredType="medico">{withSuspense(<NovoCaso />, "form")}</ProtectedRoute>} />
+              <Route path="/app/medico/casos/:id" element={<ProtectedRoute requiredType="medico">{withSuspense(<CasoDetalhe />, "detail")}</ProtectedRoute>} />
+              <Route path="/app/medico/agenda" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoAgenda />)}</ProtectedRoute>} />
+              <Route path="/app/medico/colaboracoes" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoColaboracoes />, "list")}</ProtectedRoute>} />
+              <Route path="/app/medico/relatorios" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoRelatorios />)}</ProtectedRoute>} />
+              <Route path="/app/medico/biblioteca" element={<ProtectedRoute requiredType="medico">{withSuspense(<Biblioteca />, "list")}</ProtectedRoute>} />
+              <Route path="/app/medico/biblioteca/:slug" element={<ProtectedRoute requiredType="medico">{withSuspense(<BibliotecaDetalhe />, "detail")}</ProtectedRoute>} />
+              <Route path="/app/medico/perfil" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoPerfil />, "form")}</ProtectedRoute>} />
 
-              <Route
-                path="/app/paciente"
-                element={
-                  <ProtectedRoute requiredType="paciente">
-                    <PacienteHome />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/app/paciente/jornada"
-                element={<ProtectedRoute requiredType="paciente"><PacienteJornada /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/paciente/medico"
-                element={<ProtectedRoute requiredType="paciente"><PacienteMedico /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/paciente/documentos"
-                element={<ProtectedRoute requiredType="paciente"><PacienteDocumentos /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/paciente/diario"
-                element={<ProtectedRoute requiredType="paciente"><PacienteDiario /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/paciente/medicacoes"
-                element={<ProtectedRoute requiredType="paciente"><PacienteMedicacoes /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/paciente/aprender"
-                element={<ProtectedRoute requiredType="paciente"><PacienteAprender /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/paciente/aprender/:slug"
-                element={<ProtectedRoute requiredType="paciente"><PacienteAprenderDetalhe /></ProtectedRoute>}
-              />
-              <Route
-                path="/app/paciente/perfil"
-                element={<ProtectedRoute requiredType="paciente"><PacientePerfil /></ProtectedRoute>}
-              />
+              <Route path="/app/paciente" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteHome />)}</ProtectedRoute>} />
+              <Route path="/app/paciente/jornada" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteJornada />, "detail")}</ProtectedRoute>} />
+              <Route path="/app/paciente/medico" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteMedico />)}</ProtectedRoute>} />
+              <Route path="/app/paciente/documentos" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteDocumentos />, "list")}</ProtectedRoute>} />
+              <Route path="/app/paciente/diario" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteDiario />, "form")}</ProtectedRoute>} />
+              <Route path="/app/paciente/medicacoes" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteMedicacoes />, "list")}</ProtectedRoute>} />
+              <Route path="/app/paciente/aprender" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteAprender />, "list")}</ProtectedRoute>} />
+              <Route path="/app/paciente/aprender/:slug" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteAprenderDetalhe />, "detail")}</ProtectedRoute>} />
+              <Route path="/app/paciente/perfil" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacientePerfil />, "form")}</ProtectedRoute>} />
 
-              {/* Compartilhada por médicos e pacientes */}
-              <Route
-                path="/app/privacidade"
-                element={<ProtectedRoute><AppPrivacidade /></ProtectedRoute>}
-              />
+              <Route path="/app/privacidade" element={<ProtectedRoute>{withSuspense(<AppPrivacidade />)}</ProtectedRoute>} />
             </Route>
 
             {/* Público com layout */}
             <Route element={<PublicLayout />}>
               <Route path="/" element={<Index />} />
-              <Route path="/aprender" element={<Aprender />} />
-              <Route path="/aprender/glossario" element={<Glossario />} />
-              <Route path="/aprender/faq" element={<FAQPage />} />
-              <Route path="/aprender/:slug" element={<TopicDetail />} />
+              <Route path="/aprender" element={withSuspense(<Aprender />)} />
+              <Route path="/aprender/glossario" element={withSuspense(<Glossario />)} />
+              <Route path="/aprender/faq" element={withSuspense(<FAQPage />)} />
+              <Route path="/aprender/:slug" element={withSuspense(<TopicDetail />, "detail")} />
 
-              <Route path="/seguranca" element={<Seguranca />} />
-              <Route path="/referencias" element={<Referencias />} />
-              <Route path="/termos" element={<Termos />} />
-              <Route path="/privacidade" element={<Privacidade />} />
-              <Route path="/aviso-medico" element={<AvisoMedico />} />
+              <Route path="/seguranca" element={withSuspense(<Seguranca />)} />
+              <Route path="/referencias" element={withSuspense(<Referencias />)} />
+              <Route path="/termos" element={withSuspense(<Termos />)} />
+              <Route path="/privacidade" element={withSuspense(<PrivacidadePublic />)} />
+              <Route path="/aviso-medico" element={withSuspense(<AvisoMedico />)} />
 
               <Route
                 path="/medicos"
