@@ -27,6 +27,8 @@ import { exportCasePDF } from "@/lib/casePdf";
 import { CaseChat } from "@/components/CaseChat";
 import { CaseExams } from "@/components/CaseExams";
 import { GuidelineRecommendations } from "@/components/GuidelineRecommendations";
+import { CaseCollaborators } from "@/components/CaseCollaborators";
+import { CaseDiscussion } from "@/components/CaseDiscussion";
 
 export default function CasoDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -37,6 +39,8 @@ export default function CasoDetalhe() {
   const [status, setStatus] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+  const [canComment, setCanComment] = useState(false);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -51,6 +55,24 @@ export default function CasoDetalhe() {
       setCaso(data);
       setStatus(data.status);
       setNotes(data.clinical_notes || "");
+
+      // Determinar papel: owner ou colaborador
+      const { data: doc } = await supabase
+        .from("doctors").select("id").eq("user_id", user.id).maybeSingle();
+      const owner = !!doc && doc.id === data.doctor_id;
+      setIsOwner(owner);
+
+      if (owner) {
+        setCanComment(true);
+      } else if (doc) {
+        const { data: collab } = await supabase
+          .from("case_collaborators")
+          .select("access_level, status")
+          .eq("case_id", id)
+          .eq("doctor_id", doc.id)
+          .maybeSingle();
+        setCanComment(collab?.status === "aceito" && collab?.access_level === "comentar");
+      }
       setLoading(false);
     })();
   }, [id, user, navigate]);
@@ -129,23 +151,25 @@ export default function CasoDetalhe() {
             <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4" /> Exportar PDF
             </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Remover caso?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esta ação não pode ser desfeita. O caso e todos os documentos anexados serão excluídos.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={deleteCase} className="bg-destructive text-destructive-foreground">Remover</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {isOwner && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remover caso?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação não pode ser desfeita. O caso e todos os documentos anexados serão excluídos.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={deleteCase} className="bg-destructive text-destructive-foreground">Remover</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </>
         }
       >
@@ -200,56 +224,71 @@ export default function CasoDetalhe() {
           </Card>
 
           {/* Exames seriados com gráficos */}
-          <CaseExams caseId={caso.id} />
+          <CaseExams caseId={caso.id} readOnly={!isOwner} />
 
           {/* Sugestão de conduta baseada em diretrizes */}
           <GuidelineRecommendations caso={caso} />
 
+          {/* Discussão clínica entre médicos */}
+          <CaseDiscussion caseId={caso.id} canComment={canComment} />
+
           {/* Timeline evolutiva */}
-          <CaseTimeline caseId={caso.id} />
+          <CaseTimeline caseId={caso.id} readOnly={!isOwner} />
 
           {/* Agenda */}
-          <CaseAppointments caseId={caso.id} />
+          <CaseAppointments caseId={caso.id} readOnly={!isOwner} />
 
           {/* Documentos */}
           <CaseDocuments caseId={caso.id} />
 
-          {/* Chat com o paciente (só aparece quando há paciente vinculado) */}
-          {caso.patient_id && <CaseChat caseId={caso.id} viewerRole="medico" />}
+          {/* Chat com o paciente (somente médico responsável) */}
+          {isOwner && caso.patient_id && <CaseChat caseId={caso.id} viewerRole="medico" />}
         </div>
 
         {/* Coluna lateral */}
         <div className="space-y-6">
           <RiskScoreCard caso={caso} />
 
-          <Card className="shadow-sm-soft">
-            <CardHeader><CardTitle className="text-base">Status & evolução</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Status do caso</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(caseStatusLabels).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Notas clínicas</Label>
-                <Textarea
-                  value={notes} onChange={(e) => setNotes(e.target.value)}
-                  className="mt-1.5 min-h-[140px]"
-                  placeholder="Adicione evolução, decisões compartilhadas..."
-                />
-              </div>
-              <Button onClick={saveChanges} disabled={saving} className="w-full">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Salvar alterações
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Colaboradores (segunda opinião) */}
+          <CaseCollaborators caseId={caso.id} isOwner={isOwner} />
+
+          {isOwner && (
+            <Card className="shadow-sm-soft">
+              <CardHeader><CardTitle className="text-base">Status & evolução</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Status do caso</Label>
+                  <Select value={status} onValueChange={setStatus}>
+                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(caseStatusLabels).map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Notas clínicas</Label>
+                  <Textarea
+                    value={notes} onChange={(e) => setNotes(e.target.value)}
+                    className="mt-1.5 min-h-[140px]"
+                    placeholder="Adicione evolução, decisões compartilhadas..."
+                  />
+                </div>
+                <Button onClick={saveChanges} disabled={saving} className="w-full">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Salvar alterações
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {!isOwner && (
+            <div className="text-xs text-muted-foreground bg-primary/5 border border-primary/30 rounded-lg p-3">
+              <p className="font-medium text-foreground mb-0.5">Modo colaborador</p>
+              Você está visualizando este caso como {canComment ? "comentarista" : "leitor"}. Edições são reservadas ao médico responsável.
+            </div>
+          )}
 
           <div className="text-xs text-muted-foreground bg-secondary/40 border border-border rounded-lg p-3">
             ValvePath é apoio à decisão. Não substitui julgamento clínico nem realiza diagnóstico automático.

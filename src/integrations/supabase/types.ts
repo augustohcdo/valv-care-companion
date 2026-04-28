@@ -59,6 +59,78 @@ export type Database = {
         }
         Relationships: []
       }
+      case_collaborators: {
+        Row: {
+          access_level: Database["public"]["Enums"]["collaborator_access"]
+          case_id: string
+          created_at: string
+          doctor_id: string
+          id: string
+          invited_by: string
+          message: string | null
+          responded_at: string | null
+          status: Database["public"]["Enums"]["collaborator_status"]
+          updated_at: string
+        }
+        Insert: {
+          access_level?: Database["public"]["Enums"]["collaborator_access"]
+          case_id: string
+          created_at?: string
+          doctor_id: string
+          id?: string
+          invited_by: string
+          message?: string | null
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["collaborator_status"]
+          updated_at?: string
+        }
+        Update: {
+          access_level?: Database["public"]["Enums"]["collaborator_access"]
+          case_id?: string
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          invited_by?: string
+          message?: string | null
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["collaborator_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      case_comments: {
+        Row: {
+          author_doctor_id: string | null
+          author_id: string
+          body: string
+          case_id: string
+          created_at: string
+          id: string
+          is_heart_team_decision: boolean
+          updated_at: string
+        }
+        Insert: {
+          author_doctor_id?: string | null
+          author_id: string
+          body: string
+          case_id: string
+          created_at?: string
+          id?: string
+          is_heart_team_decision?: boolean
+          updated_at?: string
+        }
+        Update: {
+          author_doctor_id?: string | null
+          author_id?: string
+          body?: string
+          case_id?: string
+          created_at?: string
+          id?: string
+          is_heart_team_decision?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       case_documents: {
         Row: {
           case_id: string
@@ -573,6 +645,10 @@ export type Database = {
         Args: { _case_id: string; _user_id: string }
         Returns: boolean
       }
+      can_comment_case: {
+        Args: { _case_id: string; _user_id: string }
+        Returns: boolean
+      }
       create_notification: {
         Args: {
           _body?: string
@@ -589,6 +665,14 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_case_owner: {
+        Args: { _case_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_owner_doctor: {
+        Args: { _doctor_id: string; _user_id: string }
         Returns: boolean
       }
     }
@@ -613,6 +697,8 @@ export type Database = {
         | "pos_intervencao"
         | "alta"
         | "arquivado"
+      collaborator_access: "leitura" | "comentar"
+      collaborator_status: "pendente" | "aceito" | "recusado" | "removido"
       document_type:
         | "ecocardiograma"
         | "ressonancia"
@@ -815,6 +901,8 @@ export const Constants = {
         "alta",
         "arquivado",
       ],
+      collaborator_access: ["leitura", "comentar"],
+      collaborator_status: ["pendente", "aceito", "recusado", "removido"],
       document_type: [
         "ecocardiograma",
         "ressonancia",
