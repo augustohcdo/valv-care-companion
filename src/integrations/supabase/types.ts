@@ -14,6 +14,143 @@ export type Database = {
   }
   public: {
     Tables: {
+      case_documents: {
+        Row: {
+          case_id: string
+          created_at: string
+          description: string | null
+          document_type: Database["public"]["Enums"]["document_type"]
+          file_name: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          storage_path: string
+          uploaded_by: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          description?: string | null
+          document_type?: Database["public"]["Enums"]["document_type"]
+          file_name: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          storage_path: string
+          uploaded_by: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          description?: string | null
+          document_type?: Database["public"]["Enums"]["document_type"]
+          file_name?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          storage_path?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_documents_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "clinical_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clinical_cases: {
+        Row: {
+          clinical_notes: string | null
+          comorbidities: string[] | null
+          created_at: string
+          doctor_id: string
+          ejection_fraction: number | null
+          id: string
+          mean_gradient: number | null
+          nyha: Database["public"]["Enums"]["nyha_class"] | null
+          patient_age: number | null
+          patient_id: string | null
+          patient_name: string
+          patient_sex: string | null
+          peak_gradient: number | null
+          proposed_management: string | null
+          regurgitation_grade: string | null
+          severity: Database["public"]["Enums"]["severity_level"]
+          status: Database["public"]["Enums"]["case_status"]
+          symptoms: string[] | null
+          updated_at: string
+          valve_area: number | null
+          valve_disease: Database["public"]["Enums"]["valve_disease"]
+          valve_type: Database["public"]["Enums"]["valve_type"]
+        }
+        Insert: {
+          clinical_notes?: string | null
+          comorbidities?: string[] | null
+          created_at?: string
+          doctor_id: string
+          ejection_fraction?: number | null
+          id?: string
+          mean_gradient?: number | null
+          nyha?: Database["public"]["Enums"]["nyha_class"] | null
+          patient_age?: number | null
+          patient_id?: string | null
+          patient_name: string
+          patient_sex?: string | null
+          peak_gradient?: number | null
+          proposed_management?: string | null
+          regurgitation_grade?: string | null
+          severity?: Database["public"]["Enums"]["severity_level"]
+          status?: Database["public"]["Enums"]["case_status"]
+          symptoms?: string[] | null
+          updated_at?: string
+          valve_area?: number | null
+          valve_disease: Database["public"]["Enums"]["valve_disease"]
+          valve_type: Database["public"]["Enums"]["valve_type"]
+        }
+        Update: {
+          clinical_notes?: string | null
+          comorbidities?: string[] | null
+          created_at?: string
+          doctor_id?: string
+          ejection_fraction?: number | null
+          id?: string
+          mean_gradient?: number | null
+          nyha?: Database["public"]["Enums"]["nyha_class"] | null
+          patient_age?: number | null
+          patient_id?: string | null
+          patient_name?: string
+          patient_sex?: string | null
+          peak_gradient?: number | null
+          proposed_management?: string | null
+          regurgitation_grade?: string | null
+          severity?: Database["public"]["Enums"]["severity_level"]
+          status?: Database["public"]["Enums"]["case_status"]
+          symptoms?: string[] | null
+          updated_at?: string
+          valve_area?: number | null
+          valve_disease?: Database["public"]["Enums"]["valve_disease"]
+          valve_type?: Database["public"]["Enums"]["valve_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinical_cases_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinical_cases_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctors: {
         Row: {
           bio: string | null
@@ -171,6 +308,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_case: {
+        Args: { _case_id: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -181,6 +322,38 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "medico" | "paciente"
+      case_status:
+        | "avaliacao_inicial"
+        | "em_seguimento"
+        | "pre_intervencao"
+        | "pos_intervencao"
+        | "alta"
+        | "arquivado"
+      document_type:
+        | "ecocardiograma"
+        | "ressonancia"
+        | "tomografia"
+        | "cateterismo"
+        | "eletrocardiograma"
+        | "laudo_medico"
+        | "receita"
+        | "exame_laboratorial"
+        | "outro"
+      nyha_class: "I" | "II" | "III" | "IV"
+      severity_level:
+        | "leve"
+        | "moderada"
+        | "importante"
+        | "critica"
+        | "indeterminada"
+      valve_disease:
+        | "estenose"
+        | "insuficiencia"
+        | "mista"
+        | "prolapso"
+        | "protese_disfuncao"
+        | "outra"
+      valve_type: "aortica" | "mitral" | "tricuspide" | "pulmonar" | "multipla"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -309,6 +482,42 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "medico", "paciente"],
+      case_status: [
+        "avaliacao_inicial",
+        "em_seguimento",
+        "pre_intervencao",
+        "pos_intervencao",
+        "alta",
+        "arquivado",
+      ],
+      document_type: [
+        "ecocardiograma",
+        "ressonancia",
+        "tomografia",
+        "cateterismo",
+        "eletrocardiograma",
+        "laudo_medico",
+        "receita",
+        "exame_laboratorial",
+        "outro",
+      ],
+      nyha_class: ["I", "II", "III", "IV"],
+      severity_level: [
+        "leve",
+        "moderada",
+        "importante",
+        "critica",
+        "indeterminada",
+      ],
+      valve_disease: [
+        "estenose",
+        "insuficiencia",
+        "mista",
+        "prolapso",
+        "protese_disfuncao",
+        "outra",
+      ],
+      valve_type: ["aortica", "mitral", "tricuspide", "pulmonar", "multipla"],
     },
   },
 } as const
