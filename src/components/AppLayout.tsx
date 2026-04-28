@@ -257,6 +257,7 @@ export const AppLayout = () => {
       <MobileBottomNav variant={isDoctor ? "medico" : "paciente"} />
 
       <CommandPalette />
+      <ExportQueueDock />
     </div>
   );
 };
