@@ -4,7 +4,7 @@ import {
   examTypeLabels,
 } from "@/lib/clinicalLabels";
 
-interface PatientPdfData {
+export interface PatientPdfData {
   profile: any;
   patient: any;
   doctor?: { full_name: string; crm: string; crm_uf: string; specialty: string } | null;

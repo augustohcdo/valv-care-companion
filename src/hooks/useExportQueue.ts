@@ -9,7 +9,10 @@ export function useExportQueue() {
   const [jobs, setJobs] = useState<ExportJob[]>([]);
 
   useEffect(() => {
-    return exportQueue.subscribe(setJobs);
+    const unsubscribe = exportQueue.subscribe(setJobs);
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   return {
