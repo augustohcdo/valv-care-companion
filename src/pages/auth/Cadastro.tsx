@@ -25,6 +25,23 @@ import { Logo } from "@/components/Logo";
 
 type Step = "choose" | "medico" | "paciente";
 
+async function recordSignupConsents(audience: "medico" | "paciente") {
+  const baseTypes: ConsentType[] = [
+    "terms_of_use",
+    "privacy_policy",
+    "medical_disclaimer",
+  ];
+  // O paciente também já consente, no cadastro, com compartilhamento com o médico vinculado
+  if (audience === "paciente") baseTypes.push("data_sharing_doctor");
+  for (const t of baseTypes) {
+    try {
+      await registerConsent({ type: t, granted: true, source: "signup" });
+    } catch (e) {
+      console.error("consent register failed", t, e);
+    }
+  }
+}
+
 export default function Cadastro() {
   const [step, setStep] = useState<Step>("choose");
 
