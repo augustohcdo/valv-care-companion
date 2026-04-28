@@ -324,6 +324,10 @@ function PatientForm({ onBack }: { onBack: () => void }) {
       await supabase.from("profiles").update({ phone: values.phone }).eq("user_id", signupData.user.id);
     }
 
+    if (signupData.session) {
+      await recordSignupConsents("paciente");
+    }
+
     setSubmitting(false);
     toast.success("Bem-vindo ao ValvePath", {
       description: linkedDoctorId ? "Vínculo com seu médico estabelecido." : undefined,
