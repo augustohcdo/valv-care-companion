@@ -36,6 +36,10 @@ import ListaCasos from "./pages/app/ListaCasos";
 import CasoDetalhe from "./pages/app/CasoDetalhe";
 import MedicoPacientes from "./pages/app/MedicoPacientes";
 import PacienteJornada from "./pages/app/PacienteJornada";
+import Biblioteca from "./pages/app/Biblioteca";
+import BibliotecaDetalhe from "./pages/app/BibliotecaDetalhe";
+import MedicoPerfil from "./pages/app/MedicoPerfil";
+import PacientePerfil from "./pages/app/PacientePerfil";
 
 const queryClient = new QueryClient();
 
