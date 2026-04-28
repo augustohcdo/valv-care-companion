@@ -17,8 +17,11 @@ export default function MedicoPacienteDetalhe() {
   const navigate = useNavigate();
   const [patient, setPatient] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [doctor, setDoctor] = useState<any>(null);
+  const [doctorProfile, setDoctorProfile] = useState<any>(null);
   const [cases, setCases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (!id || !user) return;
