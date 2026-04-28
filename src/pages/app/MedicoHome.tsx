@@ -86,6 +86,12 @@ export default function MedicoHome() {
         />
       </div>
 
+      {/* Dashboards visuais */}
+      <div>
+        <h2 className="font-serif text-xl text-primary mb-3">Visão clínica geral</h2>
+        <DashboardCharts cases={cases} />
+      </div>
+
       {/* Ações rápidas */}
       <div className="grid lg:grid-cols-3 gap-4">
         <ActionCard
