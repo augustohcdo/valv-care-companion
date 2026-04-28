@@ -13,6 +13,7 @@ import {
   PatientSignupInput,
   UF_LIST,
 } from "@/lib/validators";
+import { registerConsent, ConsentType } from "@/lib/consent";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Logo } from "@/components/Logo";
 
 type Step = "choose" | "medico" | "paciente";
+
+async function recordSignupConsents(audience: "medico" | "paciente") {
+  const baseTypes: ConsentType[] = [
+    "terms_of_use",
+    "privacy_policy",
+    "medical_disclaimer",
+  ];
+  // O paciente também já consente, no cadastro, com compartilhamento com o médico vinculado
+  if (audience === "paciente") baseTypes.push("data_sharing_doctor");
+  for (const t of baseTypes) {
+    try {
+      await registerConsent({ type: t, granted: true, source: "signup" });
+    } catch (e) {
+      console.error("consent register failed", t, e);
+    }
+  }
+}
 
 export default function Cadastro() {
   const [step, setStep] = useState<Step>("choose");
@@ -163,6 +181,11 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
     // 4) Atualiza phone no profile
     if (values.phone) {
       await supabase.from("profiles").update({ phone: values.phone }).eq("user_id", signupData.user.id);
+    }
+
+    // 5) Registra consentimentos granulares (somente se já há sessão)
+    if (signupData.session) {
+      await recordSignupConsents("medico");
     }
 
     setSubmitting(false);
@@ -316,6 +339,10 @@ function PatientForm({ onBack }: { onBack: () => void }) {
 
     if (values.phone) {
       await supabase.from("profiles").update({ phone: values.phone }).eq("user_id", signupData.user.id);
+    }
+
+    if (signupData.session) {
+      await recordSignupConsents("paciente");
     }
 
     setSubmitting(false);

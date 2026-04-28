@@ -406,6 +406,45 @@ export type Database = {
           },
         ]
       }
+      consent_audit_log: {
+        Row: {
+          action: Database["public"]["Enums"]["consent_action"]
+          consent_type: Database["public"]["Enums"]["consent_type"]
+          created_at: string
+          document_version: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          source: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["consent_action"]
+          consent_type: Database["public"]["Enums"]["consent_type"]
+          created_at?: string
+          document_version?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          source?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["consent_action"]
+          consent_type?: Database["public"]["Enums"]["consent_type"]
+          created_at?: string
+          document_version?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          source?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       doctors: {
         Row: {
           bio: string | null
@@ -756,6 +795,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_consents: {
+        Row: {
+          consent_type: Database["public"]["Enums"]["consent_type"]
+          created_at: string
+          document_version: string
+          granted: boolean
+          granted_at: string | null
+          id: string
+          revoked_at: string | null
+          source: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          consent_type: Database["public"]["Enums"]["consent_type"]
+          created_at?: string
+          document_version?: string
+          granted: boolean
+          granted_at?: string | null
+          id?: string
+          revoked_at?: string | null
+          source?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          consent_type?: Database["public"]["Enums"]["consent_type"]
+          created_at?: string
+          document_version?: string
+          granted?: boolean
+          granted_at?: string | null
+          id?: string
+          revoked_at?: string | null
+          source?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -816,6 +894,18 @@ export type Database = {
         Args: { _doctor_id: string; _user_id: string }
         Returns: boolean
       }
+      register_consent: {
+        Args: {
+          _consent_type: Database["public"]["Enums"]["consent_type"]
+          _document_version?: string
+          _granted: boolean
+          _ip_address?: string
+          _metadata?: Json
+          _source?: string
+          _user_agent?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "medico" | "paciente"
@@ -840,6 +930,14 @@ export type Database = {
         | "arquivado"
       collaborator_access: "leitura" | "comentar"
       collaborator_status: "pendente" | "aceito" | "recusado" | "removido"
+      consent_action: "granted" | "revoked"
+      consent_type:
+        | "terms_of_use"
+        | "privacy_policy"
+        | "medical_disclaimer"
+        | "data_sharing_doctor"
+        | "email_communications"
+        | "ai_processing"
       document_type:
         | "ecocardiograma"
         | "ressonancia"
@@ -1045,6 +1143,15 @@ export const Constants = {
       ],
       collaborator_access: ["leitura", "comentar"],
       collaborator_status: ["pendente", "aceito", "recusado", "removido"],
+      consent_action: ["granted", "revoked"],
+      consent_type: [
+        "terms_of_use",
+        "privacy_policy",
+        "medical_disclaimer",
+        "data_sharing_doctor",
+        "email_communications",
+        "ai_processing",
+      ],
       document_type: [
         "ecocardiograma",
         "ressonancia",

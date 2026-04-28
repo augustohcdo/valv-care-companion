@@ -50,6 +50,7 @@ import PacienteAprender from "./pages/app/PacienteAprender";
 import PacienteAprenderDetalhe from "./pages/app/PacienteAprenderDetalhe";
 import PacienteDiario from "./pages/app/PacienteDiario";
 import PacienteMedicacoes from "./pages/app/PacienteMedicacoes";
+import AppPrivacidade from "./pages/app/Privacidade";
 
 const queryClient = new QueryClient();
 
@@ -168,6 +169,12 @@ const App = () => (
               <Route
                 path="/app/paciente/perfil"
                 element={<ProtectedRoute requiredType="paciente"><PacientePerfil /></ProtectedRoute>}
+              />
+
+              {/* Compartilhada por médicos e pacientes */}
+              <Route
+                path="/app/privacidade"
+                element={<ProtectedRoute><AppPrivacidade /></ProtectedRoute>}
               />
             </Route>
 
