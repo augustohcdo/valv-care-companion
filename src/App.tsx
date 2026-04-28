@@ -92,19 +92,15 @@ const App = () => (
               />
               <Route
                 path="/app/medico/biblioteca"
-                element={
-                  <ProtectedRoute requiredType="medico">
-                    <ComingSoon eyebrow="Próxima fase" title="Biblioteca clínica" description="Resumos de diretrizes por valvopatia." />
-                  </ProtectedRoute>
-                }
+                element={<ProtectedRoute requiredType="medico"><Biblioteca /></ProtectedRoute>}
+              />
+              <Route
+                path="/app/medico/biblioteca/:slug"
+                element={<ProtectedRoute requiredType="medico"><BibliotecaDetalhe /></ProtectedRoute>}
               />
               <Route
                 path="/app/medico/perfil"
-                element={
-                  <ProtectedRoute requiredType="medico">
-                    <ComingSoon eyebrow="Próxima fase" title="Perfil profissional" description="Edite seus dados profissionais e visibilidade." />
-                  </ProtectedRoute>
-                }
+                element={<ProtectedRoute requiredType="medico"><MedicoPerfil /></ProtectedRoute>}
               />
 
               <Route
@@ -137,11 +133,7 @@ const App = () => (
               />
               <Route
                 path="/app/paciente/perfil"
-                element={
-                  <ProtectedRoute requiredType="paciente">
-                    <ComingSoon eyebrow="Próxima fase" title="Meu perfil" description="Atualize seus dados pessoais." />
-                  </ProtectedRoute>
-                }
+                element={<ProtectedRoute requiredType="paciente"><PacientePerfil /></ProtectedRoute>}
               />
             </Route>
 
