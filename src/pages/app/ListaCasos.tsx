@@ -76,6 +76,7 @@ export default function ListaCasos() {
       if (severity !== ALL && c.severity !== severity) return false;
       if (status !== ALL && c.status !== status) return false;
       if (nyha !== ALL && c.nyha !== nyha) return false;
+      if (pendingOnly && !pendingIds.has(c.id)) return false;
       return true;
     });
 
@@ -96,7 +97,7 @@ export default function ListaCasos() {
     }
 
     return list;
-  }, [cases, q, valve, severity, status, nyha, sortBy]);
+  }, [cases, q, valve, severity, status, nyha, pendingOnly, pendingIds, sortBy]);
 
   return (
     <div className="max-w-6xl">
