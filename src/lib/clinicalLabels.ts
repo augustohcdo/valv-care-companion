@@ -85,6 +85,28 @@ export const eventTypeColors: Record<string, string> = {
   medicacao: "bg-secondary text-foreground border-border",
 };
 
+export const examTypeLabels: Record<string, string> = {
+  eco: "Ecocardiograma",
+  ecg: "Eletrocardiograma",
+  bnp: "BNP / NT-proBNP",
+  ergometria: "Teste ergométrico",
+  hemodinamica: "Cateterismo / hemodinâmica",
+  ressonancia: "Ressonância magnética",
+  tomografia: "Tomografia",
+  outro: "Outro exame",
+};
+
+export const examTypeColors: Record<string, string> = {
+  eco: "bg-primary/10 text-primary border-primary/30",
+  ecg: "bg-accent/20 text-accent-foreground border-accent/40",
+  bnp: "bg-warning/10 text-warning border-warning/30",
+  ergometria: "bg-secondary text-foreground border-border",
+  hemodinamica: "bg-destructive/10 text-destructive border-destructive/30",
+  ressonancia: "bg-secondary text-foreground border-border",
+  tomografia: "bg-secondary text-foreground border-border",
+  outro: "bg-muted text-muted-foreground border-border",
+};
+
 export const appointmentTypeLabels: Record<string, string> = {
   consulta_retorno: "Consulta de retorno",
   exame: "Exame",

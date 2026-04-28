@@ -12,6 +12,7 @@ import { CaseDocuments } from "@/components/CaseDocuments";
 import { CaseTimeline } from "@/components/CaseTimeline";
 import { CaseAppointments } from "@/components/CaseAppointments";
 import { CaseChat } from "@/components/CaseChat";
+import { CaseExams } from "@/components/CaseExams";
 
 export default function PacienteJornada() {
   const { user } = useAuth();
@@ -120,6 +121,7 @@ export default function PacienteJornada() {
 
                   {isOpen && (
                     <div className="mt-4 space-y-4">
+                      <CaseExams caseId={c.id} readOnly />
                       <CaseTimeline caseId={c.id} readOnly />
                       <CaseAppointments caseId={c.id} readOnly />
                       <CaseDocuments caseId={c.id} />
