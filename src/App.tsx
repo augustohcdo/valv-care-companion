@@ -42,6 +42,8 @@ import MedicoPerfil from "./pages/app/MedicoPerfil";
 import PacientePerfil from "./pages/app/PacientePerfil";
 import PacienteMedico from "./pages/app/PacienteMedico";
 import PacienteDocumentos from "./pages/app/PacienteDocumentos";
+import PacienteAprender from "./pages/app/PacienteAprender";
+import PacienteAprenderDetalhe from "./pages/app/PacienteAprenderDetalhe";
 
 const queryClient = new QueryClient();
 
@@ -124,6 +126,14 @@ const App = () => (
               <Route
                 path="/app/paciente/documentos"
                 element={<ProtectedRoute requiredType="paciente"><PacienteDocumentos /></ProtectedRoute>}
+              />
+              <Route
+                path="/app/paciente/aprender"
+                element={<ProtectedRoute requiredType="paciente"><PacienteAprender /></ProtectedRoute>}
+              />
+              <Route
+                path="/app/paciente/aprender/:slug"
+                element={<ProtectedRoute requiredType="paciente"><PacienteAprenderDetalhe /></ProtectedRoute>}
               />
               <Route
                 path="/app/paciente/perfil"

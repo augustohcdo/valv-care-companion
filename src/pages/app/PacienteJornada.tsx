@@ -9,6 +9,8 @@ import {
   valveTypeLabels, valveDiseaseLabels, severityLabels, severityColors, caseStatusLabels,
 } from "@/lib/clinicalLabels";
 import { CaseDocuments } from "@/components/CaseDocuments";
+import { CaseTimeline } from "@/components/CaseTimeline";
+import { CaseAppointments } from "@/components/CaseAppointments";
 
 export default function PacienteJornada() {
   const { user } = useAuth();
@@ -110,13 +112,15 @@ export default function PacienteJornada() {
 
                   <button
                     onClick={() => setOpenCase(isOpen ? null : c.id)}
-                    className="text-sm text-primary hover:underline mt-4"
+                    className="text-sm text-primary hover:underline mt-4 font-medium"
                   >
-                    {isOpen ? "Ocultar documentos" : "Ver / anexar documentos"}
+                    {isOpen ? "Ocultar detalhes" : "Ver evolução, agenda e documentos"}
                   </button>
 
                   {isOpen && (
-                    <div className="mt-4">
+                    <div className="mt-4 space-y-4">
+                      <CaseTimeline caseId={c.id} readOnly />
+                      <CaseAppointments caseId={c.id} readOnly />
                       <CaseDocuments caseId={c.id} />
                     </div>
                   )}

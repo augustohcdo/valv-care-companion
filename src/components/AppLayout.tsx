@@ -40,6 +40,7 @@ const patientNav = [
   { to: "/app/paciente/jornada", label: "Minha jornada", icon: HeartPulse },
   { to: "/app/paciente/medico", label: "Meu médico", icon: Stethoscope },
   { to: "/app/paciente/documentos", label: "Documentos", icon: FileText },
+  { to: "/app/paciente/aprender", label: "Aprender", icon: BookOpen },
   { to: "/app/paciente/perfil", label: "Perfil", icon: User },
 ];
 
