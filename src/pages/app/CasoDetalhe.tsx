@@ -25,6 +25,8 @@ import { CaseAppointments } from "@/components/CaseAppointments";
 import { RiskScoreCard } from "@/components/RiskScoreCard";
 import { exportCasePDF } from "@/lib/casePdf";
 import { CaseChat } from "@/components/CaseChat";
+import { CaseExams } from "@/components/CaseExams";
+import { GuidelineRecommendations } from "@/components/GuidelineRecommendations";
 
 export default function CasoDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -196,6 +198,12 @@ export default function CasoDetalhe() {
               )}
             </CardContent>
           </Card>
+
+          {/* Exames seriados com gráficos */}
+          <CaseExams caseId={caso.id} />
+
+          {/* Sugestão de conduta baseada em diretrizes */}
+          <GuidelineRecommendations caso={caso} />
 
           {/* Timeline evolutiva */}
           <CaseTimeline caseId={caso.id} />
