@@ -13,6 +13,7 @@ import {
   PatientSignupInput,
   UF_LIST,
 } from "@/lib/validators";
+import { registerConsent, ConsentType } from "@/lib/consent";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
