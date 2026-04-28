@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointments: {
+        Row: {
+          appointment_type: Database["public"]["Enums"]["appointment_type"]
+          case_id: string
+          created_at: string
+          created_by: string
+          duration_minutes: number
+          id: string
+          location: string | null
+          notes: string | null
+          scheduled_at: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        Insert: {
+          appointment_type?: Database["public"]["Enums"]["appointment_type"]
+          case_id: string
+          created_at?: string
+          created_by: string
+          duration_minutes?: number
+          id?: string
+          location?: string | null
+          notes?: string | null
+          scheduled_at: string
+          status?: Database["public"]["Enums"]["appointment_status"]
+          updated_at?: string
+        }
+        Update: {
+          appointment_type?: Database["public"]["Enums"]["appointment_type"]
+          case_id?: string
+          created_at?: string
+          created_by?: string
+          duration_minutes?: number
+          id?: string
+          location?: string | null
+          notes?: string | null
+          scheduled_at?: string
+          status?: Database["public"]["Enums"]["appointment_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       case_documents: {
         Row: {
           case_id: string
@@ -60,6 +102,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      case_events: {
+        Row: {
+          case_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          event_date: string
+          event_type: Database["public"]["Enums"]["event_type"]
+          id: string
+          metadata: Json | null
+          title: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          event_date?: string
+          event_type: Database["public"]["Enums"]["event_type"]
+          id?: string
+          metadata?: Json | null
+          title: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          event_date?: string
+          event_type?: Database["public"]["Enums"]["event_type"]
+          id?: string
+          metadata?: Json | null
+          title?: string
+        }
+        Relationships: []
       }
       clinical_cases: {
         Row: {
@@ -411,6 +489,18 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "medico" | "paciente"
+      appointment_status:
+        | "agendado"
+        | "realizado"
+        | "cancelado"
+        | "remarcado"
+        | "faltou"
+      appointment_type:
+        | "consulta_retorno"
+        | "exame"
+        | "procedimento"
+        | "cirurgia"
+        | "teleconsulta"
       case_status:
         | "avaliacao_inicial"
         | "em_seguimento"
@@ -428,6 +518,16 @@ export type Database = {
         | "receita"
         | "exame_laboratorial"
         | "outro"
+      event_type:
+        | "consulta"
+        | "exame"
+        | "cirurgia"
+        | "internacao"
+        | "alta"
+        | "mudanca_nyha"
+        | "mudanca_severidade"
+        | "observacao"
+        | "medicacao"
       notification_type:
         | "patient_linked"
         | "patient_unlinked"
@@ -579,6 +679,20 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "medico", "paciente"],
+      appointment_status: [
+        "agendado",
+        "realizado",
+        "cancelado",
+        "remarcado",
+        "faltou",
+      ],
+      appointment_type: [
+        "consulta_retorno",
+        "exame",
+        "procedimento",
+        "cirurgia",
+        "teleconsulta",
+      ],
       case_status: [
         "avaliacao_inicial",
         "em_seguimento",
@@ -597,6 +711,17 @@ export const Constants = {
         "receita",
         "exame_laboratorial",
         "outro",
+      ],
+      event_type: [
+        "consulta",
+        "exame",
+        "cirurgia",
+        "internacao",
+        "alta",
+        "mudanca_nyha",
+        "mudanca_severidade",
+        "observacao",
+        "medicacao",
       ],
       notification_type: [
         "patient_linked",
