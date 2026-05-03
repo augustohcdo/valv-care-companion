@@ -184,11 +184,11 @@ const Index = () => {
               <p className="mt-4 text-base sm:text-lg text-muted-foreground leading-relaxed">
                 Acesse explicações sobre doenças valvares, exames, tratamentos e jornada hospitalar. Sem necessidade de cadastro. Se quiser, crie uma conta para se conectar ao seu médico e organizar sua saúde valvar com segurança.
               </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Button asChild variant="hero">
+              <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-3">
+                <Button asChild variant="hero" className="min-h-[48px]">
                   <Link to="/aprender">Explorar conteúdo</Link>
                 </Button>
-                <Button asChild variant="outline">
+                <Button asChild variant="outline" className="min-h-[48px]">
                   <Link to="/auth/cadastro?type=paciente">Criar conta de paciente</Link>
                 </Button>
               </div>
