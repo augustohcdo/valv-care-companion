@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   HeartPulse,
@@ -8,9 +8,9 @@ import {
   Users,
   FileText,
   Calendar,
-  BarChart3,
   FilePlus2,
 } from "lucide-react";
+import { useDebouncedNav } from "@/hooks/useDebouncedNav";
 
 const patientItems = [
   { to: "/app/paciente", label: "Início", icon: LayoutDashboard, exact: true },
