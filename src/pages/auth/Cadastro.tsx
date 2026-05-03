@@ -25,23 +25,51 @@ import { Logo } from "@/components/Logo";
 
 type Step = "choose" | "medico" | "paciente";
 
-/** Scroll to first validation error field and focus it */
+/** Scroll to first validation error field and focus it (Safari iOS safe) */
 function useScrollToError(errors: Record<string, any>, fieldOrder: string[]) {
+  // Serialize error keys so the effect re-fires when errors actually change
+  const errorKeys = fieldOrder.filter((k) => errors[k]).join(",");
+
   useEffect(() => {
-    const firstKey = fieldOrder.find((k) => errors[k]);
-    if (!firstKey) return;
-    // Find the wrapper that contains the errored field
-    const el =
-      document.querySelector(`[data-field="${firstKey}"]`) ??
-      document.querySelector(`[name="${firstKey}"]`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    // Try to focus the first focusable child (input or button/trigger)
-    const focusable = el instanceof HTMLInputElement || el instanceof HTMLSelectElement
-      ? el
-      : (el.querySelector("input, button, [tabindex]") as HTMLElement | null);
-    focusable?.focus({ preventScroll: true });
-  }, [errors, fieldOrder]);
+    if (!errorKeys) return;
+    const firstKey = errorKeys.split(",")[0];
+
+    // Use requestAnimationFrame to ensure DOM is painted (Safari iOS needs this)
+    requestAnimationFrame(() => {
+      const el =
+        document.querySelector<HTMLElement>(`[data-field="${firstKey}"]`) ??
+        document.querySelector<HTMLElement>(`[name="${firstKey}"]`);
+      if (!el) return;
+
+      // Safari iOS doesn't reliably support scrollIntoView options object,
+      // so we compute scroll position manually for a centered, smooth scroll.
+      const rect = el.getBoundingClientRect();
+      const scrollTarget = window.scrollY + rect.top - window.innerHeight / 2 + rect.height / 2;
+
+      // Use try/catch because Safari < 15.4 may not support smooth scrollTo options
+      try {
+        window.scrollTo({ top: Math.max(0, scrollTarget), behavior: "smooth" });
+      } catch {
+        window.scrollTo(0, Math.max(0, scrollTarget));
+      }
+
+      // Delay focus until after scroll settles to prevent Safari's scroll-on-focus jump
+      setTimeout(() => {
+        const focusable =
+          el instanceof HTMLInputElement || el instanceof HTMLSelectElement
+            ? el
+            : (el.querySelector<HTMLElement>("input, button, [tabindex]"));
+        if (focusable) {
+          // Safari: use preventScroll where supported, fallback silently
+          try {
+            focusable.focus({ preventScroll: true });
+          } catch {
+            focusable.focus();
+          }
+        }
+      }, 350);
+    });
+  }, [errorKeys]);
 }
 
 async function recordSignupConsents(audience: "medico" | "paciente") {

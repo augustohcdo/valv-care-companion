@@ -140,11 +140,17 @@
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
     touch-action: manipulation;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Prevent ghost clicks / double-tap zoom on interactive elements */
   a, button, [role="button"], input, select, textarea, label {
     touch-action: manipulation;
+  }
+
+  /* Prevent Safari iOS zoom on input focus (requires font-size >= 16px) */
+  input, select, textarea {
+    font-size: 16px;
   }
 
   body {
