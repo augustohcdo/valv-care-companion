@@ -131,7 +131,7 @@ const Index = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
                 { icon: ClipboardCheck, title: "Casos estruturados", desc: "Etapas claras: identificação, exames, checklist e resumo." },
                 { icon: FileHeart, title: "Anexos clínicos", desc: "PDF, imagens, laudos, ECG, eco — organizados por caso." },
