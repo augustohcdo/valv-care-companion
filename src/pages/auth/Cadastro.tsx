@@ -25,42 +25,36 @@ import { Logo } from "@/components/Logo";
 
 type Step = "choose" | "medico" | "paciente";
 
-/** Scroll to first validation error field and focus it (Safari iOS safe) */
-function useScrollToError(errors: Record<string, any>, fieldOrder: string[]) {
-  // Serialize error keys so the effect re-fires when errors actually change
+/** Scroll to first validation error field and focus it (Safari iOS safe).
+ *  `submitCount` ensures the effect re-fires even when the same errors persist. */
+function useScrollToError(errors: Record<string, any>, fieldOrder: string[], submitCount: number) {
   const errorKeys = fieldOrder.filter((k) => errors[k]).join(",");
 
   useEffect(() => {
-    if (!errorKeys) return;
+    if (!errorKeys || submitCount === 0) return;
     const firstKey = errorKeys.split(",")[0];
 
-    // Use requestAnimationFrame to ensure DOM is painted (Safari iOS needs this)
     requestAnimationFrame(() => {
       const el =
         document.querySelector<HTMLElement>(`[data-field="${firstKey}"]`) ??
         document.querySelector<HTMLElement>(`[name="${firstKey}"]`);
       if (!el) return;
 
-      // Safari iOS doesn't reliably support scrollIntoView options object,
-      // so we compute scroll position manually for a centered, smooth scroll.
       const rect = el.getBoundingClientRect();
       const scrollTarget = window.scrollY + rect.top - window.innerHeight / 2 + rect.height / 2;
 
-      // Use try/catch because Safari < 15.4 may not support smooth scrollTo options
       try {
         window.scrollTo({ top: Math.max(0, scrollTarget), behavior: "smooth" });
       } catch {
         window.scrollTo(0, Math.max(0, scrollTarget));
       }
 
-      // Delay focus until after scroll settles to prevent Safari's scroll-on-focus jump
       setTimeout(() => {
         const focusable =
           el instanceof HTMLInputElement || el instanceof HTMLSelectElement
             ? el
             : (el.querySelector<HTMLElement>("input, button, [tabindex]"));
         if (focusable) {
-          // Safari: use preventScroll where supported, fallback silently
           try {
             focusable.focus({ preventScroll: true });
           } catch {
@@ -69,7 +63,8 @@ function useScrollToError(errors: Record<string, any>, fieldOrder: string[]) {
         }
       }, 350);
     });
-  }, [errorKeys]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [errorKeys, submitCount]);
 }
 
 async function recordSignupConsents(audience: "medico" | "paciente") {
