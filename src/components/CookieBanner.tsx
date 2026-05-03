@@ -49,7 +49,7 @@ export const CookieBanner = () => {
     <div
       role="dialog"
       aria-label="Preferências de cookies"
-      className="fixed bottom-3 left-3 right-3 sm:left-auto sm:right-4 sm:bottom-4 z-50 max-w-md rounded-xl border border-border bg-card shadow-lg p-4 animate-fade-in"
+      className="fixed bottom-0 inset-x-0 sm:bottom-4 sm:left-auto sm:right-4 sm:inset-x-auto z-50 sm:max-w-md rounded-t-xl sm:rounded-xl border border-border bg-card shadow-lg p-4 animate-fade-in"
     >
       <div className="flex items-start gap-3">
         <div className="h-9 w-9 rounded-lg bg-primary/10 grid place-items-center text-primary shrink-0">
