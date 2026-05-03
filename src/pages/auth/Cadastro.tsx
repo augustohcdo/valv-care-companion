@@ -310,14 +310,14 @@ function PatientForm({ onBack }: { onBack: () => void }) {
     handleSubmit,
     setValue,
     watch,
-    formState: { errors },
+    formState: { errors, submitCount },
   } = useForm<PatientSignupInput>({
     resolver: zodResolver(patientSignupSchema),
     defaultValues: { account_type: "paciente", terms: false as never, lgpd: false as never },
   });
 
   const patientFieldOrder = ["full_name", "email", "phone", "password", "doctor_crm", "doctor_crm_uf", "terms", "lgpd"];
-  useScrollToError(errors, patientFieldOrder);
+  useScrollToError(errors, patientFieldOrder, submitCount);
 
   const docCrmUf = watch("doctor_crm_uf");
 
