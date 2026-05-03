@@ -47,18 +47,18 @@ const Index = () => {
             <p className="mt-6 text-lg sm:text-xl text-primary-foreground/85 leading-relaxed max-w-2xl">
               Organize casos, eduque pacientes, acompanhe jornadas e apoie discussões clínicas com base em diretrizes internacionais e segurança de dados.
             </p>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <Button asChild variant="accent" size="lg">
+            <div className="mt-9 flex flex-col sm:flex-row flex-wrap gap-3">
+              <Button asChild variant="accent" size="lg" className="min-h-[48px] w-full sm:w-auto">
                 <Link to="/auth/cadastro?type=medico">
                   <Stethoscope className="h-4 w-4" /> Sou médico
                 </Link>
               </Button>
-              <Button asChild variant="accent" size="lg">
+              <Button asChild variant="accent" size="lg" className="min-h-[48px] w-full sm:w-auto">
                 <Link to="/auth/cadastro?type=paciente">
                   <Users className="h-4 w-4" /> Sou paciente
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="bg-background/10 border-primary-foreground/30 text-primary-foreground hover:bg-background hover:text-primary backdrop-blur-sm">
+              <Button asChild variant="outline" size="lg" className="min-h-[48px] w-full sm:w-auto bg-background/10 border-primary-foreground/30 text-primary-foreground hover:bg-background hover:text-primary backdrop-blur-sm">
                 <Link to="/aprender">
                   Acessar sem cadastro <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -121,17 +121,17 @@ const Index = () => {
                   </li>
                 ))}
               </ul>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Button asChild variant="hero">
+              <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-3">
+                <Button asChild variant="hero" className="min-h-[48px]">
                   <Link to="/auth/cadastro?type=medico">Cadastrar como médico</Link>
                 </Button>
-                <Button asChild variant="outline">
+                <Button asChild variant="outline" className="min-h-[48px]">
                   <Link to="/medicos">Conhecer plataforma médica</Link>
                 </Button>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
                 { icon: ClipboardCheck, title: "Casos estruturados", desc: "Etapas claras: identificação, exames, checklist e resumo." },
                 { icon: FileHeart, title: "Anexos clínicos", desc: "PDF, imagens, laudos, ECG, eco — organizados por caso." },
@@ -184,11 +184,11 @@ const Index = () => {
               <p className="mt-4 text-base sm:text-lg text-muted-foreground leading-relaxed">
                 Acesse explicações sobre doenças valvares, exames, tratamentos e jornada hospitalar. Sem necessidade de cadastro. Se quiser, crie uma conta para se conectar ao seu médico e organizar sua saúde valvar com segurança.
               </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Button asChild variant="hero">
+              <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-3">
+                <Button asChild variant="hero" className="min-h-[48px]">
                   <Link to="/aprender">Explorar conteúdo</Link>
                 </Button>
-                <Button asChild variant="outline">
+                <Button asChild variant="outline" className="min-h-[48px]">
                   <Link to="/auth/cadastro?type=paciente">Criar conta de paciente</Link>
                 </Button>
               </div>
@@ -275,11 +275,11 @@ const Index = () => {
             <p className="mt-4 text-primary-foreground/85 max-w-xl mx-auto">
               Cadastro gratuito para médicos e pacientes nesta versão de demonstração.
             </p>
-            <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Button asChild variant="accent" size="lg">
+            <div className="mt-8 flex flex-col sm:flex-row flex-wrap justify-center gap-3">
+              <Button asChild variant="accent" size="lg" className="min-h-[48px]">
                 <Link to="/auth/cadastro">Criar conta agora</Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-background hover:text-primary">
+              <Button asChild variant="outline" size="lg" className="min-h-[48px] bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-background hover:text-primary">
                 <Link to="/aprender">Explorar sem cadastro</Link>
               </Button>
             </div>
