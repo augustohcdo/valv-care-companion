@@ -74,10 +74,10 @@ const Aprender = () => {
       <section className="container-vp pb-10">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
           {[
-            { to: "/aprender", icon: Heart, title: "Quero entender minha doença" },
-            { to: "/aprender/exames", icon: Stethoscope, title: "Vou fazer um exame" },
-            { to: "/aprender/tratamentos", icon: Wrench, title: "Vou passar por procedimento" },
-            { to: "/aprender/jornada", icon: Compass, title: "Cuidados depois do tratamento" },
+            { to: "/aprender/o-que-sao-valvulas", icon: Heart, title: "Quero entender minha doença" },
+            { to: "/aprender/ecocardiograma", icon: Stethoscope, title: "Vou fazer um exame" },
+            { to: "/aprender/cirurgia-valvar", icon: Wrench, title: "Vou passar por procedimento" },
+            { to: "/aprender/recuperacao", icon: Compass, title: "Cuidados depois do tratamento" },
           ].map((q, i) => (
             <Link key={i} to={q.to}>
               <Card className="p-5 card-elevated h-full">
