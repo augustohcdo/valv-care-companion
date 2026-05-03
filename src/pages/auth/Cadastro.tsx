@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,6 +24,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Logo } from "@/components/Logo";
 
 type Step = "choose" | "medico" | "paciente";
+
+/** Scroll to first validation error field and focus it */
+function useScrollToError(errors: Record<string, any>, fieldOrder: string[]) {
+  useEffect(() => {
+    const firstKey = fieldOrder.find((k) => errors[k]);
+    if (!firstKey) return;
+    // Find the wrapper that contains the errored field
+    const el =
+      document.querySelector(`[data-field="${firstKey}"]`) ??
+      document.querySelector(`[name="${firstKey}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Try to focus the first focusable child (input or button/trigger)
+    const focusable = el instanceof HTMLInputElement || el instanceof HTMLSelectElement
+      ? el
+      : (el.querySelector("input, button, [tabindex]") as HTMLElement | null);
+    focusable?.focus({ preventScroll: true });
+  }, [errors, fieldOrder]);
+}
 
 async function recordSignupConsents(audience: "medico" | "paciente") {
   const baseTypes: ConsentType[] = [
@@ -113,6 +132,7 @@ function ChooseAccount({ onPick }: { onPick: (t: "medico" | "paciente") => void 
 function DoctorForm({ onBack }: { onBack: () => void }) {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const ufTriggerRef = useRef<HTMLButtonElement>(null);
 
   const {
     register,
@@ -124,6 +144,9 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
     resolver: zodResolver(doctorSignupSchema),
     defaultValues: { account_type: "medico", terms: false as never, lgpd: false as never },
   });
+
+  const doctorFieldOrder = ["full_name", "email", "phone", "crm", "crm_uf", "specialty", "institution", "password", "terms", "lgpd"];
+  useScrollToError(errors, doctorFieldOrder);
 
   const onSubmit = async (values: DoctorSignupInput) => {
     setSubmitting(true);
@@ -220,9 +243,9 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
                 <Input {...register("crm")} placeholder="000000" />
               </Field>
             </div>
-            <Field label="UF" error={errors.crm_uf?.message}>
+            <Field label="UF" error={errors.crm_uf?.message} dataField="crm_uf">
               <Select value={crmUf} onValueChange={(v) => setValue("crm_uf", v as DoctorSignupInput["crm_uf"], { shouldValidate: true })}>
-                <SelectTrigger><SelectValue placeholder="UF" /></SelectTrigger>
+                <SelectTrigger ref={ufTriggerRef}><SelectValue placeholder="UF" /></SelectTrigger>
                 <SelectContent className="max-h-60">
                   {UF_LIST.map((uf) => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
                 </SelectContent>
@@ -257,6 +280,7 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
 function PatientForm({ onBack }: { onBack: () => void }) {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const ufTriggerRef = useRef<HTMLButtonElement>(null);
 
   const {
     register,
@@ -268,6 +292,9 @@ function PatientForm({ onBack }: { onBack: () => void }) {
     resolver: zodResolver(patientSignupSchema),
     defaultValues: { account_type: "paciente", terms: false as never, lgpd: false as never },
   });
+
+  const patientFieldOrder = ["full_name", "email", "phone", "password", "doctor_crm", "doctor_crm_uf", "terms", "lgpd"];
+  useScrollToError(errors, patientFieldOrder);
 
   const docCrmUf = watch("doctor_crm_uf");
 
@@ -359,9 +386,9 @@ function PatientForm({ onBack }: { onBack: () => void }) {
                   <Input {...register("doctor_crm")} placeholder="000000" />
                 </Field>
               </div>
-              <Field label="UF" error={errors.doctor_crm_uf?.message as string | undefined}>
+              <Field label="UF" error={errors.doctor_crm_uf?.message as string | undefined} dataField="doctor_crm_uf">
                 <Select value={docCrmUf || ""} onValueChange={(v) => setValue("doctor_crm_uf", v as PatientSignupInput["doctor_crm_uf"], { shouldValidate: true })}>
-                  <SelectTrigger><SelectValue placeholder="UF" /></SelectTrigger>
+                  <SelectTrigger ref={ufTriggerRef}><SelectValue placeholder="UF" /></SelectTrigger>
                   <SelectContent className="max-h-60">
                     {UF_LIST.map((uf) => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
                   </SelectContent>
@@ -386,15 +413,17 @@ function Field({
   label,
   error,
   hint,
+  dataField,
   children,
 }: {
   label: string;
   error?: string;
   hint?: string;
+  dataField?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5" data-field={dataField}>
       <Label className="text-sm">{label}</Label>
       {children}
       {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
