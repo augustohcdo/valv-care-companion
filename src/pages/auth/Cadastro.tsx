@@ -274,26 +274,7 @@ function PatientForm({ onBack }: { onBack: () => void }) {
   const onSubmit = async (values: PatientSignupInput) => {
     setSubmitting(true);
 
-    // 1) Se informou CRM, valida que existe antes do signup
-    let linkedDoctorId: string | null = null;
-    if (values.doctor_crm && values.doctor_crm_uf) {
-      const { data: doc } = await supabase
-        .from("doctors")
-        .select("id, verified")
-        .eq("crm", values.doctor_crm)
-        .eq("crm_uf", values.doctor_crm_uf)
-        .maybeSingle();
-      if (!doc) {
-        setSubmitting(false);
-        toast.error("Médico não encontrado", {
-          description: "Verifique CRM e UF. Você pode prosseguir sem vínculo e adicionar depois.",
-        });
-        return;
-      }
-      linkedDoctorId = doc.id;
-    }
-
-    // 2) Signup
+    // Signup — pass all data via metadata so the DB trigger creates profile + role + patient
     const { data: signupData, error: signupError } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
@@ -302,6 +283,8 @@ function PatientForm({ onBack }: { onBack: () => void }) {
         data: {
           full_name: values.full_name,
           account_type: "paciente",
+          doctor_crm: values.doctor_crm || null,
+          doctor_crm_uf: values.doctor_crm_uf || null,
         },
       },
     });
@@ -311,20 +294,7 @@ function PatientForm({ onBack }: { onBack: () => void }) {
       return;
     }
 
-    // 3) Insere registro do paciente
-    const { error: patError } = await supabase.from("patients").insert({
-      user_id: signupData.user.id,
-      linked_doctor_id: linkedDoctorId,
-      linked_at: linkedDoctorId ? new Date().toISOString() : null,
-    });
-
-    if (patError) {
-      setSubmitting(false);
-      toast.error("Conta criada, mas falhou ao registrar dados", { description: patError.message });
-      return;
-    }
-
-    if (values.phone) {
+    if (values.phone && signupData.session) {
       await supabase.from("profiles").update({ phone: values.phone }).eq("user_id", signupData.user.id);
     }
 
@@ -333,8 +303,9 @@ function PatientForm({ onBack }: { onBack: () => void }) {
     }
 
     setSubmitting(false);
+    const linkedDoctor = values.doctor_crm && values.doctor_crm_uf;
     toast.success("Bem-vindo ao ValvePath", {
-      description: linkedDoctorId ? "Vínculo com seu médico estabelecido." : undefined,
+      description: linkedDoctor ? "Vínculo com seu médico estabelecido." : undefined,
     });
     navigate("/app/paciente", { replace: true });
   };
