@@ -243,9 +243,9 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
                 <Input {...register("crm")} placeholder="000000" />
               </Field>
             </div>
-            <Field label="UF" error={errors.crm_uf?.message}>
+            <Field label="UF" error={errors.crm_uf?.message} dataField="crm_uf">
               <Select value={crmUf} onValueChange={(v) => setValue("crm_uf", v as DoctorSignupInput["crm_uf"], { shouldValidate: true })}>
-                <SelectTrigger><SelectValue placeholder="UF" /></SelectTrigger>
+                <SelectTrigger ref={ufTriggerRef}><SelectValue placeholder="UF" /></SelectTrigger>
                 <SelectContent className="max-h-60">
                   {UF_LIST.map((uf) => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
                 </SelectContent>
