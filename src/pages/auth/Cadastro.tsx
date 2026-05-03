@@ -280,6 +280,7 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
 function PatientForm({ onBack }: { onBack: () => void }) {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const ufTriggerRef = useRef<HTMLButtonElement>(null);
 
   const {
     register,
@@ -291,6 +292,9 @@ function PatientForm({ onBack }: { onBack: () => void }) {
     resolver: zodResolver(patientSignupSchema),
     defaultValues: { account_type: "paciente", terms: false as never, lgpd: false as never },
   });
+
+  const patientFieldOrder = ["full_name", "email", "phone", "password", "doctor_crm", "doctor_crm_uf", "terms", "lgpd"];
+  useScrollToError(errors, patientFieldOrder);
 
   const docCrmUf = watch("doctor_crm_uf");
 
