@@ -25,6 +25,25 @@ import { Logo } from "@/components/Logo";
 
 type Step = "choose" | "medico" | "paciente";
 
+/** Scroll to first validation error field and focus it */
+function useScrollToError(errors: Record<string, any>, fieldOrder: string[]) {
+  useEffect(() => {
+    const firstKey = fieldOrder.find((k) => errors[k]);
+    if (!firstKey) return;
+    // Find the wrapper that contains the errored field
+    const el =
+      document.querySelector(`[data-field="${firstKey}"]`) ??
+      document.querySelector(`[name="${firstKey}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Try to focus the first focusable child (input or button/trigger)
+    const focusable = el instanceof HTMLInputElement || el instanceof HTMLSelectElement
+      ? el
+      : (el.querySelector("input, button, [tabindex]") as HTMLElement | null);
+    focusable?.focus({ preventScroll: true });
+  }, [errors, fieldOrder]);
+}
+
 async function recordSignupConsents(audience: "medico" | "paciente") {
   const baseTypes: ConsentType[] = [
     "terms_of_use",
