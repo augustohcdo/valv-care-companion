@@ -77,7 +77,7 @@ export const PublicHeader = () => {
         </div>
 
         <button
-          className="md:hidden p-2 -mr-2 text-foreground"
+          className="md:hidden p-2 -mr-2 text-foreground min-h-[44px] min-w-[44px] flex items-center justify-center"
           onClick={() => setOpen(!open)}
           aria-label="Menu"
         >
