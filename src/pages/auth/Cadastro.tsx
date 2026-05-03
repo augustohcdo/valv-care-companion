@@ -132,6 +132,7 @@ function ChooseAccount({ onPick }: { onPick: (t: "medico" | "paciente") => void 
 function DoctorForm({ onBack }: { onBack: () => void }) {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const ufTriggerRef = useRef<HTMLButtonElement>(null);
 
   const {
     register,
@@ -143,6 +144,9 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
     resolver: zodResolver(doctorSignupSchema),
     defaultValues: { account_type: "medico", terms: false as never, lgpd: false as never },
   });
+
+  const doctorFieldOrder = ["full_name", "email", "phone", "crm", "crm_uf", "specialty", "institution", "password", "terms", "lgpd"];
+  useScrollToError(errors, doctorFieldOrder);
 
   const onSubmit = async (values: DoctorSignupInput) => {
     setSubmitting(true);
