@@ -121,11 +121,11 @@ const Index = () => {
                   </li>
                 ))}
               </ul>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Button asChild variant="hero">
+              <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-3">
+                <Button asChild variant="hero" className="min-h-[48px]">
                   <Link to="/auth/cadastro?type=medico">Cadastrar como médico</Link>
                 </Button>
-                <Button asChild variant="outline">
+                <Button asChild variant="outline" className="min-h-[48px]">
                   <Link to="/medicos">Conhecer plataforma médica</Link>
                 </Button>
               </div>
