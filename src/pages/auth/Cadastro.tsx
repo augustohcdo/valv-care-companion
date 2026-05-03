@@ -409,15 +409,17 @@ function Field({
   label,
   error,
   hint,
+  dataField,
   children,
 }: {
   label: string;
   error?: string;
   hint?: string;
+  dataField?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5" data-field={dataField}>
       <Label className="text-sm">{label}</Label>
       {children}
       {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
