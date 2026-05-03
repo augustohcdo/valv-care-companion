@@ -25,14 +25,44 @@ import { Logo } from "@/components/Logo";
 
 type Step = "choose" | "medico" | "paciente";
 
-/** Scroll to first validation error field and focus it (Safari iOS safe).
+/** Scroll to first validation error field, focus it, and announce via live region.
  *  `submitCount` ensures the effect re-fires even when the same errors persist. */
 function useScrollToError(errors: Record<string, any>, fieldOrder: string[], submitCount: number) {
   const errorKeys = fieldOrder.filter((k) => errors[k]).join(",");
+  const liveRef = useRef<HTMLDivElement | null>(null);
+
+  // Create a persistent assertive live region (visually hidden)
+  useEffect(() => {
+    const el = document.createElement("div");
+    el.setAttribute("role", "alert");
+    el.setAttribute("aria-live", "assertive");
+    el.setAttribute("aria-atomic", "true");
+    Object.assign(el.style, {
+      position: "absolute", width: "1px", height: "1px",
+      overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap",
+    });
+    document.body.appendChild(el);
+    liveRef.current = el;
+    return () => { el.remove(); liveRef.current = null; };
+  }, []);
 
   useEffect(() => {
     if (!errorKeys || submitCount === 0) return;
-    const firstKey = errorKeys.split(",")[0];
+    const keys = errorKeys.split(",");
+    const firstKey = keys[0];
+    const firstMsg = errors[firstKey]?.message ?? errors[firstKey];
+
+    // Announce error summary to screen readers
+    if (liveRef.current && typeof firstMsg === "string") {
+      liveRef.current.textContent = "";
+      requestAnimationFrame(() => {
+        if (!liveRef.current) return;
+        liveRef.current.textContent =
+          keys.length === 1
+            ? firstMsg
+            : `${keys.length} erros no formulário. Primeiro: ${firstMsg}`;
+      });
+    }
 
     requestAnimationFrame(() => {
       const el =
@@ -55,11 +85,7 @@ function useScrollToError(errors: Record<string, any>, fieldOrder: string[], sub
             ? el
             : (el.querySelector<HTMLElement>("input, button, [tabindex]"));
         if (focusable) {
-          try {
-            focusable.focus({ preventScroll: true });
-          } catch {
-            focusable.focus();
-          }
+          try { focusable.focus({ preventScroll: true }); } catch { focusable.focus(); }
         }
       }, 350);
     });
