@@ -491,7 +491,7 @@ function Field({
       {children}
       {hint && !hasError && <p id={hintId} className="text-xs text-muted-foreground">{hint}</p>}
       {hasError && (
-        <p id={errorId} role="alert" className="text-xs text-destructive">{error}</p>
+        <p id={errorId} aria-live="off" className="text-xs text-destructive">{error}</p>
       )}
     </div>
   );
