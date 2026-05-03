@@ -13,3 +13,6 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: () => {},
   }),
 });
+
+// Stub window.scrollTo for jsdom (not implemented)
+window.scrollTo = (() => {}) as any;
