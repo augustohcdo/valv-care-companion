@@ -386,9 +386,9 @@ function PatientForm({ onBack }: { onBack: () => void }) {
                   <Input {...register("doctor_crm")} placeholder="000000" />
                 </Field>
               </div>
-              <Field label="UF" error={errors.doctor_crm_uf?.message as string | undefined}>
+              <Field label="UF" error={errors.doctor_crm_uf?.message as string | undefined} dataField="doctor_crm_uf">
                 <Select value={docCrmUf || ""} onValueChange={(v) => setValue("doctor_crm_uf", v as PatientSignupInput["doctor_crm_uf"], { shouldValidate: true })}>
-                  <SelectTrigger><SelectValue placeholder="UF" /></SelectTrigger>
+                  <SelectTrigger ref={ufTriggerRef}><SelectValue placeholder="UF" /></SelectTrigger>
                   <SelectContent className="max-h-60">
                     {UF_LIST.map((uf) => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
                   </SelectContent>
