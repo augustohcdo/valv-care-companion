@@ -162,14 +162,14 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
     handleSubmit,
     setValue,
     watch,
-    formState: { errors },
+    formState: { errors, submitCount },
   } = useForm<DoctorSignupInput>({
     resolver: zodResolver(doctorSignupSchema),
     defaultValues: { account_type: "medico", terms: false as never, lgpd: false as never },
   });
 
   const doctorFieldOrder = ["full_name", "email", "phone", "crm", "crm_uf", "specialty", "institution", "password", "terms", "lgpd"];
-  useScrollToError(errors, doctorFieldOrder);
+  useScrollToError(errors, doctorFieldOrder, submitCount);
 
   const onSubmit = async (values: DoctorSignupInput) => {
     setSubmitting(true);
