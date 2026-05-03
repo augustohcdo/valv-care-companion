@@ -139,6 +139,12 @@
   html {
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
+    touch-action: manipulation;
+  }
+
+  /* Prevent ghost clicks / double-tap zoom on interactive elements */
+  a, button, [role="button"], input, select, textarea, label {
+    touch-action: manipulation;
   }
 
   body {

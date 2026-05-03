@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X, ChevronDown, LayoutDashboard } from "lucide-react";
 import { Logo } from "./Logo";
@@ -10,11 +10,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
+import { useDebouncedNav } from "@/hooks/useDebouncedNav";
 
 export const PublicHeader = () => {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const { user, profile } = useAuth();
+  const go = useDebouncedNav();
   const dashboardPath = profile?.account_type === "medico" ? "/app/medico" : "/app/paciente";
 
   const navLinks = [
@@ -75,7 +77,7 @@ export const PublicHeader = () => {
         </div>
 
         <button
-          className="md:hidden p-2 -mr-2 text-foreground"
+          className="md:hidden p-2 -mr-2 text-foreground min-h-[44px] min-w-[44px] flex items-center justify-center"
           onClick={() => setOpen(!open)}
           aria-label="Menu"
         >
@@ -94,24 +96,24 @@ export const PublicHeader = () => {
           <div className="md:hidden fixed inset-x-0 top-16 z-50 bg-background border-b border-border shadow-lg-soft animate-fade-in max-h-[70vh] overflow-y-auto">
             <div className="container-vp py-4 flex flex-col gap-1">
               {navLinks.map((link) => (
-                <Link
+                <a
                   key={link.href}
-                  to={link.href}
-                  onClick={() => setOpen(false)}
-                  className="px-3 py-3 text-sm font-medium rounded-md text-foreground hover:bg-secondary active:bg-secondary/80 min-h-[44px] flex items-center"
+                  href={link.href}
+                  onClick={go(link.href, () => setOpen(false))}
+                  className="px-3 py-3 text-sm font-medium rounded-md text-foreground hover:bg-secondary active:bg-secondary/80 min-h-[44px] flex items-center select-none"
                 >
                   {link.label}
-                </Link>
+                </a>
               ))}
               <div className="border-t border-border my-2" />
-              <Link to="/auth/login?type=medico" onClick={() => setOpen(false)} className="px-3 py-3 text-sm font-medium rounded-md text-foreground hover:bg-secondary active:bg-secondary/80 min-h-[44px] flex items-center">
+              <a href="/auth/login?type=medico" onClick={go("/auth/login?type=medico", () => setOpen(false))} className="px-3 py-3 text-sm font-medium rounded-md text-foreground hover:bg-secondary active:bg-secondary/80 min-h-[44px] flex items-center select-none">
                 Login médico
-              </Link>
-              <Link to="/auth/login?type=paciente" onClick={() => setOpen(false)} className="px-3 py-3 text-sm font-medium rounded-md text-foreground hover:bg-secondary active:bg-secondary/80 min-h-[44px] flex items-center">
+              </a>
+              <a href="/auth/login?type=paciente" onClick={go("/auth/login?type=paciente", () => setOpen(false))} className="px-3 py-3 text-sm font-medium rounded-md text-foreground hover:bg-secondary active:bg-secondary/80 min-h-[44px] flex items-center select-none">
                 Login paciente
-              </Link>
+              </a>
               <Button asChild variant="hero" className="mt-2 min-h-[44px]">
-                <Link to="/auth/cadastro" onClick={() => setOpen(false)}>Criar conta</Link>
+                <a href="/auth/cadastro" onClick={go("/auth/cadastro", () => setOpen(false))}>Criar conta</a>
               </Button>
             </div>
           </div>
