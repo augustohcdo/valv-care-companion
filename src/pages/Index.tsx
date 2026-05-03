@@ -275,11 +275,11 @@ const Index = () => {
             <p className="mt-4 text-primary-foreground/85 max-w-xl mx-auto">
               Cadastro gratuito para médicos e pacientes nesta versão de demonstração.
             </p>
-            <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Button asChild variant="accent" size="lg">
+            <div className="mt-8 flex flex-col sm:flex-row flex-wrap justify-center gap-3">
+              <Button asChild variant="accent" size="lg" className="min-h-[48px]">
                 <Link to="/auth/cadastro">Criar conta agora</Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-background hover:text-primary">
+              <Button asChild variant="outline" size="lg" className="min-h-[48px] bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-background hover:text-primary">
                 <Link to="/aprender">Explorar sem cadastro</Link>
               </Button>
             </div>
