@@ -473,12 +473,19 @@ function Field({
   dataField?: string;
   children: React.ReactNode;
 }) {
+  const id = useId();
+  const errorId = `${id}-err`;
+  const hintId = `${id}-hint`;
+  const hasError = !!error;
+
   return (
-    <div className="space-y-1.5" data-field={dataField}>
-      <Label className="text-sm">{label}</Label>
+    <div className="space-y-1.5" data-field={dataField} role="group" aria-labelledby={`${id}-label`}>
+      <Label id={`${id}-label`} className="text-sm">{label}</Label>
       {children}
-      {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {hint && !hasError && <p id={hintId} className="text-xs text-muted-foreground">{hint}</p>}
+      {hasError && (
+        <p id={errorId} role="alert" className="text-xs text-destructive">{error}</p>
+      )}
     </div>
   );
 }
