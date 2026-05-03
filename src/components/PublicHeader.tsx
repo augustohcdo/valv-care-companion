@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X, ChevronDown, LayoutDashboard } from "lucide-react";
 import { Logo } from "./Logo";
@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
+import { useDebouncedNav } from "@/hooks/useDebouncedNav";
 
 export const PublicHeader = () => {
   const [open, setOpen] = useState(false);
