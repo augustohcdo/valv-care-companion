@@ -458,15 +458,18 @@ function Field({
 }
 
 function ConsentBlock({ register, errors }: { register: any; errors: any }) {
+  /** Stop link tap from toggling the parent <label>'s checkbox */
+  const stopProp = (e: React.MouseEvent) => e.stopPropagation();
+
   return (
     <div className="space-y-3 pt-2 border-t border-border/60">
       <label className="flex gap-3 items-start cursor-pointer">
         <input type="checkbox" {...register("terms")} className="mt-1 h-4 w-4 accent-primary" />
         <span className="text-xs text-muted-foreground leading-relaxed">
           Li e aceito os{" "}
-          <Link to="/termos" target="_blank" className="text-primary underline">Termos de Uso</Link>{" "}
+          <Link to="/termos" target="_blank" onClick={stopProp} className="text-primary underline">Termos de Uso</Link>{" "}
           e o{" "}
-          <Link to="/aviso-medico" target="_blank" className="text-primary underline">Aviso Médico</Link>.
+          <Link to="/aviso-medico" target="_blank" onClick={stopProp} className="text-primary underline">Aviso Médico</Link>.
         </span>
       </label>
       {errors.terms && <p className="text-xs text-destructive">{errors.terms.message as string}</p>}
@@ -475,7 +478,7 @@ function ConsentBlock({ register, errors }: { register: any; errors: any }) {
         <input type="checkbox" {...register("lgpd")} className="mt-1 h-4 w-4 accent-primary" />
         <span className="text-xs text-muted-foreground leading-relaxed">
           Concordo com a{" "}
-          <Link to="/privacidade" target="_blank" className="text-primary underline">Política de Privacidade</Link>{" "}
+          <Link to="/privacidade" target="_blank" onClick={stopProp} className="text-primary underline">Política de Privacidade</Link>{" "}
           e o tratamento dos meus dados conforme a LGPD.
         </span>
       </label>
