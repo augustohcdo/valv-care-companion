@@ -47,18 +47,18 @@ const Index = () => {
             <p className="mt-6 text-lg sm:text-xl text-primary-foreground/85 leading-relaxed max-w-2xl">
               Organize casos, eduque pacientes, acompanhe jornadas e apoie discussões clínicas com base em diretrizes internacionais e segurança de dados.
             </p>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <Button asChild variant="accent" size="lg">
+            <div className="mt-9 flex flex-col sm:flex-row flex-wrap gap-3">
+              <Button asChild variant="accent" size="lg" className="min-h-[48px] w-full sm:w-auto">
                 <Link to="/auth/cadastro?type=medico">
                   <Stethoscope className="h-4 w-4" /> Sou médico
                 </Link>
               </Button>
-              <Button asChild variant="accent" size="lg">
+              <Button asChild variant="accent" size="lg" className="min-h-[48px] w-full sm:w-auto">
                 <Link to="/auth/cadastro?type=paciente">
                   <Users className="h-4 w-4" /> Sou paciente
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="bg-background/10 border-primary-foreground/30 text-primary-foreground hover:bg-background hover:text-primary backdrop-blur-sm">
+              <Button asChild variant="outline" size="lg" className="min-h-[48px] w-full sm:w-auto bg-background/10 border-primary-foreground/30 text-primary-foreground hover:bg-background hover:text-primary backdrop-blur-sm">
                 <Link to="/aprender">
                   Acessar sem cadastro <ArrowRight className="h-4 w-4" />
                 </Link>
