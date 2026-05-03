@@ -143,7 +143,7 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
       return;
     }
 
-    // 2) Signup
+    // 2) Signup — pass all data via metadata so the DB trigger creates profile + role + doctor
     const { data: signupData, error: signupError } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
@@ -152,6 +152,10 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
         data: {
           full_name: values.full_name,
           account_type: "medico",
+          crm: values.crm,
+          crm_uf: values.crm_uf,
+          specialty: values.specialty,
+          institution: values.institution || null,
         },
       },
     });
@@ -161,29 +165,12 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
       return;
     }
 
-    // 3) Insere registro do médico (RLS: precisa de role 'medico' já criada pelo trigger)
-    const { error: docError } = await supabase.from("doctors").insert({
-      user_id: signupData.user.id,
-      crm: values.crm,
-      crm_uf: values.crm_uf,
-      specialty: values.specialty,
-      institution: values.institution || null,
-    });
-
-    if (docError) {
-      setSubmitting(false);
-      toast.error("Conta criada, mas falhou ao registrar dados profissionais", {
-        description: docError.message,
-      });
-      return;
-    }
-
-    // 4) Atualiza phone no profile
-    if (values.phone) {
+    // 3) Atualiza phone no profile (trigger já criou o profile)
+    if (values.phone && signupData.session) {
       await supabase.from("profiles").update({ phone: values.phone }).eq("user_id", signupData.user.id);
     }
 
-    // 5) Registra consentimentos granulares (somente se já há sessão)
+    // 4) Registra consentimentos granulares
     if (signupData.session) {
       await recordSignupConsents("medico");
     }
