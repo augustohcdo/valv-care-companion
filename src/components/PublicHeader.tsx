@@ -84,30 +84,38 @@ export const PublicHeader = () => {
       </div>
 
       {open && (
-        <div className="md:hidden border-t border-border bg-background animate-fade-in">
-          <div className="container-vp py-4 flex flex-col gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                to={link.href}
-                onClick={() => setOpen(false)}
-                className="px-3 py-2.5 text-sm font-medium rounded-md text-foreground hover:bg-secondary"
-              >
-                {link.label}
+        <>
+          {/* Backdrop */}
+          <div
+            className="md:hidden fixed inset-0 z-40 bg-foreground/40 backdrop-blur-sm animate-fade-in"
+            onClick={() => setOpen(false)}
+          />
+          {/* Drawer */}
+          <div className="md:hidden fixed inset-x-0 top-16 z-50 bg-background border-b border-border shadow-lg-soft animate-fade-in max-h-[70vh] overflow-y-auto">
+            <div className="container-vp py-4 flex flex-col gap-1">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  onClick={() => setOpen(false)}
+                  className="px-3 py-3 text-sm font-medium rounded-md text-foreground hover:bg-secondary active:bg-secondary/80 min-h-[44px] flex items-center"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <div className="border-t border-border my-2" />
+              <Link to="/auth/login?type=medico" onClick={() => setOpen(false)} className="px-3 py-3 text-sm font-medium rounded-md text-foreground hover:bg-secondary active:bg-secondary/80 min-h-[44px] flex items-center">
+                Login médico
               </Link>
-            ))}
-            <div className="border-t border-border my-2" />
-            <Link to="/auth/login?type=medico" onClick={() => setOpen(false)} className="px-3 py-2.5 text-sm font-medium rounded-md text-foreground hover:bg-secondary">
-              Login médico
-            </Link>
-            <Link to="/auth/login?type=paciente" onClick={() => setOpen(false)} className="px-3 py-2.5 text-sm font-medium rounded-md text-foreground hover:bg-secondary">
-              Login paciente
-            </Link>
-            <Button asChild variant="hero" className="mt-2">
-              <Link to="/auth/cadastro" onClick={() => setOpen(false)}>Criar conta</Link>
-            </Button>
+              <Link to="/auth/login?type=paciente" onClick={() => setOpen(false)} className="px-3 py-3 text-sm font-medium rounded-md text-foreground hover:bg-secondary active:bg-secondary/80 min-h-[44px] flex items-center">
+                Login paciente
+              </Link>
+              <Button asChild variant="hero" className="mt-2 min-h-[44px]">
+                <Link to="/auth/cadastro" onClick={() => setOpen(false)}>Criar conta</Link>
+              </Button>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </header>
   );
