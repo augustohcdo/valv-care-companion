@@ -26,15 +26,20 @@ import { Logo } from "@/components/Logo";
 type Step = "choose" | "medico" | "paciente";
 
 /** Scroll to first validation error field, focus it, and announce via live region.
- *  `submitCount` ensures the effect re-fires even when the same errors persist. */
+ *  `submitCount` ensures the effect re-fires even when the same errors persist.
+ *  The announce uses a two-frame clear→set cycle so identical messages are still
+ *  picked up by screen readers, and a debounce prevents overlapping announcements
+ *  during rapid repeated submits. */
 function useScrollToError(errors: Record<string, any>, fieldOrder: string[], submitCount: number) {
   const errorKeys = fieldOrder.filter((k) => errors[k]).join(",");
   const liveRef = useRef<HTMLDivElement | null>(null);
+  const announceTimer = useRef<ReturnType<typeof setTimeout>>();
+  const prevSubmit = useRef(0);
 
-  // Create a persistent assertive live region (visually hidden)
+  // Persistent assertive live region (visually hidden, no role="alert" to avoid
+  // double-announcement — aria-live="assertive" is sufficient)
   useEffect(() => {
     const el = document.createElement("div");
-    el.setAttribute("role", "alert");
     el.setAttribute("aria-live", "assertive");
     el.setAttribute("aria-atomic", "true");
     Object.assign(el.style, {
@@ -47,21 +52,23 @@ function useScrollToError(errors: Record<string, any>, fieldOrder: string[], sub
   }, []);
 
   useEffect(() => {
-    if (!errorKeys || submitCount === 0) return;
-    const keys = errorKeys.split(",");
-    const firstKey = keys[0];
+    if (!errorKeys || submitCount === 0 || submitCount === prevSubmit.current) return;
+    prevSubmit.current = submitCount;
+
+    const firstKey = errorKeys.split(",")[0];
     const firstMsg = errors[firstKey]?.message ?? errors[firstKey];
 
-    // Announce error summary to screen readers
+    // Debounce: cancel any pending announcement from a previous rapid tap
+    clearTimeout(announceTimer.current);
+
+    // Announce only the first error — keep it short for SR users
     if (liveRef.current && typeof firstMsg === "string") {
+      // 1) Clear so the SR registers a content change even if the text is identical
       liveRef.current.textContent = "";
-      requestAnimationFrame(() => {
-        if (!liveRef.current) return;
-        liveRef.current.textContent =
-          keys.length === 1
-            ? firstMsg
-            : `${keys.length} erros no formulário. Primeiro: ${firstMsg}`;
-      });
+      // 2) Set on next frame after the clear has been observed by the accessibility tree
+      announceTimer.current = setTimeout(() => {
+        if (liveRef.current) liveRef.current.textContent = firstMsg;
+      }, 80);
     }
 
     requestAnimationFrame(() => {
@@ -484,7 +491,7 @@ function Field({
       {children}
       {hint && !hasError && <p id={hintId} className="text-xs text-muted-foreground">{hint}</p>}
       {hasError && (
-        <p id={errorId} role="alert" className="text-xs text-destructive">{error}</p>
+        <p id={errorId} aria-live="off" className="text-xs text-destructive">{error}</p>
       )}
     </div>
   );
