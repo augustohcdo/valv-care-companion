@@ -366,7 +366,8 @@ function PatientForm({ onBack }: { onBack: () => void }) {
       <CardHeader>
         <button
           onClick={onBack}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mb-2"
+          disabled={submitting}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mb-2 disabled:opacity-50 disabled:pointer-events-none"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Mudar tipo de conta
         </button>
