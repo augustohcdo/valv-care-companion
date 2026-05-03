@@ -16,6 +16,7 @@ export const PublicHeader = () => {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const { user, profile } = useAuth();
+  const go = useDebouncedNav();
   const dashboardPath = profile?.account_type === "medico" ? "/app/medico" : "/app/paciente";
 
   const navLinks = [
