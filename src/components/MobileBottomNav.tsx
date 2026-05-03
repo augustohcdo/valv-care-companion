@@ -38,6 +38,7 @@ interface Props {
  */
 export const MobileBottomNav = ({ variant }: Props) => {
   const location = useLocation();
+  const go = useDebouncedNav();
   const items = variant === "medico" ? doctorItems : patientItems;
 
   return (
@@ -51,13 +52,13 @@ export const MobileBottomNav = ({ variant }: Props) => {
           const active = item.exact
             ? location.pathname === item.to
             : location.pathname.startsWith(item.to) &&
-              // evita "Casos" ficar ativo em "Novo"
               !(item.to === "/app/medico/casos" && location.pathname.startsWith("/app/medico/casos/novo"));
           return (
             <li key={item.to}>
-              <Link
-                to={item.to}
-                className={`flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors ${
+              <a
+                href={item.to}
+                onClick={go(item.to)}
+                className={`flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors select-none ${
                   active
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
@@ -71,7 +72,7 @@ export const MobileBottomNav = ({ variant }: Props) => {
                   <Icon className="h-5 w-5" />
                 </span>
                 <span className="leading-none">{item.label}</span>
-              </Link>
+              </a>
             </li>
           );
         })}
