@@ -29,4 +29,20 @@ window.addEventListener("unhandledrejection", (e) => {
 // Clear the guard once the app boots successfully so future deploys can recover again.
 setTimeout(() => sessionStorage.removeItem(RELOAD_KEY), 10_000);
 
+// Idle prefetch of likely-next routes based on where the user landed.
+const idle: (cb: () => void) => void =
+  (window as any).requestIdleCallback?.bind(window) ?? ((cb) => setTimeout(cb, 800));
+idle(() => {
+  import("./lib/prefetch").then(({ prefetchRoute }) => {
+    const p = window.location.pathname;
+    if (p.startsWith("/app/medico")) {
+      ["/app/medico", "/app/medico/casos", "/app/medico/pacientes", "/app/medico/agenda"].forEach(prefetchRoute);
+    } else if (p.startsWith("/app/paciente")) {
+      ["/app/paciente", "/app/paciente/jornada", "/app/paciente/diario", "/app/paciente/medicacoes"].forEach(prefetchRoute);
+    } else {
+      ["/aprender", "/aprender/faq", "/aprender/glossario"].forEach(prefetchRoute);
+    }
+  });
+});
+
 createRoot(document.getElementById("root")!).render(<App />);
