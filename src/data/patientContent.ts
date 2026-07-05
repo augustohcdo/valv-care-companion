@@ -7,12 +7,13 @@
 export interface PatientTopic {
   slug: string;
   title: string;
-  category: "fundamentos" | "doencas" | "exames" | "tratamentos" | "jornada";
+  category: "fundamentos" | "doencas" | "exames" | "tratamentos" | "jornada" | "aprofundamento";
   shortDescription: string;
   sections: { heading: string; body: string }[];
   alerts?: string[];
   tags?: string[];
 }
+
 
 export const patientTopics: PatientTopic[] = [
   // ============ FUNDAMENTOS ============
@@ -815,6 +816,247 @@ export const patientTopics: PatientTopic[] = [
     ],
     tags: ["qualidade de vida", "jornada"],
   },
+
+  // ============ APROFUNDAMENTO (avançado, linguagem acessível) ============
+  {
+    slug: "entendendo-laudo-eco",
+    title: "Entendendo seu laudo de ecocardiograma",
+    category: "aprofundamento",
+    shortDescription: "Traduza os números do seu eco para saber conversar de igual para igual com o cardiologista.",
+    sections: [
+      {
+        heading: "Fração de ejeção (FE)",
+        body: "É a porcentagem de sangue que o ventrículo esquerdo consegue ejetar a cada batimento. Valores normais ficam entre 55% e 70%. FE entre 41% e 54% é considerada 'levemente reduzida'; abaixo de 40%, 'reduzida' — o que indica que o músculo cardíaco está enfraquecido. Em doenças valvares, uma queda progressiva da FE é um dos sinais mais fortes de que o coração está sofrendo e pode indicar hora de intervir, mesmo antes de sintomas graves.",
+      },
+      {
+        heading: "Gradiente médio e máximo (mmHg)",
+        body: "Medem a diferença de pressão que o sangue precisa vencer ao passar por uma válvula estreitada. Na estenose aórtica: gradiente médio abaixo de 20 mmHg é leve; entre 20 e 40 é moderada; acima de 40 mmHg é grave. Quanto mais alto o gradiente, mais o coração 'sua' para bombear o sangue. Em situações de baixo fluxo (FE reduzida), gradientes menores ainda podem representar doença grave — por isso o cardiologista pode pedir um eco com estresse por dobutamina.",
+      },
+      {
+        heading: "Área valvar (cm²)",
+        body: "É o tamanho da abertura útil da válvula. Aórtica normal: 3 a 4 cm². Estenose grave: menor que 1,0 cm² (ou índice AVA < 0,6 cm²/m² quando corrigido pela superfície corporal). Mitral normal: 4 a 6 cm². Estenose mitral grave: menor que 1,5 cm². É uma medida menos dependente do fluxo — útil quando a FE está baixa.",
+      },
+      {
+        heading: "Regurgitação: leve, moderada, grave",
+        body: "É a quantidade de sangue que volta na direção errada. O laudo pode usar graus (I a IV) ou os termos leve, moderada e grave. Parâmetros como vena contracta, volume regurgitante e fração regurgitante são medidas quantitativas: uma vena contracta acima de 7 mm ou volume regurgitante acima de 60 mL/batimento indicam regurgitação grave. Nem toda regurgitação grave precisa de cirurgia imediata — depende de sintomas, tamanho e função do ventrículo.",
+      },
+      {
+        heading: "Diâmetros do ventrículo esquerdo (DDVE e DSVE)",
+        body: "DDVE é o diâmetro no fim da diástole (relaxamento); DSVE, no fim da sístole (contração). Em regurgitação aórtica ou mitral crônica, o ventrículo dilata para acomodar o excesso de sangue. Quando o DSVE ultrapassa 50 mm (ou 40 mm indexado em regurgitação mitral primária), as diretrizes sugerem considerar intervenção mesmo em pacientes com poucos sintomas — porque esperar demais pode causar dano irreversível.",
+      },
+      {
+        heading: "PSAP — pressão sistólica da artéria pulmonar",
+        body: "Estima a pressão dentro dos pulmões. Valor normal: até 35 mmHg. Acima de 50 mmHg indica hipertensão pulmonar significativa, frequentemente resultado de doença valvar de longa data (especialmente mitral). É um marcador de gravidade e influencia decisões terapêuticas e prognóstico.",
+      },
+      {
+        heading: "'Stress echo' e outros termos que aparecem",
+        body: "Eco sob estresse (exercício ou dobutamina) avalia como a válvula e o coração respondem sob demanda — útil quando os sintomas não batem com o repouso. Strain longitudinal global (GLS) é uma medida moderna de deformação do músculo cardíaco; valores menos negativos que -18% podem indicar disfunção precoce, mesmo com FE normal. Se aparecerem no seu laudo, peça ao médico para explicar o que significam no seu contexto.",
+      },
+    ],
+    alerts: ["Este texto ajuda você a entender o laudo — a interpretação clínica final é sempre do seu médico, que integra os números ao seu quadro global."],
+    tags: ["exame", "avançado", "ecocardiograma"],
+  },
+  {
+    slug: "escolha-de-protese",
+    title: "Prótese mecânica ou biológica: como escolher",
+    category: "aprofundamento",
+    shortDescription: "Compare vantagens, riscos e impacto na vida diária de cada tipo de válvula artificial.",
+    sections: [
+      {
+        heading: "Prótese mecânica",
+        body: "Feita de materiais como carbono pirolítico e titânio. Vantagem principal: durabilidade praticamente vitalícia — normalmente não precisa ser trocada. Desvantagem: exige anticoagulação com varfarina para o resto da vida, com monitoramento periódico do INR (idealmente entre 2,0 e 3,0 para aórtica; 2,5 a 3,5 para mitral). Os anticoagulantes diretos (rivaroxabana, apixabana, dabigatrana) NÃO são aprovados para próteses mecânicas — apenas varfarina.",
+      },
+      {
+        heading: "Prótese biológica",
+        body: "Feita de tecido animal (pericárdio bovino ou válvula porcina) tratado quimicamente. Vantagem: não exige anticoagulação de longo prazo (apenas 3 a 6 meses após a cirurgia, dependendo do caso). Desvantagem: durabilidade limitada — em pacientes jovens, pode degenerar em 10 a 15 anos; em idosos acima de 65 anos, tende a durar mais tempo relativo à expectativa de vida. Quando falha, pode ser tratada com uma nova cirurgia ou com uma prótese percutânea 'válvula em válvula' (valve-in-valve).",
+      },
+      {
+        heading: "O que as diretrizes sugerem por idade",
+        body: "As diretrizes ESC 2021 e AHA/ACC 2020 são práticas: em pacientes com menos de 50 anos, geralmente se recomenda prótese mecânica; entre 50 e 65 anos, a escolha é individualizada (chamada 'zona cinzenta'); acima de 65 anos, prótese biológica é preferida na maioria dos casos. Mulheres em idade fértil que desejam engravidar geralmente evitam prótese mecânica pelo risco da varfarina no feto.",
+      },
+      {
+        heading: "Fatores que influenciam a decisão",
+        body: "Além da idade: estilo de vida (esportes de contato ou profissões de risco desaconselham anticoagulação vitalícia), preferência do paciente após ser bem informado, aceitação da rotina de exames de INR, risco de sangramento (doenças hepáticas, gástricas), planos reprodutivos, expectativa de vida, e acesso ao serviço de saúde. Essa é uma decisão compartilhada — você tem voz.",
+      },
+      {
+        heading: "TAVI/SAVI conta como prótese biológica",
+        body: "As válvulas implantadas por cateter (TAVI para aórtica, TMVI para mitral) são sempre biológicas. A durabilidade das TAVIs modernas parece boa em 5 a 10 anos, e estudos de longo prazo ainda estão em andamento. Isso é relevante especialmente para pacientes mais jovens elegíveis.",
+      },
+      {
+        heading: "E a válvula do próprio paciente (reparo)?",
+        body: "Quando possível, reparar a válvula nativa (especialmente a mitral) é melhor do que trocar por qualquer prótese: preserva a função do ventrículo, evita anticoagulação e reduz complicações a longo prazo. Não é sempre viável — depende da anatomia. Sempre pergunte se o reparo é uma opção para você.",
+      },
+    ],
+    tags: ["cirurgia", "prótese", "decisão"],
+  },
+  {
+    slug: "tavi-em-profundidade",
+    title: "TAVI em profundidade: o que perguntar antes de decidir",
+    category: "aprofundamento",
+    shortDescription: "Entenda quem se beneficia, os riscos reais e o que esperar antes, durante e depois do procedimento.",
+    sections: [
+      {
+        heading: "Como o TAVI funciona",
+        body: "TAVI (implante transcateter de válvula aórtica) coloca uma válvula biológica montada sobre um stent através de um cateter, geralmente introduzido pela artéria femoral (virilha). A prótese é expandida dentro da válvula doente, empurrando os folhetos calcificados para as bordas. Não é preciso abrir o tórax nem parar o coração. A hospitalização típica é de 2 a 4 dias, comparada a 5 a 10 dias da cirurgia convencional.",
+      },
+      {
+        heading: "Quem se beneficia mais",
+        body: "As diretrizes atuais recomendam TAVI para: pacientes acima de 75 anos com estenose aórtica grave sintomática; pacientes de qualquer idade com risco cirúrgico alto ou proibitivo; pacientes entre 65 e 75 anos após decisão do Heart Team, considerando anatomia favorável e preferência informada; e, cada vez mais, pacientes mais jovens em ensaios clínicos e casos selecionados. Não é apenas 'para idoso frágil' — hoje é opção robusta em muitos cenários.",
+      },
+      {
+        heading: "Riscos reais que você deve conhecer",
+        body: "Riscos principais: sangramento vascular no local do acesso (1 a 5%), acidente vascular cerebral (1 a 3%), necessidade de marca-passo definitivo (5 a 15%, dependendo do modelo de válvula), regurgitação paravalvar (vazamento ao redor da prótese — cada vez menos comum com válvulas modernas), lesão renal aguda pelo contraste. Mortalidade em 30 dias em centros experientes: 1 a 2%. Discuta esses números com sua equipe.",
+      },
+      {
+        heading: "Como se preparar",
+        body: "Você fará: angiotomografia de aorta e ilíacas (mede a anatomia), ecocardiograma detalhado, coronariografia (para tratar coronárias antes se necessário), avaliação de fragilidade e cognitiva, exames de sangue e função renal. Pergunte se você precisará suspender algum medicamento antes (metformina, anticoagulantes). Chegue jejuno, com acompanhante, e prepare-se emocionalmente — é normal sentir ansiedade.",
+      },
+      {
+        heading: "O que esperar depois",
+        body: "No dia seguinte, geralmente já se levanta e caminha. A alta ocorre em 2 a 4 dias. Nas primeiras semanas: evite esforço com o braço/perna do acesso, siga a antiagregação prescrita (geralmente AAS + clopidogrel por curto período, depois AAS isolado), acompanhe pressão arterial. A maioria dos pacientes relata melhora significativa dos sintomas em dias a semanas. Retorno a atividades leves em 1 a 2 semanas; direção após liberação médica.",
+      },
+      {
+        heading: "Perguntas para levar ao Heart Team",
+        body: "Quantos TAVIs seu centro realiza por ano? Qual sua taxa de complicações? Qual o modelo de válvula sugerido para mim e por quê? Sou candidato a cirurgia também — quais os prós e contras no meu caso? Preciso tratar coronárias antes? Quais medicamentos vou tomar depois e por quanto tempo? Como será o seguimento no primeiro ano? Um centro que responde essas perguntas com transparência é um bom sinal.",
+      },
+    ],
+    tags: ["TAVI", "avançado", "aórtica"],
+  },
+  {
+    slug: "anticoagulacao-vida-real",
+    title: "Anticoagulação na vida real: o que você precisa dominar",
+    category: "aprofundamento",
+    shortDescription: "Guia prático para viver bem com varfarina ou anticoagulantes diretos após cirurgia valvar.",
+    sections: [
+      {
+        heading: "Por que você toma anticoagulante",
+        body: "Após implante de prótese mecânica, ou em quem tem fibrilação atrial associada à valvopatia, o anticoagulante evita a formação de coágulos sobre a prótese ou dentro do átrio — coágulos que podem viajar e causar AVC ou obstruir a válvula (trombose de prótese, uma emergência). Não é um remédio 'opcional': parar por conta própria pode ser fatal em dias.",
+      },
+      {
+        heading: "Varfarina e o INR",
+        body: "A varfarina exige exames de sangue (INR) periódicos. Alvo típico: 2,0 a 3,0 (aórtica mecânica) ou 2,5 a 3,5 (mitral mecânica ou fatores de risco adicionais). INR abaixo do alvo = risco de coágulo; acima do alvo = risco de sangramento. Muitos alimentos e remédios interferem — mas a solução não é evitar vegetais verdes (fonte de vitamina K): é manter a ingestão estável e ajustar a dose com seu médico. Álcool em excesso, antibióticos, anti-inflamatórios e chá verde podem alterar o INR.",
+      },
+      {
+        heading: "Anticoagulantes diretos (DOACs)",
+        body: "Rivaroxabana, apixabana, dabigatrana e edoxabana têm dose fixa e não exigem INR. Podem ser usados em fibrilação atrial não valvar, incluindo em pacientes com prótese biológica após 3 meses e com estenose aórtica ou insuficiência valvar. NÃO são aprovados para prótese mecânica nem estenose mitral reumática moderada a grave — nestes casos, apenas varfarina. Nunca troque de anticoagulante sem orientação.",
+      },
+      {
+        heading: "Sinais de sangramento que exigem atenção imediata",
+        body: "Procure emergência se tiver: sangramento pela urina (rosa/vermelha) ou fezes escuras como borra de café ou vermelho vivo; hematomas grandes sem trauma; sangramento nasal ou gengival que não para em 15 minutos; vômito com sangue; dor de cabeça súbita e intensa, tontura, fraqueza em um lado do corpo, alterações visuais (podem ser AVC hemorrágico). Nem todo hematoma pequeno é problema — mas na dúvida, ligue para seu médico.",
+      },
+      {
+        heading: "Procedimentos, dentista e cirurgias",
+        body: "SEMPRE informe qualquer profissional (dentista, endoscopista, cirurgião, tatuador) sobre o anticoagulante. Extrações dentárias simples podem ser feitas com o anticoagulante, com cuidados locais. Cirurgias maiores exigem 'ponte' — suspender o anticoagulante alguns dias antes e substituir por heparina se você é de alto risco. NUNCA suspenda por conta própria: seu médico decide o plano.",
+      },
+      {
+        heading: "Rotina que salva",
+        body: "Tome sempre no mesmo horário. Não pule doses. Não dobre se esquecer (siga a orientação do médico). Tenha uma carteirinha ou pulseira identificando o anticoagulante. Faça INR na frequência combinada — a maioria dos pacientes estáveis, a cada 4 a 6 semanas. Peça um plano por escrito com alvos, o que fazer se INR estiver fora e telefones de contato. Muitos hospitais têm ambulatórios de anticoagulação — vale a pena procurar.",
+      },
+    ],
+    alerts: ["Nunca pare o anticoagulante por conta própria. Trombose de prótese é uma emergência médica com alta mortalidade."],
+    tags: ["medicação", "anticoagulação", "segurança"],
+  },
+  {
+    slug: "sinais-descompensacao",
+    title: "Sinais de descompensação: quando procurar ajuda",
+    category: "aprofundamento",
+    shortDescription: "Aprenda a reconhecer cedo os sinais de que sua doença valvar está piorando.",
+    sections: [
+      {
+        heading: "Ganho de peso rápido",
+        body: "Ganhar mais de 1 kg em 24 horas ou 2 kg em uma semana geralmente NÃO é gordura — é retenção de líquido, um dos primeiros sinais de insuficiência cardíaca descompensada. Pese-se todos os dias, no mesmo horário (idealmente pela manhã, após urinar, com roupas leves) e anote. Ligue para seu médico ao observar essa variação, mesmo se estiver se sentindo bem.",
+      },
+      {
+        heading: "Falta de ar que muda de padrão",
+        body: "Sinais preocupantes: falta de ar aos esforços que antes você fazia sem problema (subir uma escada, caminhar um quarteirão); falta de ar ao deitar (ortopneia) que exige mais travesseiros; despertar sufocado no meio da noite (dispneia paroxística noturna). Não são 'coisa da idade' — são sinais de sobrecarga cardíaca e devem ser comunicados no mesmo dia ou dia seguinte.",
+      },
+      {
+        heading: "Inchaço que aumenta",
+        body: "Inchaço nos tornozelos, pés ou pernas que piora ao longo do dia; barriga estufada ou inchada; roupas e sapatos ficando apertados. Pressione com o dedo sobre a canela: se ficar uma marca (edema depressível), há retenção de líquido significativa. Procure seu médico em até 48 horas.",
+      },
+      {
+        heading: "Sintomas que exigem emergência AGORA",
+        body: "Vá imediatamente ao pronto-socorro se tiver: dor no peito forte, opressiva, que não passa em 10-15 minutos ou piora; falta de ar súbita e intensa em repouso; desmaio ou quase desmaio; palpitação forte com tontura; batimentos muito rápidos e irregulares que não passam; sinais de AVC (fraqueza súbita em um lado do corpo, boca torta, dificuldade para falar). Ligue 192 (SAMU) ou vá acompanhado — não dirija.",
+      },
+      {
+        heading: "Fadiga anormal e outros alertas",
+        body: "Cansaço muito maior que o habitual, sem motivo aparente; perda de apetite; náusea; confusão mental leve em idosos (às vezes é o único sinal); tosse seca persistente, principalmente à noite. Isolados podem ser inespecíficos, mas juntos costumam indicar descompensação. Ligue para a equipe.",
+      },
+      {
+        heading: "Como se preparar",
+        body: "Tenha à mão: lista atualizada de medicações com doses; telefones do cardiologista, cardiologista de plantão e pronto-socorro de referência; último eco e exames; carteirinha identificando prótese (se houver) e alergias. Combine com sua equipe um 'plano de ação' — o que fazer diante de cada sintoma, quando ir ao PS, quando ajustar diurético em casa (se autorizado). Isso salva vidas.",
+      },
+    ],
+    alerts: ["Em caso de dor no peito intensa, falta de ar súbita, desmaio ou sinais de AVC, procure emergência imediatamente."],
+    tags: ["segurança", "urgência", "autocuidado"],
+  },
+  {
+    slug: "endocardite-prevencao",
+    title: "Endocardite: proteção prática no dia a dia",
+    category: "aprofundamento",
+    shortDescription: "Como reduzir o risco de infecção grave da válvula com hábitos simples.",
+    sections: [
+      {
+        heading: "O que é e por que se preocupar",
+        body: "Endocardite infecciosa é a infecção do revestimento interno do coração, geralmente sobre uma válvula (nativa ou prótese). Pode danificar rapidamente a válvula, formar coágulos infectados que embolizam para cérebro, rins ou pulmões, e tem mortalidade significativa mesmo com tratamento (15 a 30% dependendo do caso). Prevenir é infinitamente melhor que tratar.",
+      },
+      {
+        heading: "Quem tem risco alto e precisa de profilaxia antibiótica",
+        body: "As diretrizes indicam antibiótico preventivo antes de procedimentos dentários com sangramento em: portadores de prótese valvar (qualquer tipo, incluindo TAVI); história prévia de endocardite; cardiopatias congênitas cianóticas não corrigidas ou com material protético; transplantados cardíacos com valvopatia. Se você se encaixa, informe SEMPRE o dentista e leve uma orientação escrita do seu cardiologista.",
+      },
+      {
+        heading: "Saúde bucal é saúde cardíaca",
+        body: "A boca é a porta de entrada mais comum das bactérias que causam endocardite. Escove os dentes duas a três vezes por dia com creme fluoretado; use fio dental diariamente (gengiva sangrando é sinal de inflamação = mais risco); vá ao dentista a cada 6 meses para limpeza profissional; trate cáries e problemas gengivais ativamente. Isso é mais protetor do que qualquer antibiótico.",
+      },
+      {
+        heading: "Tatuagens, piercings e drogas injetáveis",
+        body: "Tatuagens e piercings introduzem bactérias na corrente sanguínea. Se decidir fazer, escolha estúdio com padrões rigorosos de esterilização, evite língua/boca e mucosas, e discuta com seu cardiologista sobre profilaxia. Uso de drogas injetáveis é um dos maiores fatores de risco para endocardite grave — se você usa, procure ajuda e nunca compartilhe agulhas.",
+      },
+      {
+        heading: "Cuide da pele e de infecções pequenas",
+        body: "Ferimentos, foliculites, infecções de unha, furúnculos e infecções urinárias devem ser tratados prontamente — não deixe evoluir. Lave bem cortes com água e sabão. Procure médico se houver vermelhidão que aumenta, calor, pus, febre. Evite espremer espinhas no rosto (área de drenagem venosa perigosa).",
+      },
+      {
+        heading: "Febre inexplicada em portador de valvopatia = investigar",
+        body: "Febre persistente por mais de uma semana sem causa clara (não é gripe/covid/dengue óbvia), cansaço extremo, suor noturno, perda de peso, dores articulares novas — em quem tem doença valvar ou prótese, essas queixas exigem HEMOCULTURAS antes de qualquer antibiótico. Isso é fundamental: iniciar antibiótico antes das culturas pode 'apagar' o diagnóstico. Informe TODO médico sobre sua condição valvar.",
+      },
+    ],
+    alerts: ["Nunca tome antibiótico por conta própria antes de investigar febre inexplicada — pode mascarar endocardite."],
+    tags: ["prevenção", "endocardite", "segurança"],
+  },
+  {
+    slug: "perguntas-heart-team",
+    title: "Perguntas essenciais para o Heart Team",
+    category: "aprofundamento",
+    shortDescription: "Um roteiro para você conduzir a consulta e decidir junto com a equipe.",
+    sections: [
+      {
+        heading: "Sobre o meu caso",
+        body: "Qual exatamente é minha doença valvar e sua gravidade? A doença é primária (da própria válvula) ou secundária (por outra causa cardíaca)? Como ela está evoluindo comparando com meus exames anteriores? Quais são meus fatores de risco individuais (idade, comorbidades, função renal, fragilidade)? Qual meu escore de risco (STS, EuroSCORE II) e o que ele significa na prática?",
+      },
+      {
+        heading: "Sobre as opções de tratamento",
+        body: "Quais são todas as opções para o meu caso: acompanhar, medicar, cateter, cirurgia? Qual a diferença de risco e benefício entre elas no meu caso específico? Se cirurgia, é possível REPARAR ou terei que trocar a válvula? Se TAVI/TMVI, qual modelo e por quê? Existem centros com mais experiência para o meu caso? Posso ter uma segunda opinião?",
+      },
+      {
+        heading: "Sobre a intervenção proposta",
+        body: "Se optarmos por intervir: quando é o momento ideal (agora, em 3 meses, esperar)? Qual a taxa de sucesso e de complicações do seu centro para esse procedimento? Quantos casos como o meu vocês fazem por ano? Qual a mortalidade em 30 dias e em 1 ano? Vou precisar de UTI? Por quanto tempo? Como será a reabilitação?",
+      },
+      {
+        heading: "Sobre medicações e vida depois",
+        body: "Quais medicamentos vou tomar depois e por quanto tempo? Como serão os primeiros 3 meses? Quando poderei voltar a trabalhar, dirigir, ter atividade sexual, praticar exercício? Que sinais devo vigiar em casa? Com que frequência serão os retornos? Quem eu ligo se algo acontecer fora do horário comercial?",
+      },
+      {
+        heading: "Sobre custos e logística",
+        body: "O procedimento é coberto pelo meu plano ou SUS? Se particular, qual o custo estimado (equipe, hospital, prótese)? Preciso de acompanhante o tempo todo? Onde ficarei internado? Se moro em outra cidade, existe hospedagem próxima? Vocês emitem relatórios detalhados que posso levar para meu cardiologista local?",
+      },
+      {
+        heading: "Direito à informação e decisão",
+        body: "Você tem direito de: ler seu prontuário e cópia dos exames; entender riscos e alternativas antes de assinar consentimento; pedir segunda opinião em outro serviço sem quebrar o vínculo com sua equipe; recusar um tratamento após ser informado; ter tempo para pensar em decisões não urgentes. Uma equipe boa RECEBE bem essas perguntas — e responde com clareza. Se você sente pressa ou dificuldade em obter respostas, considere outra avaliação.",
+      },
+    ],
+    tags: ["decisão compartilhada", "Heart Team", "avançado"],
+  },
 ];
 
 export const patientCategories = {
@@ -823,7 +1065,9 @@ export const patientCategories = {
   exames: { label: "Exames e diagnóstico", description: "Como cada exame é feito, o que avalia e como se preparar." },
   tratamentos: { label: "Tratamentos", description: "Todas as opções terapêuticas — medicações, cateter e cirurgia." },
   jornada: { label: "Jornada do paciente", description: "Do diagnóstico à vida plena — cada fase da sua jornada." },
+  aprofundamento: { label: "Aprofundamento", description: "Conteúdo avançado com linguagem acessível — para você conversar de igual para igual com sua equipe." },
 };
+
 
 export interface GlossaryEntry {
   term: string;
