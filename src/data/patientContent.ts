@@ -7,12 +7,13 @@
 export interface PatientTopic {
   slug: string;
   title: string;
-  category: "fundamentos" | "doencas" | "exames" | "tratamentos" | "jornada";
+  category: "fundamentos" | "doencas" | "exames" | "tratamentos" | "jornada" | "aprofundamento";
   shortDescription: string;
   sections: { heading: string; body: string }[];
   alerts?: string[];
   tags?: string[];
 }
+
 
 export const patientTopics: PatientTopic[] = [
   // ============ FUNDAMENTOS ============
