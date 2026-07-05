@@ -191,29 +191,6 @@ Cite guideline e classe/nível de evidência em cada recomendação.`;
       }),
     });
 
-      }
-      userPrompt = `${caseCtx}\n\nPERGUNTA DO MÉDICO: ${body.question}`;
-    } else {
-      return new Response(JSON.stringify({ error: "modo inválido" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const messages: any[] = [{ role: "system", content: SYSTEM_PROMPT }];
-    if (mode === "chat" && body.history?.length) {
-      messages.push(...body.history.slice(-10));
-    }
-    messages.push({ role: "user", content: userPrompt });
-
-    const aiResp = await fetch(GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ model: MODEL, messages }),
-    });
-
     if (!aiResp.ok) {
       const txt = await aiResp.text();
       console.error("Gateway error", aiResp.status, txt);
