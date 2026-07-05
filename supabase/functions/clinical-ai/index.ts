@@ -139,16 +139,58 @@ ${symptomCtx}
 
     let userPrompt = "";
     if (mode === "summary") {
-      userPrompt = `${caseCtx}\n\nGere um RESUMO CLÍNICO ESTRUTURADO deste caso em até 200 palavras, organizado em: (1) Apresentação, (2) Achados principais, (3) Pontos críticos para decisão.`;
+      userPrompt = `${caseCtx}\n\nGere um RESUMO CLÍNICO ESTRUTURADO em até 220 palavras: (1) Apresentação (idade, sexo, valva, mecanismo, gravidade, NYHA); (2) Achados-chave quantitativos (FE, gradientes, área, PSAP, BNP, tendência); (3) Ponto(s) de decisão iminente(s) segundo ACC/AHA 2020 e ESC 2021; (4) Dados faltantes que mudariam a conduta.`;
     } else if (mode === "suggest") {
-      userPrompt = `${caseCtx}\n\nCom base nas diretrizes ESC 2021 e AHA/ACC 2020 para valvopatias, sugira CONDUTAS POSSÍVEIS (em tópicos), citando classe de recomendação. Inclua: critérios de intervenção valvar (cirurgia x SAVI/TAVI/TEER), otimização clínica, exames adicionais úteis, sinais de alerta. Termine com "Limitações deste apoio" listando dados ausentes.`;
+      userPrompt = `${caseCtx}\n\nProduza uma NOTA DE APOIO À DECISÃO no estilo Heart Team, contemplando:
+1. Classificação da gravidade contra os limiares de guideline (cite valores).
+2. Indicações formais de intervenção (Classe I/IIa) x observação vigiada — para este caso específico.
+3. Comparação SAVR vs TAVI/TEER/valvoplastia, com prós/contras e critérios anatômicos/clínicos.
+4. Otimização clínica pré-intervenção (controle de FA, IC, HAS, coronárias, hemoglobina, função renal).
+5. Exames adicionais que refinariam a decisão (ex.: eco TE, angioTC, coronariografia, teste de esforço, BNP seriado, RM cardíaca).
+6. Red flags e critérios de encaminhamento urgente.
+7. Bloco final "Limitações deste apoio" com dados ausentes.
+Cite guideline e classe/nível de evidência em cada recomendação.`;
     } else if (mode === "trends") {
-      userPrompt = `${caseCtx}\n\nAnalise as TENDÊNCIAS dos exames seriados e sintomas. Aponte: (1) variações relevantes (FE, gradientes, BNP, PSAP), (2) deterioração ou estabilidade clínica, (3) red flags, (4) recomendação prática de seguimento.`;
+      userPrompt = `${caseCtx}\n\nAnalise as TENDÊNCIAS entre os exames seriados e o diário de sintomas:
+(1) delta quantitativo de FE, gradiente médio, área, PSAP, BNP/NT-proBNP entre o primeiro e o último exame;
+(2) padrão de progressão (estável, lenta, rápida) e cruzamento de limiares de guideline;
+(3) correlação com sintomas relatados (NYHA, síncope, dispneia paroxística, ortopneia, ganho de peso);
+(4) red flags que justificam antecipar reavaliação/intervenção;
+(5) recomendação prática de intervalo do próximo eco e do próximo retorno.`;
     } else if (mode === "chat") {
       if (!body.question) {
         return new Response(JSON.stringify({ error: "question obrigatório no chat" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+      userPrompt = `${caseCtx}\n\nPERGUNTA DO MÉDICO: ${body.question}\n\nResponda de forma técnica, citando guideline (ACC/AHA 2020, ESC 2021, SBC 2020) quando aplicável, com classe/NE. Se a pergunta exigir dado ausente, aponte antes de opinar.`;
+    } else {
+      return new Response(JSON.stringify({ error: "modo inválido" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const messages: any[] = [{ role: "system", content: SYSTEM_PROMPT }];
+    if (mode === "chat" && body.history?.length) {
+      messages.push(...body.history.slice(-10));
+    }
+    messages.push({ role: "user", content: userPrompt });
+
+    const aiResp = await fetch(GATEWAY_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages,
+        temperature: 0.2,
+        top_p: 0.9,
+        max_tokens: mode === "summary" ? 700 : 1400,
+      }),
+    });
+
       }
       userPrompt = `${caseCtx}\n\nPERGUNTA DO MÉDICO: ${body.question}`;
     } else {
