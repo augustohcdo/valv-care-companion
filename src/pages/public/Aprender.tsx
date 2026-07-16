@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   BookOpen,
   HelpCircle,
+  GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -25,6 +26,7 @@ const categoryIcons: Record<string, any> = {
   exames: Stethoscope,
   tratamentos: Wrench,
   jornada: Compass,
+  aprofundamento: GraduationCap,
 };
 
 const Aprender = () => {
