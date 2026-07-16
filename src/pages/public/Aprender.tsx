@@ -99,7 +99,8 @@ const Aprender = () => {
 
         {Object.entries(grouped).map(([catKey, topics]) => {
           const cat = patientCategories[catKey as keyof typeof patientCategories];
-          const Icon = categoryIcons[catKey];
+          const Icon = categoryIcons[catKey] ?? BookOpen;
+          if (!cat) return null;
           return (
             <div key={catKey} className="mb-14">
               <div className="flex items-center gap-3 mb-5">
