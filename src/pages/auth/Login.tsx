@@ -33,8 +33,20 @@ export default function Login() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
+
+  const emailValue = watch("email") ?? "";
+  const [lockMs, setLockMs] = useState(0);
+
+  // Poll the lockout timer while it's active.
+  useEffect(() => {
+    const tick = () => setLockMs(getLockRemaining(emailValue));
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [emailValue]);
 
   const redirectAfterLogin = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -49,6 +61,13 @@ export default function Login() {
   };
 
   const onSubmit = async (values: LoginInput) => {
+    const remaining = getLockRemaining(values.email);
+    if (remaining > 0) {
+      toast.error("Muitas tentativas", {
+        description: `Aguarde ${formatRemaining(remaining)} antes de tentar novamente.`,
+      });
+      return;
+    }
     setSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({
       email: values.email,
@@ -56,9 +75,17 @@ export default function Login() {
     });
     setSubmitting(false);
     if (error) {
-      toast.error("Não foi possível entrar", { description: error.message });
+      const applied = registerFail(values.email);
+      setLockMs(getLockRemaining(values.email));
+      toast.error("Não foi possível entrar", {
+        description:
+          applied > 0
+            ? `Conta temporariamente bloqueada por ${formatRemaining(applied)} por segurança.`
+            : error.message,
+      });
       return;
     }
+    clearFails(values.email);
     toast.success("Bem-vindo de volta");
     await redirectAfterLogin();
   };
