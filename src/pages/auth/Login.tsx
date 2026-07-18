@@ -166,7 +166,17 @@ export default function Login() {
                 {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
               </div>
 
-              <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting}>
+              {lockMs > 0 && (
+                <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+                  <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>
+                    Muitas tentativas de login. Tente novamente em <strong>{formatRemaining(lockMs)}</strong>.
+                    Se não foi você, altere sua senha assim que possível.
+                  </span>
+                </div>
+              )}
+
+              <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting || lockMs > 0}>
                 {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 Entrar
               </Button>
