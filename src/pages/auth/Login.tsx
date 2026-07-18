@@ -1,13 +1,19 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Mail, Lock } from "lucide-react";
+import { Loader2, Mail, Lock, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { loginSchema, LoginInput } from "@/lib/validators";
+import {
+  getLockRemaining,
+  registerFail,
+  clearFails,
+  formatRemaining,
+} from "@/lib/loginLockout";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
