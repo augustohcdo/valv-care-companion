@@ -1,13 +1,19 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Mail, Lock } from "lucide-react";
+import { Loader2, Mail, Lock, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { loginSchema, LoginInput } from "@/lib/validators";
+import {
+  getLockRemaining,
+  registerFail,
+  clearFails,
+  formatRemaining,
+} from "@/lib/loginLockout";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,8 +33,20 @@ export default function Login() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
+
+  const emailValue = watch("email") ?? "";
+  const [lockMs, setLockMs] = useState(0);
+
+  // Poll the lockout timer while it's active.
+  useEffect(() => {
+    const tick = () => setLockMs(getLockRemaining(emailValue));
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [emailValue]);
 
   const redirectAfterLogin = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -43,6 +61,13 @@ export default function Login() {
   };
 
   const onSubmit = async (values: LoginInput) => {
+    const remaining = getLockRemaining(values.email);
+    if (remaining > 0) {
+      toast.error("Muitas tentativas", {
+        description: `Aguarde ${formatRemaining(remaining)} antes de tentar novamente.`,
+      });
+      return;
+    }
     setSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({
       email: values.email,
@@ -50,9 +75,17 @@ export default function Login() {
     });
     setSubmitting(false);
     if (error) {
-      toast.error("Não foi possível entrar", { description: error.message });
+      const applied = registerFail(values.email);
+      setLockMs(getLockRemaining(values.email));
+      toast.error("Não foi possível entrar", {
+        description:
+          applied > 0
+            ? `Conta temporariamente bloqueada por ${formatRemaining(applied)} por segurança.`
+            : error.message,
+      });
       return;
     }
+    clearFails(values.email);
     toast.success("Bem-vindo de volta");
     await redirectAfterLogin();
   };
@@ -133,7 +166,17 @@ export default function Login() {
                 {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
               </div>
 
-              <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting}>
+              {lockMs > 0 && (
+                <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+                  <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>
+                    Muitas tentativas de login. Tente novamente em <strong>{formatRemaining(lockMs)}</strong>.
+                    Se não foi você, altere sua senha assim que possível.
+                  </span>
+                </div>
+              )}
+
+              <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting || lockMs > 0}>
                 {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 Entrar
               </Button>

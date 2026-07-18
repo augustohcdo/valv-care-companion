@@ -100,6 +100,15 @@ const Termos = () => (
           body: "Você concorda em isentar e indenizar a ValvePath, suas afiliadas e equipe por reclamações, perdas, danos, custos e honorários advocatícios decorrentes do seu uso indevido da Plataforma, da violação destes Termos, da legislação ou de direitos de terceiros.",
         },
         {
+          heading: "Disponibilidade, backups e fase piloto",
+          body: [
+            "A Plataforma encontra-se em fase piloto de validação com médicos e pacientes convidados. Não oferecemos, nesta fase, Acordo de Nível de Serviço (SLA) contratual de disponibilidade (uptime), sem prejuízo dos esforços contínuos de manutenção, monitoramento e mitigação de indisponibilidades.",
+            "A infraestrutura de banco de dados executa backups automáticos diários com retenção aproximada de 14 dias, restauráveis pela equipe técnica em caso de incidente. Adicionalmente, mantemos rotina interna de exportação para atender à obrigação legal de guarda de prontuário eletrônico pelo prazo mínimo de 20 anos, conforme Lei nº 13.787/2018 e Resolução CFM nº 1.821/2007.",
+            "As tentativas de autenticação são submetidas a controles de segurança automáticos (rate limiting no servidor, bloqueio progressivo por usuário após múltiplas falhas de senha, verificação de senhas vazadas contra a base Have I Been Pwned e criptografia em trânsito por TLS).",
+            "Falhas, indisponibilidades ou incidentes de segurança relevantes serão comunicados aos titulares afetados e à ANPD conforme o Art. 48 da LGPD, quando aplicável.",
+          ],
+        },
+        {
           heading: "Suspensão e encerramento",
           body: "Podemos suspender ou encerrar sua conta em caso de violação destes Termos, suspeita de fraude, ordem judicial ou requisito regulatório. Você também pode encerrar a conta a qualquer momento; dados clínicos sob obrigação legal de retenção (ex.: prontuário) serão mantidos pelo prazo mínimo previsto em lei e depois eliminados.",
         },
