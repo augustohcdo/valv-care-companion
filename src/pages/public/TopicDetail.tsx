@@ -1,10 +1,11 @@
 import { useParams, Link, Navigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
+import { ContentReviewBadge } from "@/components/ContentReviewBadge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { patientTopics, patientCategories } from "@/data/patientContent";
-import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, MapPin } from "lucide-react";
 
 const TopicDetail = () => {
   const { slug } = useParams();
