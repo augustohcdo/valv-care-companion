@@ -34,7 +34,8 @@ const PacienteAprender = () => {
       const { data: cs } = await supabase
         .from("clinical_cases")
         .select("id, valve_type, valve_disease")
-        .eq("patient_id", pat.id);
+        .eq("patient_id", pat.id)
+        .neq("status", "draft" as any);
       setCases(cs || []);
       setLoading(false);
     })();
