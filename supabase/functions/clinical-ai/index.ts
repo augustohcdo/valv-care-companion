@@ -202,11 +202,50 @@ Cite guideline e classe/nível de evidência em cada recomendação.`;
       });
     }
 
+    // ============================================================
+    // RAG: recupera trechos relevantes da base ValvePath
+    // ============================================================
+    const topic = topicFromCase(caso.valve_type, caso.valve_disease);
+    const ragQuery = [
+      caso.valve_disease, caso.valve_type,
+      mode === "chat" ? body.question : mode,
+      (caso.symptoms ?? []).join(" "),
+    ].filter(Boolean).join(" ").slice(0, 1000);
+
+    let ragBlock = "";
+    let sourcesOut: Array<{ title: string; organization: string; year: number; scope: string; url: string | null; similarity: number; review_status: string }> = [];
+    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (SERVICE_ROLE) {
+      const embedding = await embedQuery(LOVABLE_API_KEY, ragQuery);
+      if (embedding) {
+        const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+        const { data: matches, error: matchErr } = await admin.rpc("match_knowledge", {
+          query_embedding: embedding,
+          match_count: 5,
+          filter_topic: topic,
+        });
+        if (matchErr) console.error("match_knowledge error", matchErr);
+        if (matches && matches.length > 0) {
+          ragBlock = "\n\nREFERÊNCIAS RECUPERADAS DA BASE ValvePath (use estas como fonte primária):\n" +
+            matches.map((m: any, i: number) =>
+              `[${i + 1}] ${m.source_organization} ${m.source_year} — ${m.section ?? m.topic} (revisão: ${m.review_status}):\n"${m.content}"`
+            ).join("\n\n");
+          sourcesOut = matches.map((m: any) => ({
+            title: m.source_title, organization: m.source_organization, year: m.source_year,
+            scope: m.source_scope, url: m.source_url, similarity: Number(m.similarity?.toFixed(3) ?? 0),
+            review_status: m.review_status,
+          }));
+        } else {
+          ragBlock = "\n\n⚠️ AVISO PARA VOCÊ (assistente): Nenhum trecho relevante foi encontrado na base ValvePath para esta consulta. INICIE sua resposta com o disclaimer: \"⚠️ Não encontrei essa recomendação na base carregada da ValvePath. A resposta abaixo baseia-se no conhecimento geral do modelo e deve ser verificada em fonte primária antes de qualquer decisão.\"";
+        }
+      }
+    }
+
     const messages: any[] = [{ role: "system", content: SYSTEM_PROMPT }];
     if (mode === "chat" && body.history?.length) {
       messages.push(...body.history.slice(-10));
     }
-    messages.push({ role: "user", content: userPrompt });
+    messages.push({ role: "user", content: userPrompt + ragBlock });
 
     const aiResp = await fetch(GATEWAY_URL, {
       method: "POST",
@@ -243,7 +282,7 @@ Cite guideline e classe/nível de evidência em cada recomendação.`;
 
     const data = await aiResp.json();
     const content = data.choices?.[0]?.message?.content ?? "";
-    return new Response(JSON.stringify({ content }), {
+    return new Response(JSON.stringify({ content, sources: sourcesOut, rag_hit: sourcesOut.length > 0 }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
