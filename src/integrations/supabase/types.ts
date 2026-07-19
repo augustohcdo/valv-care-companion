@@ -1018,6 +1018,27 @@ export type Database = {
           },
         ]
       }
+      internal_secrets: {
+        Row: {
+          created_at: string
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       medication_logs: {
         Row: {
           created_at: string
