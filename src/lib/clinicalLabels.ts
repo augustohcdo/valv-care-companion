@@ -41,6 +41,7 @@ export const nyhaLabels: Record<string, string> = {
 };
 
 export const caseStatusLabels: Record<string, string> = {
+  draft: "Rascunho",
   avaliacao_inicial: "Avaliação inicial",
   em_seguimento: "Em seguimento",
   pre_intervencao: "Pré-intervenção",
