@@ -20,7 +20,11 @@ export function ClinicalAIPanel({ caseId }: Props) {
   const [mode, setMode] = useState<Mode>("summary");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Record<string, string>>({});
+  const [sourcesByMode, setSourcesByMode] = useState<Record<string, Source[]>>({});
+  const [ragHitByMode, setRagHitByMode] = useState<Record<string, boolean>>({});
   const [chatHistory, setChatHistory] = useState<ChatMsg[]>([]);
+  const [chatSources, setChatSources] = useState<Source[]>([]);
+  const [chatRagHit, setChatRagHit] = useState<boolean | null>(null);
   const [chatInput, setChatInput] = useState("");
 
   async function callAI(targetMode: Mode, question?: string, history?: ChatMsg[]) {
@@ -40,7 +44,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
         toast.error(data.error);
         return null;
       }
-      return data?.content as string;
+      return data as { content: string; sources?: Source[]; rag_hit?: boolean };
     } catch (e) {
       console.error(e);
       toast.error("Falha de comunicação com a IA");
@@ -51,8 +55,12 @@ export function ClinicalAIPanel({ caseId }: Props) {
   }
 
   const runSimpleMode = async (m: Mode) => {
-    const content = await callAI(m);
-    if (content) setResults((prev) => ({ ...prev, [m]: content }));
+    const res = await callAI(m);
+    if (res?.content) {
+      setResults((prev) => ({ ...prev, [m]: res.content }));
+      setSourcesByMode((prev) => ({ ...prev, [m]: res.sources ?? [] }));
+      setRagHitByMode((prev) => ({ ...prev, [m]: !!res.rag_hit }));
+    }
   };
 
   const sendChat = async () => {
@@ -61,9 +69,11 @@ export function ClinicalAIPanel({ caseId }: Props) {
     const newHistory: ChatMsg[] = [...chatHistory, { role: "user", content: q }];
     setChatHistory(newHistory);
     setChatInput("");
-    const content = await callAI("chat", q, chatHistory);
-    if (content) {
-      setChatHistory([...newHistory, { role: "assistant", content }]);
+    const res = await callAI("chat", q, chatHistory);
+    if (res?.content) {
+      setChatHistory([...newHistory, { role: "assistant", content: res.content }]);
+      setChatSources(res.sources ?? []);
+      setChatRagHit(!!res.rag_hit);
     }
   };
 
