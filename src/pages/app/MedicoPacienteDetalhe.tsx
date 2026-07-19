@@ -41,7 +41,7 @@ export default function MedicoPacienteDetalhe() {
       const { data: prof } = await supabase
         .from("profiles").select("*").eq("user_id", pat.user_id).maybeSingle();
       const { data: cs } = await supabase
-        .from("clinical_cases").select("*").eq("patient_id", pat.id).eq("doctor_id", doc.id).order("created_at", { ascending: false });
+        .from("clinical_cases").select("*").eq("patient_id", pat.id).eq("doctor_id", doc.id).neq("status", "draft" as any).order("created_at", { ascending: false });
 
       setDoctor(doc);
       setDoctorProfile(docProf);
