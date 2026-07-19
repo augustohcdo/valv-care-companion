@@ -61,6 +61,9 @@ export default function Login() {
     navigate(dest, { replace: true });
   };
 
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const handleCaptcha = useCallback((t: string | null) => setCaptchaToken(t), []);
+
   const onSubmit = async (values: LoginInput) => {
     const remaining = getLockRemaining(values.email);
     if (remaining > 0) {
@@ -69,7 +72,22 @@ export default function Login() {
       });
       return;
     }
+    if (!captchaToken) {
+      toast.error("Verificação de segurança", {
+        description: "Complete a verificação anti-robô antes de entrar.",
+      });
+      return;
+    }
     setSubmitting(true);
+    const captchaOk = await verifyTurnstile(captchaToken, "login");
+    if (!captchaOk) {
+      setSubmitting(false);
+      setCaptchaToken(null);
+      toast.error("Verificação de segurança falhou", {
+        description: "Tente novamente.",
+      });
+      return;
+    }
     const { error } = await supabase.auth.signInWithPassword({
       email: values.email,
       password: values.password,
@@ -78,6 +96,7 @@ export default function Login() {
     if (error) {
       const applied = registerFail(values.email);
       setLockMs(getLockRemaining(values.email));
+      setCaptchaToken(null);
       toast.error("Não foi possível entrar", {
         description:
           applied > 0
