@@ -30,7 +30,6 @@ const TABLES = [
 ];
 
 const BUCKET = "clinical-exports";
-const CRON_SECRET = Deno.env.get("EXPORT_CRON_SECRET");
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -39,6 +38,14 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // Read the shared cron secret from the locked internal_secrets table.
+  const { data: secretRow } = await supabase
+    .from("internal_secrets")
+    .select("value")
+    .eq("key", "export_cron_secret")
+    .maybeSingle();
+  const CRON_SECRET = secretRow?.value ?? null;
 
   // Auth: allow (a) valid cron secret via header, or (b) authenticated admin JWT.
   const cronHeader = req.headers.get("x-cron-secret");
