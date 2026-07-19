@@ -22,7 +22,7 @@ export default function MedicoPacientes() {
 
       const [{ data: patients }, { data: cases }] = await Promise.all([
         supabase.from("patients").select("id, user_id, sex, city, uf, comorbidities, linked_at").eq("linked_doctor_id", doc.id),
-        supabase.from("clinical_cases").select("id, patient_id").eq("doctor_id", doc.id),
+        supabase.from("clinical_cases").select("id, patient_id").eq("doctor_id", doc.id).neq("status", "draft" as any),
       ]);
 
       const userIds = (patients || []).map((p) => p.user_id);

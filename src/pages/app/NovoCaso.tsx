@@ -202,14 +202,26 @@ export default function NovoCaso() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [form, canAutosave, persistDraft]);
 
-  // Save immediately on tab close / route away
+  // Save immediately on tab close / app switch / route away.
+  // visibilitychange is more reliable than beforeunload on iOS Safari and mobile browsers,
+  // which often suspend the page before beforeunload's async work completes.
   useEffect(() => {
     const handler = () => {
       if (canAutosave && !savingRef.current) void persistDraft();
     };
+    const visibilityHandler = () => {
+      if (document.visibilityState === "hidden") handler();
+    };
     window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
+    window.addEventListener("pagehide", handler);
+    document.addEventListener("visibilitychange", visibilityHandler);
+    return () => {
+      window.removeEventListener("beforeunload", handler);
+      window.removeEventListener("pagehide", handler);
+      document.removeEventListener("visibilitychange", visibilityHandler);
+    };
   }, [canAutosave, persistDraft]);
+
 
   const update = (k: keyof FormState, v: any) => setForm((f) => ({ ...f, [k]: v }));
 

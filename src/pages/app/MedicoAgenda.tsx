@@ -36,7 +36,7 @@ export default function MedicoAgenda() {
       setLoading(true);
       const { data: doc } = await supabase.from("doctors").select("id").eq("user_id", user.id).maybeSingle();
       if (!doc) { setLoading(false); return; }
-      const { data: cases } = await supabase.from("clinical_cases").select("id").eq("doctor_id", doc.id);
+      const { data: cases } = await supabase.from("clinical_cases").select("id").eq("doctor_id", doc.id).neq("status", "draft" as any);
       const ids = (cases ?? []).map((c) => c.id);
       if (ids.length === 0) { setAppts([]); setLoading(false); return; }
       const { data } = await supabase
