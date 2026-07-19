@@ -1,10 +1,11 @@
 import { useParams, Link, Navigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
+import { ContentReviewBadge } from "@/components/ContentReviewBadge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { patientTopics, patientCategories } from "@/data/patientContent";
-import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, MapPin } from "lucide-react";
 
 const TopicDetail = () => {
   const { slug } = useParams();
@@ -33,6 +34,8 @@ const TopicDetail = () => {
       <article className="container-vp py-12">
         <div className="grid lg:grid-cols-[1fr_280px] gap-10">
           <div className="max-w-3xl">
+            <ContentReviewBadge status="ai_generated_pending" className="mb-6" />
+
             {topic.sections.map((sec, i) => (
               <div key={i} className="mb-8">
                 <h2 className="font-display font-semibold text-xl text-foreground mb-3">
@@ -41,6 +44,21 @@ const TopicDetail = () => {
                 <p className="text-base text-foreground/85 leading-relaxed">{sec.body}</p>
               </div>
             ))}
+
+            <Card className="p-5 border-emerald-500/40 bg-emerald-500/5 mb-8">
+              <div className="flex items-start gap-3">
+                <MapPin className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-display font-semibold text-sm text-foreground mb-2">
+                    Contexto Brasil
+                  </h3>
+                  <p className="text-sm text-foreground/85 leading-relaxed">
+                    A <strong>Diretriz Brasileira de Valvopatias (SBC 2024)</strong> é a referência oficial no Brasil. Quando há divergência com ACC/AHA 2020 ou ESC 2021 — por diferenças de disponibilidade no SUS (TAVI, MitraClip/TEER) ou pela alta prevalência de doença reumática — a diretriz brasileira ajusta os limiares e a preferência de conduta. Este conteúdo está aguardando revisão de um cardiologista brasileiro antes de detalhar essas divergências ponto a ponto.{" "}
+                    <Link to="/referencias" className="text-primary hover:underline">Ver todas as referências →</Link>
+                  </p>
+                </div>
+              </div>
+            </Card>
 
             {topic.alerts && topic.alerts.length > 0 && (
               <Card className="p-5 border-destructive/30 bg-destructive/5 mb-8">

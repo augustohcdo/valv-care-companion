@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Beaker, Loader2 } from "lucide-react";
+import { Beaker, Loader2, Database, AlertTriangle } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
@@ -67,12 +67,41 @@ export default function FhirSandbox() {
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };
 
+  const seedKnowledge = async () => {
+    setBusy(true); setResponse("");
+    try {
+      const { data, error } = await supabase.functions.invoke("knowledge-seed");
+      if (error) throw error;
+      setResponse(JSON.stringify(data, null, 2));
+      toast.success(`Base RAG populada: ${data?.inserted ?? 0} inseridos, ${data?.skipped ?? 0} já existiam`);
+    } catch (e: any) { toast.error(e.message ?? "Falha ao popular base"); } finally { setBusy(false); }
+  };
+
   return (
     <div className="container max-w-5xl py-8 space-y-6">
       <header>
-        <h1 className="text-3xl font-bold flex items-center gap-2"><Beaker className="h-7 w-7 text-primary" /> Sandbox FHIR</h1>
-        <p className="text-muted-foreground">Teste os endpoints com uma chave de API real e um paciente com grant ativo.</p>
+        <h1 className="text-3xl font-bold flex items-center gap-2"><Beaker className="h-7 w-7 text-primary" /> Sandbox FHIR & Base de conhecimento</h1>
+        <p className="text-muted-foreground">Teste endpoints FHIR e popule/gerencie a base RAG usada pela IA clínica.</p>
       </header>
+
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base"><Database className="h-4 w-4 text-primary" /> Base de conhecimento (RAG)</CardTitle>
+          <CardDescription>
+            Popula a tabela <code>knowledge_chunks</code> com trechos preliminares (SBC 2024, ACC/AHA 2020, ESC 2021, DATASUS) e gera embeddings via Gemini.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-start gap-2 text-xs bg-destructive/10 border border-destructive/40 rounded p-2.5 text-destructive">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <p><strong>Conteúdo preliminar gerado por IA.</strong> Todos os chunks são inseridos com <code>review_status='ai_generated'</code>. Precisam de revisão por cardiologista/cirurgião de valva antes de virarem fonte publicada.</p>
+          </div>
+          <Button onClick={seedKnowledge} disabled={busy} variant="outline">
+            {busy && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            Popular / atualizar base RAG
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle>Configuração</CardTitle><CardDescription>Use chave emitida em Admin → API Keys.</CardDescription></CardHeader>

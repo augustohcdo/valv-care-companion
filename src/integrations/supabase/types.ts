@@ -452,6 +452,48 @@ export type Database = {
         }
         Relationships: []
       }
+      content_review_status: {
+        Row: {
+          content_key: string
+          content_type: string
+          created_at: string
+          id: string
+          notes: string | null
+          reviewed_at: string | null
+          reviewer_crm: string | null
+          reviewer_crm_uf: string | null
+          reviewer_name: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          content_key: string
+          content_type: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          reviewed_at?: string | null
+          reviewer_crm?: string | null
+          reviewer_crm_uf?: string | null
+          reviewer_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          content_key?: string
+          content_type?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          reviewed_at?: string | null
+          reviewer_crm?: string | null
+          reviewer_crm_uf?: string | null
+          reviewer_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       data_access_grants: {
         Row: {
           direction: string
@@ -1039,6 +1081,107 @@ export type Database = {
         }
         Relationships: []
       }
+      knowledge_chunks: {
+        Row: {
+          content: string
+          created_at: string
+          embedding: string | null
+          id: string
+          metadata: Json
+          review_status: string
+          section: string | null
+          source_id: string
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json
+          review_status?: string
+          section?: string | null
+          source_id: string
+          topic: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json
+          review_status?: string
+          section?: string | null
+          source_id?: string
+          topic?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_chunks_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_sources: {
+        Row: {
+          citation: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_primary_br: boolean
+          organization: string
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          scope: string
+          slug: string
+          title: string
+          updated_at: string
+          url: string | null
+          year: number
+        }
+        Insert: {
+          citation?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_primary_br?: boolean
+          organization: string
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scope: string
+          slug: string
+          title: string
+          updated_at?: string
+          url?: string | null
+          year: number
+        }
+        Update: {
+          citation?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_primary_br?: boolean
+          organization?: string
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scope?: string
+          slug?: string
+          title?: string
+          updated_at?: string
+          url?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
       medication_logs: {
         Row: {
           created_at: string
@@ -1607,6 +1750,28 @@ export type Database = {
           _ua: string
         }
         Returns: string
+      }
+      match_knowledge: {
+        Args: {
+          filter_topic?: string
+          match_count?: number
+          query_embedding: string
+        }
+        Returns: {
+          chunk_id: string
+          content: string
+          review_status: string
+          section: string
+          similarity: number
+          source_citation: string
+          source_id: string
+          source_organization: string
+          source_scope: string
+          source_title: string
+          source_url: string
+          source_year: number
+          topic: string
+        }[]
       }
       register_consent: {
         Args: {

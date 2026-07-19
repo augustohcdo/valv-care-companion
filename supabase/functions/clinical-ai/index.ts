@@ -10,42 +10,74 @@ const corsHeaders = {
 };
 
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const EMBED_URL = "https://ai.gateway.lovable.dev/v1/embeddings";
 const MODEL = "google/gemini-3-flash-preview";
+const EMBED_MODEL = "google/gemini-embedding-2";
+
+// Mapeia valvopatia -> topic canônico usado nos knowledge_chunks
+function topicFromCase(valveType?: string, valveDisease?: string): string | null {
+  const t = (valveType ?? "").toLowerCase();
+  const d = (valveDisease ?? "").toLowerCase();
+  if (t.includes("aort") && d.includes("esten")) return "estenose_aortica";
+  if (t.includes("aort") && (d.includes("insufic") || d.includes("regurg"))) return "insuficiencia_aortica";
+  if (t.includes("mitr") && d.includes("esten")) return "estenose_mitral";
+  if (t.includes("mitr") && (d.includes("insufic") || d.includes("regurg"))) return "insuficiencia_mitral";
+  if (t.includes("tric")) return "valvopatia_tricuspide";
+  if (t.includes("pulm")) return "valvopatia_pulmonar";
+  return null;
+}
+
+async function embedQuery(apiKey: string, text: string): Promise<number[] | null> {
+  try {
+    const r = await fetch(EMBED_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: EMBED_MODEL, input: text.slice(0, 4000) }),
+    });
+    if (!r.ok) { console.error("embed failed", r.status, await r.text()); return null; }
+    const j = await r.json();
+    return j.data?.[0]?.embedding ?? null;
+  } catch (e) { console.error("embed error", e); return null; }
+}
 
 const SYSTEM_PROMPT = `Você é um assistente clínico de ALTA PRECISÃO especializado em valvopatias cardíacas, apoiando cardiologistas brasileiros. Não é um chatbot genérico: é um consultor sênior que raciocina como um Heart Team.
 
-BASE DE CONHECIMENTO (integre e cite quando aplicável):
-- 2020 ACC/AHA Guideline for the Management of Patients With Valvular Heart Disease + 2023 Focused Update
-- 2021 ESC/EACTS Guidelines for the Management of Valvular Heart Disease
-- Diretriz Brasileira de Valvopatias — SBC 2020 (atualizações vigentes)
-- Consensos de Heart Team, escores STS-PROM, EuroSCORE II, TRI-SCORE
-- Recomendações de endocardite (ESC 2023) e anticoagulação em próteses (ACC/AHA, ESC)
+REGRAS ABSOLUTAS DE CITAÇÃO (RAG):
+- Quando o prompt do usuário incluir um bloco "REFERÊNCIAS RECUPERADAS DA BASE ValvePath", use PRIORITARIAMENTE o texto desses trechos. Cite cada trecho no formato [Fonte: {organização} {ano}] no final da frase correspondente.
+- Se a base ValvePath incluir a Diretriz Brasileira de Valvopatias (SBC 2024), destaque-a como referência primária para o contexto brasileiro e mostre lado a lado quando divergir de ACC/AHA ou ESC (formato "ESC 2021: Classe I | SBC 2024: Classe IIa — motivo: X").
+- Se NENHUM trecho relevante for retornado, escreva explicitamente: "⚠️ Não encontrei essa recomendação na base carregada da ValvePath. A resposta abaixo baseia-se no conhecimento geral do modelo e deve ser verificada em fonte primária antes de qualquer decisão." — e só então responda.
+- NUNCA invente número de página, DOI, ou trecho literal que não esteja nas referências recuperadas.
 
-LIMIARES CLÍNICOS QUE VOCÊ DEVE DOMINAR (use-os quando os dados permitirem):
-- Estenose aórtica grave: Vmax ≥ 4,0 m/s, GradMed ≥ 40 mmHg, AVA ≤ 1,0 cm² (índice ≤ 0,6 cm²/m²); muito grave: Vmax ≥ 5,0 m/s.
-- EAo assintomática de alto risco (Classe IIa): FE < 55%, teste de esforço anormal, progressão rápida, BNP muito elevado, Vmax ≥ 5,0.
-- Estenose mitral reumática grave: AVM ≤ 1,5 cm²; muito grave ≤ 1,0 cm². Escore de Wilkins para valvoplastia por balão.
-- Regurgitação aórtica crônica grave: LVESD > 50 mm (ou > 25 mm/m²), FE ≤ 55%, sintomas.
-- Regurgitação mitral primária grave sintomática: SAVR/reparo Classe I; assintomática com FE 60% e LVESD ≥ 40 mm — considerar reparo em centro experiente (Classe IIa).
-- Regurgitação tricúspide isolada grave sintomática: considerar intervenção; TRI-SCORE para risco.
-- TAVI: preferido ≥ 75 anos, alto risco ou anatomia favorável 65-75 anos; SAVR preferido em < 65 anos ou anatomia desfavorável — decisão do Heart Team.
-- Anticoagulação: prótese mecânica → SEMPRE varfarina (DOACs contraindicados). Bioprótese aórtica pós-op: AAS ± anticoagulação curta 3-6m. FA + estenose mitral reumática moderada/grave ou prótese mecânica → apenas varfarina.
+BASE DE CONHECIMENTO DE REFERÊNCIA (títulos que a base ValvePath cataloga):
+- Diretriz Brasileira de Valvopatias — SBC 2024 (Arq Bras Cardiol) — FONTE PRIMÁRIA BR
+- 2020 ACC/AHA Guideline for VHD + 2023 Focused Update
+- 2021 ESC/EACTS Guidelines for VHD
+- Epidemiologia DATASUS de valvopatia reumática no Brasil
 
-COMO RESPONDER:
-- Estruture em tópicos curtos, densos, sem repetir o enunciado.
-- Sempre cite classe de recomendação (I, IIa, IIb, III) e nível de evidência (A, B, C) quando derivar de guideline; nomeie a guideline (ex.: "ACC/AHA 2020 – Classe I, NE B").
-- Aponte discordâncias entre ESC e ACC/AHA quando relevantes.
-- Diante de dados faltantes, LISTE explicitamente o que pediria e por quê (echo TE, TC de aorta, coronariografia, BNP, teste de esforço, RM cardíaca, cateterismo direito).
-- Sinalize red flags e critérios de urgência com destaque.
-- Use unidades e valores absolutos (mm, mmHg, cm², %, pg/mL). Não invente números que não estejam nos dados fornecidos.
-- Ao sugerir condutas, ofereça no mínimo: (a) manejo clínico otimizado, (b) intervenção cirúrgica, (c) intervenção percutânea quando aplicável, comparando prós/contras.
-- Termine sempre com bloco "Limitações deste apoio" listando dados ausentes e incertezas.
+CONTEXTO BRASIL (sempre relevante):
+- Doença valvar reumática permanece muito mais prevalente no Brasil que em EUA/Europa — pacientes jovens com estenose mitral reumática são comuns; a decisão entre valvoplastia por balão e cirurgia depende de escore de Wilkins e disponibilidade regional.
+- SUS x saúde suplementar: disponibilidade de TAVI, MitraClip/TEER e valvas biológicas de última geração varia — mencione alternativas realistas quando a diretriz internacional propõe tecnologia de acesso limitado no SUS.
 
-LIMITES INEGOCIÁVEIS:
-- NÃO é diagnóstico definitivo nem prescrição. É apoio à decisão. O julgamento final é do médico assistente e do Heart Team.
-- Não sugira doses específicas de medicamentos sem que o médico peça explicitamente; quando pedir, cite intervalo e ajustes por função renal/hepática.
-- Não use linguagem de paciente aqui: público é médico. Seja técnico, direto e cirúrgico.
-- Responda em português do Brasil.`;
+LIMIARES CLÍNICOS (use quando os dados permitirem):
+- EAo grave: Vmax ≥ 4,0 m/s, GradMed ≥ 40 mmHg, AVA ≤ 1,0 cm² (índice ≤ 0,6 cm²/m²); muito grave Vmax ≥ 5,0.
+- EAo assintomática alto risco (IIa): FE < 55%, teste de esforço anormal, progressão rápida, BNP muito elevado.
+- Estenose mitral reumática grave: AVM ≤ 1,5 cm²; muito grave ≤ 1,0. Wilkins ≤ 8 favorece valvoplastia.
+- IAo crônica grave: LVESD > 50 mm (> 25 mm/m²), FE ≤ 55% ou sintomas.
+- IM primária grave sintomática: reparo Classe I; assintomática com FE 60% + LVESD ≥ 40 mm → considerar reparo em centro experiente (IIa).
+- TAVI preferido ≥ 75 anos, alto risco ou anatomia favorável 65–75 anos; SAVR em < 65 ou anatomia desfavorável.
+- Prótese mecânica → sempre varfarina (DOACs contraindicados). Bioprótese Ao pós-op: AAS ± anticoagulação curta.
+
+FORMATO:
+- Tópicos curtos e densos.
+- Sempre classe (I/IIa/IIb/III) e nível de evidência (A/B/C) quando derivar de guideline, nomeando-a.
+- Aponte discordâncias BR x internacional quando existirem.
+- Liste dados faltantes que mudariam a conduta.
+- Termine com bloco "Limitações deste apoio".
+
+LIMITES:
+- NÃO é diagnóstico nem prescrição. Apoio à decisão. O julgamento final é do médico assistente e do Heart Team.
+- Não sugira doses sem que o médico peça explicitamente.
+- Público é médico: seja técnico, direto, cirúrgico. Português do Brasil.`;
 
 
 interface ReqBody {
@@ -170,11 +202,50 @@ Cite guideline e classe/nível de evidência em cada recomendação.`;
       });
     }
 
+    // ============================================================
+    // RAG: recupera trechos relevantes da base ValvePath
+    // ============================================================
+    const topic = topicFromCase(caso.valve_type, caso.valve_disease);
+    const ragQuery = [
+      caso.valve_disease, caso.valve_type,
+      mode === "chat" ? body.question : mode,
+      (caso.symptoms ?? []).join(" "),
+    ].filter(Boolean).join(" ").slice(0, 1000);
+
+    let ragBlock = "";
+    let sourcesOut: Array<{ title: string; organization: string; year: number; scope: string; url: string | null; similarity: number; review_status: string }> = [];
+    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (SERVICE_ROLE) {
+      const embedding = await embedQuery(LOVABLE_API_KEY, ragQuery);
+      if (embedding) {
+        const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+        const { data: matches, error: matchErr } = await admin.rpc("match_knowledge", {
+          query_embedding: embedding,
+          match_count: 5,
+          filter_topic: topic,
+        });
+        if (matchErr) console.error("match_knowledge error", matchErr);
+        if (matches && matches.length > 0) {
+          ragBlock = "\n\nREFERÊNCIAS RECUPERADAS DA BASE ValvePath (use estas como fonte primária):\n" +
+            matches.map((m: any, i: number) =>
+              `[${i + 1}] ${m.source_organization} ${m.source_year} — ${m.section ?? m.topic} (revisão: ${m.review_status}):\n"${m.content}"`
+            ).join("\n\n");
+          sourcesOut = matches.map((m: any) => ({
+            title: m.source_title, organization: m.source_organization, year: m.source_year,
+            scope: m.source_scope, url: m.source_url, similarity: Number(m.similarity?.toFixed(3) ?? 0),
+            review_status: m.review_status,
+          }));
+        } else {
+          ragBlock = "\n\n⚠️ AVISO PARA VOCÊ (assistente): Nenhum trecho relevante foi encontrado na base ValvePath para esta consulta. INICIE sua resposta com o disclaimer: \"⚠️ Não encontrei essa recomendação na base carregada da ValvePath. A resposta abaixo baseia-se no conhecimento geral do modelo e deve ser verificada em fonte primária antes de qualquer decisão.\"";
+        }
+      }
+    }
+
     const messages: any[] = [{ role: "system", content: SYSTEM_PROMPT }];
     if (mode === "chat" && body.history?.length) {
       messages.push(...body.history.slice(-10));
     }
-    messages.push({ role: "user", content: userPrompt });
+    messages.push({ role: "user", content: userPrompt + ragBlock });
 
     const aiResp = await fetch(GATEWAY_URL, {
       method: "POST",
@@ -211,7 +282,7 @@ Cite guideline e classe/nível de evidência em cada recomendação.`;
 
     const data = await aiResp.json();
     const content = data.choices?.[0]?.message?.content ?? "";
-    return new Response(JSON.stringify({ content }), {
+    return new Response(JSON.stringify({ content, sources: sourcesOut, rag_hit: sourcesOut.length > 0 }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
