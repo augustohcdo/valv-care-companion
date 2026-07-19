@@ -31,7 +31,7 @@ export default function MedicoColaboracoes() {
 
     const caseIds = [...new Set((collabs || []).map((c) => c.case_id))];
     const { data: cases } = caseIds.length
-      ? await supabase.from("clinical_cases").select("*").in("id", caseIds)
+      ? await supabase.from("clinical_cases").select("*").in("id", caseIds).neq("status", "draft" as any)
       : { data: [] as any[] };
 
     // Médico responsável de cada caso
