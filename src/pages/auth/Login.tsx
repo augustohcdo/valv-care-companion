@@ -196,7 +196,11 @@ export default function Login() {
                 </div>
               )}
 
-              <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting || lockMs > 0}>
+              <div className="pt-1">
+                <TurnstileWidget onToken={handleCaptcha} action="login" />
+              </div>
+
+              <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting || lockMs > 0 || !captchaToken}>
                 {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 Entrar
               </Button>
