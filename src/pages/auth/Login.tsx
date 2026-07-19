@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Mail, Lock, ShieldAlert } from "lucide-react";
@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Logo } from "@/components/Logo";
+import { TurnstileWidget, verifyTurnstile } from "@/components/TurnstileWidget";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -60,6 +61,9 @@ export default function Login() {
     navigate(dest, { replace: true });
   };
 
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const handleCaptcha = useCallback((t: string | null) => setCaptchaToken(t), []);
+
   const onSubmit = async (values: LoginInput) => {
     const remaining = getLockRemaining(values.email);
     if (remaining > 0) {
@@ -68,7 +72,22 @@ export default function Login() {
       });
       return;
     }
+    if (!captchaToken) {
+      toast.error("Verificação de segurança", {
+        description: "Complete a verificação anti-robô antes de entrar.",
+      });
+      return;
+    }
     setSubmitting(true);
+    const captchaOk = await verifyTurnstile(captchaToken, "login");
+    if (!captchaOk) {
+      setSubmitting(false);
+      setCaptchaToken(null);
+      toast.error("Verificação de segurança falhou", {
+        description: "Tente novamente.",
+      });
+      return;
+    }
     const { error } = await supabase.auth.signInWithPassword({
       email: values.email,
       password: values.password,
@@ -77,6 +96,7 @@ export default function Login() {
     if (error) {
       const applied = registerFail(values.email);
       setLockMs(getLockRemaining(values.email));
+      setCaptchaToken(null);
       toast.error("Não foi possível entrar", {
         description:
           applied > 0
@@ -176,7 +196,11 @@ export default function Login() {
                 </div>
               )}
 
-              <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting || lockMs > 0}>
+              <div className="pt-1">
+                <TurnstileWidget onToken={handleCaptcha} action="login" />
+              </div>
+
+              <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting || lockMs > 0 || !captchaToken}>
                 {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 Entrar
               </Button>
