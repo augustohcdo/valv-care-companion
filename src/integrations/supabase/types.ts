@@ -1676,6 +1676,7 @@ export type Database = {
         | "rate_limited"
         | "invalid_signature"
       case_status:
+        | "draft"
         | "avaliacao_inicial"
         | "em_seguimento"
         | "pre_intervencao"
@@ -1953,6 +1954,7 @@ export const Constants = {
         "invalid_signature",
       ],
       case_status: [
+        "draft",
         "avaliacao_inicial",
         "em_seguimento",
         "pre_intervencao",

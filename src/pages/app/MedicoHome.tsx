@@ -33,10 +33,10 @@ export default function MedicoHome() {
       if (doc) {
         const [{ count: pc }, { count: cc }, { count: ac }, { data: caseRows }] = await Promise.all([
           supabase.from("patients").select("id", { count: "exact", head: true }).eq("linked_doctor_id", doc.id),
-          supabase.from("clinical_cases").select("id", { count: "exact", head: true }).eq("doctor_id", doc.id),
+          supabase.from("clinical_cases").select("id", { count: "exact", head: true }).eq("doctor_id", doc.id).neq("status", "draft" as any),
           supabase.from("clinical_cases").select("id", { count: "exact", head: true })
             .eq("doctor_id", doc.id).in("status", ["avaliacao_inicial", "em_seguimento", "pre_intervencao"]),
-          supabase.from("clinical_cases").select("id, created_at, valve_type, severity, status, nyha").eq("doctor_id", doc.id),
+          supabase.from("clinical_cases").select("id, created_at, valve_type, severity, status, nyha").eq("doctor_id", doc.id).neq("status", "draft" as any),
         ]);
         setPatientCount(pc ?? 0);
         setCaseCount(cc ?? 0);

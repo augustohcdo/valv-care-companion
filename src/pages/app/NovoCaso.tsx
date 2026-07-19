@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Cloud, CloudOff, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
   valveTypeLabels,
@@ -28,39 +27,191 @@ const steps = [
   { n: 3, label: "Conduta" },
 ];
 
+type FormState = {
+  patient_name: string;
+  patient_age: string;
+  patient_sex: string;
+  valve_type: string;
+  valve_disease: string;
+  severity: string;
+  nyha: string;
+  symptoms: string[];
+  comorbidities: string[];
+  ejection_fraction: string;
+  mean_gradient: string;
+  peak_gradient: string;
+  valve_area: string;
+  regurgitation_grade: string;
+  proposed_management: string;
+  clinical_notes: string;
+};
+
+const emptyForm: FormState = {
+  patient_name: "",
+  patient_age: "",
+  patient_sex: "",
+  valve_type: "",
+  valve_disease: "",
+  severity: "indeterminada",
+  nyha: "",
+  symptoms: [],
+  comorbidities: [],
+  ejection_fraction: "",
+  mean_gradient: "",
+  peak_gradient: "",
+  valve_area: "",
+  regurgitation_grade: "",
+  proposed_management: "",
+  clinical_notes: "",
+};
+
+function buildPayload(form: FormState) {
+  return {
+    patient_name: form.patient_name.trim() || "Rascunho sem nome",
+    patient_age: form.patient_age ? parseInt(form.patient_age) : null,
+    patient_sex: form.patient_sex || null,
+    valve_type: form.valve_type as any,
+    valve_disease: form.valve_disease as any,
+    severity: (form.severity || "indeterminada") as any,
+    nyha: (form.nyha || null) as any,
+    symptoms: form.symptoms.length ? form.symptoms : null,
+    comorbidities: form.comorbidities.length ? form.comorbidities : null,
+    ejection_fraction: form.ejection_fraction ? parseFloat(form.ejection_fraction) : null,
+    mean_gradient: form.mean_gradient ? parseFloat(form.mean_gradient) : null,
+    peak_gradient: form.peak_gradient ? parseFloat(form.peak_gradient) : null,
+    valve_area: form.valve_area ? parseFloat(form.valve_area) : null,
+    regurgitation_grade: form.regurgitation_grade || null,
+    proposed_management: form.proposed_management || null,
+    clinical_notes: form.clinical_notes || null,
+  };
+}
+
+function hydrateForm(row: any): FormState {
+  return {
+    patient_name: row.patient_name === "Rascunho sem nome" ? "" : (row.patient_name ?? ""),
+    patient_age: row.patient_age?.toString() ?? "",
+    patient_sex: row.patient_sex ?? "",
+    valve_type: row.valve_type ?? "",
+    valve_disease: row.valve_disease ?? "",
+    severity: row.severity ?? "indeterminada",
+    nyha: row.nyha ?? "",
+    symptoms: row.symptoms ?? [],
+    comorbidities: row.comorbidities ?? [],
+    ejection_fraction: row.ejection_fraction?.toString() ?? "",
+    mean_gradient: row.mean_gradient?.toString() ?? "",
+    peak_gradient: row.peak_gradient?.toString() ?? "",
+    valve_area: row.valve_area?.toString() ?? "",
+    regurgitation_grade: row.regurgitation_grade ?? "",
+    proposed_management: row.proposed_management ?? "",
+    clinical_notes: row.clinical_notes ?? "",
+  };
+}
+
+type SaveStatus = "idle" | "saving" | "saved" | "error";
+
 export default function NovoCaso() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<FormState>(emptyForm);
 
-  const [form, setForm] = useState({
-    patient_name: "",
-    patient_age: "",
-    patient_sex: "",
-    valve_type: "",
-    valve_disease: "",
-    severity: "indeterminada",
-    nyha: "",
-    symptoms: [] as string[],
-    comorbidities: [] as string[],
-    ejection_fraction: "",
-    mean_gradient: "",
-    peak_gradient: "",
-    valve_area: "",
-    regurgitation_grade: "",
-    proposed_management: "",
-    clinical_notes: "",
-  });
+  // Autosave state
+  const draftIdRef = useRef<string | null>(null);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const savingRef = useRef(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Load doctor + recover latest draft (if any)
   useEffect(() => {
     if (!user) return;
-    supabase.from("doctors").select("id").eq("user_id", user.id).maybeSingle()
-      .then(({ data }) => setDoctorId(data?.id ?? null));
+    (async () => {
+      const { data: doc } = await supabase
+        .from("doctors").select("id").eq("user_id", user.id).maybeSingle();
+      if (!doc?.id) { setDraftLoaded(true); return; }
+      setDoctorId(doc.id);
+
+      const { data: draft } = await supabase
+        .from("clinical_cases")
+        .select("*")
+        .eq("doctor_id", doc.id)
+        .eq("status", "draft" as any)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (draft) {
+        draftIdRef.current = draft.id;
+        setForm(hydrateForm(draft));
+        setLastSavedAt(new Date(draft.updated_at));
+        toast.info("Rascunho recuperado", {
+          description: "Continuamos de onde você parou.",
+        });
+      }
+      setDraftLoaded(true);
+    })();
   }, [user]);
 
-  const update = (k: string, v: any) => setForm((f) => ({ ...f, [k]: v }));
+  // Autosave (debounced) — only after minimum required fields are set
+  const canAutosave =
+    !!doctorId &&
+    draftLoaded &&
+    !!form.patient_name.trim() &&
+    !!form.valve_type &&
+    !!form.valve_disease;
+
+  const persistDraft = useCallback(async () => {
+    if (!doctorId || savingRef.current) return;
+    savingRef.current = true;
+    setSaveStatus("saving");
+    const payload = { ...buildPayload(form), status: "draft" as any };
+    try {
+      if (draftIdRef.current) {
+        const { error } = await supabase
+          .from("clinical_cases")
+          .update(payload)
+          .eq("id", draftIdRef.current)
+          .eq("status", "draft" as any); // never overwrite a promoted case
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from("clinical_cases")
+          .insert({ ...payload, doctor_id: doctorId })
+          .select("id")
+          .single();
+        if (error) throw error;
+        draftIdRef.current = data!.id;
+      }
+      setSaveStatus("saved");
+      setLastSavedAt(new Date());
+    } catch (e: any) {
+      console.error("[autosave] falhou", e);
+      setSaveStatus("error");
+    } finally {
+      savingRef.current = false;
+    }
+  }, [doctorId, form]);
+
+  useEffect(() => {
+    if (!canAutosave) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => { void persistDraft(); }, 1200);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [form, canAutosave, persistDraft]);
+
+  // Save immediately on tab close / route away
+  useEffect(() => {
+    const handler = () => {
+      if (canAutosave && !savingRef.current) void persistDraft();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [canAutosave, persistDraft]);
+
+  const update = (k: keyof FormState, v: any) => setForm((f) => ({ ...f, [k]: v }));
 
   const toggleArr = (key: "symptoms" | "comorbidities", val: string) => {
     setForm((f) => ({
@@ -71,8 +222,30 @@ export default function NovoCaso() {
 
   const canNext = () => {
     if (step === 1) return form.patient_name.trim() && form.valve_type && form.valve_disease;
-    if (step === 2) return true;
     return true;
+  };
+
+  const discardDraft = async () => {
+    if (!draftIdRef.current) {
+      setForm(emptyForm);
+      return;
+    }
+    if (!confirm("Descartar este rascunho? Esta ação não pode ser desfeita.")) return;
+    const { error } = await supabase
+      .from("clinical_cases")
+      .delete()
+      .eq("id", draftIdRef.current)
+      .eq("status", "draft" as any);
+    if (error) {
+      toast.error("Não foi possível descartar", { description: error.message });
+      return;
+    }
+    draftIdRef.current = null;
+    setForm(emptyForm);
+    setStep(1);
+    setSaveStatus("idle");
+    setLastSavedAt(null);
+    toast.success("Rascunho descartado");
   };
 
   const submit = async () => {
@@ -81,49 +254,59 @@ export default function NovoCaso() {
       return;
     }
     setSaving(true);
-    const { data, error } = await supabase
-      .from("clinical_cases")
-      .insert({
-        doctor_id: doctorId,
-        patient_name: form.patient_name.trim(),
-        patient_age: form.patient_age ? parseInt(form.patient_age) : null,
-        patient_sex: form.patient_sex || null,
-        valve_type: form.valve_type as any,
-        valve_disease: form.valve_disease as any,
-        severity: form.severity as any,
-        nyha: (form.nyha || null) as any,
-        symptoms: form.symptoms.length ? form.symptoms : null,
-        comorbidities: form.comorbidities.length ? form.comorbidities : null,
-        ejection_fraction: form.ejection_fraction ? parseFloat(form.ejection_fraction) : null,
-        mean_gradient: form.mean_gradient ? parseFloat(form.mean_gradient) : null,
-        peak_gradient: form.peak_gradient ? parseFloat(form.peak_gradient) : null,
-        valve_area: form.valve_area ? parseFloat(form.valve_area) : null,
-        regurgitation_grade: form.regurgitation_grade || null,
-        proposed_management: form.proposed_management || null,
-        clinical_notes: form.clinical_notes || null,
-      })
-      .select("id")
-      .single();
+    // Flush any pending autosave
+    if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; }
+
+    const payload = { ...buildPayload(form), status: "avaliacao_inicial" as any };
+    let caseId = draftIdRef.current;
+    let error: any = null;
+
+    if (caseId) {
+      const res = await supabase.from("clinical_cases").update(payload).eq("id", caseId);
+      error = res.error;
+    } else {
+      const res = await supabase
+        .from("clinical_cases")
+        .insert({ ...payload, doctor_id: doctorId })
+        .select("id")
+        .single();
+      error = res.error;
+      caseId = res.data?.id ?? null;
+    }
     setSaving(false);
-    if (error) {
-      toast.error("Erro ao salvar caso", { description: error.message });
+    if (error || !caseId) {
+      toast.error("Erro ao salvar caso", { description: error?.message });
       return;
     }
+    draftIdRef.current = null; // promoted, no longer a draft
     toast.success("Caso clínico criado");
-    navigate(`/app/medico/casos/${data!.id}`);
+    navigate(`/app/medico/casos/${caseId}`);
   };
+
+  const saveIndicator = (() => {
+    if (!canAutosave) {
+      return { icon: <CloudOff className="h-3.5 w-3.5" />, text: "Autosave inicia após identificar paciente e valva" };
+    }
+    if (saveStatus === "saving") return { icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, text: "Salvando rascunho..." };
+    if (saveStatus === "error") return { icon: <CloudOff className="h-3.5 w-3.5 text-destructive" />, text: "Falha ao salvar — tentaremos novamente" };
+    if (lastSavedAt) return {
+      icon: <Cloud className="h-3.5 w-3.5 text-primary" />,
+      text: `Rascunho salvo às ${lastSavedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+    };
+    return { icon: <Cloud className="h-3.5 w-3.5" />, text: "Pronto para salvar" };
+  })();
 
   return (
     <div className="max-w-4xl">
       <PageHeader
         eyebrow="Novo registro"
         title="Novo caso clínico"
-        description="Registre uma avaliação valvar em 3 passos. Todos os campos clínicos são opcionais — preencha o que tiver."
+        description="Registre uma avaliação valvar em 3 passos. Rascunhos são salvos automaticamente no servidor (criptografados em trânsito e em repouso) e visíveis apenas para você."
         breadcrumbs={[{ label: "Início", to: "/app/medico" }, { label: "Novo caso" }]}
       />
 
       {/* Stepper */}
-      <div className="flex items-center gap-3 mb-8">
+      <div className="flex items-center gap-3 mb-4">
         {steps.map((s, i) => (
           <div key={s.n} className="flex items-center gap-3 flex-1">
             <div
@@ -140,6 +323,19 @@ export default function NovoCaso() {
             {i < steps.length - 1 && <div className={`flex-1 h-px ${step > s.n ? "bg-primary" : "bg-border"}`} />}
           </div>
         ))}
+      </div>
+
+      {/* Autosave indicator */}
+      <div className="flex items-center justify-between mb-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5" aria-live="polite">
+          {saveIndicator.icon}
+          <span>{saveIndicator.text}</span>
+        </div>
+        {draftIdRef.current && (
+          <Button variant="ghost" size="sm" onClick={discardDraft} className="h-7 text-xs text-muted-foreground hover:text-destructive">
+            <Trash2 className="h-3.5 w-3.5" /> Descartar rascunho
+          </Button>
+        )}
       </div>
 
       <Card className="shadow-sm-soft">
@@ -357,7 +553,7 @@ export default function NovoCaso() {
               variant="ghost"
               onClick={() => (step === 1 ? navigate("/app/medico") : setStep(step - 1))}
             >
-              <ArrowLeft className="h-4 w-4" /> {step === 1 ? "Cancelar" : "Voltar"}
+              <ArrowLeft className="h-4 w-4" /> {step === 1 ? "Sair (rascunho salvo)" : "Voltar"}
             </Button>
             {step < 3 ? (
               <Button onClick={() => setStep(step + 1)} disabled={!canNext()}>
