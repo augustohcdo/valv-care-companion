@@ -29,6 +29,7 @@ export default function PacienteJornada() {
 
       const { data: cs } = await supabase
         .from("clinical_cases").select("*").eq("patient_id", pat.id)
+        .neq("status", "draft" as any)
         .order("created_at", { ascending: false });
 
       const docIds = [...new Set((cs || []).map((c) => c.doctor_id))];
