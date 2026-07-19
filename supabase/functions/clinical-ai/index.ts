@@ -10,7 +10,35 @@ const corsHeaders = {
 };
 
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const EMBED_URL = "https://ai.gateway.lovable.dev/v1/embeddings";
 const MODEL = "google/gemini-3-flash-preview";
+const EMBED_MODEL = "google/gemini-embedding-2";
+
+// Mapeia valvopatia -> topic canônico usado nos knowledge_chunks
+function topicFromCase(valveType?: string, valveDisease?: string): string | null {
+  const t = (valveType ?? "").toLowerCase();
+  const d = (valveDisease ?? "").toLowerCase();
+  if (t.includes("aort") && d.includes("esten")) return "estenose_aortica";
+  if (t.includes("aort") && (d.includes("insufic") || d.includes("regurg"))) return "insuficiencia_aortica";
+  if (t.includes("mitr") && d.includes("esten")) return "estenose_mitral";
+  if (t.includes("mitr") && (d.includes("insufic") || d.includes("regurg"))) return "insuficiencia_mitral";
+  if (t.includes("tric")) return "valvopatia_tricuspide";
+  if (t.includes("pulm")) return "valvopatia_pulmonar";
+  return null;
+}
+
+async function embedQuery(apiKey: string, text: string): Promise<number[] | null> {
+  try {
+    const r = await fetch(EMBED_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: EMBED_MODEL, input: text.slice(0, 4000) }),
+    });
+    if (!r.ok) { console.error("embed failed", r.status, await r.text()); return null; }
+    const j = await r.json();
+    return j.data?.[0]?.embedding ?? null;
+  } catch (e) { console.error("embed error", e); return null; }
+}
 
 const SYSTEM_PROMPT = `Você é um assistente clínico de ALTA PRECISÃO especializado em valvopatias cardíacas, apoiando cardiologistas brasileiros. Não é um chatbot genérico: é um consultor sênior que raciocina como um Heart Team.
 
