@@ -160,7 +160,7 @@
   }
 
   /* Imagens e mídias nunca extrapolam o container */
-  img, video, canvas, svg { max-width: 100%; height: auto; }
+  img, video, canvas { max-width: 100%; height: auto; }
 
   /* Prevent ghost clicks / double-tap zoom on interactive elements */
   a, button, [role="button"], input, select, textarea, label {
