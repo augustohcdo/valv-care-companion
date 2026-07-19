@@ -59,7 +59,7 @@ export default function MedicoRelatorios() {
         { data: cs },
         { data: pts },
       ] = await Promise.all([
-        supabase.from("clinical_cases").select("*").eq("doctor_id", doc.id),
+        supabase.from("clinical_cases").select("*").eq("doctor_id", doc.id).neq("status", "draft" as any),
         supabase.from("patients").select("id, comorbidities").eq("linked_doctor_id", doc.id),
       ]);
 
