@@ -168,6 +168,37 @@ export default function MedicoHome() {
   );
 }
 
+function HeroStat({
+  icon: Icon,
+  label,
+  value,
+  tone = "default",
+}: {
+  icon: any;
+  label: string;
+  value: string | number;
+  tone?: "default" | "success" | "warning";
+}) {
+  const dot =
+    tone === "success"
+      ? "bg-success"
+      : tone === "warning"
+        ? "bg-warning"
+        : "bg-accent";
+  return (
+    <div className="rounded-xl border border-primary-foreground/15 bg-primary-foreground/10 backdrop-blur-sm p-4 transition-all duration-200 hover:bg-primary-foreground/15">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2 text-primary-foreground/80 text-xs uppercase tracking-wide">
+          <Icon className="h-3.5 w-3.5" />
+          {label}
+        </div>
+        <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+      </div>
+      <p className="font-serif text-2xl sm:text-3xl text-primary-foreground">{value}</p>
+    </div>
+  );
+}
+
 function KpiCard({
   icon: Icon,
   label,
