@@ -242,7 +242,7 @@ function ActionCard({
   cta: string;
 }) {
   return (
-    <Card className="shadow-sm-soft hover:shadow-md-soft transition-shadow group">
+    <Card className="rounded-2xl border-border/40 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-1 group">
       <CardContent className="p-6">
         <div className="h-10 w-10 rounded-lg bg-primary/10 grid place-items-center text-primary mb-4 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
           <Icon className="h-5 w-5" />
