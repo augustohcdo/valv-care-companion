@@ -49,20 +49,41 @@ export default function MedicoHome() {
   const firstName = profile?.full_name?.split(" ")[0] || "Doutor(a)";
 
   return (
-    <div className="space-y-6 max-w-6xl">
-      <div>
-        <p className="text-sm text-muted-foreground">Área médica</p>
-        <h1 className="font-serif text-3xl lg:text-4xl text-primary mt-1">
-          Olá, Dr(a). {firstName}
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Bem-vindo à plataforma ValvePath. Aqui você organiza casos, acompanha pacientes
-          e acessa conteúdo clínico baseado em diretrizes.
-        </p>
+    <div className="space-y-8 max-w-6xl">
+      {/* Hero de boas-vindas */}
+      <div
+        className="relative overflow-hidden rounded-2xl p-6 sm:p-8 lg:p-10 text-primary-foreground shadow-lg"
+        style={{ background: "var(--gradient-hero)" }}
+      >
+        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-accent/20 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-primary-foreground/5 blur-3xl pointer-events-none" />
+        <div className="relative">
+          <p className="text-xs uppercase tracking-[0.2em] text-primary-foreground/70">Área médica</p>
+          <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl mt-2">
+            Olá, Dr(a). {firstName}
+          </h1>
+          <p className="text-primary-foreground/80 mt-3 max-w-2xl text-sm sm:text-base">
+            Organize casos, acompanhe pacientes e consulte conteúdo clínico baseado em
+            diretrizes brasileiras e internacionais.
+          </p>
+
+          {/* KPIs translúcidos sobre o hero */}
+          <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <HeroStat icon={Users} label="Pacientes" value={patientCount} />
+            <HeroStat icon={FilePlus2} label="Casos ativos" value={activeCount} />
+            <HeroStat icon={TrendingUp} label="Total de casos" value={caseCount} />
+            <HeroStat
+              icon={ShieldCheck}
+              label="CRM"
+              value={doctor?.verified ? "Verificado" : "Pendente"}
+              tone={doctor?.verified ? "success" : "warning"}
+            />
+          </div>
+        </div>
       </div>
 
       {doctor && !doctor.verified && (
-        <div className="flex gap-3 items-start rounded-xl border border-warning/30 bg-warning/5 p-4">
+        <div className="flex gap-3 items-start rounded-2xl border border-warning/30 bg-warning/5 p-4">
           <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-medium text-foreground">Verificação de CRM em análise</p>
@@ -73,19 +94,6 @@ export default function MedicoHome() {
           </div>
         </div>
       )}
-
-      {/* KPIs */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard icon={Users} label="Pacientes vinculados" value={patientCount.toString()} />
-        <KpiCard icon={FilePlus2} label="Casos ativos" value={activeCount.toString()} />
-        <KpiCard icon={TrendingUp} label="Total de casos" value={caseCount.toString()} />
-        <KpiCard
-          icon={ShieldCheck}
-          label="Verificação"
-          value={doctor?.verified ? "Verificado" : "Pendente"}
-          tone={doctor?.verified ? "success" : "warning"}
-        />
-      </div>
 
       {/* Estatísticas avançadas */}
       <div>
