@@ -46,16 +46,37 @@ export default function PacienteHome() {
   const firstName = profile?.full_name?.split(" ")[0] || "Paciente";
 
   return (
-    <div className="space-y-6 max-w-6xl">
-      <div>
-        <p className="text-sm text-muted-foreground">Área do paciente</p>
-        <h1 className="font-serif text-3xl lg:text-4xl text-primary mt-1">
-          Olá, {firstName}
-        </h1>
-        <p className="text-muted-foreground mt-1 max-w-2xl">
-          O ValvePath organiza informações, dúvidas e documentos sobre sua condição valvar.
-          Tudo com linguagem clara e respaldo científico — sempre com seu médico no centro.
-        </p>
+    <div className="space-y-8 max-w-6xl">
+      {/* Hero de boas-vindas */}
+      <div
+        className="relative overflow-hidden rounded-2xl p-6 sm:p-8 lg:p-10 text-primary-foreground shadow-lg"
+        style={{ background: "var(--gradient-hero)" }}
+      >
+        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-accent/25 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-primary-foreground/5 blur-3xl pointer-events-none" />
+        <div className="relative">
+          <p className="text-xs uppercase tracking-[0.2em] text-primary-foreground/70">Área do paciente</p>
+          <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl mt-2">
+            Olá, {firstName}
+          </h1>
+          <p className="text-primary-foreground/85 mt-3 max-w-2xl text-sm sm:text-base">
+            O ValvePath organiza informações, dúvidas e documentos sobre sua condição valvar —
+            com linguagem clara e respaldo científico. Seu médico continua no centro do cuidado.
+          </p>
+          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 backdrop-blur-sm px-3 py-1.5 text-xs">
+            {linkedDoctor ? (
+              <>
+                <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                Vinculado ao Dr(a). {linkedDoctor.full_name}
+              </>
+            ) : (
+              <>
+                <span className="h-1.5 w-1.5 rounded-full bg-warning" />
+                Nenhum médico vinculado
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="flex gap-3 items-start rounded-xl border border-primary/20 bg-primary/5 p-4">
