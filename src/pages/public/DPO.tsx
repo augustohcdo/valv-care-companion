@@ -267,12 +267,16 @@ export default function DPO() {
                 <ShieldCheck className="h-4 w-4 text-success" /> Encarregado (DPO)
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Canal oficial entre você, o ValvePath e a ANPD.
+                Canal oficial entre você, o ValvePath e a ANPD (LGPD, Art. 41, §1º).
               </p>
-              <p className="text-xs mt-3">
-                <strong>E-mail:</strong>{" "}
-                <a href={`mailto:${DPO_EMAIL}`} className="text-primary underline">{DPO_EMAIL}</a>
-              </p>
+              <div className="text-xs mt-3 space-y-1">
+                <p><strong>Nome:</strong> Augusto Oliveira</p>
+                <p><strong>Cargo:</strong> Gestor Hospitalar</p>
+                <p>
+                  <strong>E-mail:</strong>{" "}
+                  <a href={`mailto:${DPO_EMAIL}`} className="text-primary underline">{DPO_EMAIL}</a>
+                </p>
+              </div>
             </Card>
 
             <Card className="p-5">
