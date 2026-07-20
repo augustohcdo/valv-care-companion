@@ -172,7 +172,7 @@ function ActionCard({
   return (
     <Link
       to={to}
-      className="rounded-xl border border-border/70 bg-card p-6 hover:border-primary hover:shadow-md-soft transition-all group"
+      className="rounded-2xl border border-border/40 bg-card p-6 shadow-sm transition-all duration-200 hover:border-accent/60 hover:shadow-md hover:-translate-y-1 group"
     >
       <div className="h-10 w-10 rounded-lg bg-accent/10 grid place-items-center text-accent mb-4 group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
         <Icon className="h-5 w-5" />
