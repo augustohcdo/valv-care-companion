@@ -571,6 +571,30 @@ export default function NovoCaso() {
                 />
               </div>
               <div>
+                <Label>Prótese planejada (opcional)</Label>
+                <Select
+                  value={form.prosthesis_id || "__none__"}
+                  onValueChange={(v) => update("prosthesis_id", v === "__none__" ? "" : v)}
+                >
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder="Selecione uma prótese do catálogo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Nenhuma —</SelectItem>
+                    {prostheses.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.manufacturer} · {p.model_name}
+                        {p.size ? ` · ${p.size}mm` : ""}
+                        {p.effective_orifice_area ? ` · EOA ${p.effective_orifice_area}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Catálogo neutro para fins de registro. A seleção não implica recomendação clínica.
+                </p>
+              </div>
+              <div>
                 <Label>Notas clínicas adicionais</Label>
                 <Textarea
                   value={form.clinical_notes}
