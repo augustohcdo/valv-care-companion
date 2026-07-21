@@ -276,13 +276,19 @@ export default function ListaCasos() {
         </Card>
       ) : (
         <div className="grid gap-3">
-          {filtered.map((c) => (
-            <Link key={c.id} to={`/app/medico/casos/${c.id}`}>
-              <Card className="shadow-sm-soft hover:shadow-md-soft transition-shadow">
-                <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {filtered.map((c, idx) => (
+            <Link
+              key={c.id}
+              to={`/app/medico/casos/${c.id}`}
+              className="animate-fade-in"
+              style={{ animationDelay: `${Math.min(idx * 30, 300)}ms`, animationFillMode: "backwards" }}
+            >
+              <Card className="relative overflow-hidden shadow-sm-soft hover:shadow-md-soft transition-all duration-300 hover:-translate-y-0.5 group border-border/50 hover:border-primary/40">
+                <div className={`absolute left-0 top-0 bottom-0 w-1 ${pendingIds.has(c.id) ? "bg-amber-400" : "bg-transparent group-hover:bg-primary"} transition-colors`} />
+                <CardContent className="p-5 pl-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-serif text-lg text-primary truncate">{c.patient_name}</h3>
+                      <h3 className="font-serif text-lg text-primary truncate group-hover:underline underline-offset-4">{c.patient_name}</h3>
                       {c.patient_age && <span className="text-xs text-muted-foreground">{c.patient_age} anos</span>}
                       {pendingIds.has(c.id) && (
                         <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700 bg-amber-50">
@@ -297,12 +303,13 @@ export default function ListaCasos() {
                       Registrado em {new Date(c.created_at).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
-                  <div className="flex flex-wrap gap-2 shrink-0">
+                  <div className="flex flex-wrap gap-2 shrink-0 items-center">
                     <Badge className={severityColors[c.severity]} variant="outline">
                       {severityLabels[c.severity]}
                     </Badge>
                     <Badge variant="secondary">{caseStatusLabels[c.status]}</Badge>
                     {c.nyha && <Badge variant="outline">NYHA {c.nyha}</Badge>}
+                    <span className="hidden sm:inline text-primary opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all ml-1">→</span>
                   </div>
                 </CardContent>
               </Card>

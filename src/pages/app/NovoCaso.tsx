@@ -317,24 +317,47 @@ export default function NovoCaso() {
         breadcrumbs={[{ label: "Início", to: "/app/medico" }, { label: "Novo caso" }]}
       />
 
-      {/* Stepper */}
-      <div className="flex items-center gap-3 mb-4">
-        {steps.map((s, i) => (
-          <div key={s.n} className="flex items-center gap-3 flex-1">
-            <div
-              className={`h-9 w-9 rounded-full grid place-items-center text-sm font-semibold shrink-0 ${
-                step >= s.n ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
-              }`}
-            >
-              {step > s.n ? <Check className="h-4 w-4" /> : s.n}
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">Passo {s.n}</p>
-              <p className="text-sm font-medium">{s.label}</p>
-            </div>
-            {i < steps.length - 1 && <div className={`flex-1 h-px ${step > s.n ? "bg-primary" : "bg-border"}`} />}
+      {/* Premium progress bar */}
+      <div className="mb-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Passo {step} de {steps.length}</p>
+            <p className="font-serif text-lg text-primary">{steps[step - 1]?.label}</p>
           </div>
-        ))}
+          <div className="text-right">
+            <p className="font-serif text-2xl text-primary tabular-nums">{Math.round((step / steps.length) * 100)}%</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">completo</p>
+          </div>
+        </div>
+        <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-500 ease-out"
+            style={{ width: `${(step / steps.length) * 100}%`, background: "var(--gradient-hero, hsl(var(--primary)))" }}
+          />
+        </div>
+        <div className="flex items-center gap-3 mt-4">
+          {steps.map((s, i) => (
+            <div key={s.n} className="flex items-center gap-2 flex-1 min-w-0">
+              <div
+                className={`h-8 w-8 rounded-full grid place-items-center text-xs font-semibold shrink-0 transition-all duration-300 ${
+                  step === s.n
+                    ? "bg-primary text-primary-foreground ring-4 ring-primary/20 scale-110"
+                    : step > s.n
+                      ? "bg-primary/90 text-primary-foreground"
+                      : "bg-secondary text-muted-foreground"
+                }`}
+              >
+                {step > s.n ? <Check className="h-4 w-4" /> : s.n}
+              </div>
+              <p className={`text-xs font-medium truncate hidden sm:block ${step >= s.n ? "text-foreground" : "text-muted-foreground"}`}>
+                {s.label}
+              </p>
+              {i < steps.length - 1 && (
+                <div className={`flex-1 h-px min-w-4 ${step > s.n ? "bg-primary" : "bg-border"} transition-colors duration-500`} />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Autosave indicator */}
@@ -350,7 +373,7 @@ export default function NovoCaso() {
         )}
       </div>
 
-      <Card className="shadow-sm-soft">
+      <Card key={`step-${step}`} className="shadow-sm-soft animate-fade-in">
         <CardContent className="p-6 lg:p-8 space-y-6">
           {step === 1 && (
             <>
