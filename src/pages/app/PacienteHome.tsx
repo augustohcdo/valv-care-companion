@@ -44,29 +44,39 @@ export default function PacienteHome() {
   }, [user]);
 
   const firstName = profile?.full_name?.split(" ")[0] || "Paciente";
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+  const today = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
   return (
-    <div className="space-y-8 max-w-6xl">
+    <div className="space-y-8 max-w-6xl animate-fade-in">
       {/* Hero de boas-vindas */}
       <div
-        className="relative overflow-hidden rounded-2xl p-6 sm:p-8 lg:p-10 text-primary-foreground shadow-lg"
+        className="relative overflow-hidden rounded-3xl p-6 sm:p-8 lg:p-10 text-primary-foreground shadow-xl ring-1 ring-primary-foreground/10"
         style={{ background: "var(--gradient-hero)" }}
       >
-        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-accent/25 blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-accent/30 blur-3xl pointer-events-none animate-pulse" style={{ animationDuration: "6s" }} />
         <div className="absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-primary-foreground/5 blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)", backgroundSize: "24px 24px" }} />
         <div className="relative">
-          <p className="text-xs uppercase tracking-[0.2em] text-primary-foreground/70">Área do paciente</p>
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-primary-foreground/70">
+            <HeartPulse className="h-3.5 w-3.5" />
+            Área do paciente · <span className="capitalize">{today}</span>
+          </div>
           <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl mt-2">
-            Olá, {firstName}
+            {greeting}, {firstName}
           </h1>
           <p className="text-primary-foreground/85 mt-3 max-w-2xl text-sm sm:text-base">
             O ValvePath organiza informações, dúvidas e documentos sobre sua condição valvar —
             com linguagem clara e respaldo científico. Seu médico continua no centro do cuidado.
           </p>
-          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 backdrop-blur-sm px-3 py-1.5 text-xs">
+          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 backdrop-blur-sm px-3 py-1.5 text-xs transition-all hover:bg-primary-foreground/15">
             {linkedDoctor ? (
               <>
-                <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-75 animate-ping" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
+                </span>
                 Vinculado ao Dr(a). {linkedDoctor.full_name}
               </>
             ) : (
