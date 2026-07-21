@@ -134,6 +134,32 @@ export default function ListaCasos() {
       />
 
       <div className="space-y-3 mb-5">
+        {/* Quick status chips */}
+        {cases.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setStatus(ALL)}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-all ${status === ALL ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-card hover:bg-muted border-border text-muted-foreground hover:text-foreground"}`}
+            >
+              Todos <span className="tabular-nums opacity-70">({cases.length})</span>
+            </button>
+            {(["avaliacao_inicial", "em_seguimento", "pre_intervencao", "pos_intervencao"] as const).map((s) => {
+              const count = cases.filter((c) => c.status === s).length;
+              if (count === 0) return null;
+              const active = status === s;
+              return (
+                <button
+                  key={s}
+                  onClick={() => setStatus(active ? ALL : s)}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-all ${active ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-card hover:bg-muted border-border text-muted-foreground hover:text-foreground"}`}
+                >
+                  {caseStatusLabels[s]} <span className="tabular-nums opacity-70">({count})</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1 max-w-md">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
