@@ -196,7 +196,8 @@ function HeroStat({
         ? "bg-warning"
         : "bg-accent";
   return (
-    <div className="rounded-xl border border-primary-foreground/15 bg-primary-foreground/10 backdrop-blur-sm p-4 transition-all duration-200 hover:bg-primary-foreground/15">
+    <div className="group/stat relative overflow-hidden rounded-xl border border-primary-foreground/15 bg-primary-foreground/10 backdrop-blur-sm p-4 transition-all duration-300 hover:bg-primary-foreground/20 hover:border-primary-foreground/30 hover:-translate-y-0.5 hover:shadow-lg">
+      <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary-foreground/40 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity" />
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 text-primary-foreground/80 text-xs uppercase tracking-wide">
           <Icon className="h-3.5 w-3.5" />
@@ -204,7 +205,7 @@ function HeroStat({
         </div>
         <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
       </div>
-      <p className="font-serif text-2xl sm:text-3xl text-primary-foreground">{value}</p>
+      <p className="font-serif text-2xl sm:text-3xl text-primary-foreground tabular-nums">{value}</p>
     </div>
   );
 }
