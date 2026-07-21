@@ -253,14 +253,20 @@ function ActionCard({
   cta: string;
 }) {
   return (
-    <Card className="rounded-2xl border-border/40 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-1 group">
+    <Card className="rounded-2xl border-border/40 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/30 group relative overflow-hidden">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-accent to-primary opacity-0 group-hover:opacity-100 transition-opacity" />
       <CardContent className="p-6">
-        <div className="h-10 w-10 rounded-lg bg-primary/10 grid place-items-center text-primary mb-4 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+        <div className="h-11 w-11 rounded-xl bg-primary/10 grid place-items-center text-primary mb-4 group-hover:bg-primary group-hover:text-primary-foreground group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
           <Icon className="h-5 w-5" />
         </div>
         <h3 className="font-serif text-lg text-primary mb-1">{title}</h3>
         <p className="text-sm text-muted-foreground mb-4">{description}</p>
-        <Button asChild variant="outline" size="sm"><Link to={to}>{cta}</Link></Button>
+        <Button asChild variant="outline" size="sm" className="group-hover:border-primary group-hover:text-primary transition-colors">
+          <Link to={to}>
+            {cta}
+            <span className="inline-block ml-1 transition-transform group-hover:translate-x-1">→</span>
+          </Link>
+        </Button>
       </CardContent>
     </Card>
   );
