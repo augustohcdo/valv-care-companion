@@ -44,6 +44,7 @@ type FormState = {
   regurgitation_grade: string;
   proposed_management: string;
   clinical_notes: string;
+  prosthesis_id: string;
 };
 
 const emptyForm: FormState = {
@@ -63,6 +64,7 @@ const emptyForm: FormState = {
   regurgitation_grade: "",
   proposed_management: "",
   clinical_notes: "",
+  prosthesis_id: "",
 };
 
 function buildPayload(form: FormState) {
@@ -83,6 +85,7 @@ function buildPayload(form: FormState) {
     regurgitation_grade: form.regurgitation_grade || null,
     proposed_management: form.proposed_management || null,
     clinical_notes: form.clinical_notes || null,
+    prosthesis_id: form.prosthesis_id || null,
   };
 }
 
@@ -104,6 +107,7 @@ function hydrateForm(row: any): FormState {
     regurgitation_grade: row.regurgitation_grade ?? "",
     proposed_management: row.proposed_management ?? "",
     clinical_notes: row.clinical_notes ?? "",
+    prosthesis_id: row.prosthesis_id ?? "",
   };
 }
 
@@ -116,6 +120,19 @@ export default function NovoCaso() {
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [prostheses, setProstheses] = useState<Array<{ id: string; manufacturer: string; model_name: string; type: string; size: number | null; effective_orifice_area: number | null }>>([]);
+
+  useEffect(() => {
+    supabase
+      .from("prosthesis_catalog")
+      .select("id, manufacturer, model_name, type, size, effective_orifice_area")
+      .eq("active", true)
+      .order("display_order", { ascending: true })
+      .order("manufacturer", { ascending: true })
+      .order("model_name", { ascending: true })
+      .order("size", { ascending: true })
+      .then(({ data }) => setProstheses((data as any[]) ?? []));
+  }, []);
 
   // Autosave state
   const draftIdRef = useRef<string | null>(null);
