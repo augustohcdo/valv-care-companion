@@ -47,6 +47,7 @@ const PacienteDocumentos = () => {
     const { data: pat } = await supabase
       .from("patients")
       .select("id")
+      .is("deleted_at", null)
       .eq("user_id", user.id)
       .maybeSingle();
     if (!pat) {

@@ -44,6 +44,7 @@ type FormState = {
   regurgitation_grade: string;
   proposed_management: string;
   clinical_notes: string;
+  prosthesis_id: string;
 };
 
 const emptyForm: FormState = {
@@ -63,6 +64,7 @@ const emptyForm: FormState = {
   regurgitation_grade: "",
   proposed_management: "",
   clinical_notes: "",
+  prosthesis_id: "",
 };
 
 function buildPayload(form: FormState) {
@@ -83,6 +85,7 @@ function buildPayload(form: FormState) {
     regurgitation_grade: form.regurgitation_grade || null,
     proposed_management: form.proposed_management || null,
     clinical_notes: form.clinical_notes || null,
+    prosthesis_id: form.prosthesis_id || null,
   };
 }
 
@@ -104,6 +107,7 @@ function hydrateForm(row: any): FormState {
     regurgitation_grade: row.regurgitation_grade ?? "",
     proposed_management: row.proposed_management ?? "",
     clinical_notes: row.clinical_notes ?? "",
+    prosthesis_id: row.prosthesis_id ?? "",
   };
 }
 
@@ -116,6 +120,19 @@ export default function NovoCaso() {
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [prostheses, setProstheses] = useState<Array<{ id: string; manufacturer: string; model_name: string; type: string; size: number | null; effective_orifice_area: number | null }>>([]);
+
+  useEffect(() => {
+    supabase
+      .from("prosthesis_catalog")
+      .select("id, manufacturer, model_name, type, size, effective_orifice_area")
+      .eq("active", true)
+      .order("display_order", { ascending: true })
+      .order("manufacturer", { ascending: true })
+      .order("model_name", { ascending: true })
+      .order("size", { ascending: true })
+      .then(({ data }) => setProstheses((data as any[]) ?? []));
+  }, []);
 
   // Autosave state
   const draftIdRef = useRef<string | null>(null);
@@ -137,6 +154,7 @@ export default function NovoCaso() {
       const { data: draft } = await supabase
         .from("clinical_cases")
         .select("*")
+        .is("deleted_at", null)
         .eq("doctor_id", doc.id)
         .eq("status", "draft" as any)
         .order("updated_at", { ascending: false })
@@ -551,6 +569,30 @@ export default function NovoCaso() {
                   placeholder="Ex.: seguimento clínico em 6 meses com novo eco; otimização de IECA/BB; encaminhar para Heart Team."
                   className="mt-1.5 min-h-[100px]"
                 />
+              </div>
+              <div>
+                <Label>Prótese planejada (opcional)</Label>
+                <Select
+                  value={form.prosthesis_id || "__none__"}
+                  onValueChange={(v) => update("prosthesis_id", v === "__none__" ? "" : v)}
+                >
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder="Selecione uma prótese do catálogo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Nenhuma —</SelectItem>
+                    {prostheses.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.manufacturer} · {p.model_name}
+                        {p.size ? ` · ${p.size}mm` : ""}
+                        {p.effective_orifice_area ? ` · EOA ${p.effective_orifice_area}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Catálogo neutro para fins de registro. A seleção não implica recomendação clínica.
+                </p>
               </div>
               <div>
                 <Label>Notas clínicas adicionais</Label>

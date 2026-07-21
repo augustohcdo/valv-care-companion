@@ -23,7 +23,7 @@ export default function PacienteHome() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: pat } = await supabase.from("patients").select("*").eq("user_id", user.id).maybeSingle();
+      const { data: pat } = await supabase.from("patients").select("*").is("deleted_at", null).eq("user_id", user.id).maybeSingle();
       setPatient(pat);
       if (pat?.linked_doctor_id) {
         const { data: doc } = await supabase

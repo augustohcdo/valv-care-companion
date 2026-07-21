@@ -49,7 +49,7 @@ export default function CasoDetalhe() {
     if (!id || !user) return;
     (async () => {
       const { data, error } = await supabase
-        .from("clinical_cases").select("*").eq("id", id).maybeSingle();
+        .from("clinical_cases").select("*").is("deleted_at", null).eq("id", id).maybeSingle();
       if (error || !data) {
         toast.error("Caso não encontrado");
         navigate("/app/medico/casos");
@@ -78,7 +78,7 @@ export default function CasoDetalhe() {
       }
 
       if (data.patient_id) {
-        const { data: pat } = await supabase.from("patients").select("user_id").eq("id", data.patient_id).maybeSingle();
+        const { data: pat } = await supabase.from("patients").select("user_id").is("deleted_at", null).eq("id", data.patient_id).maybeSingle();
         setPatientUserId(pat?.user_id ?? null);
       }
       setLoading(false);

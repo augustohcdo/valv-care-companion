@@ -42,7 +42,7 @@ export default function PacienteMedicacoes() {
 
   const load = async () => {
     if (!user) return;
-    const { data: pat } = await supabase.from("patients").select("id").eq("user_id", user.id).maybeSingle();
+    const { data: pat } = await supabase.from("patients").select("id").is("deleted_at", null).eq("user_id", user.id).maybeSingle();
     if (!pat) { setLoading(false); return; }
     setPatient(pat);
     const [{ data: m }, { data: l }] = await Promise.all([
