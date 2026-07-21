@@ -47,20 +47,30 @@ export default function MedicoHome() {
   }, [user]);
 
   const firstName = profile?.full_name?.split(" ")[0] || "Doutor(a)";
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+  const today = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
   return (
-    <div className="space-y-8 max-w-6xl">
+    <div className="space-y-8 max-w-6xl animate-fade-in">
       {/* Hero de boas-vindas */}
       <div
-        className="relative overflow-hidden rounded-2xl p-6 sm:p-8 lg:p-10 text-primary-foreground shadow-lg"
+        className="relative overflow-hidden rounded-3xl p-6 sm:p-8 lg:p-10 text-primary-foreground shadow-xl ring-1 ring-primary-foreground/10"
         style={{ background: "var(--gradient-hero)" }}
       >
-        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-accent/20 blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-accent/25 blur-3xl pointer-events-none animate-pulse" style={{ animationDuration: "6s" }} />
         <div className="absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-primary-foreground/5 blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)", backgroundSize: "24px 24px" }} />
         <div className="relative">
-          <p className="text-xs uppercase tracking-[0.2em] text-primary-foreground/70">Área médica</p>
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-primary-foreground/70">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-accent opacity-75 animate-ping" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
+            </span>
+            Área médica · <span className="capitalize">{today}</span>
+          </div>
           <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl mt-2">
-            Olá, Dr(a). {firstName}
+            {greeting}, Dr(a). {firstName}
           </h1>
           <p className="text-primary-foreground/80 mt-3 max-w-2xl text-sm sm:text-base">
             Organize casos, acompanhe pacientes e consulte conteúdo clínico baseado em
@@ -186,7 +196,8 @@ function HeroStat({
         ? "bg-warning"
         : "bg-accent";
   return (
-    <div className="rounded-xl border border-primary-foreground/15 bg-primary-foreground/10 backdrop-blur-sm p-4 transition-all duration-200 hover:bg-primary-foreground/15">
+    <div className="group/stat relative overflow-hidden rounded-xl border border-primary-foreground/15 bg-primary-foreground/10 backdrop-blur-sm p-4 transition-all duration-300 hover:bg-primary-foreground/20 hover:border-primary-foreground/30 hover:-translate-y-0.5 hover:shadow-lg">
+      <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-primary-foreground/40 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity" />
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 text-primary-foreground/80 text-xs uppercase tracking-wide">
           <Icon className="h-3.5 w-3.5" />
@@ -194,7 +205,7 @@ function HeroStat({
         </div>
         <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
       </div>
-      <p className="font-serif text-2xl sm:text-3xl text-primary-foreground">{value}</p>
+      <p className="font-serif text-2xl sm:text-3xl text-primary-foreground tabular-nums">{value}</p>
     </div>
   );
 }
@@ -242,14 +253,20 @@ function ActionCard({
   cta: string;
 }) {
   return (
-    <Card className="rounded-2xl border-border/40 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-1 group">
+    <Card className="rounded-2xl border-border/40 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/30 group relative overflow-hidden">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-accent to-primary opacity-0 group-hover:opacity-100 transition-opacity" />
       <CardContent className="p-6">
-        <div className="h-10 w-10 rounded-lg bg-primary/10 grid place-items-center text-primary mb-4 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+        <div className="h-11 w-11 rounded-xl bg-primary/10 grid place-items-center text-primary mb-4 group-hover:bg-primary group-hover:text-primary-foreground group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
           <Icon className="h-5 w-5" />
         </div>
         <h3 className="font-serif text-lg text-primary mb-1">{title}</h3>
         <p className="text-sm text-muted-foreground mb-4">{description}</p>
-        <Button asChild variant="outline" size="sm"><Link to={to}>{cta}</Link></Button>
+        <Button asChild variant="outline" size="sm" className="group-hover:border-primary group-hover:text-primary transition-colors">
+          <Link to={to}>
+            {cta}
+            <span className="inline-block ml-1 transition-transform group-hover:translate-x-1">→</span>
+          </Link>
+        </Button>
       </CardContent>
     </Card>
   );
