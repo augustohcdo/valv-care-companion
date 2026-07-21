@@ -59,6 +59,36 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          action: string
+          id: string
+          metadata: Json | null
+          target_id: string | null
+          target_table: string
+          timestamp: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          id?: string
+          metadata?: Json | null
+          target_id?: string | null
+          target_table: string
+          timestamp?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          id?: string
+          metadata?: Json | null
+          target_id?: string | null
+          target_table?: string
+          timestamp?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       case_collaborators: {
         Row: {
           access_level: Database["public"]["Enums"]["collaborator_access"]
@@ -321,6 +351,7 @@ export type Database = {
           clinical_notes: string | null
           comorbidities: string[] | null
           created_at: string
+          deleted_at: string | null
           doctor_id: string
           ejection_fraction: number | null
           id: string
@@ -332,6 +363,7 @@ export type Database = {
           patient_sex: string | null
           peak_gradient: number | null
           proposed_management: string | null
+          prosthesis_id: string | null
           regurgitation_grade: string | null
           severity: Database["public"]["Enums"]["severity_level"]
           status: Database["public"]["Enums"]["case_status"]
@@ -345,6 +377,7 @@ export type Database = {
           clinical_notes?: string | null
           comorbidities?: string[] | null
           created_at?: string
+          deleted_at?: string | null
           doctor_id: string
           ejection_fraction?: number | null
           id?: string
@@ -356,6 +389,7 @@ export type Database = {
           patient_sex?: string | null
           peak_gradient?: number | null
           proposed_management?: string | null
+          prosthesis_id?: string | null
           regurgitation_grade?: string | null
           severity?: Database["public"]["Enums"]["severity_level"]
           status?: Database["public"]["Enums"]["case_status"]
@@ -369,6 +403,7 @@ export type Database = {
           clinical_notes?: string | null
           comorbidities?: string[] | null
           created_at?: string
+          deleted_at?: string | null
           doctor_id?: string
           ejection_fraction?: number | null
           id?: string
@@ -380,6 +415,7 @@ export type Database = {
           patient_sex?: string | null
           peak_gradient?: number | null
           proposed_management?: string | null
+          prosthesis_id?: string | null
           regurgitation_grade?: string | null
           severity?: Database["public"]["Enums"]["severity_level"]
           status?: Database["public"]["Enums"]["case_status"]
@@ -409,6 +445,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinical_cases_prosthesis_id_fkey"
+            columns: ["prosthesis_id"]
+            isOneToOne: false
+            referencedRelation: "prosthesis_catalog"
             referencedColumns: ["id"]
           },
         ]
@@ -1349,6 +1392,7 @@ export type Database = {
           city: string | null
           comorbidities: string[] | null
           created_at: string
+          deleted_at: string | null
           id: string
           linked_at: string | null
           linked_doctor_id: string | null
@@ -1361,6 +1405,7 @@ export type Database = {
           city?: string | null
           comorbidities?: string[] | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
           linked_at?: string | null
           linked_doctor_id?: string | null
@@ -1373,6 +1418,7 @@ export type Database = {
           city?: string | null
           comorbidities?: string[] | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
           linked_at?: string | null
           linked_doctor_id?: string | null
@@ -1434,6 +1480,45 @@ export type Database = {
           terms_accepted_at?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      prosthesis_catalog: {
+        Row: {
+          active: boolean
+          created_at: string
+          display_order: number
+          effective_orifice_area: number | null
+          id: string
+          manufacturer: string
+          model_name: string
+          size: number | null
+          type: Database["public"]["Enums"]["prosthesis_type"]
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          display_order?: number
+          effective_orifice_area?: number | null
+          id?: string
+          manufacturer: string
+          model_name: string
+          size?: number | null
+          type: Database["public"]["Enums"]["prosthesis_type"]
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          display_order?: number
+          effective_orifice_area?: number | null
+          id?: string
+          manufacturer?: string
+          model_name?: string
+          size?: number | null
+          type?: Database["public"]["Enums"]["prosthesis_type"]
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1929,6 +2014,12 @@ export type Database = {
         | "document_shared"
         | "system"
       nyha_class: "I" | "II" | "III" | "IV"
+      prosthesis_type:
+        | "biologica_aortica"
+        | "biologica_mitral"
+        | "anel_anuloplastia"
+        | "tavi"
+        | "mecanica"
       severity_level:
         | "leve"
         | "moderada"
@@ -2216,6 +2307,13 @@ export const Constants = {
         "system",
       ],
       nyha_class: ["I", "II", "III", "IV"],
+      prosthesis_type: [
+        "biologica_aortica",
+        "biologica_mitral",
+        "anel_anuloplastia",
+        "tavi",
+        "mecanica",
+      ],
       severity_level: [
         "leve",
         "moderada",
