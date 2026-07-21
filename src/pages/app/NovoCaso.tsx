@@ -137,6 +137,7 @@ export default function NovoCaso() {
       const { data: draft } = await supabase
         .from("clinical_cases")
         .select("*")
+        .is("deleted_at", null)
         .eq("doctor_id", doc.id)
         .eq("status", "draft" as any)
         .order("updated_at", { ascending: false })

@@ -25,6 +25,7 @@ const PacienteAprender = () => {
       const { data: pat } = await supabase
         .from("patients")
         .select("id")
+        .is("deleted_at", null)
         .eq("user_id", user.id)
         .maybeSingle();
       if (!pat) {
@@ -34,6 +35,7 @@ const PacienteAprender = () => {
       const { data: cs } = await supabase
         .from("clinical_cases")
         .select("id, valve_type, valve_disease")
+        .is("deleted_at", null)
         .eq("patient_id", pat.id)
         .neq("status", "draft" as any);
       setCases(cs || []);
