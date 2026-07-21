@@ -47,7 +47,7 @@ export default function ListaCasos() {
     if (!user) return;
     (async () => {
       const [{ data }, { data: pend }] = await Promise.all([
-        supabase.from("clinical_cases").select("*").neq("status", "draft" as any).order("created_at", { ascending: false }),
+        supabase.from("clinical_cases").select("*").is("deleted_at", null).neq("status", "draft" as any).order("created_at", { ascending: false }),
         supabase.rpc("cases_pending_action", { _doctor_user_id: user.id }),
       ]);
       setCases(data || []);

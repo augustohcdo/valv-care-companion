@@ -32,7 +32,7 @@ export default function MedicoPacienteDetalhe() {
         .from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
 
       const { data: pat, error } = await supabase
-        .from("patients").select("*").eq("id", id).eq("linked_doctor_id", doc.id).maybeSingle();
+        .from("patients").select("*").is("deleted_at", null).eq("id", id).eq("linked_doctor_id", doc.id).maybeSingle();
       if (error || !pat) {
         toast.error("Paciente não encontrado ou sem vínculo");
         navigate("/app/medico/pacientes");
@@ -41,7 +41,7 @@ export default function MedicoPacienteDetalhe() {
       const { data: prof } = await supabase
         .from("profiles").select("*").eq("user_id", pat.user_id).maybeSingle();
       const { data: cs } = await supabase
-        .from("clinical_cases").select("*").eq("patient_id", pat.id).eq("doctor_id", doc.id).neq("status", "draft" as any).order("created_at", { ascending: false });
+        .from("clinical_cases").select("*").is("deleted_at", null).eq("patient_id", pat.id).eq("doctor_id", doc.id).neq("status", "draft" as any).order("created_at", { ascending: false });
 
       setDoctor(doc);
       setDoctorProfile(docProf);

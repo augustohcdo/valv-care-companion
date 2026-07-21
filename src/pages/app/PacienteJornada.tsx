@@ -24,11 +24,11 @@ export default function PacienteJornada() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: pat } = await supabase.from("patients").select("id").eq("user_id", user.id).maybeSingle();
+      const { data: pat } = await supabase.from("patients").select("id").is("deleted_at", null).eq("user_id", user.id).maybeSingle();
       if (!pat) { setLoading(false); return; }
 
       const { data: cs } = await supabase
-        .from("clinical_cases").select("*").eq("patient_id", pat.id)
+        .from("clinical_cases").select("*").is("deleted_at", null).eq("patient_id", pat.id)
         .neq("status", "draft" as any)
         .order("created_at", { ascending: false });
 

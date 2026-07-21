@@ -30,7 +30,7 @@ export default function PacientePerfil() {
     (async () => {
       const [{ data: prof }, { data: pat }] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("patients").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("patients").select("*").is("deleted_at", null).eq("user_id", user.id).maybeSingle(),
       ]);
       if (prof) {
         setFullName(prof.full_name || "");
