@@ -121,6 +121,36 @@ export default function NovoCaso() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [prostheses, setProstheses] = useState<Array<{ id: string; manufacturer: string; model_name: string; type: string; size: number | null; effective_orifice_area: number | null }>>([]);
+  const [echoRaw, setEchoRaw] = useState("");
+  const [echoExtracting, setEchoExtracting] = useState(false);
+
+  const extractEcho = async () => {
+    if (!echoRaw.trim()) return;
+    setEchoExtracting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("clinical-ai", {
+        body: { mode: "extract_echo", rawText: echoRaw },
+      });
+      if (error) {
+        toast.error("Falha na extração", { description: (error as any)?.message });
+        return;
+      }
+      if (data?.error) { toast.error(data.error); return; }
+      const patch: Partial<FormState> = {};
+      if (typeof data.lvef === "number") patch.ejection_fraction = String(data.lvef);
+      if (typeof data.mean_gradient === "number") patch.mean_gradient = String(data.mean_gradient);
+      if (typeof data.aortic_valve_area === "number") patch.valve_area = String(data.aortic_valve_area);
+      setForm((f) => ({ ...f, ...patch }));
+      const psapMsg = typeof data.psap === "number" ? ` · PSAP ${data.psap} mmHg (registrar em Exames)` : "";
+      const filled = Object.keys(patch).length;
+      if (filled === 0) toast.warning("Nenhum campo reconhecido — revise o laudo manualmente.");
+      else toast.success(`Extraídos ${filled} campo(s). Revise antes de salvar.${psapMsg}`);
+    } catch (e: any) {
+      toast.error("Erro de comunicação", { description: e?.message });
+    } finally {
+      setEchoExtracting(false);
+    }
+  };
 
   useEffect(() => {
     supabase
