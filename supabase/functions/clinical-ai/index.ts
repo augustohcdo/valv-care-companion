@@ -81,10 +81,11 @@ LIMITES:
 
 
 interface ReqBody {
-  mode: "summary" | "suggest" | "trends" | "chat";
-  caseId: string;
+  mode: "summary" | "suggest" | "trends" | "chat" | "extract_echo" | "patient_discharge";
+  caseId?: string;
   question?: string;
   history?: { role: "user" | "assistant"; content: string }[];
+  rawText?: string; // for extract_echo
 }
 
 Deno.serve(async (req) => {
@@ -110,7 +111,69 @@ Deno.serve(async (req) => {
     });
 
     const body = await req.json() as ReqBody;
-    const { mode, caseId } = body;
+    const { mode } = body;
+
+    // ==========================================================
+    // MODE: extract_echo — parse raw echo report to strict JSON
+    // ==========================================================
+    if (mode === "extract_echo") {
+      const raw = (body.rawText ?? "").trim();
+      if (!raw) {
+        return new Response(JSON.stringify({ error: "rawText obrigatório" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const extractPrompt = `Você é um extrator de dados clínicos de laudos de ecocardiograma em português. Leia o laudo bruto abaixo e retorne EXCLUSIVAMENTE um objeto JSON válido (sem markdown, sem comentários, sem texto adicional) com os campos:
+{"lvef": number|null, "mean_gradient": number|null, "aortic_valve_area": number|null, "psap": number|null}
+
+Regras:
+- lvef em % (fração de ejeção do VE). Se aparecer "FE 55%" → 55.
+- mean_gradient em mmHg (gradiente médio transvalvar, geralmente aórtico).
+- aortic_valve_area em cm² (AVA).
+- psap em mmHg (pressão sistólica de artéria pulmonar / PSAP).
+- Se o campo não estiver claramente descrito no laudo, use null.
+- Nunca invente valores. Nunca converta unidades sem certeza.
+
+LAUDO:
+"""
+${raw.slice(0, 8000)}
+"""
+
+Retorne apenas o JSON.`;
+
+      const r = await fetch(GATEWAY_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [{ role: "user", content: extractPrompt }],
+          temperature: 0,
+          response_format: { type: "json_object" },
+        }),
+      });
+      if (!r.ok) {
+        const status = r.status === 429 ? 429 : r.status === 402 ? 402 : 500;
+        return new Response(JSON.stringify({ error: "Falha na extração" }), {
+          status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const j = await r.json();
+      const txt = j.choices?.[0]?.message?.content ?? "{}";
+      let parsed: any = {};
+      try { parsed = JSON.parse(txt); } catch {
+        const m = txt.match(/\{[\s\S]*\}/);
+        if (m) { try { parsed = JSON.parse(m[0]); } catch { /* noop */ } }
+      }
+      const clean = (v: any) => (typeof v === "number" && isFinite(v)) ? v : null;
+      return new Response(JSON.stringify({
+        lvef: clean(parsed.lvef),
+        mean_gradient: clean(parsed.mean_gradient),
+        aortic_valve_area: clean(parsed.aortic_valve_area),
+        psap: clean(parsed.psap),
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const caseId = body.caseId;
     if (!mode || !caseId) {
       return new Response(JSON.stringify({ error: "mode e caseId obrigatórios" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
