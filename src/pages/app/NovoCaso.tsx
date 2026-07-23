@@ -527,6 +527,32 @@ export default function NovoCaso() {
 
               <div className="border-t border-border pt-4">
                 <p className="text-sm font-medium text-foreground mb-3">Achados ecocardiográficos (opcional)</p>
+
+                <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                  <Label className="text-xs font-medium">Colar Laudo do Ecocardiograma Bruto</Label>
+                  <Textarea
+                    value={echoRaw}
+                    onChange={(e) => setEchoRaw(e.target.value)}
+                    placeholder="Cole aqui o texto do laudo (FE, gradiente médio, AVA, PSAP...). A IA irá extrair os números para você revisar."
+                    className="mt-1.5 min-h-[110px] text-xs"
+                  />
+                  <div className="flex items-center justify-between gap-2 mt-2">
+                    <p className="text-[11px] text-muted-foreground">
+                      Extração automática de LVEF, gradiente médio, AVA e PSAP. Você revisa antes de salvar.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={!echoRaw.trim() || echoExtracting}
+                      onClick={extractEcho}
+                    >
+                      {echoExtracting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                      Extrair Dados Clínicos
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <Label className="text-xs">FE (%)</Label>
