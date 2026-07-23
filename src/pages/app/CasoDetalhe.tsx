@@ -31,6 +31,7 @@ import { CaseCollaborators } from "@/components/CaseCollaborators";
 import { CaseDiscussion } from "@/components/CaseDiscussion";
 import { ClinicalAIPanel } from "@/components/ClinicalAIPanel";
 import { CaseExternalData } from "@/components/CaseExternalData";
+import { DocumentGenerator } from "@/components/DocumentGenerator";
 
 export default function CasoDetalhe() {
   const { id } = useParams<{ id: string }>();
