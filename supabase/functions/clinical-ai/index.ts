@@ -259,6 +259,24 @@ Cite guideline e classe/nível de evidência em cada recomendação.`;
         });
       }
       userPrompt = `${caseCtx}\n\nPERGUNTA DO MÉDICO: ${body.question}\n\nResponda de forma técnica, citando guideline (ACC/AHA 2020, ESC 2021, SBC 2020) quando aplicável, com classe/NE. Se a pergunta exigir dado ausente, aponte antes de opinar.`;
+    } else if (mode === "patient_discharge") {
+      // Busca prótese planejada se houver
+      let prosthesisTxt = "não informada";
+      if ((caso as any).prosthesis_id) {
+        const { data: pros } = await supabase
+          .from("prosthesis_catalog")
+          .select("manufacturer, model_name, type, size")
+          .eq("id", (caso as any).prosthesis_id).maybeSingle();
+        if (pros) prosthesisTxt = `${pros.manufacturer} ${pros.model_name}${pros.size ? ` ${pros.size}mm` : ""} (${pros.type})`;
+      }
+      userPrompt = `Você está gerando ORIENTAÇÃO DE ALTA em linguagem LEIGA e acolhedora para um paciente brasileiro que fez um procedimento valvar.
+
+Contexto:
+- Valvopatia: ${caso.valve_disease} de valva ${caso.valve_type}
+- Conduta/procedimento: ${caso.proposed_management ?? "procedimento valvar"}
+- Prótese: ${prosthesisTxt}
+
+Gere EXATAMENTE 3 bullet points curtos (máx. 2 linhas cada), em português claro (evite jargão), sobre cuidados imediatos em casa: 1) medicações e retorno médico, 2) sinais de alerta que exigem procurar emergência, 3) rotina, atividade física e recuperação. Use tom humano, direto, sem promessas de cura, sem sugerir doses específicas. Formato: markdown com "- " no início de cada linha.`;
     } else {
       return new Response(JSON.stringify({ error: "modo inválido" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
