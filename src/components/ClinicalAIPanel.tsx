@@ -122,6 +122,19 @@ export function ClinicalAIPanel({ caseId }: Props) {
           ))}
 
           <TabsContent value="chat" className="mt-4 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button" variant="outline" size="sm" className="h-7 text-xs"
+                disabled={loading}
+                onClick={() => { setChatInput("Avaliar risco de mismatch prótese-paciente (PPM) para este caso: calcule EOAi esperado com base na área de superfície corporal estimada e na EOA da prótese planejada, aponte cutoffs (moderado <0,85; severo <0,65 cm²/m²) e sugira alternativas se houver risco de PPM severo."); }}
+              >Avaliar risco de Mismatch (PPM)</Button>
+              <Button
+                type="button" variant="outline" size="sm" className="h-7 text-xs"
+                disabled={loading}
+                onClick={() => { setChatInput("Estratégia para Valve-in-Valve (ViV) futuro: qual o impacto do tamanho/tipo da prótese planejada agora na viabilidade de um ViV transcateter no futuro? Considere diâmetro interno mínimo para reintervenção e risco de obstrução coronária."); }}
+              >Estratégia para Valve-in-Valve futuro</Button>
+            </div>
+
             <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
               {chatHistory.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
