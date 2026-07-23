@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FileText, Copy, Loader2, Sparkles, Stethoscope, HeartHandshake } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,11 +8,18 @@ import { toast } from "sonner";
 
 interface Props {
   caso: any;
-  prosthesis?: { manufacturer: string; model_name: string; size: number | null } | null;
   riskScore?: { model: string; value: number | null } | null;
 }
 
-export function DocumentGenerator({ caso, prosthesis, riskScore }: Props) {
+export function DocumentGenerator({ caso, riskScore }: Props) {
+  const [prosthesis, setProsthesis] = useState<{ manufacturer: string; model_name: string; size: number | null } | null>(null);
+  useEffect(() => {
+    if (!caso?.prosthesis_id) { setProsthesis(null); return; }
+    supabase.from("prosthesis_catalog")
+      .select("manufacturer, model_name, size")
+      .eq("id", caso.prosthesis_id).maybeSingle()
+      .then(({ data }) => setProsthesis((data as any) ?? null));
+  }, [caso?.prosthesis_id]);
   const [text, setText] = useState("");
   const [kind, setKind] = useState<"evolucao" | "alta" | null>(null);
   const [loading, setLoading] = useState(false);

@@ -253,6 +253,9 @@ export default function CasoDetalhe() {
           {/* Documentos */}
           <CaseDocuments caseId={caso.id} />
 
+          {/* Gerador de documentos (evolução + orientação de alta) */}
+          {isOwner && <DocumentGenerator caso={caso} />}
+
           {/* Dados externos (FHIR de hospitais parceiros) */}
           <CaseExternalData caseId={caso.id} patientUserId={patientUserId} />
 
