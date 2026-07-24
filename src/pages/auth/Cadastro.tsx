@@ -471,6 +471,7 @@ function PatientForm({ onBack }: { onBack: () => void }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <StepProgress current={2} total={2} label="Seus dados" />
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Field label="Nome completo" error={errors.full_name?.message}>
             <Input {...register("full_name")} autoComplete="name" />
