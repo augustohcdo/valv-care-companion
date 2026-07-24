@@ -89,9 +89,11 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
           <div className="space-y-2">
             <Textarea
               value={text}
-              readOnly
+              onChange={(e) => setText(e.target.value)}
+              readOnly={kind === "alta" && loading}
               className="min-h-[200px] text-sm font-mono"
               placeholder={loading ? "Gerando..." : ""}
+              aria-label={kind === "alta" ? "Orientação de alta (editável)" : "Evolução médica (editável)"}
             />
             <div className="flex items-center justify-between gap-2">
               <p className="text-[11px] text-muted-foreground flex items-center gap-1">
