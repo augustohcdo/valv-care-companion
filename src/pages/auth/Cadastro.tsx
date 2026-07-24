@@ -149,37 +149,94 @@ export default function Cadastro() {
 
 function ChooseAccount({ onPick }: { onPick: (t: "medico" | "paciente") => void }) {
   return (
-    <div className="grid sm:grid-cols-2 gap-4">
-      <button
-        onClick={() => onPick("medico")}
-        className="text-left rounded-xl border border-border/70 bg-card p-6 hover:border-primary hover:shadow-md-soft transition-all group"
-      >
-        <div className="h-11 w-11 rounded-lg bg-primary/10 grid place-items-center text-primary mb-4 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-          <Stethoscope className="h-5 w-5" />
-        </div>
-        <h3 className="font-serif text-xl text-primary mb-1">Sou médico</h3>
-        <p className="text-sm text-muted-foreground">
-          Cadastro com CRM, casos clínicos, biblioteca e dashboards.
-        </p>
-      </button>
+    <div className="space-y-4">
+      <p className="text-center text-xs uppercase tracking-wider text-muted-foreground/80 font-medium">
+        Etapa 1 de 2 · Escolha seu perfil
+      </p>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <button
+          onClick={() => onPick("medico")}
+          className="group relative overflow-hidden text-left rounded-2xl border border-border/70 bg-card p-6 hover:border-primary hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+        >
+          <span
+            aria-hidden
+            className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/0 group-hover:from-primary/10 group-hover:to-primary/[0.03] transition-all duration-500"
+          />
+          <div className="relative">
+            <div className="h-14 w-14 rounded-2xl bg-primary/10 grid place-items-center text-primary mb-4 group-hover:bg-primary group-hover:text-primary-foreground group-hover:scale-105 transition-all duration-300">
+              <Stethoscope className="h-7 w-7" />
+            </div>
+            <h3 className="font-serif text-2xl text-primary mb-1.5">Sou médico</h3>
+            <p className="text-sm text-foreground/80 leading-relaxed">
+              Organize casos, ganhe tempo e decida com uma fonte confiável.
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Cadastro com CRM · Casos clínicos · Biblioteca revisada
+            </p>
+          </div>
+        </button>
 
-      <button
-        onClick={() => onPick("paciente")}
-        className="text-left rounded-xl border border-border/70 bg-card p-6 hover:border-accent hover:shadow-md-soft transition-all group"
-      >
-        <div className="h-11 w-11 rounded-lg bg-accent/10 grid place-items-center text-accent mb-4 group-hover:bg-accent group-hover:text-accent-foreground transition-colors">
-          <HeartPulse className="h-5 w-5" />
-        </div>
-        <h3 className="font-serif text-xl text-primary mb-1">Sou paciente</h3>
-        <p className="text-sm text-muted-foreground">
-          Aprenda sobre sua condição. Vincule-se ao seu médico pelo CRM (opcional).
-        </p>
-      </button>
+        <button
+          onClick={() => onPick("paciente")}
+          className="group relative overflow-hidden text-left rounded-2xl border border-border/70 bg-card p-6 hover:border-accent hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+        >
+          <span
+            aria-hidden
+            className="absolute inset-0 bg-gradient-to-br from-accent/0 via-accent/0 to-accent/0 group-hover:from-accent/10 group-hover:to-accent/[0.03] transition-all duration-500"
+          />
+          <div className="relative">
+            <div className="h-14 w-14 rounded-2xl bg-accent/10 grid place-items-center text-accent mb-4 group-hover:bg-accent group-hover:text-accent-foreground group-hover:scale-105 transition-all duration-300">
+              <HeartPulse className="h-7 w-7" />
+            </div>
+            <h3 className="font-serif text-2xl text-primary mb-1.5">Sou paciente</h3>
+            <p className="text-sm text-foreground/80 leading-relaxed">
+              Acompanhe seu caso e fale direto com seu médico.
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Jornada guiada · Diário de sintomas · Conteúdo em linguagem clara
+            </p>
+          </div>
+        </button>
+      </div>
 
-      <div className="sm:col-span-2 flex items-center gap-2 text-xs text-muted-foreground bg-secondary/60 rounded-lg p-3">
-        <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
-        Seus dados são criptografados e tratados conforme a LGPD. O ValvePath é um apoio
-        educativo e organizacional; nenhum diagnóstico é gerado automaticamente.
+      <div className="rounded-2xl border border-success/30 bg-success/5 p-4 flex items-start gap-3">
+        <div className="h-9 w-9 rounded-xl bg-success/15 grid place-items-center text-success shrink-0">
+          <ShieldCheck className="h-5 w-5" />
+        </div>
+        <div className="text-sm">
+          <p className="font-medium text-foreground">Seus dados protegidos pela LGPD</p>
+          <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+            Criptografia em trânsito e em repouso, trilha de auditoria e controle
+            granular de consentimento. O ValvePath é apoio educativo e organizacional —
+            nenhum diagnóstico é gerado automaticamente.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Barra fina de progresso — indica que o usuário está na etapa final. */
+function StepProgress({ current, total, label }: { current: number; total: number; label: string }) {
+  const pct = Math.round((current / total) * 100);
+  return (
+    <div className="mb-4" aria-hidden={false}>
+      <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-muted-foreground/80 font-medium mb-1.5">
+        <span>Etapa {current} de {total}</span>
+        <span>{label}</span>
+      </div>
+      <div
+        className="h-1.5 rounded-full bg-secondary overflow-hidden"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`Progresso do cadastro: etapa ${current} de ${total}`}
+      >
+        <div
+          className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );
