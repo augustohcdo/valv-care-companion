@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function MedicoPacientes() {
   const { user } = useAuth();
@@ -59,16 +60,11 @@ export default function MedicoPacientes() {
       {loading ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
       ) : filtered.length === 0 ? (
-        <Card className="shadow-sm-soft">
-          <CardContent className="p-10 text-center">
-            <Users className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-            <h3 className="font-serif text-xl text-primary mb-2">Nenhum paciente vinculado</h3>
-            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              Quando um paciente cadastrar seu CRM, ele aparecerá aqui automaticamente.
-              Compartilhe seu CRM/UF com pacientes que precisam acompanhamento valvar.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Users}
+          title="Nenhum paciente vinculado"
+          description="Quando um paciente cadastrar seu CRM, ele aparecerá aqui automaticamente. Compartilhe seu CRM/UF com pacientes que precisam acompanhamento valvar."
+        />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((p) => (

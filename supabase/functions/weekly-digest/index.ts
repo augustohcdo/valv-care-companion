@@ -14,6 +14,43 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Read the shared cron secret from the locked internal_secrets table.
+    const { data: secretRow } = await supabase
+      .from("internal_secrets")
+      .select("value")
+      .eq("key", "digest_cron_secret")
+      .maybeSingle();
+    const CRON_SECRET = secretRow?.value ?? null;
+
+    // Auth: allow (a) valid cron secret via header, or (b) authenticated admin JWT.
+    const cronHeader = req.headers.get("x-cron-secret");
+    let authorized = !!(CRON_SECRET && cronHeader === CRON_SECRET);
+
+    if (!authorized) {
+      const authHeader = req.headers.get("Authorization") ?? "";
+      if (authHeader.startsWith("Bearer ")) {
+        const token = authHeader.replace("Bearer ", "");
+        const { data } = await supabase.auth.getClaims(token);
+        const uid = data?.claims?.sub;
+        if (uid) {
+          const { data: role } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", uid)
+            .eq("role", "admin")
+            .maybeSingle();
+          authorized = !!role;
+        }
+      }
+    }
+
+    if (!authorized) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Pega todos os médicos (verificados ou não)
     const { data: doctors, error } = await supabase
       .from("doctors")

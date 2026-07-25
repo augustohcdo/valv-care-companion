@@ -176,18 +176,19 @@ export default function Contato() {
                 <Label>Assunto</Label>
                 <div className="flex flex-wrap gap-2">
                   {SUBJECTS.map((s) => (
-                    <button
+                    <Button
                       key={s.id}
                       type="button"
+                      variant="outline"
                       onClick={() => setSubject(s.id)}
-                      className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
+                      className={`h-auto rounded-full px-3 py-1.5 text-xs font-normal ${
                         subject === s.id
-                          ? "bg-primary text-primary-foreground border-primary"
+                          ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
                           : "bg-background border-border hover:bg-secondary"
                       }`}
                     >
                       {s.label}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>

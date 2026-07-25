@@ -154,9 +154,11 @@ function ChooseAccount({ onPick }: { onPick: (t: "medico" | "paciente") => void 
         Etapa 1 de 2 · Escolha seu perfil
       </p>
       <div className="grid sm:grid-cols-2 gap-4">
-        <button
+        <Button
+          type="button"
+          variant="ghost"
           onClick={() => onPick("medico")}
-          className="group relative overflow-hidden text-left rounded-2xl border border-border/70 bg-card p-6 hover:border-primary hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+          className="h-auto w-full items-stretch justify-start text-left rounded-2xl border border-border/70 bg-card p-6 font-normal hover:bg-card hover:border-primary hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group relative overflow-hidden"
         >
           <span
             aria-hidden
@@ -174,11 +176,13 @@ function ChooseAccount({ onPick }: { onPick: (t: "medico" | "paciente") => void 
               Cadastro com CRM · Casos clínicos · Biblioteca revisada
             </p>
           </div>
-        </button>
+        </Button>
 
-        <button
+        <Button
+          type="button"
+          variant="ghost"
           onClick={() => onPick("paciente")}
-          className="group relative overflow-hidden text-left rounded-2xl border border-border/70 bg-card p-6 hover:border-accent hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+          className="h-auto w-full items-stretch justify-start text-left rounded-2xl border border-border/70 bg-card p-6 font-normal hover:bg-card hover:border-accent hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group relative overflow-hidden"
         >
           <span
             aria-hidden
@@ -196,7 +200,7 @@ function ChooseAccount({ onPick }: { onPick: (t: "medico" | "paciente") => void 
               Jornada guiada · Diário de sintomas · Conteúdo em linguagem clara
             </p>
           </div>
-        </button>
+        </Button>
       </div>
 
       <div className="rounded-2xl border border-success/30 bg-success/5 p-4 flex items-start gap-3">
@@ -321,13 +325,15 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
   return (
     <Card className="shadow-md-soft border-border/70">
       <CardHeader>
-        <button
+        <Button
+          type="button"
+          variant="ghost"
           onClick={onBack}
           disabled={submitting}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mb-2 disabled:opacity-50 disabled:pointer-events-none"
+          className="h-auto w-fit p-0 gap-1 text-xs font-normal text-muted-foreground hover:bg-transparent hover:text-primary mb-2"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Mudar tipo de conta
-        </button>
+        </Button>
         <CardTitle className="text-xl flex items-center gap-2">
           <Stethoscope className="h-5 w-5 text-primary" /> Cadastro médico
         </CardTitle>
@@ -455,13 +461,15 @@ function PatientForm({ onBack }: { onBack: () => void }) {
   return (
     <Card className="shadow-md-soft border-border/70">
       <CardHeader>
-        <button
+        <Button
+          type="button"
+          variant="ghost"
           onClick={onBack}
           disabled={submitting}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary mb-2 disabled:opacity-50 disabled:pointer-events-none"
+          className="h-auto w-fit p-0 gap-1 text-xs font-normal text-muted-foreground hover:bg-transparent hover:text-primary mb-2"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Mudar tipo de conta
-        </button>
+        </Button>
         <CardTitle className="text-xl flex items-center gap-2">
           <HeartPulse className="h-5 w-5 text-accent" /> Cadastro de paciente
         </CardTitle>

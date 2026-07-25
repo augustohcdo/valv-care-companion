@@ -5,6 +5,7 @@ import { ptBR } from "date-fns/locale";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, MapPin, Clock, FileText, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,18 +35,23 @@ export default function MedicoAgenda() {
     if (!user) return;
     (async () => {
       setLoading(true);
-      const { data: doc } = await supabase.from("doctors").select("id").eq("user_id", user.id).maybeSingle();
-      if (!doc) { setLoading(false); return; }
-      const { data: cases } = await supabase.from("clinical_cases").select("id").is("deleted_at", null).eq("doctor_id", doc.id).neq("status", "draft" as any);
-      const ids = (cases ?? []).map((c) => c.id);
-      if (ids.length === 0) { setAppts([]); setLoading(false); return; }
-      const { data } = await supabase
-        .from("appointments")
-        .select("id, case_id, scheduled_at, duration_minutes, appointment_type, status, location, notes, clinical_cases(id, patient_name)")
-        .in("case_id", ids)
-        .order("scheduled_at", { ascending: true });
-      setAppts((data as any) ?? []);
-      setLoading(false);
+      try {
+        const { data: doc } = await supabase.from("doctors").select("id").eq("user_id", user.id).maybeSingle();
+        if (!doc) return;
+        const { data: cases } = await supabase.from("clinical_cases").select("id").is("deleted_at", null).eq("doctor_id", doc.id).neq("status", "draft" as any);
+        const ids = (cases ?? []).map((c) => c.id);
+        if (ids.length === 0) { setAppts([]); return; }
+        const { data } = await supabase
+          .from("appointments")
+          .select("id, case_id, scheduled_at, duration_minutes, appointment_type, status, location, notes, clinical_cases(id, patient_name)")
+          .in("case_id", ids)
+          .order("scheduled_at", { ascending: true });
+        setAppts((data as any) ?? []);
+      } catch (e) {
+        toast.error("Erro ao carregar agenda", { description: (e as Error).message });
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [user]);
 

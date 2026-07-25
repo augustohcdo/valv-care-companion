@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Stethoscope,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,10 +25,12 @@ export default function MedicoHome() {
   const [caseCount, setCaseCount] = useState(0);
   const [activeCount, setActiveCount] = useState(0);
   const [cases, setCases] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
+      setLoading(true);
       const { data: doc } = await supabase.from("doctors").select("*").eq("user_id", user.id).maybeSingle();
       setDoctor(doc);
       if (doc) {
@@ -43,8 +46,17 @@ export default function MedicoHome() {
         setActiveCount(ac ?? 0);
         setCases(caseRows ?? []);
       }
+      setLoading(false);
     })();
   }, [user]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const firstName = profile?.full_name?.split(" ")[0] || "Doutor(a)";
   const hour = new Date().getHours();

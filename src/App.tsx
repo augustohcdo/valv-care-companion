@@ -133,8 +133,8 @@ const App = () => (
 
               <Route path="/app/privacidade" element={<ProtectedRoute>{withSuspense(<AppPrivacidade />)}</ProtectedRoute>} />
               <Route path="/app/hospital" element={<ProtectedRoute>{withSuspense(<HospitalPortal />)}</ProtectedRoute>} />
-              <Route path="/app/admin/integracoes" element={<ProtectedRoute>{withSuspense(<AdminIntegracoes />)}</ProtectedRoute>} />
-              <Route path="/app/admin/fhir-sandbox" element={<ProtectedRoute>{withSuspense(<FhirSandbox />, "form")}</ProtectedRoute>} />
+              <Route path="/app/admin/integracoes" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminIntegracoes />)}</ProtectedRoute>} />
+              <Route path="/app/admin/fhir-sandbox" element={<ProtectedRoute requireAdmin>{withSuspense(<FhirSandbox />, "form")}</ProtectedRoute>} />
               <Route path="/app/paciente/integracoes" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteIntegracoes />)}</ProtectedRoute>} />
             </Route>
 
