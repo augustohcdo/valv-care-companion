@@ -1,5 +1,5 @@
 // Progressive client-side lockout for the login endpoint.
-// Complements the server-side rate limiting already applied by Lovable Cloud / Supabase Auth.
+// Complements the server-side rate limiting already applied by Supabase Auth.
 // Stored per email in localStorage so it survives reloads but not incognito/other browsers.
 
 const KEY = "vp_login_attempts_v1";

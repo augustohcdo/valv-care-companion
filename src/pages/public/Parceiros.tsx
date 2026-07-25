@@ -170,7 +170,7 @@ const Parceiros = () => {
             "Assinatura HMAC opcional para webhooks de saída",
             "Row Level Security no banco para todos os recursos",
             "Audit log append-only — sem UPDATE ou DELETE",
-            "Criptografia em repouso (AES-256) no Lovable Cloud",
+            "Criptografia em repouso (AES-256) no banco de dados",
             "Revogação imediata de acesso pelo paciente",
           ].map((s) => (
             <div key={s} className="flex items-start gap-2">
