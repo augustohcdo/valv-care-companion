@@ -1,6 +1,7 @@
 // Edge function: clinical-ai
 // Modos: summary | suggest | trends | chat
-// Usa Lovable AI Gateway (LOVABLE_API_KEY auto-provisionado)
+// Usa a Anthropic Messages API (ANTHROPIC_API_KEY) para geração de texto
+// e a API de embeddings da OpenAI (OPENAI_API_KEY) para a busca RAG.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -9,10 +10,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const EMBED_URL = "https://ai.gateway.lovable.dev/v1/embeddings";
-const MODEL = "google/gemini-3-flash-preview";
-const EMBED_MODEL = "google/gemini-embedding-2";
+const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
+const ANTHROPIC_VERSION = "2023-06-01";
+const MODEL = "claude-opus-5";
+
+const EMBED_URL = "https://api.openai.com/v1/embeddings";
+const EMBED_MODEL = "text-embedding-3-large";
 
 // Mapeia valvopatia -> topic canônico usado nos knowledge_chunks
 function topicFromCase(valveType?: string, valveDisease?: string): string | null {
@@ -38,6 +41,28 @@ async function embedQuery(apiKey: string, text: string): Promise<number[] | null
     const j = await r.json();
     return j.data?.[0]?.embedding ?? null;
   } catch (e) { console.error("embed error", e); return null; }
+}
+
+async function callClaude(
+  apiKey: string,
+  body: { system?: string; messages: { role: "user" | "assistant"; content: string }[]; max_tokens: number },
+): Promise<Response> {
+  return fetch(ANTHROPIC_URL, {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": ANTHROPIC_VERSION,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: body.max_tokens,
+      thinking: { type: "disabled" },
+      output_config: { effort: "medium" },
+      ...(body.system ? { system: body.system } : {}),
+      messages: body.messages,
+    }),
+  });
 }
 
 const SYSTEM_PROMPT = `Você é um assistente clínico de ALTA PRECISÃO especializado em valvopatias cardíacas, apoiando cardiologistas brasileiros. Não é um chatbot genérico: é um consultor sênior que raciocina como um Heart Team.
@@ -95,11 +120,13 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
       Deno.env.get("SUPABASE_ANON_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurada");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY não configurada");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY não configurada");
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) throw new Error("Supabase env ausente");
 
     const authHeader = req.headers.get("Authorization");
@@ -133,8 +160,7 @@ Deno.serve(async (req) => {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const extractPrompt = `Você é um extrator de dados clínicos de laudos de ecocardiograma em português. Leia o laudo bruto abaixo e retorne EXCLUSIVAMENTE um objeto JSON válido (sem markdown, sem comentários, sem texto adicional) com os campos:
-{"lvef": number|null, "mean_gradient": number|null, "aortic_valve_area": number|null, "psap": number|null, "mitral_annulus_mm": number|null, "aortic_annulus_mm": number|null, "tricuspid_annulus_mm": number|null}
+      const extractPrompt = `Você é um extrator de dados clínicos de laudos de ecocardiograma em português. Leia o laudo bruto abaixo e use a ferramenta "extract_echo_data" para reportar os campos encontrados.
 
 Regras:
 - lvef em % (fração de ejeção do VE). Se aparecer "FE 55%" → 55.
@@ -150,33 +176,54 @@ Regras:
 LAUDO:
 """
 ${raw.slice(0, 8000)}
-"""
+"""`;
 
-Retorne apenas o JSON.`;
-
-      const r = await fetch(GATEWAY_URL, {
+      const numOrNull = { anyOf: [{ type: "number" }, { type: "null" }] };
+      const r = await fetch(ANTHROPIC_URL, {
         method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        headers: {
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": ANTHROPIC_VERSION,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           model: MODEL,
+          max_tokens: 1024,
+          thinking: { type: "disabled" },
+          output_config: { effort: "low" },
+          tools: [{
+            name: "extract_echo_data",
+            description: "Reporta os campos numéricos extraídos do laudo de ecocardiograma.",
+            input_schema: {
+              type: "object",
+              properties: {
+                lvef: numOrNull,
+                mean_gradient: numOrNull,
+                aortic_valve_area: numOrNull,
+                psap: numOrNull,
+                mitral_annulus_mm: numOrNull,
+                aortic_annulus_mm: numOrNull,
+                tricuspid_annulus_mm: numOrNull,
+              },
+              required: [
+                "lvef", "mean_gradient", "aortic_valve_area", "psap",
+                "mitral_annulus_mm", "aortic_annulus_mm", "tricuspid_annulus_mm",
+              ],
+            },
+          }],
+          tool_choice: { type: "tool", name: "extract_echo_data" },
           messages: [{ role: "user", content: extractPrompt }],
-          temperature: 0,
-          response_format: { type: "json_object" },
         }),
       });
       if (!r.ok) {
-        const status = r.status === 429 ? 429 : r.status === 402 ? 402 : 500;
+        const status = r.status === 429 ? 429 : 500;
         return new Response(JSON.stringify({ error: "Falha na extração" }), {
           status, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const j = await r.json();
-      const txt = j.choices?.[0]?.message?.content ?? "{}";
-      let parsed: any = {};
-      try { parsed = JSON.parse(txt); } catch {
-        const m = txt.match(/\{[\s\S]*\}/);
-        if (m) { try { parsed = JSON.parse(m[0]); } catch { /* noop */ } }
-      }
+      const toolUse = j.content?.find((b: any) => b.type === "tool_use");
+      const parsed: any = toolUse?.input ?? {};
       const clean = (v: any) => (typeof v === "number" && isFinite(v)) ? v : null;
       const lvef = clean(parsed.lvef);
       const mean_gradient = clean(parsed.mean_gradient);
@@ -457,7 +504,7 @@ ${commonRules}`;
     let sourcesOut: Array<{ title: string; organization: string; year: number; scope: string; url: string | null; similarity: number; review_status: string }> = [];
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (SERVICE_ROLE) {
-      const embedding = await embedQuery(LOVABLE_API_KEY, ragQuery);
+      const embedding = await embedQuery(OPENAI_API_KEY, ragQuery);
       if (embedding) {
         const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
         const { data: matches, error: matchErr } = await admin.rpc("match_knowledge", {
@@ -482,47 +529,38 @@ ${commonRules}`;
       }
     }
 
-    const messages: any[] = [{ role: "system", content: SYSTEM_PROMPT }];
+    const messages: { role: "user" | "assistant"; content: string }[] = [];
     if (mode === "chat" && body.history?.length) {
       messages.push(...body.history.slice(-10));
     }
     messages.push({ role: "user", content: userPrompt + ragBlock });
 
-    const aiResp = await fetch(GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages,
-        temperature: 0.2,
-        top_p: 0.9,
-        max_tokens: mode === "summary" ? 700 : 1400,
-      }),
+    const aiResp = await callClaude(ANTHROPIC_API_KEY, {
+      system: SYSTEM_PROMPT,
+      messages,
+      max_tokens: mode === "summary" ? 2000 : 4000,
     });
 
     if (!aiResp.ok) {
       const txt = await aiResp.text();
-      console.error("Gateway error", aiResp.status, txt);
+      console.error("Anthropic error", aiResp.status, txt);
       if (aiResp.status === 429) {
         return new Response(JSON.stringify({ error: "Limite de uso atingido. Tente novamente em instantes." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (aiResp.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione saldo em Settings → Workspace → Usage." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({ error: "Erro do gateway de IA" }), {
+      return new Response(JSON.stringify({ error: "Erro do provedor de IA" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const data = await aiResp.json();
-    const content = data.choices?.[0]?.message?.content ?? "";
+    if (data.stop_reason === "refusal") {
+      return new Response(JSON.stringify({ error: "A IA não pôde processar esta solicitação." }), {
+        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const content = data.content?.find((b: any) => b.type === "text")?.text ?? "";
     return new Response(JSON.stringify({ content, sources: sourcesOut, rag_hit: sourcesOut.length > 0 }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
