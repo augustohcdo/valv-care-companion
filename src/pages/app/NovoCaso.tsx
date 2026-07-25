@@ -123,10 +123,12 @@ export default function NovoCaso() {
   const [prostheses, setProstheses] = useState<Array<{ id: string; manufacturer: string; model_name: string; type: string; size: number | null; effective_orifice_area: number | null }>>([]);
   const [echoRaw, setEchoRaw] = useState("");
   const [echoExtracting, setEchoExtracting] = useState(false);
+  const [ringSuggestions, setRingSuggestions] = useState<Array<{ id: string; manufacturer: string; model_name: string; size: number; annulus_range: string; reference_url: string | null; valve: string }>>([]);
 
   const extractEcho = async () => {
     if (!echoRaw.trim()) return;
     setEchoExtracting(true);
+    setRingSuggestions([]);
     try {
       const { data, error } = await supabase.functions.invoke("clinical-ai", {
         body: { mode: "extract_echo", rawText: echoRaw },
@@ -143,8 +145,14 @@ export default function NovoCaso() {
       setForm((f) => ({ ...f, ...patch }));
       const psapMsg = typeof data.psap === "number" ? ` · PSAP ${data.psap} mmHg (registrar em Exames)` : "";
       const filled = Object.keys(patch).length;
-      if (filled === 0) toast.warning("Nenhum campo reconhecido — revise o laudo manualmente.");
-      else toast.success(`Extraídos ${filled} campo(s). Revise antes de salvar.${psapMsg}`);
+      if (Array.isArray(data.ring_suggestions) && data.ring_suggestions.length > 0) {
+        setRingSuggestions(data.ring_suggestions);
+      }
+      if (filled === 0 && (!data.ring_suggestions || data.ring_suggestions.length === 0)) {
+        toast.warning("Nenhum campo reconhecido — revise o laudo manualmente.");
+      } else {
+        toast.success(`Extraídos ${filled} campo(s). Revise antes de salvar.${psapMsg}`);
+      }
     } catch (e: any) {
       toast.error("Erro de comunicação", { description: e?.message });
     } finally {
