@@ -6,7 +6,6 @@ import { Loader2, Mail, Lock, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { loginSchema, LoginInput } from "@/lib/validators";
 import {
   getLockRemaining,
@@ -111,10 +110,11 @@ export default function Login() {
   };
 
   const handleGoogle = async () => {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/auth/callback",
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin + "/auth/callback" },
     });
-    if (result.error) toast.error("Falha no login com Google");
+    if (error) toast.error("Falha no login com Google");
   };
 
   return (

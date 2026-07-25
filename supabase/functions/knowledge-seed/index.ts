@@ -9,8 +9,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const EMBED_URL = "https://ai.gateway.lovable.dev/v1/embeddings";
-const EMBED_MODEL = "google/gemini-embedding-2";
+const EMBED_URL = "https://api.openai.com/v1/embeddings";
+const EMBED_MODEL = "text-embedding-3-large";
 
 type SeedChunk = { source_slug: string; topic: string; section: string; content: string };
 
@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const PUBLISHABLE = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return new Response(JSON.stringify({ error: "unauth" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (existing) { skipped++; continue; }
 
-      const embedding = await embedText(LOVABLE_API_KEY, `${chunk.section}\n\n${chunk.content}`);
+      const embedding = await embedText(OPENAI_API_KEY, `${chunk.section}\n\n${chunk.content}`);
       if (!embedding) { skipped++; continue; }
 
       const { error } = await admin.from("knowledge_chunks").insert({
