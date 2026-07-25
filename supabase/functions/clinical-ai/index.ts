@@ -81,7 +81,10 @@ LIMITES:
 
 
 interface ReqBody {
-  mode: "summary" | "suggest" | "trends" | "chat" | "extract_echo" | "patient_discharge";
+  mode:
+    | "summary" | "suggest" | "trends" | "chat"
+    | "extract_echo" | "patient_discharge"
+    | "note_consultation" | "preop_summary" | "postop_note" | "discharge_summary";
   caseId?: string;
   question?: string;
   history?: { role: "user" | "assistant"; content: string }[];
@@ -124,13 +127,16 @@ Deno.serve(async (req) => {
         });
       }
       const extractPrompt = `Você é um extrator de dados clínicos de laudos de ecocardiograma em português. Leia o laudo bruto abaixo e retorne EXCLUSIVAMENTE um objeto JSON válido (sem markdown, sem comentários, sem texto adicional) com os campos:
-{"lvef": number|null, "mean_gradient": number|null, "aortic_valve_area": number|null, "psap": number|null}
+{"lvef": number|null, "mean_gradient": number|null, "aortic_valve_area": number|null, "psap": number|null, "mitral_annulus_mm": number|null, "aortic_annulus_mm": number|null, "tricuspid_annulus_mm": number|null}
 
 Regras:
 - lvef em % (fração de ejeção do VE). Se aparecer "FE 55%" → 55.
 - mean_gradient em mmHg (gradiente médio transvalvar, geralmente aórtico).
 - aortic_valve_area em cm² (AVA).
 - psap em mmHg (pressão sistólica de artéria pulmonar / PSAP).
+- mitral_annulus_mm em mm — apenas quando o laudo descreve explicitamente diâmetro/dimensão do anel mitral.
+- aortic_annulus_mm em mm — anel aórtico explicitamente medido.
+- tricuspid_annulus_mm em mm — anel tricúspide explicitamente medido.
 - Se o campo não estiver claramente descrito no laudo, use null.
 - Nunca invente valores. Nunca converta unidades sem certeza.
 
@@ -165,11 +171,47 @@ Retorne apenas o JSON.`;
         if (m) { try { parsed = JSON.parse(m[0]); } catch { /* noop */ } }
       }
       const clean = (v: any) => (typeof v === "number" && isFinite(v)) ? v : null;
+      const lvef = clean(parsed.lvef);
+      const mean_gradient = clean(parsed.mean_gradient);
+      const aortic_valve_area = clean(parsed.aortic_valve_area);
+      const psap = clean(parsed.psap);
+      const mitral_annulus_mm = clean(parsed.mitral_annulus_mm);
+      const aortic_annulus_mm = clean(parsed.aortic_annulus_mm);
+      const tricuspid_annulus_mm = clean(parsed.tricuspid_annulus_mm);
+
+      // Sugestão de anéis compatíveis (nunca preenchimento automático — o médico revisa)
+      const ringSuggestions: Array<{ id: string; manufacturer: string; model_name: string; size: number; annulus_range: string; reference_url: string | null; valve: string }> = [];
+      const SERVICE_ROLE_EX = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      const suggestFor = async (diameter: number, valve: "mitral" | "tricuspide") => {
+        if (!SERVICE_ROLE_EX) return [] as any[];
+        const admin = createClient(SUPABASE_URL, SERVICE_ROLE_EX);
+        const base = admin.from("prosthesis_catalog")
+          .select("id, manufacturer, model_name, size, annulus_min_mm, annulus_max_mm, reference_url")
+          .eq("type", "anel_anuloplastia").eq("active", true).not("size", "is", null);
+        const filtered = valve === "tricuspide"
+          ? base.ilike("model_name", "%ricusp%")
+          : base.not("model_name", "ilike", "%ricusp%");
+        const { data: rings } = await filtered;
+        if (!rings) return [];
+        return rings.map((r: any) => {
+          const min = Number(r.annulus_min_mm ?? r.size);
+          const max = Number(r.annulus_max_mm ?? r.size);
+          const center = (min + max) / 2;
+          const inRange = diameter >= min && diameter <= max;
+          return { r, score: (inRange ? -1000 : 0) + Math.abs(diameter - center) };
+        }).sort((a: any, b: any) => a.score - b.score).slice(0, 3).map(({ r }: any) => ({
+          id: r.id, manufacturer: r.manufacturer, model_name: r.model_name, size: r.size,
+          annulus_range: r.annulus_min_mm && r.annulus_max_mm ? `${r.annulus_min_mm}-${r.annulus_max_mm}mm` : `${r.size}mm`,
+          reference_url: r.reference_url, valve,
+        }));
+      };
+      if (mitral_annulus_mm) ringSuggestions.push(...(await suggestFor(mitral_annulus_mm, "mitral")));
+      if (tricuspid_annulus_mm) ringSuggestions.push(...(await suggestFor(tricuspid_annulus_mm, "tricuspide")));
+
       return new Response(JSON.stringify({
-        lvef: clean(parsed.lvef),
-        mean_gradient: clean(parsed.mean_gradient),
-        aortic_valve_area: clean(parsed.aortic_valve_area),
-        psap: clean(parsed.psap),
+        lvef, mean_gradient, aortic_valve_area, psap,
+        mitral_annulus_mm, aortic_annulus_mm, tricuspid_annulus_mm,
+        ring_suggestions: ringSuggestions,
       }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
