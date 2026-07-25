@@ -319,6 +319,117 @@ Contexto:
 - Prótese: ${prosthesisTxt}
 
 Gere EXATAMENTE 3 bullet points curtos (máx. 2 linhas cada), em português claro (evite jargão), sobre cuidados imediatos em casa: 1) medicações e retorno médico, 2) sinais de alerta que exigem procurar emergência, 3) rotina, atividade física e recuperação. Use tom humano, direto, sem promessas de cura, sem sugerir doses específicas. Formato: markdown com "- " no início de cada linha.`;
+    } else if (
+      mode === "note_consultation" || mode === "preop_summary" ||
+      mode === "postop_note" || mode === "discharge_summary"
+    ) {
+      // Carrega dados de suporte estritamente do caso — timeline, consultas, prótese
+      const [{ data: events }, { data: appts }] = await Promise.all([
+        supabase.from("case_events").select("event_date, event_type, title, description")
+          .eq("case_id", caseId).order("event_date", { ascending: true }),
+        supabase.from("appointments").select("scheduled_at, appointment_type, status, location, notes")
+          .eq("case_id", caseId).order("scheduled_at", { ascending: true }),
+      ]);
+      let prosthesisTxt = "não registrada no caso";
+      if ((caso as any).prosthesis_id) {
+        const { data: pros } = await supabase.from("prosthesis_catalog")
+          .select("manufacturer, model_name, type, size, description, reference_url")
+          .eq("id", (caso as any).prosthesis_id).maybeSingle();
+        if (pros) prosthesisTxt = `${pros.manufacturer} ${pros.model_name}${pros.size ? ` ${pros.size}mm` : ""} (${pros.type})` +
+          (pros.description ? ` — ${pros.description}` : "") +
+          (pros.reference_url ? ` [ref: ${pros.reference_url}]` : "");
+      }
+      const eventsTxt = events?.length
+        ? events.map((e: any) => `- [${e.event_date}] (${e.event_type}) ${e.title}${e.description ? `: ${e.description}` : ""}`).join("\n")
+        : "— sem eventos registrados na timeline —";
+      const apptsTxt = appts?.length
+        ? appts.map((a: any) => `- [${(a.scheduled_at ?? "").slice(0,10)}] ${a.appointment_type} (${a.status})${a.location ? ` @ ${a.location}` : ""}${a.notes ? ` — ${a.notes}` : ""}`).join("\n")
+        : "— sem consultas registradas —";
+      const examsTxt = exams?.length
+        ? exams.map((e: any) => `- [${e.exam_date}] ${e.exam_type}: FE ${e.ejection_fraction ?? "—"}%, GradMed ${e.mean_gradient ?? "—"} mmHg, Área ${e.valve_area ?? "—"} cm², PSAP ${e.psap ?? "—"} mmHg, BNP ${e.bnp ?? "—"}, NT-proBNP ${e.nt_probnp ?? "—"}`).join("\n")
+        : "— sem exames registrados —";
+
+      const dataBundle = `DADOS REGISTRADOS NO CASO (única fonte permitida):
+- Paciente: ${caso.patient_name}, ${caso.patient_age ?? "?"} anos, sexo ${caso.patient_sex ?? "?"}
+- Diagnóstico: ${caso.valve_disease} de valva ${caso.valve_type}; severidade ${caso.severity}; NYHA ${caso.nyha ?? "não informado"}
+- Sintomas registrados: ${(caso.symptoms ?? []).join(", ") || "—"}
+- Comorbidades: ${(caso.comorbidities ?? []).join(", ") || "—"}
+- Conduta proposta registrada: ${caso.proposed_management ?? "—"}
+- Notas clínicas: ${caso.clinical_notes ?? "—"}
+- Prótese planejada/implantada: ${prosthesisTxt}
+- Status atual: ${caso.status}
+
+TIMELINE DE EVENTOS:
+${eventsTxt}
+
+CONSULTAS:
+${apptsTxt}
+
+EXAMES:
+${examsTxt}
+${symptomCtx}`.trim();
+
+      const commonRules = `REGRAS ESTRITAS:
+- Use EXCLUSIVAMENTE os dados listados acima. NUNCA acrescente sintoma, achado, diagnóstico, medicação, dose ou exame que não esteja explicitamente registrado.
+- Se um campo padrão do prontuário não tiver dado registrado, escreva "não registrado no caso" — nunca invente.
+- Cada bloco/frase que derivar de um evento, exame ou consulta específico deve terminar com uma referência entre colchetes indicando a data e a origem, ex.: "[timeline 2025-03-14]", "[eco 2025-02-01]", "[consulta 2025-03-20]".
+- Este é um rascunho para revisão humana. Não é laudo, receita, nem substitui a nota do médico assistente.
+- Português do Brasil, técnico, direto.`;
+
+      if (mode === "note_consultation") {
+        userPrompt = `${dataBundle}
+
+Gere uma NOTA DE CONSULTA estruturada seguindo o padrão de prontuário:
+1. Identificação (nome, idade, sexo).
+2. História clínica atual (queixa/motivo — derivar da timeline mais recente e sintomas registrados).
+3. Antecedentes/comorbidades registradas.
+4. Exame físico — escreva "não registrado no caso" (esta plataforma não armazena exame físico).
+5. Achados de exames complementares — resumo dos exames listados.
+6. Impressão diagnóstica (usar exatamente o diagnóstico registrado).
+7. Conduta — reproduzir a conduta proposta registrada; se houver consulta futura agendada, mencioná-la.
+
+${commonRules}`;
+      } else if (mode === "preop_summary") {
+        userPrompt = `${dataBundle}
+
+Gere um RESUMO PRÉ-OPERATÓRIO estruturado:
+1. Identificação.
+2. Diagnóstico valvar e severidade.
+3. Estado funcional (NYHA, sintomas registrados).
+4. Comorbidades relevantes.
+5. Achados dos exames pré-operatórios registrados (último eco, BNP, etc.).
+6. Procedimento planejado (conforme conduta proposta registrada) e prótese planejada (com fabricante/modelo/tamanho).
+7. Referência bibliográfica da prótese quando presente nos dados.
+
+${commonRules}`;
+      } else if (mode === "postop_note") {
+        userPrompt = `${dataBundle}
+
+Gere uma NOTA PÓS-OPERATÓRIA estruturada baseada apenas na timeline e nos exames pós-procedimento registrados:
+1. Identificação.
+2. Procedimento realizado (usar o evento de "cirurgia"/"intervenção" mais recente na timeline; se não houver, escreva "procedimento não registrado na timeline").
+3. Prótese implantada (fabricante, modelo, tamanho, tipo, referência).
+4. Evolução imediata — apenas eventos posteriores ao procedimento na timeline.
+5. Exames de controle pós-operatórios registrados.
+6. Plano de acompanhamento — próxima consulta agendada, se houver.
+
+${commonRules}`;
+      } else {
+        // discharge_summary
+        userPrompt = `${dataBundle}
+
+Gere um SUMÁRIO DE ALTA estruturado (documento técnico para prontuário — não confundir com orientação leiga ao paciente):
+1. Identificação.
+2. Motivo da internação/procedimento (derivar da timeline).
+3. Diagnóstico principal e diagnósticos secundários (comorbidades registradas).
+4. Procedimento realizado e prótese implantada com referência.
+5. Evolução hospitalar (eventos registrados no período).
+6. Condição de alta (usar sintomas/NYHA mais recentes registrados).
+7. Plano pós-alta — próximas consultas registradas; se nenhuma agendada, escrever "consulta de retorno a agendar".
+8. Nunca inclua doses, medicamentos ou orientações não registrados no caso.
+
+${commonRules}`;
+      }
     } else {
       return new Response(JSON.stringify({ error: "modo inválido" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
