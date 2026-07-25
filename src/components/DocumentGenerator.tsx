@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText, Copy, Loader2, Sparkles, Stethoscope, HeartHandshake } from "lucide-react";
+import { FileText, Copy, Loader2, Sparkles, Stethoscope, HeartHandshake, ClipboardList, Scissors, Activity, LogOut } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,18 @@ interface Props {
   riskScore?: { model: string; value: number | null } | null;
 }
 
+type DocKind =
+  | "evolucao" | "alta"
+  | "note_consultation" | "preop_summary" | "postop_note" | "discharge_summary";
+
+const AI_MODES: Record<string, { label: string; toastFail: string }> = {
+  alta: { label: "Orientação de Alta (Paciente)", toastFail: "Falha ao gerar orientação" },
+  note_consultation: { label: "Nota de Consulta", toastFail: "Falha ao gerar nota" },
+  preop_summary: { label: "Resumo Pré-Operatório", toastFail: "Falha ao gerar resumo" },
+  postop_note: { label: "Nota Pós-Operatória", toastFail: "Falha ao gerar nota" },
+  discharge_summary: { label: "Sumário de Alta", toastFail: "Falha ao gerar sumário" },
+};
+
 export function DocumentGenerator({ caso, riskScore }: Props) {
   const [prosthesis, setProsthesis] = useState<{ manufacturer: string; model_name: string; size: number | null } | null>(null);
   useEffect(() => {
@@ -21,7 +33,7 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
       .then(({ data }) => setProsthesis((data as any) ?? null));
   }, [caso?.prosthesis_id]);
   const [text, setText] = useState("");
-  const [kind, setKind] = useState<"evolucao" | "alta" | null>(null);
+  const [kind, setKind] = useState<DocKind | null>(null);
   const [loading, setLoading] = useState(false);
 
   const generateEvolucao = () => {
@@ -37,15 +49,16 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
     setKind("evolucao");
   };
 
-  const generateAlta = async () => {
+  const generateAi = async (mode: Exclude<DocKind, "evolucao">) => {
     setLoading(true);
-    setKind("alta");
+    setKind(mode);
+    setText("");
     try {
       const { data, error } = await supabase.functions.invoke("clinical-ai", {
-        body: { mode: "patient_discharge", caseId: caso.id },
+        body: { mode, caseId: caso.id },
       });
       if (error) {
-        toast.error("Falha ao gerar orientação", { description: (error as any)?.message });
+        toast.error(AI_MODES[mode].toastFail, { description: (error as any)?.message });
         setKind(null); return;
       }
       if (data?.error) { toast.error(data.error); setKind(null); return; }
@@ -67,6 +80,8 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
     }
   };
 
+  const label = kind ? (kind === "evolucao" ? "Evolução Médica" : AI_MODES[kind].label) : "";
+
   return (
     <Card className="shadow-sm-soft">
       <CardHeader>
@@ -79,9 +94,25 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
           <Button variant="outline" onClick={generateEvolucao} className="justify-start">
             <Stethoscope className="h-4 w-4" /> Gerar Evolução Médica (Prontuário)
           </Button>
-          <Button variant="outline" onClick={generateAlta} disabled={loading} className="justify-start">
+          <Button variant="outline" onClick={() => generateAi("alta")} disabled={loading} className="justify-start">
             {loading && kind === "alta" ? <Loader2 className="h-4 w-4 animate-spin" /> : <HeartHandshake className="h-4 w-4" />}
             Gerar Orientação de Alta (Paciente)
+          </Button>
+          <Button variant="outline" onClick={() => generateAi("note_consultation")} disabled={loading} className="justify-start">
+            {loading && kind === "note_consultation" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardList className="h-4 w-4" />}
+            Nota de Consulta
+          </Button>
+          <Button variant="outline" onClick={() => generateAi("preop_summary")} disabled={loading} className="justify-start">
+            {loading && kind === "preop_summary" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scissors className="h-4 w-4" />}
+            Resumo Pré-Operatório
+          </Button>
+          <Button variant="outline" onClick={() => generateAi("postop_note")} disabled={loading} className="justify-start">
+            {loading && kind === "postop_note" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
+            Nota Pós-Operatória
+          </Button>
+          <Button variant="outline" onClick={() => generateAi("discharge_summary")} disabled={loading} className="justify-start">
+            {loading && kind === "discharge_summary" ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+            Sumário de Alta (Prontuário)
           </Button>
         </div>
 
@@ -90,14 +121,13 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
             <Textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              readOnly={kind === "alta" && loading}
-              className="min-h-[200px] text-sm font-mono"
-              placeholder={loading ? "Gerando..." : ""}
-              aria-label={kind === "alta" ? "Orientação de alta (editável)" : "Evolução médica (editável)"}
+              className="min-h-[240px] text-sm font-mono"
+              placeholder={loading ? "Gerando a partir dos dados registrados no caso..." : ""}
+              aria-label={`${label} (editável)`}
             />
             <div className="flex items-center justify-between gap-2">
               <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Sparkles className="h-3 w-3" /> Revise antes de anexar ao prontuário ou entregar ao paciente.
+                <Sparkles className="h-3 w-3" /> Rascunho baseado apenas em registros do caso. Revise antes de anexar ao prontuário ou entregar ao paciente.
               </p>
               <Button size="sm" onClick={copy} disabled={!text}>
                 <Copy className="h-3.5 w-3.5" /> Copiar Texto
