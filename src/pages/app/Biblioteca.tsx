@@ -79,17 +79,19 @@ export default function Biblioteca() {
         </div>
         <div className="flex flex-wrap gap-2">
           {valves.map((v) => (
-            <button
+            <Button
               key={v}
+              type="button"
+              variant="outline"
               onClick={() => setValveFilter(v)}
-              className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+              className={`h-auto rounded-full px-3 py-1.5 text-sm font-normal ${
                 valveFilter === v
-                  ? "bg-primary text-primary-foreground border-primary"
+                  ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
                   : "bg-card text-foreground border-border hover:bg-secondary"
               }`}
             >
               {v}
-            </button>
+            </Button>
           ))}
         </div>
       </div>

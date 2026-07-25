@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/EmptyState";
 
 const emptyForm = {
   name: "",
@@ -221,15 +222,11 @@ export default function PacienteMedicacoes() {
           Complete seu perfil para gerenciar medicações.
         </CardContent></Card>
       ) : activeMeds.length === 0 ? (
-        <Card className="shadow-sm-soft">
-          <CardContent className="p-10 text-center">
-            <Pill className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-            <h3 className="font-serif text-xl text-primary mb-2">Nenhuma medicação ativa</h3>
-            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              Adicione suas medicações para receber lembretes e acompanhar a adesão.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Pill}
+          title="Nenhuma medicação ativa"
+          description="Adicione suas medicações para receber lembretes e acompanhar a adesão."
+        />
       ) : (
         <>
           <Card className="shadow-sm-soft">

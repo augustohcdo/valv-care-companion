@@ -189,7 +189,7 @@ const PacienteDocumentos = () => {
             <Switch checked={shareWithDoctor} onCheckedChange={setShareWithDoctor} />
           </div>
 
-          <input
+          <Input
             ref={fileInput}
             type="file"
             hidden

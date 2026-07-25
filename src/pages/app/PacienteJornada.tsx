@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import { CaseTimeline } from "@/components/CaseTimeline";
 import { CaseAppointments } from "@/components/CaseAppointments";
 import { CaseChat } from "@/components/CaseChat";
 import { CaseExams } from "@/components/CaseExams";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function PacienteJornada() {
   const { user } = useAuth();
@@ -24,33 +26,38 @@ export default function PacienteJornada() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: pat } = await supabase.from("patients").select("id").is("deleted_at", null).eq("user_id", user.id).maybeSingle();
-      if (!pat) { setLoading(false); return; }
+      try {
+        const { data: pat } = await supabase.from("patients").select("id").is("deleted_at", null).eq("user_id", user.id).maybeSingle();
+        if (!pat) return;
 
-      const { data: cs } = await supabase
-        .from("clinical_cases").select("*").is("deleted_at", null).eq("patient_id", pat.id)
-        .neq("status", "draft" as any)
-        .order("created_at", { ascending: false });
+        const { data: cs } = await supabase
+          .from("clinical_cases").select("*").is("deleted_at", null).eq("patient_id", pat.id)
+          .neq("status", "draft" as any)
+          .order("created_at", { ascending: false });
 
-      const docIds = [...new Set((cs || []).map((c) => c.doctor_id))];
-      const { data: docs } = docIds.length
-        ? await supabase.from("doctors").select("id, user_id, crm, crm_uf, specialty").in("id", docIds)
-        : { data: [] as any[] };
+        const docIds = [...new Set((cs || []).map((c) => c.doctor_id))];
+        const { data: docs } = docIds.length
+          ? await supabase.from("doctors").select("id, user_id, crm, crm_uf, specialty").in("id", docIds)
+          : { data: [] as any[] };
 
-      const userIds = (docs || []).map((d: any) => d.user_id);
-      const { data: profs } = userIds.length
-        ? await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)
-        : { data: [] as any[] };
+        const userIds = (docs || []).map((d: any) => d.user_id);
+        const { data: profs } = userIds.length
+          ? await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)
+          : { data: [] as any[] };
 
-      const map: Record<string, any> = {};
-      (docs || []).forEach((d: any) => {
-        const p = profs?.find((x: any) => x.user_id === d.user_id);
-        map[d.id] = { ...d, full_name: p?.full_name };
-      });
+        const map: Record<string, any> = {};
+        (docs || []).forEach((d: any) => {
+          const p = profs?.find((x: any) => x.user_id === d.user_id);
+          map[d.id] = { ...d, full_name: p?.full_name };
+        });
 
-      setCases(cs || []);
-      setDoctors(map);
-      setLoading(false);
+        setCases(cs || []);
+        setDoctors(map);
+      } catch (e) {
+        toast.error("Erro ao carregar jornada clínica", { description: (e as Error).message });
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [user]);
 
@@ -66,16 +73,11 @@ export default function PacienteJornada() {
       {loading ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
       ) : cases.length === 0 ? (
-        <Card className="shadow-sm-soft">
-          <CardContent className="p-10 text-center">
-            <FileHeart className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-            <h3 className="font-serif text-xl text-primary mb-2">Nenhum caso clínico ainda</h3>
-            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              Quando seu médico registrar uma avaliação valvar, ela aparecerá aqui.
-              Você pode anexar exames próprios para discutir na próxima consulta.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={FileHeart}
+          title="Nenhum caso clínico ainda"
+          description="Quando seu médico registrar uma avaliação valvar, ela aparecerá aqui. Você pode anexar exames próprios para discutir na próxima consulta."
+        />
       ) : (
         <div className="space-y-4">
           {cases.map((c) => {

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   valveTypeLabels, valveDiseaseLabels, severityLabels, severityColors, caseStatusLabels,
 } from "@/lib/clinicalLabels";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function MedicoColaboracoes() {
   const { user } = useAuth();
@@ -85,15 +86,11 @@ export default function MedicoColaboracoes() {
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       ) : items.length === 0 ? (
-        <Card className="shadow-sm-soft">
-          <CardContent className="p-10 text-center">
-            <Users className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-            <h3 className="font-serif text-xl text-primary mb-2">Nenhum convite ainda</h3>
-            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              Quando outro médico te convidar para discutir um caso, ele aparecerá aqui.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Users}
+          title="Nenhum convite ainda"
+          description="Quando outro médico te convidar para discutir um caso, ele aparecerá aqui."
+        />
       ) : (
         <div className="space-y-6">
           {pending.length > 0 && (

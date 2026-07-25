@@ -525,17 +525,17 @@ export default function NovoCaso() {
                   {commonSymptoms.map((s) => {
                     const active = form.symptoms.includes(s);
                     return (
-                      <button
-                        key={s} type="button"
+                      <Button
+                        key={s} type="button" variant="outline"
                         onClick={() => toggleArr("symptoms", s)}
-                        className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                        className={`h-auto rounded-full px-3 py-1.5 text-xs font-normal ${
                           active
-                            ? "bg-primary text-primary-foreground border-primary"
+                            ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
                             : "bg-background border-border hover:border-primary/50"
                         }`}
                       >
                         {s}
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -547,17 +547,17 @@ export default function NovoCaso() {
                   {commonComorbidities.map((s) => {
                     const active = form.comorbidities.includes(s);
                     return (
-                      <button
-                        key={s} type="button"
+                      <Button
+                        key={s} type="button" variant="outline"
                         onClick={() => toggleArr("comorbidities", s)}
-                        className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                        className={`h-auto rounded-full px-3 py-1.5 text-xs font-normal ${
                           active
-                            ? "bg-primary text-primary-foreground border-primary"
+                            ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
                             : "bg-background border-border hover:border-primary/50"
                         }`}
                       >
                         {s}
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>

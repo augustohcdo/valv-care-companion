@@ -25,6 +25,7 @@ import {
 } from "@/lib/clinicalLabels";
 import { queueCsvExport } from "@/lib/exporters";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/EmptyState";
 
 const ALL = "__all__";
 
@@ -137,24 +138,28 @@ export default function ListaCasos() {
         {/* Quick status chips */}
         {cases.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            <button
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => setStatus(ALL)}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-all ${status === ALL ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-card hover:bg-muted border-border text-muted-foreground hover:text-foreground"}`}
+              className={`h-auto gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${status === ALL ? "bg-primary text-primary-foreground border-primary shadow-sm hover:bg-primary/90" : "bg-card hover:bg-muted border-border text-muted-foreground hover:text-foreground"}`}
             >
               Todos <span className="tabular-nums opacity-70">({cases.length})</span>
-            </button>
+            </Button>
             {(["avaliacao_inicial", "em_seguimento", "pre_intervencao", "pos_intervencao"] as const).map((s) => {
               const count = cases.filter((c) => c.status === s).length;
               if (count === 0) return null;
               const active = status === s;
               return (
-                <button
+                <Button
                   key={s}
+                  type="button"
+                  variant="outline"
                   onClick={() => setStatus(active ? ALL : s)}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-all ${active ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-card hover:bg-muted border-border text-muted-foreground hover:text-foreground"}`}
+                  className={`h-auto gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${active ? "bg-primary text-primary-foreground border-primary shadow-sm hover:bg-primary/90" : "bg-card hover:bg-muted border-border text-muted-foreground hover:text-foreground"}`}
                 >
                   {caseStatusLabels[s]} <span className="tabular-nums opacity-70">({count})</span>
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -291,15 +296,12 @@ export default function ListaCasos() {
           </CardContent>
         </Card>
       ) : filtered.length === 0 ? (
-        <Card className="shadow-sm-soft">
-          <CardContent className="p-10 text-center">
-            <Search className="h-7 w-7 text-muted-foreground mx-auto mb-3 opacity-50" />
-            <p className="text-sm text-muted-foreground">Nenhum caso corresponde aos filtros aplicados.</p>
-            <Button variant="outline" size="sm" onClick={clearFilters} className="mt-3">
-              Limpar filtros
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Search}
+          title="Nenhum caso encontrado"
+          description="Nenhum caso corresponde aos filtros aplicados."
+          action={{ label: "Limpar filtros", onClick: clearFilters }}
+        />
       ) : (
         <div className="grid gap-3">
           {filtered.map((c, idx) => (

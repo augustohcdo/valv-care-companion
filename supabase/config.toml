@@ -1,1 +1,24 @@
 project_id = "bjgzychcgaeyhfjvlsip"
+
+# Functions below don't authenticate via a Supabase-issued user JWT — they use
+# their own scheme (hospital API key, cron secret, public pre-auth token) — so
+# the platform-level JWT gate must be disabled for them. Every one of these
+# still enforces its own auth check in code (see supabase/functions/<name>/index.ts).
+# Functions not listed here keep the default verify_jwt = true.
+[functions.fhir-read]
+verify_jwt = false
+
+[functions.fhir-ingest]
+verify_jwt = false
+
+[functions.turnstile-verify]
+verify_jwt = false
+
+[functions.turnstile-config]
+verify_jwt = false
+
+[functions.weekly-export]
+verify_jwt = false
+
+[functions.weekly-digest]
+verify_jwt = false
