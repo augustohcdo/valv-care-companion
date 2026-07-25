@@ -123,10 +123,12 @@ export default function NovoCaso() {
   const [prostheses, setProstheses] = useState<Array<{ id: string; manufacturer: string; model_name: string; type: string; size: number | null; effective_orifice_area: number | null }>>([]);
   const [echoRaw, setEchoRaw] = useState("");
   const [echoExtracting, setEchoExtracting] = useState(false);
+  const [ringSuggestions, setRingSuggestions] = useState<Array<{ id: string; manufacturer: string; model_name: string; size: number; annulus_range: string; reference_url: string | null; valve: string }>>([]);
 
   const extractEcho = async () => {
     if (!echoRaw.trim()) return;
     setEchoExtracting(true);
+    setRingSuggestions([]);
     try {
       const { data, error } = await supabase.functions.invoke("clinical-ai", {
         body: { mode: "extract_echo", rawText: echoRaw },
@@ -143,8 +145,14 @@ export default function NovoCaso() {
       setForm((f) => ({ ...f, ...patch }));
       const psapMsg = typeof data.psap === "number" ? ` · PSAP ${data.psap} mmHg (registrar em Exames)` : "";
       const filled = Object.keys(patch).length;
-      if (filled === 0) toast.warning("Nenhum campo reconhecido — revise o laudo manualmente.");
-      else toast.success(`Extraídos ${filled} campo(s). Revise antes de salvar.${psapMsg}`);
+      if (Array.isArray(data.ring_suggestions) && data.ring_suggestions.length > 0) {
+        setRingSuggestions(data.ring_suggestions);
+      }
+      if (filled === 0 && (!data.ring_suggestions || data.ring_suggestions.length === 0)) {
+        toast.warning("Nenhum campo reconhecido — revise o laudo manualmente.");
+      } else {
+        toast.success(`Extraídos ${filled} campo(s). Revise antes de salvar.${psapMsg}`);
+      }
     } catch (e: any) {
       toast.error("Erro de comunicação", { description: e?.message });
     } finally {
@@ -581,7 +589,40 @@ export default function NovoCaso() {
                       Extrair Dados Clínicos
                     </Button>
                   </div>
+                  {ringSuggestions.length > 0 && (
+                    <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                      <p className="text-xs font-semibold text-primary mb-2">
+                        Sugestões de anel compatíveis (revisão obrigatória — nunca aplicadas automaticamente)
+                      </p>
+                      <ul className="space-y-1.5">
+                        {ringSuggestions.map((r) => {
+                          const match = prostheses.find(p => p.id === r.id);
+                          return (
+                            <li key={`${r.id}-${r.valve}`} className="flex items-center justify-between gap-2 text-xs">
+                              <span>
+                                <span className="font-medium">{r.manufacturer} {r.model_name}</span>{" "}
+                                <span className="text-muted-foreground">· {r.size}mm · anel {r.annulus_range} · valva {r.valve}</span>
+                                {r.reference_url && (
+                                  <a href={r.reference_url} target="_blank" rel="noreferrer" className="ml-2 underline text-primary/80">ref</a>
+                                )}
+                              </span>
+                              {match && (
+                                <Button
+                                  type="button" size="sm" variant="outline"
+                                  className="h-7 px-2 text-[11px]"
+                                  onClick={() => update("prosthesis_id", r.id)}
+                                >
+                                  Selecionar
+                                </Button>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
                 </div>
+
 
                 <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>

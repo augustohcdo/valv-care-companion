@@ -1486,36 +1486,51 @@ export type Database = {
       prosthesis_catalog: {
         Row: {
           active: boolean
+          annulus_max_mm: number | null
+          annulus_min_mm: number | null
           created_at: string
+          description: string | null
           display_order: number
           effective_orifice_area: number | null
           id: string
+          image_url: string | null
           manufacturer: string
           model_name: string
+          reference_url: string | null
           size: number | null
           type: Database["public"]["Enums"]["prosthesis_type"]
           updated_at: string
         }
         Insert: {
           active?: boolean
+          annulus_max_mm?: number | null
+          annulus_min_mm?: number | null
           created_at?: string
+          description?: string | null
           display_order?: number
           effective_orifice_area?: number | null
           id?: string
+          image_url?: string | null
           manufacturer: string
           model_name: string
+          reference_url?: string | null
           size?: number | null
           type: Database["public"]["Enums"]["prosthesis_type"]
           updated_at?: string
         }
         Update: {
           active?: boolean
+          annulus_max_mm?: number | null
+          annulus_min_mm?: number | null
           created_at?: string
+          description?: string | null
           display_order?: number
           effective_orifice_area?: number | null
           id?: string
+          image_url?: string | null
           manufacturer?: string
           model_name?: string
+          reference_url?: string | null
           size?: number | null
           type?: Database["public"]["Enums"]["prosthesis_type"]
           updated_at?: string
