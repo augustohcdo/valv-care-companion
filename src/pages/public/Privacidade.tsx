@@ -6,8 +6,8 @@ const Privacidade = () => (
       eyebrow: "Documentos legais",
       title: "Política de Privacidade e Proteção de Dados",
       description: "Como coletamos, usamos, compartilhamos e protegemos seus dados pessoais e dados sensíveis de saúde, em conformidade com a LGPD.",
-      effectiveDate: "01 de maio de 2026",
-      version: "2.0",
+      effectiveDate: "27 de julho de 2026",
+      version: "2.1",
       contact: { dpoEmail: "valvepath@gmail.com", supportEmail: "valvepath@gmail.com" },
       sections: [
         {
@@ -52,6 +52,7 @@ const Privacidade = () => (
           body: [
             "Médico vinculado: o paciente autoriza, em consentimento granular e revogável, que seu médico vinculado acesse os dados clínicos registrados na Plataforma.",
             "Operadores e provedores de tecnologia: provedor de nuvem (armazenamento e processamento), provedor de e-mail transacional, provedor de autenticação. Todos obrigados contratualmente ao sigilo e a padrões equivalentes da LGPD.",
+            "Provedores de Inteligência Artificial (Anthropic e OpenAI): quando você utiliza o módulo de apoio à decisão clínica baseado em IA (mediante consentimento específico 'Processamento por IA clínica'), dados do caso — idade, sexo, sintomas, comorbidades, achados de exames e anotações clínicas — são enviados à Anthropic (modelos Claude) e/ou à OpenAI (geração de embeddings para busca em base de diretrizes), empresas sediadas nos Estados Unidos, para processamento em tempo real. O nome do paciente é minimizado/omitido nessas chamadas sempre que tecnicamente possível. Conforme os termos de API vigentes desses provedores, os dados enviados não são utilizados para treinar seus modelos de IA; eles atuam como operadores, sob os respectivos termos de processamento de dados.",
             "Autoridades competentes: mediante requisição legal ou ordem judicial.",
             "Sucessores em operações societárias: em caso de fusão, aquisição ou reorganização, mediante notificação prévia.",
             "Não vendemos seus dados. Não usamos seus dados clínicos para treinar modelos de IA de terceiros sem seu consentimento explícito e separado.",
@@ -59,7 +60,7 @@ const Privacidade = () => (
         },
         {
           heading: "Transferência internacional",
-          body: "Quando dados forem processados fora do Brasil (por exemplo, por subprocessadores de nuvem), garantimos que o destino oferece grau de proteção adequado, conforme Art. 33 e seguintes da LGPD, mediante cláusulas contratuais padrão, certificações ou outros mecanismos reconhecidos pela ANPD.",
+          body: "Quando dados forem processados fora do Brasil — incluindo pela Anthropic e pela OpenAI (ambas sediadas nos Estados Unidos), utilizadas no módulo de apoio à decisão clínica por IA, além de subprocessadores de nuvem — garantimos que o destino oferece grau de proteção adequado, conforme Art. 33 e seguintes da LGPD, mediante cláusulas contratuais padrão, certificações ou outros mecanismos reconhecidos pela ANPD.",
         },
         {
           heading: "Seus direitos como titular (Art. 18, LGPD)",

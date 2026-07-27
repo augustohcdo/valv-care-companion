@@ -3,11 +3,7 @@
 // TODOS os chunks são marcados com review_status='ai_generated' e devem ser revisados por médico
 // humano antes de virarem referência clínica publicada.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
 const EMBED_URL = "https://api.openai.com/v1/embeddings";
 const EMBED_MODEL = "text-embedding-3-large";
@@ -114,6 +110,7 @@ async function embedText(apiKey: string, text: string): Promise<number[] | null>
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {

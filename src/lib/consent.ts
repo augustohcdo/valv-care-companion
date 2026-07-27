@@ -10,7 +10,7 @@ export type ConsentType =
   | "cookies_functional"
   | "cookies_analytics";
 
-export const CONSENT_VERSION = "1.0";
+export const CONSENT_VERSION = "2.1";
 
 export interface ConsentDefinition {
   type: ConsentType;
@@ -65,7 +65,7 @@ export const CONSENT_CATALOG: ConsentDefinition[] = [
     type: "ai_processing",
     title: "Processamento por IA clínica",
     description:
-      "Permito que dados do meu caso sejam processados pelo módulo de apoio à decisão clínica baseado em IA, dentro da plataforma.",
+      "Permito que dados do meu caso (idade, sexo, sintomas, comorbidades, achados de exames e anotações clínicas — sem meu nome) sejam enviados aos provedores de IA Anthropic e/ou OpenAI para o módulo de apoio à decisão clínica da plataforma.",
     required: false,
     audience: "all",
   },
@@ -107,4 +107,15 @@ export async function registerConsent(params: {
   });
   if (error) throw error;
   return data as string;
+}
+
+/** Verifica se o usuário logado tem um consentimento ativo (concedido e não revogado). */
+export async function hasActiveConsent(type: ConsentType): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("user_consents")
+    .select("granted, revoked_at")
+    .eq("consent_type", type)
+    .maybeSingle();
+  if (error || !data) return false;
+  return data.granted === true && !data.revoked_at;
 }

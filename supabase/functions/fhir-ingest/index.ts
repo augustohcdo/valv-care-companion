@@ -2,12 +2,7 @@
 // Auth: Header X-Api-Key: vp_<prefix>_<secret>
 // Aceita FHIR R4 Resource único ou Bundle.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
 const ALLOWED_TYPES = new Set([
   "Observation", "DiagnosticReport", "Condition", "MedicationStatement",
@@ -20,9 +15,17 @@ async function sha256Hex(s: string) {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = {
+    ...buildCorsHeaders(req),
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST")
-    return new Response(JSON.stringify({ error: "method_not_allowed" }), { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return json({ error: "method_not_allowed" }, 405);
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -129,9 +132,3 @@ Deno.serve(async (req) => {
 
   return json({ accepted: results.filter(r => r.ok).length, total: results.length, results }, 200);
 });
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}

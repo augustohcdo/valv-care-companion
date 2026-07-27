@@ -48,10 +48,12 @@ export default function CasoDetalhe() {
 
   useEffect(() => {
     if (!id || !user) return;
+    let cancelled = false;
     (async () => {
       try {
         const { data, error } = await supabase
           .from("clinical_cases").select("*").is("deleted_at", null).eq("id", id).maybeSingle();
+        if (cancelled) return;
         if (error || !data) {
           toast.error("Caso não encontrado");
           navigate("/app/medico/casos");
@@ -64,6 +66,7 @@ export default function CasoDetalhe() {
         // Determinar papel: owner ou colaborador
         const { data: doc } = await supabase
           .from("doctors").select("id").eq("user_id", user.id).maybeSingle();
+        if (cancelled) return;
         const owner = !!doc && doc.id === data.doctor_id;
         setIsOwner(owner);
 
@@ -76,19 +79,22 @@ export default function CasoDetalhe() {
             .eq("case_id", id)
             .eq("doctor_id", doc.id)
             .maybeSingle();
+          if (cancelled) return;
           setCanComment(collab?.status === "aceito" && collab?.access_level === "comentar");
         }
 
         if (data.patient_id) {
           const { data: pat } = await supabase.from("patients").select("user_id").is("deleted_at", null).eq("id", data.patient_id).maybeSingle();
+          if (cancelled) return;
           setPatientUserId(pat?.user_id ?? null);
         }
       } catch (e) {
-        toast.error("Erro ao carregar caso", { description: (e as Error).message });
+        if (!cancelled) toast.error("Erro ao carregar caso", { description: (e as Error).message });
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
+    return () => { cancelled = true; };
   }, [id, user, navigate]);
 
   const saveChanges = async () => {

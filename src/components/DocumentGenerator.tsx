@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { hasActiveConsent } from "@/lib/consent";
 import { toast } from "sonner";
 
 interface Props {
@@ -50,6 +51,13 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
   };
 
   const generateAi = async (mode: Exclude<DocKind, "evolucao">) => {
+    const consented = await hasActiveConsent("ai_processing");
+    if (!consented) {
+      toast.error("Consentimento necessário", {
+        description: "Ative \"Processamento por IA clínica\" em Privacidade e segurança para gerar documentos com IA.",
+      });
+      return;
+    }
     setLoading(true);
     setKind(mode);
     setText("");

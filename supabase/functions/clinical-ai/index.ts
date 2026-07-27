@@ -3,12 +3,10 @@
 // Usa a Anthropic Messages API (ANTHROPIC_API_KEY) para geração de texto
 // e a API de embeddings da OpenAI (OPENAI_API_KEY) para a busca RAG.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+// Máximo de chamadas de IA clínica por usuário por hora (controle de custo/abuso).
+const RATE_LIMIT_PER_HOUR = 30;
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
@@ -117,6 +115,7 @@ interface ReqBody {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
@@ -144,6 +143,33 @@ Deno.serve(async (req) => {
     if (userErr || !userRes?.user) {
       return new Response(JSON.stringify({ error: "Não autenticado" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = userRes.user.id;
+
+    // ============================================================
+    // Rate limiting: cada chamada custa dinheiro real (Anthropic + OpenAI).
+    // Limita chamadas por usuário/hora usando o audit_logs existente.
+    // ============================================================
+    const SERVICE_ROLE_RL = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (SERVICE_ROLE_RL) {
+      const admin = createClient(SUPABASE_URL, SERVICE_ROLE_RL);
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count } = await admin
+        .from("audit_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("action", "clinical_ai_call")
+        .gte("timestamp", oneHourAgo);
+      if ((count ?? 0) >= RATE_LIMIT_PER_HOUR) {
+        return new Response(
+          JSON.stringify({ error: "Limite de uso da IA clínica atingido. Tente novamente mais tarde." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      // Registra a chamada antes de processá-la (contabiliza mesmo se falhar depois).
+      await admin.from("audit_logs").insert({
+        user_id: userId, action: "clinical_ai_call", target_table: "clinical_ai",
       });
     }
 
@@ -308,7 +334,7 @@ ${raw.slice(0, 8000)}
 
     const caseCtx = `
 DADOS DO CASO:
-- Paciente: ${caso.patient_name}, ${caso.patient_age ?? "?"} anos, sexo ${caso.patient_sex ?? "?"}
+- Paciente: ${caso.patient_age ?? "?"} anos, sexo ${caso.patient_sex ?? "?"} (identificação omitida — minimização de dados enviados a IA de terceiro)
 - Valvopatia: ${caso.valve_disease} de valva ${caso.valve_type}
 - Severidade: ${caso.severity}
 - NYHA: ${caso.nyha ?? "não informado"}
@@ -404,7 +430,7 @@ Gere EXATAMENTE 3 bullet points curtos (máx. 2 linhas cada), em português clar
         : "— sem exames registrados —";
 
       const dataBundle = `DADOS REGISTRADOS NO CASO (única fonte permitida):
-- Paciente: ${caso.patient_name}, ${caso.patient_age ?? "?"} anos, sexo ${caso.patient_sex ?? "?"}
+- Paciente: [NOME_PACIENTE], ${caso.patient_age ?? "?"} anos, sexo ${caso.patient_sex ?? "?"}
 - Diagnóstico: ${caso.valve_disease} de valva ${caso.valve_type}; severidade ${caso.severity}; NYHA ${caso.nyha ?? "não informado"}
 - Sintomas registrados: ${(caso.symptoms ?? []).join(", ") || "—"}
 - Comorbidades: ${(caso.comorbidities ?? []).join(", ") || "—"}
@@ -424,6 +450,7 @@ ${examsTxt}
 ${symptomCtx}`.trim();
 
       const commonRules = `REGRAS ESTRITAS:
+- O nome do paciente foi substituído pelo marcador literal "[NOME_PACIENTE]" por minimização de dados. Reproduza esse marcador EXATAMENTE como está, sem alterar, sem inventar um nome, sempre que a identificação do paciente for necessária no texto.
 - Use EXCLUSIVAMENTE os dados listados acima. NUNCA acrescente sintoma, achado, diagnóstico, medicação, dose ou exame que não esteja explicitamente registrado.
 - Se um campo padrão do prontuário não tiver dado registrado, escreva "não registrado no caso" — nunca invente.
 - Cada bloco/frase que derivar de um evento, exame ou consulta específico deve terminar com uma referência entre colchetes indicando a data e a origem, ex.: "[timeline 2025-03-14]", "[eco 2025-02-01]", "[consulta 2025-03-20]".
@@ -560,7 +587,11 @@ ${commonRules}`;
         status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const content = data.content?.find((b: any) => b.type === "text")?.text ?? "";
+    let content = data.content?.find((b: any) => b.type === "text")?.text ?? "";
+    // Reinsere o nome real do paciente (nunca enviado à IA) nos modos de documento clínico.
+    if (content.includes("[NOME_PACIENTE]")) {
+      content = content.split("[NOME_PACIENTE]").join(caso.patient_name ?? "Paciente");
+    }
     return new Response(JSON.stringify({ content, sources: sourcesOut, rag_hit: sourcesOut.length > 0 }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

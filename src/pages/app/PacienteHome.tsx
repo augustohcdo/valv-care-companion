@@ -22,8 +22,10 @@ export default function PacienteHome() {
 
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
     (async () => {
       const { data: pat } = await supabase.from("patients").select("*").is("deleted_at", null).eq("user_id", user.id).maybeSingle();
+      if (cancelled) return;
       setPatient(pat);
       if (pat?.linked_doctor_id) {
         const { data: doc } = await supabase
@@ -31,16 +33,19 @@ export default function PacienteHome() {
           .select("id, crm, crm_uf, specialty, institution, user_id")
           .eq("id", pat.linked_doctor_id)
           .maybeSingle();
+        if (cancelled) return;
         if (doc) {
           const { data: docProfile } = await supabase
             .from("profiles")
             .select("full_name")
             .eq("user_id", doc.user_id)
             .maybeSingle();
+          if (cancelled) return;
           setLinkedDoctor({ ...doc, full_name: docProfile?.full_name });
         }
       }
     })();
+    return () => { cancelled = true; };
   }, [user]);
 
   const firstName = profile?.full_name?.split(" ")[0] || "Paciente";

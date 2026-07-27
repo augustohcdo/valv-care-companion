@@ -1,12 +1,7 @@
 // FHIR Read endpoint — hospitais consultam resumo do paciente em FHIR R4
 // GET /fhir-read?patient=<uuid>&type=Condition,Observation
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-};
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
 async function sha256Hex(s: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -14,6 +9,14 @@ async function sha256Hex(s: string) {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = {
+    ...buildCorsHeaders(req),
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+  };
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const url = new URL(req.url);
@@ -184,9 +187,3 @@ Deno.serve(async (req) => {
 
   return json(bundle, 200);
 });
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}

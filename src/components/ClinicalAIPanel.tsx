@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Sparkles, Loader2, FileText, Stethoscope, TrendingUp, Send, AlertTriangle, BookOpen, ExternalLink, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { hasActiveConsent, registerConsent } from "@/lib/consent";
 import { toast } from "sonner";
 
 type Source = { title: string; organization: string; year: number; scope: "br" | "international"; url: string | null; similarity: number; review_status: string };
@@ -26,6 +27,29 @@ export function ClinicalAIPanel({ caseId }: Props) {
   const [chatSources, setChatSources] = useState<Source[]>([]);
   const [chatRagHit, setChatRagHit] = useState<boolean | null>(null);
   const [chatInput, setChatInput] = useState("");
+  const [aiConsent, setAiConsent] = useState<boolean | null>(null);
+  const [grantingConsent, setGrantingConsent] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    hasActiveConsent("ai_processing").then((ok) => {
+      if (!cancelled) setAiConsent(ok);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const grantAiConsent = async () => {
+    setGrantingConsent(true);
+    try {
+      await registerConsent({ type: "ai_processing", granted: true, source: "clinical_ai_panel" });
+      setAiConsent(true);
+    } catch (e) {
+      console.error(e);
+      toast.error("Não foi possível registrar o consentimento");
+    } finally {
+      setGrantingConsent(false);
+    }
+  };
 
   async function callAI(targetMode: Mode, question?: string, history?: ChatMsg[]) {
     setLoading(true);
@@ -86,6 +110,21 @@ export function ClinicalAIPanel({ caseId }: Props) {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {aiConsent === null ? (
+          <div className="flex items-center justify-center py-6 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        ) : aiConsent === false ? (
+          <div className="flex flex-col items-start gap-3 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 p-4 text-sm">
+            <p className="text-foreground">
+              Para usar a IA clínica, seus dados de caso (idade, sexo, sintomas, comorbidades, achados de exames e anotações — sem o seu nome) precisam ser enviados aos provedores Anthropic e OpenAI para processamento. Isso exige seu consentimento específico.
+            </p>
+            <Button size="sm" onClick={grantAiConsent} disabled={grantingConsent}>
+              {grantingConsent && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Ativar processamento por IA
+            </Button>
+          </div>
+        ) : (
         <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
           <TabsList className="grid grid-cols-4 w-full">
             <TabsTrigger value="summary"><FileText className="h-3.5 w-3.5 mr-1" />Resumo</TabsTrigger>
@@ -184,6 +223,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
             <p className="text-[10px] text-muted-foreground">Ctrl/⌘ + Enter para enviar</p>
           </TabsContent>
         </Tabs>
+        )}
 
         <div className="mt-4 flex items-start gap-2 text-[11px] bg-amber-500/10 border-2 border-amber-500/50 rounded-lg p-3 text-amber-900 dark:text-amber-100">
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />

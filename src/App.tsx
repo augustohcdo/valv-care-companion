@@ -17,12 +17,12 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ComingSoon from "./pages/ComingSoon";
 
-// Auth: pequenas, importadas direto
-import Login from "./pages/auth/Login";
-import Cadastro from "./pages/auth/Cadastro";
-import RecuperarSenha from "./pages/auth/RecuperarSenha";
-import RedefinirSenha from "./pages/auth/RedefinirSenha";
-import AuthCallback from "./pages/auth/AuthCallback";
+// Auth: lazy — não fazem parte do payload inicial da landing pública
+const Login = lazy(() => import("./pages/auth/Login"));
+const Cadastro = lazy(() => import("./pages/auth/Cadastro"));
+const RecuperarSenha = lazy(() => import("./pages/auth/RecuperarSenha"));
+const RedefinirSenha = lazy(() => import("./pages/auth/RedefinirSenha"));
+const AuthCallback = lazy(() => import("./pages/auth/AuthCallback"));
 
 // Públicas: lazy
 const Aprender = lazy(() => import("./pages/public/Aprender"));
@@ -94,11 +94,11 @@ const App = () => (
           <CookieBanner />
           <Routes>
             {/* Auth */}
-            <Route path="/auth/login" element={<Login />} />
-            <Route path="/auth/cadastro" element={<Cadastro />} />
-            <Route path="/auth/recuperar" element={<RecuperarSenha />} />
-            <Route path="/auth/redefinir" element={<RedefinirSenha />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/auth/login" element={withSuspense(<Login />, "form")} />
+            <Route path="/auth/cadastro" element={withSuspense(<Cadastro />, "form")} />
+            <Route path="/auth/recuperar" element={withSuspense(<RecuperarSenha />, "form")} />
+            <Route path="/auth/redefinir" element={withSuspense(<RedefinirSenha />, "form")} />
+            <Route path="/auth/callback" element={withSuspense(<AuthCallback />)} />
 
             {/* Área autenticada */}
             <Route

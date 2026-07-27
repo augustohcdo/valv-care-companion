@@ -29,9 +29,11 @@ export default function MedicoHome() {
 
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
     (async () => {
       setLoading(true);
       const { data: doc } = await supabase.from("doctors").select("*").eq("user_id", user.id).maybeSingle();
+      if (cancelled) return;
       setDoctor(doc);
       if (doc) {
         const [{ count: pc }, { count: cc }, { count: ac }, { data: caseRows }] = await Promise.all([
@@ -41,13 +43,15 @@ export default function MedicoHome() {
             .eq("doctor_id", doc.id).in("status", ["avaliacao_inicial", "em_seguimento", "pre_intervencao"]),
           supabase.from("clinical_cases").select("id, created_at, valve_type, severity, status, nyha").is("deleted_at", null).eq("doctor_id", doc.id).neq("status", "draft" as any),
         ]);
+        if (cancelled) return;
         setPatientCount(pc ?? 0);
         setCaseCount(cc ?? 0);
         setActiveCount(ac ?? 0);
         setCases(caseRows ?? []);
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     })();
+    return () => { cancelled = true; };
   }, [user]);
 
   if (loading) {
