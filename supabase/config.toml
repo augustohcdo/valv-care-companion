@@ -1,4 +1,4 @@
-project_id = "bjgzychcgaeyhfjvlsip"
+project_id = "qwiojyfxzvdcfbbexyxg"
 
 # Functions below don't authenticate via a Supabase-issued user JWT — they use
 # their own scheme (hospital API key, cron secret, public pre-auth token) — so

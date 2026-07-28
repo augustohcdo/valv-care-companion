@@ -5,8 +5,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 
-const EMBED_URL = "https://api.openai.com/v1/embeddings";
-const EMBED_MODEL = "text-embedding-3-large";
+const EMBED_MODEL = "gemini-embedding-001";
+const EMBED_URL = `https://generativelanguage.googleapis.com/v1beta/models/${EMBED_MODEL}:embedContent`;
 
 type SeedChunk = { source_slug: string; topic: string; section: string; content: string };
 
@@ -101,12 +101,12 @@ const SEED: SeedChunk[] = [
 async function embedText(apiKey: string, text: string): Promise<number[] | null> {
   const r = await fetch(EMBED_URL, {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: EMBED_MODEL, input: text }),
+    headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ content: { parts: [{ text }] } }),
   });
   if (!r.ok) { console.error("embed fail", r.status, await r.text()); return null; }
   const j = await r.json();
-  return j.data?.[0]?.embedding ?? null;
+  return j.embedding?.values ?? null;
 }
 
 Deno.serve(async (req) => {
@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const PUBLISHABLE = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return new Response(JSON.stringify({ error: "unauth" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (existing) { skipped++; continue; }
 
-      const embedding = await embedText(OPENAI_API_KEY, `${chunk.section}\n\n${chunk.content}`);
+      const embedding = await embedText(GEMINI_API_KEY, `${chunk.section}\n\n${chunk.content}`);
       if (!embedding) { skipped++; continue; }
 
       const { error } = await admin.from("knowledge_chunks").insert({

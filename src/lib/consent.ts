@@ -10,7 +10,7 @@ export type ConsentType =
   | "cookies_functional"
   | "cookies_analytics";
 
-export const CONSENT_VERSION = "2.1";
+export const CONSENT_VERSION = "2.2";
 
 export interface ConsentDefinition {
   type: ConsentType;
@@ -65,7 +65,7 @@ export const CONSENT_CATALOG: ConsentDefinition[] = [
     type: "ai_processing",
     title: "Processamento por IA clínica",
     description:
-      "Permito que dados do meu caso (idade, sexo, sintomas, comorbidades, achados de exames e anotações clínicas — sem meu nome) sejam enviados aos provedores de IA Anthropic e/ou OpenAI para o módulo de apoio à decisão clínica da plataforma.",
+      "Permito que dados do meu caso (idade, sexo, sintomas, comorbidades, achados de exames e anotações clínicas — sem meu nome) sejam enviados ao Google (API Gemini) para o módulo de apoio à decisão clínica da plataforma. No nível gratuito atual dessa API, o conteúdo enviado pode ser usado pelo Google para aprimorar seus produtos.",
     required: false,
     audience: "all",
   },

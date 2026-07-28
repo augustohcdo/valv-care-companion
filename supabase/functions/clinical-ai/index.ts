@@ -1,19 +1,18 @@
 // Edge function: clinical-ai
 // Modos: summary | suggest | trends | chat
-// Usa a Anthropic Messages API (ANTHROPIC_API_KEY) para geração de texto
-// e a API de embeddings da OpenAI (OPENAI_API_KEY) para a busca RAG.
+// Usa a Gemini API (GEMINI_API_KEY) para geração de texto e para os
+// embeddings usados na busca RAG (gemini-embedding-001, 3072 dimensões).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 
 // Máximo de chamadas de IA clínica por usuário por hora (controle de custo/abuso).
 const RATE_LIMIT_PER_HOUR = 30;
 
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_VERSION = "2023-06-01";
-const MODEL = "claude-opus-5";
+const GEMINI_MODEL = "gemini-3.5-flash";
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-const EMBED_URL = "https://api.openai.com/v1/embeddings";
-const EMBED_MODEL = "text-embedding-3-large";
+const EMBED_MODEL = "gemini-embedding-001";
+const EMBED_URL = `https://generativelanguage.googleapis.com/v1beta/models/${EMBED_MODEL}:embedContent`;
 
 // Mapeia valvopatia -> topic canônico usado nos knowledge_chunks
 function topicFromCase(valveType?: string, valveDisease?: string): string | null {
@@ -32,33 +31,29 @@ async function embedQuery(apiKey: string, text: string): Promise<number[] | null
   try {
     const r = await fetch(EMBED_URL, {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: EMBED_MODEL, input: text.slice(0, 4000) }),
+      headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ content: { parts: [{ text: text.slice(0, 4000) }] } }),
     });
     if (!r.ok) { console.error("embed failed", r.status, await r.text()); return null; }
     const j = await r.json();
-    return j.data?.[0]?.embedding ?? null;
+    return j.embedding?.values ?? null;
   } catch (e) { console.error("embed error", e); return null; }
 }
 
-async function callClaude(
+async function callGemini(
   apiKey: string,
-  body: { system?: string; messages: { role: "user" | "assistant"; content: string }[]; max_tokens: number },
+  body: { system?: string; messages: { role: "user" | "model"; content: string }[]; max_tokens: number },
 ): Promise<Response> {
-  return fetch(ANTHROPIC_URL, {
+  return fetch(GEMINI_URL, {
     method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": ANTHROPIC_VERSION,
-      "Content-Type": "application/json",
-    },
+    headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: MODEL,
-      max_tokens: body.max_tokens,
-      thinking: { type: "disabled" },
-      output_config: { effort: "medium" },
-      ...(body.system ? { system: body.system } : {}),
-      messages: body.messages,
+      ...(body.system ? { system_instruction: { parts: [{ text: body.system }] } } : {}),
+      generationConfig: {
+        maxOutputTokens: body.max_tokens,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
+      contents: body.messages.map((m) => ({ role: m.role, parts: [{ text: m.content }] })),
     }),
   });
 }
@@ -114,18 +109,19 @@ interface ReqBody {
   rawText?: string; // for extract_echo
 }
 
+// O frontend manda "assistant" (convenção comum); a API do Gemini espera "model".
+const toGeminiRole = (r: "user" | "assistant"): "user" | "model" => (r === "assistant" ? "model" : "user");
+
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
       Deno.env.get("SUPABASE_ANON_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY não configurada");
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY não configurada");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY não configurada");
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) throw new Error("Supabase env ausente");
 
     const authHeader = req.headers.get("Authorization");
@@ -148,7 +144,7 @@ Deno.serve(async (req) => {
     const userId = userRes.user.id;
 
     // ============================================================
-    // Rate limiting: cada chamada custa dinheiro real (Anthropic + OpenAI).
+    // Rate limiting: evita abuso do nível gratuito da API Gemini.
     // Limita chamadas por usuário/hora usando o audit_logs existente.
     // ============================================================
     const SERVICE_ROLE_RL = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -204,41 +200,36 @@ LAUDO:
 ${raw.slice(0, 8000)}
 """`;
 
-      const numOrNull = { anyOf: [{ type: "number" }, { type: "null" }] };
-      const r = await fetch(ANTHROPIC_URL, {
+      const numOrNull = { type: "NUMBER", nullable: true };
+      const r = await fetch(GEMINI_URL, {
         method: "POST",
-        headers: {
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": ANTHROPIC_VERSION,
-          "Content-Type": "application/json",
-        },
+        headers: { "x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: MODEL,
-          max_tokens: 1024,
-          thinking: { type: "disabled" },
-          output_config: { effort: "low" },
+          generationConfig: { maxOutputTokens: 1024, thinkingConfig: { thinkingBudget: 0 } },
           tools: [{
-            name: "extract_echo_data",
-            description: "Reporta os campos numéricos extraídos do laudo de ecocardiograma.",
-            input_schema: {
-              type: "object",
-              properties: {
-                lvef: numOrNull,
-                mean_gradient: numOrNull,
-                aortic_valve_area: numOrNull,
-                psap: numOrNull,
-                mitral_annulus_mm: numOrNull,
-                aortic_annulus_mm: numOrNull,
-                tricuspid_annulus_mm: numOrNull,
+            functionDeclarations: [{
+              name: "extract_echo_data",
+              description: "Reporta os campos numéricos extraídos do laudo de ecocardiograma.",
+              parameters: {
+                type: "OBJECT",
+                properties: {
+                  lvef: numOrNull,
+                  mean_gradient: numOrNull,
+                  aortic_valve_area: numOrNull,
+                  psap: numOrNull,
+                  mitral_annulus_mm: numOrNull,
+                  aortic_annulus_mm: numOrNull,
+                  tricuspid_annulus_mm: numOrNull,
+                },
+                required: [
+                  "lvef", "mean_gradient", "aortic_valve_area", "psap",
+                  "mitral_annulus_mm", "aortic_annulus_mm", "tricuspid_annulus_mm",
+                ],
               },
-              required: [
-                "lvef", "mean_gradient", "aortic_valve_area", "psap",
-                "mitral_annulus_mm", "aortic_annulus_mm", "tricuspid_annulus_mm",
-              ],
-            },
+            }],
           }],
-          tool_choice: { type: "tool", name: "extract_echo_data" },
-          messages: [{ role: "user", content: extractPrompt }],
+          toolConfig: { functionCallingConfig: { mode: "ANY", allowedFunctionNames: ["extract_echo_data"] } },
+          contents: [{ role: "user", parts: [{ text: extractPrompt }] }],
         }),
       });
       if (!r.ok) {
@@ -248,8 +239,9 @@ ${raw.slice(0, 8000)}
         });
       }
       const j = await r.json();
-      const toolUse = j.content?.find((b: any) => b.type === "tool_use");
-      const parsed: any = toolUse?.input ?? {};
+      const parts = j.candidates?.[0]?.content?.parts ?? [];
+      const functionCall = parts.find((p: any) => p.functionCall)?.functionCall;
+      const parsed: any = functionCall?.args ?? {};
       const clean = (v: any) => (typeof v === "number" && isFinite(v)) ? v : null;
       const lvef = clean(parsed.lvef);
       const mean_gradient = clean(parsed.mean_gradient);
@@ -531,7 +523,7 @@ ${commonRules}`;
     let sourcesOut: Array<{ title: string; organization: string; year: number; scope: string; url: string | null; similarity: number; review_status: string }> = [];
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (SERVICE_ROLE) {
-      const embedding = await embedQuery(OPENAI_API_KEY, ragQuery);
+      const embedding = await embedQuery(GEMINI_API_KEY, ragQuery);
       if (embedding) {
         const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
         const { data: matches, error: matchErr } = await admin.rpc("match_knowledge", {
@@ -556,13 +548,13 @@ ${commonRules}`;
       }
     }
 
-    const messages: { role: "user" | "assistant"; content: string }[] = [];
+    const messages: { role: "user" | "model"; content: string }[] = [];
     if (mode === "chat" && body.history?.length) {
-      messages.push(...body.history.slice(-10));
+      messages.push(...body.history.slice(-10).map((m) => ({ role: toGeminiRole(m.role), content: m.content })));
     }
     messages.push({ role: "user", content: userPrompt + ragBlock });
 
-    const aiResp = await callClaude(ANTHROPIC_API_KEY, {
+    const aiResp = await callGemini(GEMINI_API_KEY, {
       system: SYSTEM_PROMPT,
       messages,
       max_tokens: mode === "summary" ? 2000 : 4000,
@@ -570,7 +562,7 @@ ${commonRules}`;
 
     if (!aiResp.ok) {
       const txt = await aiResp.text();
-      console.error("Anthropic error", aiResp.status, txt);
+      console.error("Gemini error", aiResp.status, txt);
       if (aiResp.status === 429) {
         return new Response(JSON.stringify({ error: "Limite de uso atingido. Tente novamente em instantes." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -582,12 +574,14 @@ ${commonRules}`;
     }
 
     const data = await aiResp.json();
-    if (data.stop_reason === "refusal") {
+    const candidate = data.candidates?.[0];
+    if (!candidate || (candidate.finishReason && candidate.finishReason !== "STOP" && candidate.finishReason !== "MAX_TOKENS")) {
+      console.error("Gemini blocked/no candidate", JSON.stringify(data).slice(0, 500));
       return new Response(JSON.stringify({ error: "A IA não pôde processar esta solicitação." }), {
         status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    let content = data.content?.find((b: any) => b.type === "text")?.text ?? "";
+    let content = candidate.content?.parts?.find((b: any) => typeof b.text === "string")?.text ?? "";
     // Reinsere o nome real do paciente (nunca enviado à IA) nos modos de documento clínico.
     if (content.includes("[NOME_PACIENTE]")) {
       content = content.split("[NOME_PACIENTE]").join(caso.patient_name ?? "Paciente");

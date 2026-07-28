@@ -6,8 +6,8 @@ const Privacidade = () => (
       eyebrow: "Documentos legais",
       title: "Política de Privacidade e Proteção de Dados",
       description: "Como coletamos, usamos, compartilhamos e protegemos seus dados pessoais e dados sensíveis de saúde, em conformidade com a LGPD.",
-      effectiveDate: "27 de julho de 2026",
-      version: "2.1",
+      effectiveDate: "28 de julho de 2026",
+      version: "2.2",
       contact: { dpoEmail: "valvepath@gmail.com", supportEmail: "valvepath@gmail.com" },
       sections: [
         {
@@ -52,15 +52,15 @@ const Privacidade = () => (
           body: [
             "Médico vinculado: o paciente autoriza, em consentimento granular e revogável, que seu médico vinculado acesse os dados clínicos registrados na Plataforma.",
             "Operadores e provedores de tecnologia: provedor de nuvem (armazenamento e processamento), provedor de e-mail transacional, provedor de autenticação. Todos obrigados contratualmente ao sigilo e a padrões equivalentes da LGPD.",
-            "Provedores de Inteligência Artificial (Anthropic e OpenAI): quando você utiliza o módulo de apoio à decisão clínica baseado em IA (mediante consentimento específico 'Processamento por IA clínica'), dados do caso — idade, sexo, sintomas, comorbidades, achados de exames e anotações clínicas — são enviados à Anthropic (modelos Claude) e/ou à OpenAI (geração de embeddings para busca em base de diretrizes), empresas sediadas nos Estados Unidos, para processamento em tempo real. O nome do paciente é minimizado/omitido nessas chamadas sempre que tecnicamente possível. Conforme os termos de API vigentes desses provedores, os dados enviados não são utilizados para treinar seus modelos de IA; eles atuam como operadores, sob os respectivos termos de processamento de dados.",
+            "Provedor de Inteligência Artificial (Google Gemini): quando você utiliza o módulo de apoio à decisão clínica baseado em IA (mediante consentimento específico 'Processamento por IA clínica'), dados do caso — idade, sexo, sintomas, comorbidades, achados de exames e anotações clínicas — são enviados à API Gemini do Google, empresa sediada nos Estados Unidos, para processamento em tempo real e para gerar embeddings de busca na base de diretrizes. O nome do paciente é minimizado/omitido nessas chamadas sempre que tecnicamente possível. IMPORTANTE: hoje utilizamos o nível gratuito dessa API — nos termos vigentes do Google para esse nível, o conteúdo enviado pode ser usado para aprimorar os produtos do Google, diferente de um nível pago (que teria garantia contratual de não uso para esse fim). Planejamos migrar para um nível pago com essa garantia assim que possível, e atualizaremos esta política quando isso ocorrer.",
             "Autoridades competentes: mediante requisição legal ou ordem judicial.",
             "Sucessores em operações societárias: em caso de fusão, aquisição ou reorganização, mediante notificação prévia.",
-            "Não vendemos seus dados. Não usamos seus dados clínicos para treinar modelos de IA de terceiros sem seu consentimento explícito e separado.",
+            "Não vendemos seus dados. O único processamento por IA de terceiro que pode incluir uso para aprimoramento de produto é o descrito acima (Google Gemini, nível gratuito), e só ocorre mediante o consentimento específico 'Processamento por IA clínica'.",
           ],
         },
         {
           heading: "Transferência internacional",
-          body: "Quando dados forem processados fora do Brasil — incluindo pela Anthropic e pela OpenAI (ambas sediadas nos Estados Unidos), utilizadas no módulo de apoio à decisão clínica por IA, além de subprocessadores de nuvem — garantimos que o destino oferece grau de proteção adequado, conforme Art. 33 e seguintes da LGPD, mediante cláusulas contratuais padrão, certificações ou outros mecanismos reconhecidos pela ANPD.",
+          body: "Quando dados forem processados fora do Brasil — incluindo pelo Google (Gemini API, sediado nos Estados Unidos), utilizado no módulo de apoio à decisão clínica por IA, além de subprocessadores de nuvem — garantimos que o destino oferece grau de proteção adequado, conforme Art. 33 e seguintes da LGPD, mediante cláusulas contratuais padrão, certificações ou outros mecanismos reconhecidos pela ANPD.",
         },
         {
           heading: "Seus direitos como titular (Art. 18, LGPD)",

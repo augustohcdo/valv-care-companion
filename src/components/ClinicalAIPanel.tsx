@@ -117,7 +117,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
         ) : aiConsent === false ? (
           <div className="flex flex-col items-start gap-3 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 p-4 text-sm">
             <p className="text-foreground">
-              Para usar a IA clínica, seus dados de caso (idade, sexo, sintomas, comorbidades, achados de exames e anotações — sem o seu nome) precisam ser enviados aos provedores Anthropic e OpenAI para processamento. Isso exige seu consentimento específico.
+              Para usar a IA clínica, seus dados de caso (idade, sexo, sintomas, comorbidades, achados de exames e anotações — sem o seu nome) precisam ser enviados ao Google (API Gemini) para processamento. Isso exige seu consentimento específico.
             </p>
             <Button size="sm" onClick={grantAiConsent} disabled={grantingConsent}>
               {grantingConsent && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
