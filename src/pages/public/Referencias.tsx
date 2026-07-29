@@ -6,6 +6,7 @@ const refs = [
   {
     section: "Diretrizes clínicas",
     items: [
+      { title: "Diretriz Brasileira de Valvopatias 2024", org: "Sociedade Brasileira de Cardiologia (SBC)" },
       { title: "2025 ESC/EACTS Guidelines for the management of valvular heart disease", org: "European Society of Cardiology / European Association for Cardio-Thoracic Surgery" },
       { title: "2020 ACC/AHA Guideline for the Management of Patients With Valvular Heart Disease", org: "American College of Cardiology / American Heart Association" },
     ],
