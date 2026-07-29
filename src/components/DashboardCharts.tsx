@@ -3,7 +3,8 @@ import {
 } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { valveTypeLabels, severityLabels, caseStatusLabels, nyhaLabels } from "@/lib/clinicalLabels";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, HeartPulse, AlertTriangle, ClipboardList, Gauge } from "lucide-react";
+import { ScrollReveal } from "@/components/ScrollReveal";
 
 const CHART_COLORS = [
   "hsl(var(--primary))",
@@ -54,83 +55,123 @@ export function DashboardCharts({ cases }: Props) {
 
   return (
     <div className="grid lg:grid-cols-2 gap-4">
-      <Card className="shadow-sm-soft">
-        <CardHeader>
-          <CardTitle className="text-base">Distribuição por valvopatia</CardTitle>
-          <CardDescription>Casos por valva afetada</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={240}>
-            <PieChart>
-              <Pie data={byValve} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(e) => e.value}>
-                {byValve.map((_, i) => (
-                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={{ background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-            </PieChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm-soft">
-        <CardHeader>
-          <CardTitle className="text-base">Severidade</CardTitle>
-          <CardDescription>Gravidade das lesões valvares</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={bySeverity} margin={{ left: -10 }}>
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-              <Bar dataKey="value" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm-soft">
-        <CardHeader>
-          <CardTitle className="text-base">Status dos casos</CardTitle>
-          <CardDescription>Em que etapa do cuidado</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={byStatus} layout="vertical" margin={{ left: 80 }}>
-              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={120} />
-              <Tooltip contentStyle={{ background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-              <Bar dataKey="value" fill="hsl(var(--accent))" radius={[0, 6, 6, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm-soft">
-        <CardHeader>
-          <CardTitle className="text-base">Classe funcional NYHA</CardTitle>
-          <CardDescription>Distribuição entre os casos</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {byNyha.length > 0 ? (
+      <ScrollReveal>
+        <Card className="card-elevated h-full">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="h-7 w-7 rounded-lg bg-accent-soft text-accent flex items-center justify-center">
+                <HeartPulse className="h-4 w-4" />
+              </span>
+              Distribuição por valvopatia
+            </CardTitle>
+            <CardDescription>Casos por valva afetada</CardDescription>
+          </CardHeader>
+          <CardContent>
             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
-                <Pie data={byNyha} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} label={(e) => e.value}>
-                  {byNyha.map((_, i) => (
+                <Pie data={byValve} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={44} outerRadius={80} paddingAngle={2} label={(e) => e.value}>
+                  {byValve.map((_, i) => (
                     <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip contentStyle={{ background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
               </PieChart>
             </ResponsiveContainer>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-12">Sem dados de NYHA registrados.</p>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </ScrollReveal>
+
+      <ScrollReveal delay={0.06}>
+        <Card className="card-elevated h-full">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="h-7 w-7 rounded-lg bg-warning/15 text-warning flex items-center justify-center">
+                <AlertTriangle className="h-4 w-4" />
+              </span>
+              Severidade
+            </CardTitle>
+            <CardDescription>Gravidade das lesões valvares</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={bySeverity} margin={{ left: -10 }}>
+                <defs>
+                  <linearGradient id="severityGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={1} />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.55} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                <Bar dataKey="value" fill="url(#severityGradient)" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </ScrollReveal>
+
+      <ScrollReveal>
+        <Card className="card-elevated h-full">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="h-7 w-7 rounded-lg bg-accent-soft text-accent flex items-center justify-center">
+                <ClipboardList className="h-4 w-4" />
+              </span>
+              Status dos casos
+            </CardTitle>
+            <CardDescription>Em que etapa do cuidado</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={byStatus} layout="vertical" margin={{ left: 80 }}>
+                <defs>
+                  <linearGradient id="statusGradient" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="hsl(var(--accent))" stopOpacity={1} />
+                    <stop offset="100%" stopColor="hsl(var(--accent))" stopOpacity={0.55} />
+                  </linearGradient>
+                </defs>
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={120} />
+                <Tooltip contentStyle={{ background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                <Bar dataKey="value" fill="url(#statusGradient)" radius={[0, 6, 6, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </ScrollReveal>
+
+      <ScrollReveal delay={0.06}>
+        <Card className="card-elevated h-full">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="h-7 w-7 rounded-lg bg-success/15 text-success flex items-center justify-center">
+                <Gauge className="h-4 w-4" />
+              </span>
+              Classe funcional NYHA
+            </CardTitle>
+            <CardDescription>Distribuição entre os casos</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {byNyha.length > 0 ? (
+              <ResponsiveContainer width="100%" height={240}>
+                <PieChart>
+                  <Pie data={byNyha} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} label={(e) => e.value}>
+                    {byNyha.map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-12">Sem dados de NYHA registrados.</p>
+            )}
+          </CardContent>
+        </Card>
+      </ScrollReveal>
     </div>
   );
 }

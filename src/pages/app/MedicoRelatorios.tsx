@@ -22,6 +22,7 @@ import { CalendarRange } from "lucide-react";
 import {
   severityLabels, valveTypeLabels, caseStatusLabels,
 } from "@/lib/clinicalLabels";
+import { ScrollReveal } from "@/components/ScrollReveal";
 
 const CHART_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--muted-foreground))", "hsl(var(--success))"];
 
@@ -251,10 +252,10 @@ export default function MedicoRelatorios() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi icon={<Users className="h-4 w-4" />} label="Pacientes" value={agg.totalPatients} />
-        <Kpi icon={<FileText className="h-4 w-4" />} label="Casos" value={agg.totalCases} />
-        <Kpi icon={<Heart className="h-4 w-4" />} label="FE média" value={agg.avgEF != null ? `${agg.avgEF.toFixed(1)}%` : "—"} />
-        <Kpi icon={<Activity className="h-4 w-4" />} label="Aderência (30d)" value={agg.avgAdherence != null ? `${agg.avgAdherence.toFixed(0)}%` : "—"} />
+        <ScrollReveal><Kpi icon={<Users className="h-4 w-4" />} label="Pacientes" value={agg.totalPatients} /></ScrollReveal>
+        <ScrollReveal delay={0.04}><Kpi icon={<FileText className="h-4 w-4" />} label="Casos" value={agg.totalCases} /></ScrollReveal>
+        <ScrollReveal delay={0.08}><Kpi icon={<Heart className="h-4 w-4" />} label="FE média" value={agg.avgEF != null ? `${agg.avgEF.toFixed(1)}%` : "—"} /></ScrollReveal>
+        <ScrollReveal delay={0.12}><Kpi icon={<Activity className="h-4 w-4" />} label="Aderência (30d)" value={agg.avgAdherence != null ? `${agg.avgAdherence.toFixed(0)}%` : "—"} /></ScrollReveal>
       </div>
 
       {agg.patientsCritical > 0 && (
@@ -274,7 +275,7 @@ export default function MedicoRelatorios() {
       )}
 
       {/* Relatório consolidado por período */}
-      <Card className="shadow-sm-soft border-primary/20">
+      <Card className="card-elevated border-primary/20">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <CalendarRange className="h-4 w-4 text-primary" />
@@ -317,60 +318,78 @@ export default function MedicoRelatorios() {
 
       {/* Distribuições */}
       <div className="grid lg:grid-cols-2 gap-4">
-        <Card className="shadow-sm-soft">
-          <CardHeader><CardTitle className="text-base">Casos por severidade</CardTitle></CardHeader>
-          <CardContent>
-            {severityData.length === 0 ? <Empty /> : (
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <Pie data={severityData} dataKey="value" nameKey="name" outerRadius={80} label>
-                    {severityData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
+        <ScrollReveal>
+          <Card className="card-elevated h-full">
+            <CardHeader><CardTitle className="text-base">Casos por severidade</CardTitle></CardHeader>
+            <CardContent>
+              {severityData.length === 0 ? <Empty /> : (
+                <ResponsiveContainer width="100%" height={240}>
+                  <PieChart>
+                    <Pie data={severityData} dataKey="value" nameKey="name" innerRadius={44} outerRadius={80} paddingAngle={2} label>
+                      {severityData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </ScrollReveal>
 
-        <Card className="shadow-sm-soft">
-          <CardHeader><CardTitle className="text-base">Casos por status</CardTitle></CardHeader>
-          <CardContent>
-            {statusData.length === 0 ? <Empty /> : (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={statusData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis type="number" allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                  <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} width={120} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
+        <ScrollReveal delay={0.06}>
+          <Card className="card-elevated h-full">
+            <CardHeader><CardTitle className="text-base">Casos por status</CardTitle></CardHeader>
+            <CardContent>
+              {statusData.length === 0 ? <Empty /> : (
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={statusData} layout="vertical">
+                    <defs>
+                      <linearGradient id="relStatusGradient" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={1} />
+                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.55} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis type="number" allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} width={120} />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="url(#relStatusGradient)" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </ScrollReveal>
 
-        <Card className="shadow-sm-soft lg:col-span-2">
-          <CardHeader><CardTitle className="text-base">Casos por valvopatia</CardTitle></CardHeader>
-          <CardContent>
-            {valveData.length === 0 ? <Empty /> : (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={valveData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                  <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
+        <ScrollReveal className="lg:col-span-2">
+          <Card className="card-elevated">
+            <CardHeader><CardTitle className="text-base">Casos por valvopatia</CardTitle></CardHeader>
+            <CardContent>
+              {valveData.length === 0 ? <Empty /> : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={valveData}>
+                    <defs>
+                      <linearGradient id="relValveGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="hsl(var(--accent))" stopOpacity={1} />
+                        <stop offset="100%" stopColor="hsl(var(--accent))" stopOpacity={0.55} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="url(#relValveGradient)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </ScrollReveal>
       </div>
 
       {/* Lista de casos recentes */}
-      <Card className="shadow-sm-soft">
+      <Card className="card-elevated">
         <CardHeader><CardTitle className="text-base inline-flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Casos recentes</CardTitle></CardHeader>
         <CardContent>
           {cases.length === 0 ? <Empty /> : (
@@ -406,12 +425,15 @@ export default function MedicoRelatorios() {
 
 function Kpi({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
   return (
-    <Card className="shadow-sm-soft">
+    <Card className="card-elevated">
       <CardContent className="p-4">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
-          {icon} {label}
+        <div className="flex items-center justify-between mb-1.5">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+          <div className="h-7 w-7 rounded-lg bg-accent-soft text-accent flex items-center justify-center shrink-0">
+            {icon}
+          </div>
         </div>
-        <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
+        <p className="text-2xl font-bold text-foreground">{value}</p>
       </CardContent>
     </Card>
   );
