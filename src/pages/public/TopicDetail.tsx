@@ -3,6 +3,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ScrollReveal } from "@/components/ScrollReveal";
+import { categoryIllustrations } from "@/components/illustrations/categoryIllustrations";
 import { patientTopics, patientCategories } from "@/data/patientContent";
 import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen } from "lucide-react";
 
@@ -13,6 +15,7 @@ const TopicDetail = () => {
   if (!topic) return <Navigate to="/aprender" replace />;
 
   const cat = patientCategories[topic.category];
+  const Illustration = categoryIllustrations[topic.category];
   const idx = patientTopics.findIndex((t) => t.slug === slug);
   const prev = patientTopics[idx - 1];
   const next = patientTopics[idx + 1];
@@ -33,29 +36,39 @@ const TopicDetail = () => {
       <article className="container-vp py-12">
         <div className="grid lg:grid-cols-[1fr_280px] gap-10">
           <div className="max-w-3xl">
+            {Illustration && (
+              <ScrollReveal>
+                <Card className="p-6 mb-8 card-elevated bg-accent-soft/60 flex items-center justify-center">
+                  <Illustration className="w-full max-w-[220px] h-auto" />
+                </Card>
+              </ScrollReveal>
+            )}
+
             {topic.sections.map((sec, i) => (
-              <div key={i} className="mb-8">
+              <ScrollReveal key={i} delay={Math.min(i * 0.06, 0.3)} className="mb-8">
                 <h2 className="font-display font-semibold text-xl text-foreground mb-3">
                   {sec.heading}
                 </h2>
                 <p className="text-base text-foreground/85 leading-relaxed">{sec.body}</p>
-              </div>
+              </ScrollReveal>
             ))}
 
             {topic.alerts && topic.alerts.length > 0 && (
-              <Card className="p-5 border-destructive/30 bg-destructive/5 mb-8">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="font-display font-semibold text-sm text-foreground mb-2">Sinais de atenção</h3>
-                    <ul className="space-y-1.5">
-                      {topic.alerts.map((a, i) => (
-                        <li key={i} className="text-sm text-foreground/85 leading-relaxed">• {a}</li>
-                      ))}
-                    </ul>
+              <ScrollReveal>
+                <Card className="p-5 border-destructive/30 bg-destructive/5 mb-8">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="font-display font-semibold text-sm text-foreground mb-2">Sinais de atenção</h3>
+                      <ul className="space-y-1.5">
+                        {topic.alerts.map((a, i) => (
+                          <li key={i} className="text-sm text-foreground/85 leading-relaxed">• {a}</li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
-                </div>
-              </Card>
+                </Card>
+              </ScrollReveal>
             )}
 
             <MedicalDisclaimer className="mb-8" />

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { TopicCard } from "@/components/TopicCard";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
+import { ScrollReveal } from "@/components/ScrollReveal";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { patientTopics, patientCategories } from "@/data/patientContent";
@@ -102,7 +103,7 @@ const Aprender = () => {
           const Icon = categoryIcons[catKey] ?? BookOpen;
           if (!cat) return null;
           return (
-            <div key={catKey} className="mb-14">
+            <ScrollReveal key={catKey} className="mb-14">
               <div className="flex items-center gap-3 mb-5">
                 <div className="h-10 w-10 rounded-lg bg-accent-soft text-accent flex items-center justify-center">
                   <Icon className="h-5 w-5" />
@@ -123,7 +124,7 @@ const Aprender = () => {
                   />
                 ))}
               </div>
-            </div>
+            </ScrollReveal>
           );
         })}
 
