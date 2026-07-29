@@ -254,7 +254,7 @@ function SourcesList({ sources }: { sources: Source[] }) {
               <span className="font-medium text-foreground">{s.organization} {s.year}</span>
               <span className="text-muted-foreground"> · {s.title}</span>
               {s.review_status === "ai_generated" && (
-                <span className="ml-1.5 text-[9px] uppercase font-semibold text-destructive">· preliminar</span>
+                <span className="ml-1.5 text-[9px] uppercase font-semibold text-destructive">· gerado por IA · base em diretriz</span>
               )}
               {s.url && (
                 <a href={s.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 ml-1.5 text-primary hover:underline">
