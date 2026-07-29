@@ -1,7 +1,6 @@
 import { useParams, Link, Navigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
-import { ContentReviewBadge } from "@/components/ContentReviewBadge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { patientTopics, patientCategories } from "@/data/patientContent";
@@ -34,8 +33,6 @@ const TopicDetail = () => {
       <article className="container-vp py-12">
         <div className="grid lg:grid-cols-[1fr_280px] gap-10">
           <div className="max-w-3xl">
-            <ContentReviewBadge status="ai_generated_pending" className="mb-6" />
-
             {topic.sections.map((sec, i) => (
               <div key={i} className="mb-8">
                 <h2 className="font-display font-semibold text-xl text-foreground mb-3">
