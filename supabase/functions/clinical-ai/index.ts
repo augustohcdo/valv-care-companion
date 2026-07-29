@@ -260,11 +260,9 @@ ${raw.slice(0, 8000)}
         const admin = createClient(SUPABASE_URL, SERVICE_ROLE_EX);
         const base = admin.from("prosthesis_catalog")
           .select("id, manufacturer, model_name, size, annulus_min_mm, annulus_max_mm, reference_url")
-          .eq("type", "anel_anuloplastia").eq("active", true).not("size", "is", null);
-        const filtered = valve === "tricuspide"
-          ? base.ilike("model_name", "%ricusp%")
-          : base.not("model_name", "ilike", "%ricusp%");
-        const { data: rings } = await filtered;
+          .eq("type", "anel_anuloplastia").eq("active", true).not("size", "is", null)
+          .eq("valve_position", valve);
+        const { data: rings } = await base;
         if (!rings) return [];
         return rings.map((r: any) => {
           const min = Number(r.annulus_min_mm ?? r.size);
