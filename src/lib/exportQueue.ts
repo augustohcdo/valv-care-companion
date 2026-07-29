@@ -9,6 +9,8 @@
 
 export type ExportStatus = "queued" | "loading" | "running" | "success" | "error";
 
+export type ExportKind = "csv" | "xlsx" | "pdf";
+
 export interface ExportJob {
   id: string;
   label: string;
@@ -21,6 +23,8 @@ export interface ExportJob {
   run: (ctx: JobContext) => Promise<void>;
   /** Quantas tentativas já foram feitas */
   attempts: number;
+  /** Tipo de arquivo gerado, usado só para exibir o ícone certo no dock. */
+  kind?: ExportKind;
 }
 
 export interface JobContext {
@@ -55,7 +59,7 @@ class ExportQueue {
    * Adiciona um job. Retorna o id gerado.
    * Mantém auto-limpeza: jobs `success` somem após 6s.
    */
-  enqueue(input: { label: string; run: ExportJob["run"] }): string {
+  enqueue(input: { label: string; run: ExportJob["run"]; kind?: ExportKind }): string {
     const id = crypto.randomUUID();
     const job: ExportJob = {
       id,
@@ -64,6 +68,7 @@ class ExportQueue {
       createdAt: Date.now(),
       run: input.run,
       attempts: 0,
+      kind: input.kind,
     };
     this.jobs = [...this.jobs, job];
     this.emit();

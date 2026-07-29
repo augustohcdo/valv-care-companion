@@ -15,7 +15,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import type { CohortMetrics } from "@/lib/cohortPdf";
-import { queueCsvExport, queueCohortPdf, queueMonthlyReportPdf } from "@/lib/exporters";
+import { queueCsvExport, queueXlsxExport, queueCohortPdf, queueMonthlyReportPdf } from "@/lib/exporters";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CalendarRange } from "lucide-react";
@@ -133,6 +133,16 @@ export default function MedicoRelatorios() {
     toast.message("CSV enfileirado", { description: "Acompanhe na barra de exportações." });
   };
 
+  const handleExportXlsx = () => {
+    if (!cases.length) { toast.error("Sem casos para exportar"); return; }
+    queueXlsxExport({
+      label: "Excel — todos os casos",
+      filename: `valvepath-casos-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      cases,
+    });
+    toast.message("Excel enfileirado", { description: "Acompanhe na barra de exportações." });
+  };
+
   const handleExportPdf = () => {
     if (!cases.length) { toast.error("Sem casos para exportar"); return; }
     const metrics: CohortMetrics = {
@@ -242,6 +252,9 @@ export default function MedicoRelatorios() {
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={handleExportCsv}>
               <FileSpreadsheet className="h-4 w-4" /> CSV
+            </Button>
+            <Button variant="outline" onClick={handleExportXlsx}>
+              <FileSpreadsheet className="h-4 w-4" /> Excel
             </Button>
             <Button onClick={handleExportPdf}>
               <Download className="h-4 w-4" /> PDF executivo

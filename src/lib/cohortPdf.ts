@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import { severityLabels, valveTypeLabels, caseStatusLabels } from "@/lib/clinicalLabels";
+import { PDF_COLORS as C, addPdfFooter, addCoverPage } from "@/lib/pdfShared";
 
 export interface CohortMetrics {
   doctor?: { full_name: string; crm: string; crm_uf: string; specialty: string } | null;
@@ -14,30 +15,26 @@ export interface CohortMetrics {
   recentCases: Array<{ patient_name: string; severity: string; status: string; created_at: string }>;
 }
 
-const C = {
-  primary: [11, 79, 108] as [number, number, number],
-  text: [30, 30, 30] as [number, number, number],
-  muted: [110, 110, 110] as [number, number, number],
-  bg: [245, 247, 250] as [number, number, number],
-};
+const DISCLAIMER = "ValvePath — Relatório de coorte • Apoio à prática clínica, não substitui auditoria oficial.";
 
 export function exportCohortPDF(m: CohortMetrics) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const mx = 15;
+
+  addCoverPage(doc, {
+    title: "Relatório executivo da coorte",
+    subtitle: `${m.totalPatients} pacientes vinculados · ${m.totalCases} casos registrados`,
+    doctor: m.doctor,
+  });
+
   let y = 15;
 
   const ensure = (h: number) => {
     if (y + h > pageH - 18) { footer(); doc.addPage(); y = 15; }
   };
-  const footer = () => {
-    const tot = doc.getNumberOfPages();
-    const cur = doc.getCurrentPageInfo().pageNumber;
-    doc.setFontSize(8); doc.setTextColor(...C.muted);
-    doc.text("ValvePath — Relatório de coorte • Apoio à prática clínica.", mx, pageH - 10);
-    doc.text(`Página ${cur}/${tot}`, pageW - mx, pageH - 10, { align: "right" });
-  };
+  const footer = () => addPdfFooter(doc, DISCLAIMER);
   const section = (label: string) => {
     ensure(12);
     doc.setFillColor(...C.primary); doc.rect(mx, y, 1.5, 6, "F");
@@ -45,16 +42,6 @@ export function exportCohortPDF(m: CohortMetrics) {
     doc.text(label.toUpperCase(), mx + 4, y + 4.5);
     y += 9; doc.setFont("helvetica", "normal"); doc.setTextColor(...C.text);
   };
-
-  // HEADER
-  doc.setFillColor(...C.primary); doc.rect(0, 0, pageW, 22, "F");
-  doc.setTextColor(255, 255, 255); doc.setFontSize(16); doc.setFont("helvetica", "bold");
-  doc.text("ValvePath", mx, 12);
-  doc.setFontSize(9); doc.setFont("helvetica", "normal");
-  doc.text("Relatório executivo da coorte", mx, 17);
-  doc.text(`Emitido em ${new Date().toLocaleString("pt-BR")}`, pageW - mx, 12, { align: "right" });
-  if (m.doctor) doc.text(`Dr(a). ${m.doctor.full_name} — CRM ${m.doctor.crm}/${m.doctor.crm_uf}`, pageW - mx, 17, { align: "right" });
-  y = 30;
 
   // KPIs
   section("Visão geral");

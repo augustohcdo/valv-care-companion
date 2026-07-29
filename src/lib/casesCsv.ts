@@ -1,7 +1,7 @@
 // Exportação CSV de casos clínicos
 import { valveTypeLabels, valveDiseaseLabels, severityLabels, caseStatusLabels, nyhaLabels } from "./clinicalLabels";
 
-interface CaseRow {
+export interface CaseRow {
   id: string;
   patient_name: string;
   patient_age: number | null;
@@ -24,7 +24,7 @@ interface CaseRow {
   updated_at: string;
 }
 
-const COLUMNS: { header: string; get: (c: CaseRow) => string | number | null | undefined }[] = [
+export const COLUMNS: { header: string; get: (c: CaseRow) => string | number | null | undefined }[] = [
   { header: "ID", get: (c) => c.id },
   { header: "Paciente", get: (c) => c.patient_name },
   { header: "Idade", get: (c) => c.patient_age ?? "" },

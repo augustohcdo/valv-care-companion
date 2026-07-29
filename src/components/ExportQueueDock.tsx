@@ -5,7 +5,10 @@ import {
   RotateCw,
   X,
   Download,
+  FileSpreadsheet,
+  FileText,
 } from "lucide-react";
+import type { ExportKind } from "@/lib/exportQueue";
 import { useExportQueue } from "@/hooks/useExportQueue";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -59,7 +62,8 @@ export const ExportQueueDock = () => {
               <div className="flex items-start gap-3">
                 <StatusIcon status={job.status} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
+                  <p className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
+                    <KindIcon kind={job.kind} />
                     {job.label}
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -112,6 +116,12 @@ export const ExportQueueDock = () => {
     </div>
   );
 };
+
+function KindIcon({ kind }: { kind?: ExportKind }) {
+  if (!kind) return null;
+  if (kind === "pdf") return <FileText className="h-3 w-3 text-muted-foreground shrink-0" />;
+  return <FileSpreadsheet className="h-3 w-3 text-muted-foreground shrink-0" />;
+}
 
 function StatusIcon({ status }: { status: string }) {
   if (status === "success")

@@ -15,6 +15,7 @@ export function queueCsvExport(input: {
 }): string {
   return exportQueue.enqueue({
     label: input.label,
+    kind: "csv",
     run: async ({ setStatus, setProgress }) => {
       setStatus("loading");
       setProgress(20);
@@ -22,6 +23,28 @@ export function queueCsvExport(input: {
       setStatus("running");
       setProgress(70);
       exportCasesToCsv(input.cases, input.filename);
+      setProgress(100);
+    },
+  });
+}
+
+// ---- Excel (.xlsx) -------------------------------------------------------
+
+export function queueXlsxExport(input: {
+  label: string;
+  filename: string;
+  cases: import("./casesCsv").CaseRow[];
+}): string {
+  return exportQueue.enqueue({
+    label: input.label,
+    kind: "xlsx",
+    run: async ({ setStatus, setProgress }) => {
+      setStatus("loading");
+      setProgress(15);
+      const { exportCasesToXlsx } = await import("./casesXlsx");
+      setStatus("running");
+      setProgress(60);
+      await exportCasesToXlsx(input.cases, input.filename);
       setProgress(100);
     },
   });
@@ -35,6 +58,7 @@ export function queuePatientPdf(input: {
 }): string {
   return exportQueue.enqueue({
     label: input.label,
+    kind: "pdf",
     run: async ({ setStatus, setProgress }) => {
       setStatus("loading");
       setProgress(15);
@@ -58,6 +82,7 @@ export function queueCohortPdf(input: {
 }): string {
   return exportQueue.enqueue({
     label: input.label,
+    kind: "pdf",
     run: async ({ setStatus, setProgress }) => {
       setStatus("loading");
       setProgress(20);
@@ -78,6 +103,7 @@ export function queueMonthlyReportPdf(input: {
 }): string {
   return exportQueue.enqueue({
     label: input.label,
+    kind: "pdf",
     run: async ({ setStatus, setProgress }) => {
       setStatus("loading");
       setProgress(15);
