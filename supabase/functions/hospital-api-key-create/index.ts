@@ -2,6 +2,7 @@
 // Retorna a chave em texto-claro UMA ÚNICA VEZ.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { logError } from "../_shared/logError.ts";
 
 async function sha256Hex(s: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -23,6 +24,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
+  try {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) return json({ error: "unauthorized" }, 401);
 
@@ -68,4 +70,12 @@ Deno.serve(async (req) => {
   });
 
   return json({ ...data, api_key: key, warning: "Salve esta chave agora — ela não será exibida novamente." }, 200);
+  } catch (e) {
+    await logError({
+      source: "edge_function", context: "hospital-api-key-create",
+      message: e instanceof Error ? e.message : String(e),
+      stack: e instanceof Error ? e.stack ?? null : null,
+    });
+    return json({ error: "internal_error" }, 500);
+  }
 });

@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+import { reportError } from "./lib/reportError";
 import "./index.css";
 
 type BoundaryProps = { children: ReactNode };
@@ -15,6 +16,7 @@ class GlobalErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 
   componentDidCatch(error: unknown, info: ErrorInfo) {
     console.error("[global-error-boundary]", error, info.componentStack);
+    reportError(error, { componentStack: info.componentStack ?? undefined });
   }
 
   render() {
@@ -63,18 +65,26 @@ const isChunkLoadError = (msg: string) =>
 
 window.addEventListener("error", (e) => {
   const msg = e?.message || "";
-  if (isChunkLoadError(msg) && !sessionStorage.getItem(RELOAD_KEY)) {
-    sessionStorage.setItem(RELOAD_KEY, "1");
-    window.location.reload();
+  if (isChunkLoadError(msg)) {
+    if (!sessionStorage.getItem(RELOAD_KEY)) {
+      sessionStorage.setItem(RELOAD_KEY, "1");
+      window.location.reload();
+    }
+    return;
   }
+  reportError(e.error ?? msg);
 });
 
 window.addEventListener("unhandledrejection", (e) => {
   const msg = (e?.reason && (e.reason.message || String(e.reason))) || "";
-  if (isChunkLoadError(msg) && !sessionStorage.getItem(RELOAD_KEY)) {
-    sessionStorage.setItem(RELOAD_KEY, "1");
-    window.location.reload();
+  if (isChunkLoadError(msg)) {
+    if (!sessionStorage.getItem(RELOAD_KEY)) {
+      sessionStorage.setItem(RELOAD_KEY, "1");
+      window.location.reload();
+    }
+    return;
   }
+  reportError(e.reason ?? msg);
 });
 
 // Clear the guard once the app boots successfully so future deploys can recover again.

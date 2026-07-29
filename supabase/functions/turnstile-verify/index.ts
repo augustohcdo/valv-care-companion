@@ -1,6 +1,7 @@
 // Server-side verification for Cloudflare Turnstile tokens.
 // Public endpoint (no JWT) — called during login/signup before auth.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { logError } from "../_shared/logError.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -46,6 +47,11 @@ Deno.serve(async (req) => {
       },
     );
   } catch (e) {
+    await logError({
+      source: "edge_function", context: "turnstile-verify",
+      message: e instanceof Error ? e.message : String(e),
+      stack: e instanceof Error ? e.stack ?? null : null,
+    });
     return new Response(JSON.stringify({ success: false, error: String(e) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

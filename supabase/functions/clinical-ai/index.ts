@@ -4,6 +4,7 @@
 // embeddings usados na busca RAG (gemini-embedding-001, 3072 dimensões).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { logError } from "../_shared/logError.ts";
 
 // Máximo de chamadas de IA clínica por usuário por hora (controle de custo/abuso).
 const RATE_LIMIT_PER_HOUR = 30;
@@ -590,6 +591,11 @@ ${commonRules}`;
     });
   } catch (e) {
     console.error("clinical-ai error", e);
+    await logError({
+      source: "edge_function", context: "clinical-ai",
+      message: e instanceof Error ? e.message : String(e),
+      stack: e instanceof Error ? e.stack ?? null : null,
+    });
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

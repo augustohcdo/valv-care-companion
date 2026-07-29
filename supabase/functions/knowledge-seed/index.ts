@@ -4,6 +4,7 @@
 // humano antes de virarem referência clínica publicada.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { logError } from "../_shared/logError.ts";
 
 const EMBED_MODEL = "gemini-embedding-001";
 const EMBED_URL = `https://generativelanguage.googleapis.com/v1beta/models/${EMBED_MODEL}:embedContent`;
@@ -174,6 +175,11 @@ Deno.serve(async (req) => {
     );
   } catch (e) {
     console.error("knowledge-seed error", e);
+    await logError({
+      source: "edge_function", context: "knowledge-seed",
+      message: e instanceof Error ? e.message : String(e),
+      stack: e instanceof Error ? e.stack ?? null : null,
+    });
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "erro" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

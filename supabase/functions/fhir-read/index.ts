@@ -2,6 +2,7 @@
 // GET /fhir-read?patient=<uuid>&type=Condition,Observation
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { logError } from "../_shared/logError.ts";
 
 async function sha256Hex(s: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -19,6 +20,7 @@ Deno.serve(async (req) => {
 
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  try {
   const url = new URL(req.url);
   const patientId = url.searchParams.get("patient");
   const types = (url.searchParams.get("type") ?? "Condition,Observation,MedicationStatement")
@@ -186,4 +188,12 @@ Deno.serve(async (req) => {
   await admin.from("hospital_api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", keyRow.id);
 
   return json(bundle, 200);
+  } catch (e) {
+    await logError({
+      source: "edge_function", context: "fhir-read",
+      message: e instanceof Error ? e.message : String(e),
+      stack: e instanceof Error ? e.stack ?? null : null,
+    });
+    return json({ error: "internal_error" }, 500);
+  }
 });

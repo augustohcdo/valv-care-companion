@@ -3,6 +3,7 @@
 // Writes one NDJSON file per table under exports/YYYY-MM-DD/<table>.ndjson
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { logError } from "../_shared/logError.ts";
 
 const TABLES = [
   "clinical_cases",
@@ -34,6 +35,7 @@ const BUCKET = "clinical-exports";
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  try {
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -132,4 +134,14 @@ Deno.serve(async (req) => {
   return new Response(JSON.stringify(manifest), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+  } catch (e) {
+    await logError({
+      source: "edge_function", context: "weekly-export",
+      message: e instanceof Error ? e.message : String(e),
+      stack: e instanceof Error ? e.stack ?? null : null,
+    });
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 });
