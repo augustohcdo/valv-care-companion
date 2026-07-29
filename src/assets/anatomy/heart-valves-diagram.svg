@@ -1,0 +1,517 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://web.resource.org/cc/"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   version="1.0"
+   width="650"
+   height="650"
+   id="svg666"
+   sodipodi:version="0.32"
+   inkscape:version="0.44"
+   sodipodi:docname="heart_(valves_improved).svg"
+   sodipodi:docbase="E:\Daten\Bilder">
+  <metadata
+     id="metadata2112">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <sodipodi:namedview
+     inkscape:window-height="717"
+     inkscape:window-width="1024"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     guidetolerance="10.0"
+     gridtolerance="10.0"
+     objecttolerance="10.0"
+     borderopacity="1.0"
+     bordercolor="#666666"
+     pagecolor="#ffffff"
+     id="base"
+     inkscape:zoom="0.82241958"
+     inkscape:cx="335.82362"
+     inkscape:cy="272.87983"
+     inkscape:window-x="-4"
+     inkscape:window-y="28"
+     inkscape:current-layer="svg666" />
+  <defs
+     id="defs668">
+    <linearGradient
+       x1="0"
+       y1="0"
+       x2="1"
+       y2="0"
+       id="linearGradient695"
+       gradientUnits="objectBoundingBox"
+       spreadMethod="pad">
+      <stop
+         style="stop-color:#ff0000;stop-opacity:1"
+         offset="0"
+         id="stop696" />
+      <stop
+         style="stop-color:#ffd700;stop-opacity:1"
+         offset="1"
+         id="stop697" />
+    </linearGradient>
+    <linearGradient
+       x1="0"
+       y1="0"
+       x2="1"
+       y2="0"
+       id="linearGradient691"
+       gradientUnits="objectBoundingBox"
+       spreadMethod="pad">
+      <stop
+         style="stop-color:#000000;stop-opacity:1"
+         offset="0"
+         id="stop692" />
+      <stop
+         style="stop-color:#ffffff;stop-opacity:1"
+         offset="1"
+         id="stop693" />
+    </linearGradient>
+    <linearGradient
+       x1="0"
+       y1="1.5000001e-007"
+       x2="1"
+       y2="1.5000001e-007"
+       id="linearGradient694"
+       xlink:href="#linearGradient695"
+       gradientUnits="objectBoundingBox"
+       spreadMethod="pad" />
+    <radialGradient
+       cx="0.5"
+       cy="0.50000018"
+       r="0.5"
+       fx="0.5"
+       fy="0.50000018"
+       id="radialGradient698"
+       xlink:href="#linearGradient695"
+       gradientUnits="objectBoundingBox"
+       spreadMethod="pad" />
+    <linearGradient
+       x1="0"
+       y1="0"
+       x2="1"
+       y2="0"
+       id="linearGradient567"
+       xlink:href="#linearGradient695"
+       gradientUnits="objectBoundingBox"
+       spreadMethod="pad" />
+  </defs>
+  <path
+     d="M 158.51879,472.63444 L 150.47079,586.54744 C 154.09579,601.04844 164.97179,611.92343 182.06279,612.95943 C 199.15279,613.99644 208.47479,603.12043 215.72579,594.31643 L 223.25679,515.10244"
+     style="font-size:12px;fill:#9999ff;fill-rule:evenodd;stroke:#000000;stroke-width:2.5"
+     id="inferior_vena_cava" />
+  <path
+     d="M 89.24,266.65155 C 110.478,266.30055 244.87,274.81055 305.183,273.25055 C 365.496,271.69055 509.568,254.13156 534.005,257.25156 L 534.525,306.12656 C 512.168,307.16655 466.884,308.60655 456.487,329.92456 C 441.928,363.72055 366.016,316.40655 327.021,317.44655 C 283.348,318.59455 118.674,320.66755 89.76,317.08556 C 84.115,311.64755 77.147,305.67755 77.801,291.60855 C 77.949,275.50355 83.52,271.33155 89.24,266.65155 z "
+     style="font-size:12px;fill:#ffcc99;fill-rule:evenodd;stroke:#000000;stroke-width:2.5"
+     id="pulmonary_vein_2" />
+  <path
+     d="M 458.63568,307.21309 C 468.47568,308.24809 513.01468,390.59409 510.42468,456.8841 C 507.83568,523.1751 494.36968,565.6421 473.13668,558.90909 C 451.90268,552.1771 399.59468,456.36709 372.14668,426.3291 C 344.69868,396.29109 307.92768,358.48409 307.92768,358.48409 L 458.63568,307.21309 z "
+     style="font-size:12px;fill:#7f7fe6;fill-rule:evenodd;stroke:#000000;stroke-width:1.25"
+     id="left_ventricle" />
+  <path
+     d="M 104.80168,206.01809 C 126.03968,205.66709 265.66768,217.0971 325.98068,215.53709 C 386.29368,213.97709 488.20268,200.97809 512.63968,204.0981 L 513.15968,252.97309 C 490.80268,254.01309 460.64468,250.37309 450.24768,271.69109 C 435.68868,305.48709 359.77668,258.17309 320.78168,259.2131 C 277.10868,260.36109 134.23568,260.03409 105.32168,256.45209 C 99.67668,249.97409 93.22868,247.1241 93.36268,230.97509 C 92.97668,214.87409 99.60168,211.73809 104.80168,206.01809 z "
+     style="font-size:12px;fill:#ffcc99;fill-rule:evenodd;stroke:#000000;stroke-width:2.5"
+     id="pulmonary_vein_1" />
+  <path
+     d="M 318.80468,266.29809 C 326.46268,225.45309 396.16968,220.03309 420.82868,235.22609 C 454.17368,255.76909 473.13668,317.57009 473.13668,317.57009 C 473.13668,317.57009 451.54666,317.00996 440.29566,333.16396 C 431.34766,346.01197 430.45566,377.75883 430.45566,377.75883 C 430.45566,377.75883 421.07679,349.06081 405.53979,343.88181 C 390.00379,338.70281 378.87968,339.84009 368.00368,343.46509 C 357.64568,334.14309 314.03368,291.74309 318.80468,266.29809 z "
+     style="font-size:12px;fill:#b3b3ff;fill-rule:evenodd;stroke-width:1pt"
+     id="left_atrium"
+     sodipodi:nodetypes="cccscscc" />
+  <path
+     d="M 303.78568,360.03809 C 344.18068,385.4151 366.96768,425.29309 395.96968,464.65309 C 424.97268,504.01309 461.22468,559.9451 450.34868,569.7851 C 439.47368,579.62509 356.92468,575.2201 289.80168,552.1771 C 236.40668,533.8621 190.88368,488.47609 190.88368,488.47609 L 303.78568,360.03809 z "
+     style="font-size:12px;fill:#7f7fe6;fill-rule:evenodd;stroke-width:1.25"
+     id="right_ventricle" />
+  <path
+     d="M 166.02468,246.10109 C 166.54268,261.63809 139.14168,370.4411 142.20168,399.39809 C 148.93468,463.6171 201.24168,505.04909 210.56368,510.22809 C 212.63568,503.49509 213.67168,470.86709 232.31568,462.06309 C 250.95968,453.25909 274.26468,466.20609 274.26468,466.20609 C 274.26468,466.20609 259.24668,447.04509 259.24668,429.95309 C 259.24668,412.86409 272.71068,399.9161 278.40768,394.21909 C 279.44368,380.23609 282.55068,336.73309 271.67468,305.65909 C 260.79968,274.58509 228.17268,236.77909 228.17268,236.77909 L 166.02468,246.10109 z "
+     style="font-size:12px;fill:#b3b3ff;fill-rule:evenodd;stroke-width:1pt"
+     id="right_atrium" />
+  <path
+     d="M 245.7808,164.27396 C 212.6358,163.23796 127.3228,152.32896 109.5518,150.29296 C 103.1388,152.34496 97.3128,159.39496 97.0728,173.08596 C 96.8848,184.23496 103.6588,189.14796 109.5518,193.79996 C 109.5518,193.79996 213.1528,205.70496 244.7448,209.84796"
+     style="font-size:12px;fill:#e5b3ff;fill-rule:evenodd;stroke:#000000;stroke-width:2.5"
+     id="pulmonary_artery_2" />
+  <path
+     d="M 384.06468,348.67409 C 360.28568,308.30509 319.30268,293.03209 291.87368,223.31409 C 276.94468,184.63809 312.74268,129.0281 351.94968,157.02309 C 375.87968,174.48009 359.67368,215.80609 364.33468,213.73509 L 418.43368,209.1101 C 418.43368,203.93109 419.79268,195.86509 406.84568,143.55809 C 398.53368,110.64209 380.95068,107.8231 385.09368,91.768099 C 389.23668,75.713099 401.14868,60.695099 401.14868,60.695099 L 374.21868,39.979099 C 374.21868,39.979099 354.02068,88.143099 345.73368,87.107099 C 337.44768,86.071099 349.87768,38.943099 349.87768,38.943099 L 312.58868,35.836099 C 312.58868,35.836099 317.76868,85.036099 306.89268,92.805099 C 296.01668,100.5731 272.19368,43.604099 272.19368,43.604099 L 243.70868,60.695099 C 243.70868,60.695099 263.90668,84.517099 259.24568,106.2691 C 254.58468,128.0211 222.99368,148.73709 226.61868,223.31409 C 229.41168,280.36409 275.80168,320.49809 293.42768,343.4661 C 310.51768,365.21709 349.29468,410.66309 361.31668,404.64009 C 356.58568,380.73709 364.78768,354.28609 384.06468,348.67409 z "
+     style="font-size:12px;fill:#ff7f7f;fill-rule:evenodd;stroke:#000000;stroke-width:2.5"
+     id="aorta" />
+  <path
+     d="M 382.53658,342.82702 C 398.85365,355.97365 390.26666,370.00314 378.55431,385.87165 C 368.42162,399.60114 352.85426,399.02105 336.53846,385.87545 C 320.22392,372.73085 314.63485,357.08739 328.61135,339.74031 C 341.60859,323.60866 366.22331,329.68345 382.53658,342.82702 z "
+     style="font-size:12px;fill:#cc6666;fill-rule:evenodd;stroke:#000000;stroke-width:2.50000095"
+     id="path592" />
+  <path
+     d="M 158.77468,250.76209 C 164.47068,232.11809 154.40068,68.101099 154.40068,68.101099 C 154.40068,68.101099 160.61568,53.081099 185.99268,54.117099 C 211.36868,55.153099 216.03068,71.726099 216.03068,71.726099 L 229.20768,245.06509"
+     style="font-size:12px;fill:#9999ff;fill-rule:evenodd;stroke:#000000;stroke-width:2.5"
+     id="superior_vena_cava" />
+  <ellipse
+     cx="250.87192"
+     cy="434.41135"
+     rx="31.456482"
+     ry="21.057648"
+     transform="matrix(1.049425,-0.353733,0.378566,1.123099,-231.7296,-145.1324)"
+     style="font-size:12px;fill:#7f7fcc;fill-rule:evenodd;stroke:#000000;stroke-width:2.1821599"
+     id="vena_cava_in_2" />
+  <path
+     d="M 339.43968,245.81709 L 343.87968,227.57509 C 367.63668,215.67409 392.90568,216.34109 410.17568,222.49609 C 463.30968,242.16209 468.62268,298.71409 484.16368,312.87009 C 552.84768,376.93009 565.92468,565.0011 510.72468,588.2681 C 395.67768,636.4551 202.19368,553.12109 152.08468,470.15309 C 99.17468,383.75309 153.36468,327.36809 158.86868,248.84909 L 164.27268,270.3411 C 165.82068,353.80109 143.74168,332.53409 156.84768,413.71909 C 167.04068,452.30909 198.03468,497.27209 255.14168,522.20709 C 329.77368,555.7461 426.24868,570.9911 435.71468,559.3411 C 445.17968,547.69209 391.30068,505.4611 376.73768,471.24009 C 362.17568,437.01809 362.17568,423.9121 352.70968,413.71909 C 343.24468,403.52509 333.98568,388.02709 325.66668,380.74709 L 325.66868,366.08409 C 339.18768,380.64209 364.02568,411.76509 380.37868,422.4561 C 400.03668,434.83409 426.85168,464.31309 437.17068,487.98609 C 450.27668,516.3831 467.75168,548.4201 479.40168,538.9551 C 491.05168,529.4891 499.06068,488.71509 491.05168,450.85409 C 486.10368,428.36609 469.41068,411.79809 463.38168,372.94509 C 456.82968,332.89809 464.83968,316.15209 461.92668,305.23009 C 459.01468,294.30909 442.26768,253.53409 413.87068,238.97209 C 387.02568,226.58209 360.55468,235.6231 339.43968,245.81709 z "
+     style="font-size:12px;opacity:0.98999999;fill:#ff7fcc;fill-rule:evenodd;stroke:#000000;stroke-width:2.5"
+     id="heart" />
+  <path
+     d="M 335.89668,393.16795 C 322.34268,331.47795 330.71468,256.45796 358.16268,213.47396 C 385.61168,170.48796 490.74468,182.39996 490.74468,182.39996 L 490.74468,145.62896 C 471.06468,144.07596 413.99668,141.80196 377.32668,152.36196 C 331.59468,165.30396 312.58868,139.93196 294.98068,175.66696 C 283.36268,198.90196 291.35568,218.13496 286.17668,236.77896 C 280.99768,255.42296 266.49768,360.03795 272.19268,396.28995 C 292.45468,383.74195 314.12068,378.53596 335.89668,393.16795 z "
+     style="font-size:12px;fill:#e5b3ff;fill-rule:evenodd;stroke:#000000;stroke-width:2.5"
+     id="pulmonary_artery_1" />
+  <ellipse
+     cx="548.70959"
+     cy="341.55151"
+     rx="13.724213"
+     ry="19.938919"
+     transform="matrix(0.849057,0,0,0.935062,26.67174,-155.0983)"
+     style="font-size:12px;fill:#b37fe6;fill-rule:evenodd;stroke:#000000;stroke-width:2.80576992"
+     id="path564" />
+  <path
+     d="M 209.51368,492.14509 C 199.32368,489.36709 201.36168,465.33809 225.63168,455.75009 C 245.89168,447.22709 257.86768,454.71009 275.02568,466.14909 C 258.90768,464.06909 250.22468,458.1221 231.35168,468.74909 C 213.95368,479.06409 217.44868,493.78809 209.51368,492.14509 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-linejoin:round"
+     id="tricuspid_valve_1" />
+  <path
+     d="M 276.52231,399.75115 C 271.96511,390.22297 249.60423,397.53945 248.81471,423.62277 C 247.66723,445.57254 258.76808,454.30131 275.34781,466.56345 C 267.92519,452.10589 258.34619,443.87453 261.94336,422.51605 C 265.7472,402.651 280.50348,409.1617 276.52231,399.75115 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke:#000000;stroke-width:2.50000095;stroke-linejoin:round"
+     id="tricuspid_valve_2" />
+  <path
+     d="M 380.77757,347.51025 C 374.55433,338.97689 395.26483,336.11656 405.2496,343.00263 C 419.63353,351.69394 426.77195,364.23498 431.86599,384.21744 C 421.28141,371.88525 417.2982,359.44731 403.70563,351.37017 C 386.74818,341.96255 389.59088,360.45831 380.77757,347.51025 z "
+     style="font-size:12px;fill:white;fill-rule:evenodd;stroke:black;stroke-width:2.49999952;stroke-linejoin:round"
+     id="mitral_valve_1"
+     sodipodi:nodetypes="ccccc" />
+  <path
+     d="M 463.19887,326.17109 C 464.3647,315.67423 453.22047,319.04021 440.89818,332.17367 C 431.9144,342.11279 428.93052,363.92624 433.04401,384.13336 C 437.20401,368.42314 435.2906,347.99309 446.91052,337.65057 C 456.27222,329.59512 461.42077,337.5047 463.19887,326.17109 z "
+     style="font-size:12px;fill:white;fill-rule:evenodd;stroke:black;stroke-width:2.50000215;stroke-linejoin:round"
+     id="mitral_valve_2"
+     sodipodi:nodetypes="ccccc" />
+  <path
+     d="M 335.33913,387.63735 C 335.33913,408.58995 324.62821,410.19921 304.92312,411.03464 C 287.87476,411.75815 270.867,405.47042 270.867,384.51781 C 270.867,363.56681 280.0466,330.96501 302.32357,330.96501 C 323.0397,330.96501 335.33913,366.68635 335.33913,387.63735 z "
+     style="font-size:12px;fill:#b37fe6;fill-rule:evenodd;stroke:#000000;stroke-width:2.50000072"
+     id="path591" />
+  <path
+     d="M 270.36558,378.91616 C 268.38314,405.07808 286.84008,406.29301 292.54934,399.70755 C 295.82377,394.84051 295.85667,391.81888 296.13203,378.12964 C 291.86414,391.69551 292.44634,395.80493 284.21111,398.40115 C 272.87457,400.94269 271.02133,370.43271 270.36558,378.91616 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke:#000000;stroke-width:2.50000262;stroke-linejoin:round"
+     id="pulmonary_valve_1"
+     sodipodi:nodetypes="ccccc" />
+  <path
+     d="M 336.04572,391.91475 C 336.4682,398.83839 327.58503,411.99185 315.94112,402.39741 C 310.84097,397.61934 309.56958,387.79017 311.22874,380.54933 C 312.05748,389.38636 317.24414,400.99881 326.06933,399.98103 C 333.89209,399.18008 335.67823,383.4134 336.04572,391.91475 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke:#000000;stroke-width:2.50000262;stroke-linejoin:round"
+     id="pulmonary_valve_2"
+     sodipodi:nodetypes="ccccc" />
+  <path
+     d="M 336.25516,378.35001 C 354.11483,393.63461 360.916,380.44428 361.05189,376.11242 C 361.15562,368.92592 358.41047,365.30375 349.77178,359.59243 C 355.95146,369.14638 357.77794,369.76958 356.70761,375.5187 C 353.2827,388.8692 331.12242,371.56449 336.25516,378.35001 z "
+     style="font-size:12px;fill:white;fill-rule:evenodd;stroke:black;stroke-width:2.5000031;stroke-linejoin:round"
+     id="aortic_valve_1"
+     sodipodi:nodetypes="ccccc" />
+  <path
+     d="M 378.84597,340.01851 C 384.05759,349.63258 381.13394,354.13703 377.53923,357.45588 C 372.62087,360.43864 365.92164,363.24924 356.59354,354.25446 C 365.69117,357.66414 368.90444,358.29862 375.00355,353.51492 C 381.40667,343.89258 371.49019,335.7405 378.84597,340.01851 z "
+     style="font-size:12px;fill:white;fill-rule:evenodd;stroke:black;stroke-width:2.50000286;stroke-linejoin:round"
+     id="aortic_valve_2"
+     sodipodi:nodetypes="ccccc" />
+  <ellipse
+     cx="250.87192"
+     cy="434.41135"
+     rx="31.456482"
+     ry="21.057648"
+     transform="matrix(0.717389,-0.744054,0.95079,0.71512,-389.4122,251.6769)"
+     style="font-size:12px;fill:#7f7fcc;fill-rule:evenodd;stroke:#000000;stroke-width:2.26296997"
+     id="vena_cava_in_1" />
+  <ellipse
+     cx="382.15723"
+     cy="216.81569"
+     rx="20.277725"
+     ry="12.478638"
+     transform="matrix(0.945601,7.752258e-2,-6.628828e-2,0.83062,-15.8154,-174.0802)"
+     style="font-size:12px;fill:#cc6666;fill-rule:evenodd;stroke:#000000;stroke-width:2.81170011"
+     id="path597" />
+  <ellipse
+     cx="382.15723"
+     cy="216.81569"
+     rx="20.277725"
+     ry="12.478638"
+     transform="matrix(0.732703,0.515286,-0.464454,0.626108,210.8872,-285.0745)"
+     style="font-size:12px;fill:#cc6666;fill-rule:evenodd;stroke:#000000;stroke-width:2.99218011"
+     id="path598" />
+  <ellipse
+     cx="382.15723"
+     cy="216.81569"
+     rx="20.277725"
+     ry="12.478638"
+     transform="matrix(0.740708,-0.430883,0.327749,0.711617,-97.03948,61.35079)"
+     style="font-size:12px;fill:#cc6666;fill-rule:evenodd;stroke:#000000;stroke-width:3.05806994"
+     id="path599" />
+  <ellipse
+     cx="571.41608"
+     cy="405.03461"
+     rx="15.078308"
+     ry="25.477158"
+     transform="matrix(1,0,0,0.969388,-57.73647,-164.3603)"
+     style="font-size:12px;fill:#e69966;fill-rule:evenodd;stroke:#000000;stroke-width:2.53917003"
+     id="path602" />
+  <ellipse
+     cx="571.41608"
+     cy="405.03461"
+     rx="15.078308"
+     ry="25.477158"
+     transform="matrix(1,0,0,0.969388,-38.61092,-110.6071)"
+     style="font-size:12px;fill:#e69966;fill-rule:evenodd;stroke:#000000;stroke-width:2.53917003"
+     id="path603" />
+  <ellipse
+     cx="571.41608"
+     cy="405.03461"
+     rx="15.078308"
+     ry="25.477158"
+     transform="matrix(1.145182,1.541563,-0.876179,0.146717,112.3589,-671.4702)"
+     style="font-size:12px;fill:#e69966;fill-rule:evenodd;stroke:#000000;stroke-width:2.02863002"
+     id="path604" />
+  <text
+     x="178.35744"
+     y="27.512592"
+     style="font-size:20px;font-weight:normal;text-anchor:middle;stroke-width:1pt;font-family:Nimbus Sans L"
+     id="text680">
+    <tspan
+       x="178.35744"
+       y="27.512592"
+       id="tspan697">Superior</tspan>
+    <tspan
+       x="178.35744"
+       y="47.512596"
+       id="tspan699">Vena Cava</tspan>
+  </text>
+  <text
+     x="321.78427"
+     y="127.65681"
+     style="font-size:20px;font-weight:normal;text-anchor:middle;stroke-width:1pt;font-family:Nimbus Sans L"
+     id="text704">
+    <tspan
+       id="tspan705">Aorta</tspan>
+  </text>
+  <text
+     x="539.0462"
+     y="136.14337"
+     style="font-size:20px;font-weight:normal;text-anchor:middle;stroke-width:1pt;font-family:Nimbus Sans L"
+     id="text707">
+    <tspan
+       id="tspan708">Pulmonary</tspan>
+    <tspan
+       x="539.0462"
+       y="156.14337"
+       id="tspan712">Artery</tspan>
+  </text>
+  <text
+     x="578.93402"
+     y="214.22192"
+     style="font-size:20px;font-weight:normal;text-anchor:middle;stroke-width:1pt;font-family:Nimbus Sans L"
+     id="text714">
+    <tspan
+       id="tspan715">Pulmonary</tspan>
+    <tspan
+       x="578.93402"
+       y="234.22192"
+       id="tspan717">Vein</tspan>
+  </text>
+  <text
+     x="322.6329"
+     y="482.40472"
+     style="font-size:20px;font-weight:normal;text-anchor:middle;stroke-width:1pt;font-family:Nimbus Sans L"
+     id="text719">
+    <tspan
+       id="tspan720">Right</tspan>
+    <tspan
+       x="322.6329"
+       y="502.40472"
+       id="tspan722">Ventricle</tspan>
+  </text>
+  <text
+     x="446.9519"
+     y="428.06409"
+     style="font-size:20px;font-weight:normal;text-anchor:middle;stroke-width:1pt;font-family:Nimbus Sans L"
+     id="text724">
+    <tspan
+       id="tspan725">Left</tspan>
+    <tspan
+       x="446.9519"
+       y="448.06409"
+       id="tspan727">Ventricle</tspan>
+  </text>
+  <text
+     x="208.06119"
+     y="310.12277"
+     style="font-size:20px;font-weight:normal;text-anchor:middle;stroke-width:1pt;font-family:Nimbus Sans L"
+     id="text729">
+    <tspan
+       id="tspan730">Right</tspan>
+    <tspan
+       x="208.06119"
+       y="330.12277"
+       id="tspan732">Atrium</tspan>
+  </text>
+  <text
+     x="365.76999"
+     y="274.93268"
+     style="font-size:20px;font-weight:normal;text-anchor:middle;stroke-width:1.25;stroke-dashoffset:0;font-family:Nimbus Sans L"
+     id="text734">
+    <tspan
+       style="stroke-dashoffset:0"
+       id="tspan735">Left</tspan>
+    <tspan
+       x="365.76999"
+       y="294.93268"
+       style="stroke-dashoffset:0"
+       id="tspan737">Atrium</tspan>
+  </text>
+  <text
+     x="185.14688"
+     y="636.86438"
+     style="font-size:20px;font-weight:normal;text-anchor:middle;stroke-width:1pt;font-family:Nimbus Sans L"
+     id="text739">
+    <tspan
+       id="tspan740">Inferior Vena Cava</tspan>
+  </text>
+  <text
+     x="605.90363"
+     y="325.04016"
+     style="font-size:20px;font-weight:normal;text-anchor:middle;stroke-width:1pt;font-family:Nimbus Sans L"
+     id="text742">
+    <tspan
+       id="tspan743">Mitral</tspan>
+    <tspan
+       x="605.90363"
+       y="345.04016"
+       id="tspan745">Valve</tspan>
+  </text>
+  <text
+     x="606.75226"
+     y="426.0257"
+     style="font-size:20px;font-weight:normal;text-anchor:middle;stroke-width:1pt;font-family:Nimbus Sans L"
+     id="text747">
+    <tspan
+       id="tspan748">Aortic</tspan>
+    <tspan
+       x="606.75226"
+       y="446.0257"
+       id="tspan750">Valve</tspan>
+  </text>
+  <text
+     x="74.81855"
+     y="497.68091"
+     style="font-size:20px;font-weight:normal;text-anchor:middle;stroke-width:1pt;font-family:Nimbus Sans L"
+     id="text752">
+    <tspan
+       id="tspan753">Tricuspid</tspan>
+    <tspan
+       x="74.81855"
+       y="517.68097"
+       id="tspan755">Valve</tspan>
+  </text>
+  <text
+     x="66.331741"
+     y="428.93787"
+     style="font-size:20px;font-weight:normal;text-anchor:middle;stroke-width:1pt;font-family:Nimbus Sans L"
+     id="text757">
+    <tspan
+       id="tspan758">Pulmonary</tspan>
+    <tspan
+       x="66.331741"
+       y="448.93787"
+       id="tspan760">Valve</tspan>
+  </text>
+  <path
+     d="M 571.75068,328.18609 L 420.23068,329.64209"
+     style="font-size:12px;fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-dasharray:2.5, 2.5;stroke-dashoffset:0"
+     id="path764" />
+  <path
+     d="M 578.55768,415.41109 L 367.61268,369.53109"
+     style="font-size:12px;fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-dasharray:2.5, 2.5;stroke-dashoffset:0"
+     id="path765" />
+  <path
+     d="M 184.10468,132.71109 L 186.80468,171.11709 L 180.80368,171.71709 L 191.60568,185.82009 L 197.60668,169.31709 L 191.90568,169.91709 L 188.60568,132.1101 L 184.10468,132.71109 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path766" />
+  <path
+     d="M 181.7172,581.77863 L 186.80017,543.61484 L 192.79916,544.23458 L 185.05578,528.24653 L 175.85691,543.20453 L 181.56204,543.76392 L 177.18733,581.4617 L 181.7172,581.77863 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path767" />
+  <path
+     d="M 306.5395,284.12543 L 311.62247,245.96165 L 317.62146,246.58138 L 309.87808,230.59334 L 300.67921,245.55133 L 306.38434,246.11073 L 302.00963,283.80849 L 306.5395,284.12543 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path768" />
+  <path
+     d="M 212.91816,402.95396 L 233.50589,435.4879 L 228.50687,438.86161 L 244.70445,446.15659 L 242.16292,428.78125 L 237.42803,432.01269 L 216.59605,400.29062 L 212.91816,402.95396 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path769" />
+  <path
+     d="M 107.91668,438.27309 L 303.11368,382.26009"
+     style="font-size:12px;fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-dasharray:2.5, 2.5;stroke-dashoffset:0"
+     id="path762" />
+  <path
+     d="M 410.38309,280.03506 L 415.32271,318.21765 L 409.36703,319.16729 L 420.97467,332.61499 L 426.00107,315.78952 L 420.34487,316.72163 L 414.84128,279.17207 L 410.38309,280.03506 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path770" />
+  <path
+     d="M 122.34468,486.64809 L 243.70568,442.51709"
+     style="font-size:12px;fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:2.5;stroke-dasharray:2.5, 2.5;stroke-dashoffset:0"
+     id="path763" />
+  <path
+     d="M 495.16379,223.07063 L 456.96951,227.9191 L 456.03409,221.96117 L 442.55872,233.53668 L 459.37215,238.60324 L 458.45354,232.94482 L 496.01614,227.53087 L 495.16379,223.07063 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path771" />
+  <path
+     d="M 100.53825,231.94012 L 138.95775,234.44119 L 138.74345,240.46831 L 154.17369,231.66571 L 138.63009,223.49514 L 138.45622,229.22501 L 100.54939,227.39918 L 100.53825,231.94012 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path772" />
+  <path
+     d="M 87.33585,293.15113 L 125.75535,295.6522 L 125.54105,301.67931 L 140.97129,292.87671 L 125.42769,284.70614 L 125.25382,290.43601 L 87.34699,288.61019 L 87.33585,293.15113 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path773" />
+  <path
+     d="M 528.53936,277.37065 L 490.13041,280.02862 L 489.53697,274.02697 L 475.42215,284.81354 L 491.91859,290.83259 L 491.32483,285.13094 L 529.13544,281.87232 L 528.53936,277.37065 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path774" />
+  <path
+     d="M 306.06741,444.4045 L 305.81139,405.90456 L 311.83838,405.68679 L 301.95362,390.92641 L 294.9169,407.01507 L 300.64449,406.77826 L 301.53734,444.71849 L 306.06741,444.4045 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path775" />
+  <path
+     d="M 418.67047,403.50673 L 387.21359,381.30815 L 390.54419,376.28031 L 372.78826,375.72805 L 381.77612,390.8138 L 384.91697,386.01833 L 416.28933,407.37331 L 418.67047,403.50673 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path776" />
+  <path
+     d="M 266.07196,234.50247 L 259.82173,196.51241 L 265.74122,195.35846 L 253.67783,182.31803 L 249.23322,199.30646 L 254.85401,198.18032 L 261.6461,235.51832 L 266.07196,234.50247 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path777" />
+  <path
+     d="M 411.20498,168.61927 L 449.6841,167.32657 L 450.06408,173.34552 L 464.55296,163.06687 L 448.28061,156.46594 L 448.67158,162.18507 L 410.7691,164.09929 L 411.20498,168.61927 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path867" />
+  <path
+     d="M 155.28814,176.08728 L 117.15675,170.76684 L 117.81383,164.77182 L 101.77788,172.41551 L 116.67833,181.70733 L 117.27321,176.00578 L 154.943,180.61509 L 155.28814,176.08728 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path868" />
+  <path
+     d="M 291.48991,109.48446 L 273.93022,75.221243 L 279.21398,72.313689 L 263.74288,63.583119 L 264.7019,81.117123 L 269.70974,78.327335 L 287.58614,111.8041 L 291.48991,109.48446 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path869" />
+  <path
+     d="M 359.68914,106.86671 L 378.77392,73.428971 L 384.09754,76.262874 L 382.94725,58.535646 L 368.79135,68.926582 L 373.8655,71.59387 L 355.61235,104.86672 L 359.68914,106.86671 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path870" />
+  <path
+     d="M 331.04519,103.56176 L 331.58588,65.064752 L 337.61609,64.971748 L 328.03888,50.009962 L 320.67074,65.94959 L 326.40201,65.831347 L 326.50958,103.78196 L 331.04519,103.56176 z "
+     style="font-size:12px;fill:#ffffff;fill-rule:evenodd;stroke-width:1.25"
+     id="path871" />
+</svg>
