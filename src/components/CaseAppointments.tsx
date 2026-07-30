@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { logAudit } from "@/lib/auditLog";
 import {
   CalendarDays,
   Plus,
@@ -68,6 +69,7 @@ export const CaseAppointments = ({ caseId, readOnly = false }: Props) => {
       .from("appointments")
       .select("*")
       .eq("case_id", caseId)
+      .is("deleted_at", null)
       .order("scheduled_at", { ascending: true });
     setItems(data || []);
     setLoading(false);
@@ -129,8 +131,9 @@ export const CaseAppointments = ({ caseId, readOnly = false }: Props) => {
 
   const remove = async (id: string) => {
     if (!confirm("Remover este compromisso?")) return;
-    await supabase.from("appointments").delete().eq("id", id);
+    await supabase.from("appointments").update({ deleted_at: new Date().toISOString() }).eq("id", id);
     toast.success("Compromisso removido");
+    logAudit("appointment_deleted", "appointments", id, { case_id: caseId });
     load();
   };
 

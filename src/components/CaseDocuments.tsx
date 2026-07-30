@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { documentTypeLabels, formatBytes } from "@/lib/clinicalLabels";
+import { logAudit } from "@/lib/auditLog";
 
 interface Props {
   caseId: string;
@@ -27,6 +28,7 @@ export const CaseDocuments = ({ caseId, readOnly = false }: Props) => {
       .from("case_documents")
       .select("*")
       .eq("case_id", caseId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false });
     setDocs(data || []);
     setLoading(false);
@@ -88,8 +90,9 @@ export const CaseDocuments = ({ caseId, readOnly = false }: Props) => {
   const deleteDoc = async (doc: any) => {
     if (!confirm(`Remover "${doc.file_name}"?`)) return;
     await supabase.storage.from("medical-documents").remove([doc.storage_path]);
-    await supabase.from("case_documents").delete().eq("id", doc.id);
+    await supabase.from("case_documents").update({ deleted_at: new Date().toISOString() }).eq("id", doc.id);
     toast.success("Documento removido");
+    logAudit("document_deleted", "case_documents", doc.id, { case_id: caseId, file_name: doc.file_name });
     load();
   };
 

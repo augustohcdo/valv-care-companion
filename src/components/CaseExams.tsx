@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { examTypeLabels, examTypeColors } from "@/lib/clinicalLabels";
+import { logAudit } from "@/lib/auditLog";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
@@ -73,6 +74,7 @@ export const CaseExams = ({ caseId, readOnly = false }: Props) => {
       .from("case_exams")
       .select("*")
       .eq("case_id", caseId)
+      .is("deleted_at", null)
       .order("exam_date", { ascending: false });
     setItems(data || []);
     setLoading(false);
@@ -143,8 +145,9 @@ export const CaseExams = ({ caseId, readOnly = false }: Props) => {
 
   const remove = async (id: string) => {
     if (!confirm("Remover este exame?")) return;
-    await supabase.from("case_exams").delete().eq("id", id);
+    await supabase.from("case_exams").update({ deleted_at: new Date().toISOString() }).eq("id", id);
     toast.success("Exame removido");
+    logAudit("exam_deleted", "case_exams", id, { case_id: caseId });
     load();
   };
 

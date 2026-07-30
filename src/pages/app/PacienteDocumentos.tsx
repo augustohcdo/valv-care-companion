@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { logAudit } from "@/lib/auditLog";
 import {
   Upload,
   FileText,
@@ -59,6 +60,7 @@ const PacienteDocumentos = () => {
       .from("patient_documents")
       .select("*")
       .eq("patient_id", pat.id)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false });
     setDocs(data || []);
     setLoading(false);
@@ -134,8 +136,9 @@ const PacienteDocumentos = () => {
   const deleteDoc = async (doc: any) => {
     if (!confirm(`Remover "${doc.file_name}"?`)) return;
     await supabase.storage.from("patient-documents").remove([doc.storage_path]);
-    await supabase.from("patient_documents").delete().eq("id", doc.id);
+    await supabase.from("patient_documents").update({ deleted_at: new Date().toISOString() }).eq("id", doc.id);
     toast.success("Documento removido");
+    logAudit("patient_document_deleted", "patient_documents", doc.id, { file_name: doc.file_name });
     load();
   };
 

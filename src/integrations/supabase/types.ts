@@ -20,6 +20,7 @@ export type Database = {
           case_id: string
           created_at: string
           created_by: string
+          deleted_at: string | null
           duration_minutes: number
           id: string
           location: string | null
@@ -34,6 +35,7 @@ export type Database = {
           case_id: string
           created_at?: string
           created_by: string
+          deleted_at?: string | null
           duration_minutes?: number
           id?: string
           location?: string | null
@@ -48,6 +50,7 @@ export type Database = {
           case_id?: string
           created_at?: string
           created_by?: string
+          deleted_at?: string | null
           duration_minutes?: number
           id?: string
           location?: string | null
@@ -165,6 +168,7 @@ export type Database = {
         Row: {
           case_id: string
           created_at: string
+          deleted_at: string | null
           description: string | null
           document_type: Database["public"]["Enums"]["document_type"]
           file_name: string
@@ -177,6 +181,7 @@ export type Database = {
         Insert: {
           case_id: string
           created_at?: string
+          deleted_at?: string | null
           description?: string | null
           document_type?: Database["public"]["Enums"]["document_type"]
           file_name: string
@@ -189,6 +194,7 @@ export type Database = {
         Update: {
           case_id?: string
           created_at?: string
+          deleted_at?: string | null
           description?: string | null
           document_type?: Database["public"]["Enums"]["document_type"]
           file_name?: string
@@ -213,6 +219,7 @@ export type Database = {
           case_id: string
           created_at: string
           created_by: string
+          deleted_at: string | null
           description: string | null
           event_date: string
           event_type: Database["public"]["Enums"]["event_type"]
@@ -224,6 +231,7 @@ export type Database = {
           case_id: string
           created_at?: string
           created_by: string
+          deleted_at?: string | null
           description?: string | null
           event_date?: string
           event_type: Database["public"]["Enums"]["event_type"]
@@ -235,6 +243,7 @@ export type Database = {
           case_id?: string
           created_at?: string
           created_by?: string
+          deleted_at?: string | null
           description?: string | null
           event_date?: string
           event_type?: Database["public"]["Enums"]["event_type"]
@@ -250,6 +259,7 @@ export type Database = {
           case_id: string
           created_at: string
           created_by: string
+          deleted_at: string | null
           document_id: string | null
           ejection_fraction: number | null
           exam_date: string
@@ -273,6 +283,7 @@ export type Database = {
           case_id: string
           created_at?: string
           created_by: string
+          deleted_at?: string | null
           document_id?: string | null
           ejection_fraction?: number | null
           exam_date?: string
@@ -296,6 +307,7 @@ export type Database = {
           case_id?: string
           created_at?: string
           created_by?: string
+          deleted_at?: string | null
           document_id?: string | null
           ejection_fraction?: number | null
           exam_date?: string
@@ -343,6 +355,39 @@ export type Database = {
           read_at?: string | null
           sender_id?: string
           sender_role?: string
+        }
+        Relationships: []
+      }
+      client_errors: {
+        Row: {
+          context: string
+          created_at: string
+          id: string
+          message: string
+          metadata: Json | null
+          source: string
+          stack: string | null
+          user_id: string | null
+        }
+        Insert: {
+          context: string
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          source: string
+          stack?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          context?: string
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          source?: string
+          stack?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1348,6 +1393,7 @@ export type Database = {
       patient_documents: {
         Row: {
           created_at: string
+          deleted_at: string | null
           description: string | null
           document_type: string
           file_name: string
@@ -1361,6 +1407,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
           description?: string | null
           document_type?: string
           file_name: string
@@ -1374,6 +1421,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
           description?: string | null
           document_type?: string
           file_name?: string
@@ -1500,6 +1548,7 @@ export type Database = {
           size: number | null
           type: Database["public"]["Enums"]["prosthesis_type"]
           updated_at: string
+          valve_position: Database["public"]["Enums"]["valve_position_type"]
         }
         Insert: {
           active?: boolean
@@ -1517,6 +1566,7 @@ export type Database = {
           size?: number | null
           type: Database["public"]["Enums"]["prosthesis_type"]
           updated_at?: string
+          valve_position: Database["public"]["Enums"]["valve_position_type"]
         }
         Update: {
           active?: boolean
@@ -1534,6 +1584,7 @@ export type Database = {
           size?: number | null
           type?: Database["public"]["Enums"]["prosthesis_type"]
           updated_at?: string
+          valve_position?: Database["public"]["Enums"]["valve_position_type"]
         }
         Relationships: []
       }
@@ -2048,6 +2099,7 @@ export type Database = {
         | "prolapso"
         | "protese_disfuncao"
         | "outra"
+      valve_position_type: "aortica" | "mitral" | "tricuspide"
       valve_type: "aortica" | "mitral" | "tricuspide" | "pulmonar" | "multipla"
     }
     CompositeTypes: {
@@ -2344,6 +2396,7 @@ export const Constants = {
         "protese_disfuncao",
         "outra",
       ],
+      valve_position_type: ["aortica", "mitral", "tricuspide"],
       valve_type: ["aortica", "mitral", "tricuspide", "pulmonar", "multipla"],
     },
   },

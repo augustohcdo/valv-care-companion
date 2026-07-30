@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 /**
  * Registra uma ação sensível em audit_logs — quem fez o quê, quando.
@@ -13,12 +14,12 @@ export async function logAudit(
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    await supabase.from("audit_logs" as any).insert({
+    await supabase.from("audit_logs").insert({
       user_id: user.id,
       action,
       target_table: targetTable,
       target_id: targetId ?? null,
-      metadata: metadata ?? null,
+      metadata: (metadata ?? null) as Json,
     });
   } catch (e) {
     console.error("logAudit failed", action, e);

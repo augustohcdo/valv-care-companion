@@ -66,6 +66,7 @@ const AppPrivacidade = lazy(() => import("./pages/app/Privacidade"));
 const HospitalPortal = lazy(() => import("./pages/app/HospitalPortal"));
 const AdminIntegracoes = lazy(() => import("./pages/app/AdminIntegracoes"));
 const AdminErrors = lazy(() => import("./pages/app/AdminErrors"));
+const AdminDPO = lazy(() => import("./pages/app/AdminDPO"));
 const PacienteIntegracoes = lazy(() => import("./pages/app/PacienteIntegracoes"));
 const FhirSandbox = lazy(() => import("./pages/app/FhirSandbox"));
 
@@ -138,6 +139,7 @@ const App = () => (
               <Route path="/app/hospital" element={<ProtectedRoute>{withSuspense(<HospitalPortal />)}</ProtectedRoute>} />
               <Route path="/app/admin/integracoes" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminIntegracoes />)}</ProtectedRoute>} />
               <Route path="/app/admin/erros" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminErrors />)}</ProtectedRoute>} />
+              <Route path="/app/admin/dpo" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminDPO />)}</ProtectedRoute>} />
               <Route path="/app/admin/fhir-sandbox" element={<ProtectedRoute requireAdmin>{withSuspense(<FhirSandbox />, "form")}</ProtectedRoute>} />
               <Route path="/app/paciente/integracoes" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteIntegracoes />)}</ProtectedRoute>} />
             </Route>
