@@ -22,11 +22,11 @@ export default function AdminErrors() {
   const reload = async () => {
     setLoading(true);
     const { data } = await supabase
-      .from("client_errors")
+      .from("client_errors" as any)
       .select("id, source, context, message, stack, created_at")
       .order("created_at", { ascending: false })
       .limit(100);
-    setErrors((data as ClientError[]) ?? []);
+    setErrors((data as unknown as ClientError[]) ?? []);
     setLoading(false);
   };
 

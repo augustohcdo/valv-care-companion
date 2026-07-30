@@ -13,7 +13,7 @@ export async function logAudit(
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    await supabase.from("audit_logs").insert({
+    await supabase.from("audit_logs" as any).insert({
       user_id: user.id,
       action,
       target_table: targetTable,

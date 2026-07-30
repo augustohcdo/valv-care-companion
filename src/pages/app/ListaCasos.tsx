@@ -71,7 +71,7 @@ export default function ListaCasos() {
   };
 
   const filtered = useMemo(() => {
-    let list = cases.filter((c) => {
+    const list = cases.filter((c) => {
       if (q.trim() && !c.patient_name?.toLowerCase().includes(q.toLowerCase())) return false;
       if (valve !== ALL && c.valve_type !== valve) return false;
       if (severity !== ALL && c.severity !== severity) return false;

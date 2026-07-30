@@ -31,7 +31,7 @@ export const CookieBanner = () => {
 
   const persist = async (prefs: Omit<Prefs, "decidedAt">) => {
     const full: Prefs = { ...prefs, decidedAt: new Date().toISOString() };
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(full)); } catch {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(full)); } catch { /* localStorage indisponível, segue sem persistir local */ }
     setOpen(false);
     if (user) {
       try {
@@ -39,7 +39,7 @@ export const CookieBanner = () => {
           registerConsent({ type: "cookies_functional", granted: prefs.functional, source: "cookie_banner" }),
           registerConsent({ type: "cookies_analytics", granted: prefs.analytics, source: "cookie_banner" }),
         ]);
-      } catch {}
+      } catch { /* falha ao registrar consentimento não deve travar o fechamento do banner */ }
     }
   };
 
