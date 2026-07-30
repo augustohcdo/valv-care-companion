@@ -20,6 +20,7 @@ import {
   commonSymptoms,
   commonComorbidities,
 } from "@/lib/clinicalLabels";
+import { logAudit } from "@/lib/auditLog";
 
 const steps = [
   { n: 1, label: "Identificação" },
@@ -373,6 +374,7 @@ export default function NovoCaso() {
     }
     draftIdRef.current = null; // promoted, no longer a draft
     toast.success("Caso clínico criado");
+    logAudit("case_created", "clinical_cases", caseId);
     navigate(`/app/medico/casos/${caseId}`);
   };
 

@@ -5,6 +5,7 @@
  * Os geradores pesados (jspdf, jspdf-autotable, etc.) só são carregados no clique.
  */
 import { exportQueue } from "./exportQueue";
+import { logAudit } from "./auditLog";
 
 // ---- CSV ---------------------------------------------------------------
 
@@ -24,6 +25,7 @@ export function queueCsvExport(input: {
       setProgress(70);
       exportCasesToCsv(input.cases, input.filename);
       setProgress(100);
+      logAudit("document_exported", "clinical_cases", null, { format: "csv", type: "cases_list", count: input.cases.length });
     },
   });
 }
@@ -46,6 +48,7 @@ export function queueXlsxExport(input: {
       setProgress(60);
       await exportCasesToXlsx(input.cases, input.filename);
       setProgress(100);
+      logAudit("document_exported", "clinical_cases", null, { format: "xlsx", type: "cases_list", count: input.cases.length });
     },
   });
 }
@@ -70,6 +73,7 @@ export function queuePatientPdf(input: {
       setProgress(70);
       exportPatientPDF(data);
       setProgress(100);
+      logAudit("document_exported", "patients", null, { format: "pdf", type: "patient_record" });
     },
   });
 }
@@ -91,6 +95,7 @@ export function queueCohortPdf(input: {
       setProgress(70);
       exportCohortPDF(input.metrics);
       setProgress(100);
+      logAudit("document_exported", "clinical_cases", null, { format: "pdf", type: "cohort_executive" });
     },
   });
 }
@@ -115,6 +120,7 @@ export function queueMonthlyReportPdf(input: {
       setProgress(70);
       exportMonthlyReportPDF(payload);
       setProgress(100);
+      logAudit("document_exported", "clinical_cases", null, { format: "pdf", type: "monthly_report" });
     },
   });
 }

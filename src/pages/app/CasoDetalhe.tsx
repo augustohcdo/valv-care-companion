@@ -32,6 +32,7 @@ import { CaseDiscussion } from "@/components/CaseDiscussion";
 import { ClinicalAIPanel } from "@/components/ClinicalAIPanel";
 import { CaseExternalData } from "@/components/CaseExternalData";
 import { DocumentGenerator } from "@/components/DocumentGenerator";
+import { logAudit } from "@/lib/auditLog";
 
 export default function CasoDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -62,6 +63,7 @@ export default function CasoDetalhe() {
         setCaso(data);
         setStatus(data.status);
         setNotes(data.clinical_notes || "");
+        logAudit("case_viewed", "clinical_cases", id);
 
         // Determinar papel: owner ou colaborador
         const { data: doc } = await supabase
@@ -105,14 +107,21 @@ export default function CasoDetalhe() {
       .eq("id", id!);
     setSaving(false);
     if (error) toast.error("Erro ao salvar", { description: error.message });
-    else toast.success("Caso atualizado");
+    else {
+      toast.success("Caso atualizado");
+      logAudit("case_updated", "clinical_cases", id!, { status });
+    }
   };
 
   const deleteCase = async () => {
-    const { error } = await supabase.from("clinical_cases").delete().eq("id", id!);
+    const { error } = await supabase
+      .from("clinical_cases")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id!);
     if (error) toast.error("Erro", { description: error.message });
     else {
       toast.success("Caso removido");
+      logAudit("case_deleted", "clinical_cases", id!);
       navigate("/app/medico/casos");
     }
   };
@@ -148,6 +157,7 @@ export default function CasoDetalhe() {
       documents: docs || [],
     });
     toast.success("PDF gerado");
+    logAudit("document_exported", "clinical_cases", caso.id, { format: "pdf", type: "case_report" });
   };
 
   if (loading || !caso) {

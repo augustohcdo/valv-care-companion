@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { logAudit } from "@/lib/auditLog";
 
 const UFs = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB",
@@ -139,6 +140,7 @@ const PacienteMedico = () => {
       return;
     }
     toast.success("Vínculo criado com sucesso");
+    logAudit("doctor_patient_linked", "patients", patientId, { doctor_id: doctor.id });
     setResults([]);
     setCrm("");
     loadCurrent();
@@ -146,6 +148,7 @@ const PacienteMedico = () => {
 
   const unlink = async () => {
     if (!patientId) return;
+    const previousDoctorId = currentDoctor?.id ?? null;
     const { error } = await supabase
       .from("patients")
       .update({ linked_doctor_id: null, linked_at: null })
@@ -155,6 +158,7 @@ const PacienteMedico = () => {
       return;
     }
     toast.success("Vínculo encerrado");
+    logAudit("doctor_patient_unlinked", "patients", patientId, { doctor_id: previousDoctorId });
     loadCurrent();
   };
 
