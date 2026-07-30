@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Activity, Info, AlertTriangle } from "lucide-react";
+import { Activity, Info, AlertTriangle, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -94,10 +94,20 @@ export const RiskScoreCard = ({ caso }: Props) => {
 
         <div className="mt-4 p-3 bg-warning/10 border border-warning/30 rounded-lg flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-          <p className="text-[11px] text-foreground/80 leading-relaxed">
-            Estimativa <strong>educacional</strong>, baseada em variáveis clínicas comuns. Não
-            substitui calculadoras validadas (STS, EuroSCORE II) nem julgamento do Heart Team.
-          </p>
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] text-foreground/80 leading-relaxed">
+              Estimativa <strong>educacional</strong>, baseada em variáveis clínicas comuns. Não
+              substitui calculadoras validadas (STS, EuroSCORE II) nem julgamento do Heart Team.
+            </p>
+            <a
+              href="https://www.mdcalc.com/calc/10179/european-system-cardiac-operative-risk-evaluation-euroscore-ii"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+            >
+              Abrir calculadora EuroSCORE II (MDCalc) <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
         </div>
       </CardContent>
     </Card>
