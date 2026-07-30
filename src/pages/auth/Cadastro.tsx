@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useId } from "react";
+import { useState, useEffect, useRef, useId, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,6 +14,7 @@ import {
   UF_LIST,
 } from "@/lib/validators";
 import { registerConsent, ConsentType } from "@/lib/consent";
+import { TurnstileWidget, verifyTurnstile } from "@/components/TurnstileWidget";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -265,8 +266,25 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
   const doctorFieldOrder = ["full_name", "email", "phone", "crm", "crm_uf", "specialty", "institution", "password", "terms", "lgpd"];
   useScrollToError(errors, doctorFieldOrder, submitCount);
 
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const handleCaptcha = useCallback((t: string | null) => setCaptchaToken(t), []);
+
   const onSubmit = async (values: DoctorSignupInput) => {
+    if (!captchaToken) {
+      toast.error("Verificação de segurança", {
+        description: "Complete a verificação anti-robô antes de continuar.",
+      });
+      return;
+    }
     setSubmitting(true);
+
+    const captchaOk = await verifyTurnstile(captchaToken, "signup");
+    if (!captchaOk) {
+      setSubmitting(false);
+      setCaptchaToken(null);
+      toast.error("Verificação de segurança falhou", { description: "Tente novamente." });
+      return;
+    }
 
     // 1) Verifica CRM duplicado antes do signup
     const { data: existing } = await supabase
@@ -388,6 +406,8 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
 
           <ConsentBlock register={register} errors={errors} />
 
+          <TurnstileWidget onToken={handleCaptcha} action="signup" />
+
           <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
             Criar conta médica
@@ -419,8 +439,25 @@ function PatientForm({ onBack }: { onBack: () => void }) {
 
   const docCrmUf = watch("doctor_crm_uf");
 
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const handleCaptcha = useCallback((t: string | null) => setCaptchaToken(t), []);
+
   const onSubmit = async (values: PatientSignupInput) => {
+    if (!captchaToken) {
+      toast.error("Verificação de segurança", {
+        description: "Complete a verificação anti-robô antes de continuar.",
+      });
+      return;
+    }
     setSubmitting(true);
+
+    const captchaOk = await verifyTurnstile(captchaToken, "signup");
+    if (!captchaOk) {
+      setSubmitting(false);
+      setCaptchaToken(null);
+      toast.error("Verificação de segurança falhou", { description: "Tente novamente." });
+      return;
+    }
 
     // Signup — pass all data via metadata so the DB trigger creates profile + role + patient
     const { data: signupData, error: signupError } = await supabase.auth.signUp({
@@ -523,6 +560,8 @@ function PatientForm({ onBack }: { onBack: () => void }) {
           </div>
 
           <ConsentBlock register={register} errors={errors} />
+
+          <TurnstileWidget onToken={handleCaptcha} action="signup" />
 
           <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}

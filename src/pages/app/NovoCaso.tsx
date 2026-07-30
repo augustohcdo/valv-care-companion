@@ -89,6 +89,26 @@ function buildPayload(form: FormState) {
   };
 }
 
+/** Faixas fisiologicamente plausíveis — mesmos limites do CHECK constraint no banco.
+ *  Rejeita cedo, com mensagem clara, em vez de deixar o Postgres devolver um erro genérico. */
+function validateClinicalRanges(form: FormState): string | null {
+  const checks: [string, string, number, number][] = [
+    ["ejection_fraction", "Fração de ejeção", 0, 100],
+    ["mean_gradient", "Gradiente médio", 0, 200],
+    ["peak_gradient", "Gradiente máximo", 0, 250],
+    ["valve_area", "Área valvar", 0, 10],
+  ];
+  for (const [key, label, min, max] of checks) {
+    const raw = form[key as keyof FormState] as string;
+    if (!raw) continue;
+    const value = parseFloat(raw);
+    if (Number.isNaN(value) || value < min || value > max) {
+      return `${label} deve estar entre ${min} e ${max}.`;
+    }
+  }
+  return null;
+}
+
 function hydrateForm(row: any): FormState {
   return {
     patient_name: row.patient_name === "Rascunho sem nome" ? "" : (row.patient_name ?? ""),
@@ -319,6 +339,11 @@ export default function NovoCaso() {
   const submit = async () => {
     if (!doctorId) {
       toast.error("Perfil de médico não encontrado.");
+      return;
+    }
+    const rangeError = validateClinicalRanges(form);
+    if (rangeError) {
+      toast.error("Valor fora da faixa esperada", { description: rangeError });
       return;
     }
     setSaving(true);
@@ -627,22 +652,22 @@ export default function NovoCaso() {
                 <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <Label className="text-xs">FE (%)</Label>
-                    <Input type="number" step="0.1" value={form.ejection_fraction}
+                    <Input type="number" step="0.1" min="0" max="100" value={form.ejection_fraction}
                       onChange={(e) => update("ejection_fraction", e.target.value)} className="mt-1.5" />
                   </div>
                   <div>
                     <Label className="text-xs">Grad. médio (mmHg)</Label>
-                    <Input type="number" step="0.1" value={form.mean_gradient}
+                    <Input type="number" step="0.1" min="0" max="200" value={form.mean_gradient}
                       onChange={(e) => update("mean_gradient", e.target.value)} className="mt-1.5" />
                   </div>
                   <div>
                     <Label className="text-xs">Grad. máximo (mmHg)</Label>
-                    <Input type="number" step="0.1" value={form.peak_gradient}
+                    <Input type="number" step="0.1" min="0" max="250" value={form.peak_gradient}
                       onChange={(e) => update("peak_gradient", e.target.value)} className="mt-1.5" />
                   </div>
                   <div>
                     <Label className="text-xs">Área valvar (cm²)</Label>
-                    <Input type="number" step="0.01" value={form.valve_area}
+                    <Input type="number" step="0.01" min="0" max="10" value={form.valve_area}
                       onChange={(e) => update("valve_area", e.target.value)} className="mt-1.5" />
                   </div>
                   <div className="sm:col-span-2 lg:col-span-4">

@@ -2,7 +2,7 @@
 // Triggered by pg_cron (see migration) or manually by admins.
 // Writes one NDJSON file per table under exports/YYYY-MM-DD/<table>.ndjson
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { buildCorsHeaders } from "../_shared/cors.ts";
 import { logError } from "../_shared/logError.ts";
 
 const TABLES = [
@@ -33,6 +33,7 @@ const TABLES = [
 const BUCKET = "clinical-exports";
 
 Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {

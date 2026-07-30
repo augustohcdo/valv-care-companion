@@ -8,6 +8,8 @@ vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     auth: { signUp: vi.fn() },
     from: vi.fn(() => ({ select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn() })) })) })) })),
+    // TurnstileWidget chama isso ao montar para buscar a site key — nunca deve rejeitar/lançar.
+    functions: { invoke: vi.fn().mockResolvedValue({ data: null, error: null }) },
   },
 }));
 
