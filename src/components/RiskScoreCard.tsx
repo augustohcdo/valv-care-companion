@@ -1,8 +1,7 @@
 import { useMemo } from "react";
-import { Activity, Info, AlertTriangle, ExternalLink } from "lucide-react";
+import { Activity, AlertTriangle, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { calculateRisk } from "@/lib/riskScore";
 
 interface Props {

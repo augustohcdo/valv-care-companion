@@ -226,35 +226,6 @@ function HeroStat({
   );
 }
 
-function KpiCard({
-  icon: Icon,
-  label,
-  value,
-  hint,
-  tone = "default",
-}: {
-  icon: any;
-  label: string;
-  value: string;
-  hint?: string;
-  tone?: "default" | "success" | "warning";
-}) {
-  const toneCls =
-    tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-primary";
-  return (
-    <Card className="shadow-sm-soft">
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">{label}</p>
-          <Icon className={`h-4 w-4 ${toneCls}`} />
-        </div>
-        <p className={`font-serif text-3xl ${toneCls}`}>{value}</p>
-        {hint && <p className="text-xs text-muted-foreground mt-1">{hint}</p>}
-      </CardContent>
-    </Card>
-  );
-}
-
 function ActionCard({
   to,
   icon: Icon,

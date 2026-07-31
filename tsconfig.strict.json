@@ -1,8 +1,19 @@
 {
   "extends": "./tsconfig.app.json",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    // O tsconfig.app.json pai desliga estes explicitamente, e flag explícita
+    // ganha de `strict: true` — sem religar aqui, este config prometeria mais
+    // do que entrega (foi o caso da rodada 1, que rodava sem noImplicitAny).
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    // Extras além do `strict`, todos já limpos no escopo abaixo.
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true
   },
-  "include": ["src/lib/**/*.ts", "src/vite-env.d.ts"],
-  "exclude": ["src/lib/**/*.test.ts"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test"]
 }

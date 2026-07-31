@@ -2,7 +2,13 @@ import { useEffect, useState, useMemo } from "react";
 import { format, subDays, startOfDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  HeartPulse, Plus, Loader2, Save, Edit2, Trash2, AlertTriangle, TrendingDown, Activity,
+  Plus,
+  Loader2,
+  Save,
+  Edit2,
+  Trash2,
+  AlertTriangle,
+  Activity,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";

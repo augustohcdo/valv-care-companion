@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
-import { BookOpen, ExternalLink } from "lucide-react";
+import { BookOpen } from "lucide-react";
 
 const refs = [
   {

@@ -60,28 +60,28 @@ export default function AdminIntegracoes() {
     const { error } = await supabase.from("hospitals").update({
       status, approved_at: status === "ativo" ? new Date().toISOString() : null, approved_by: user?.id,
     }).eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success(`Hospital ${status === "ativo" ? "aprovado" : "encerrado"}.`);
     reload();
   };
 
   const addMember = async () => {
-    if (!memberHospital || !memberUserId) return toast.error("Preencha hospital e user_id.");
+    if (!memberHospital || !memberUserId) { toast.error("Preencha hospital e user_id."); return; }
     const { error } = await supabase.from("hospital_members").insert({
       hospital_id: memberHospital, user_id: memberUserId, role: "operador" as any,
     });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Membro adicionado."); setMemberUserId(""); reload();
   };
 
   const createKey = async () => {
-    if (!keyHospital || !keyName) return toast.error("Preencha hospital e nome.");
+    if (!keyHospital || !keyName) { toast.error("Preencha hospital e nome."); return; }
     setCreatingKey(true);
     const { data, error } = await supabase.functions.invoke("hospital-api-key-create", {
       body: { hospital_id: keyHospital, name: keyName, expires_in_days: keyDays },
     });
     setCreatingKey(false);
-    if (error || data?.error) return toast.error(data?.error ?? error?.message ?? "Erro");
+    if (error || data?.error) { toast.error(data?.error ?? error?.message ?? "Erro"); return; }
     setGeneratedKey(data.api_key);
     reload();
   };

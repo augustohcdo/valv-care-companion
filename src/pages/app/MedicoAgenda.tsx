@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { format, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, isToday, isAfter, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, MapPin, Clock, FileText, ArrowRight } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, MapPin, Clock, FileText } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { format, subDays, startOfDay, parseISO } from "date-fns";
-import { Activity, AlertTriangle, Pill, TrendingUp, Loader2 } from "lucide-react";
+import { Activity, AlertTriangle, Pill, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

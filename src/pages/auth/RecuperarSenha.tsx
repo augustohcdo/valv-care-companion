@@ -21,13 +21,13 @@ export default function RecuperarSenha() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsed = schema.safeParse({ email });
-    if (!parsed.success) return toast.error("E-mail inválido");
+    if (!parsed.success) { toast.error("E-mail inválido"); return; }
     setSubmitting(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/redefinir`,
     });
     setSubmitting(false);
-    if (error) return toast.error("Falha ao enviar", { description: error.message });
+    if (error) { toast.error("Falha ao enviar", { description: error.message }); return; }
     setSent(true);
   };
 

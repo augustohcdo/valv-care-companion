@@ -34,12 +34,13 @@ export default function RedefinirSenha() {
     e.preventDefault();
     const parsed = schema.safeParse({ password, confirm });
     if (!parsed.success) {
-      return toast.error(parsed.error.errors[0]?.message || "Verifique os campos");
+      toast.error(parsed.error.errors[0]?.message || "Verifique os campos");
+      return;
     }
     setSubmitting(true);
     const { error } = await supabase.auth.updateUser({ password });
     setSubmitting(false);
-    if (error) return toast.error("Falha ao atualizar", { description: error.message });
+    if (error) { toast.error("Falha ao atualizar", { description: error.message }); return; }
     toast.success("Senha atualizada");
     navigate("/auth/login", { replace: true });
   };

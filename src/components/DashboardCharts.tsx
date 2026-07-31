@@ -24,7 +24,7 @@ interface Props {
   }>;
 }
 
-function countBy<T extends string>(items: { [k: string]: any }[], key: string, labels: Record<string, string>) {
+function countBy(items: { [k: string]: any }[], key: string, labels: Record<string, string>) {
   const acc: Record<string, number> = {};
   items.forEach((it) => {
     const v = it[key];

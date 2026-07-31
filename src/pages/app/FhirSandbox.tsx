@@ -21,7 +21,7 @@ const SAMPLE_OBS = (patientId: string) => JSON.stringify({
   effectiveDateTime: new Date().toISOString().slice(0, 10),
 }, null, 2);
 
-const FN_BASE = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1`;
+const FN_BASE = `https://${import.meta.env['VITE_SUPABASE_PROJECT_ID']}.supabase.co/functions/v1`;
 
 export default function FhirSandbox() {
   const { user, loading } = useAuth();

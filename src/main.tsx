@@ -8,18 +8,18 @@ type BoundaryProps = { children: ReactNode };
 type BoundaryState = { hasError: boolean };
 
 class GlobalErrorBoundary extends Component<BoundaryProps, BoundaryState> {
-  state: BoundaryState = { hasError: false };
+  override state: BoundaryState = { hasError: false };
 
   static getDerivedStateFromError(): BoundaryState {
     return { hasError: true };
   }
 
-  componentDidCatch(error: unknown, info: ErrorInfo) {
+  override componentDidCatch(error: unknown, info: ErrorInfo) {
     console.error("[global-error-boundary]", error, info.componentStack);
     reportError(error, { componentStack: info.componentStack ?? undefined });
   }
 
-  render() {
+  override render() {
     if (!this.state.hasError) return this.props.children;
 
     return (

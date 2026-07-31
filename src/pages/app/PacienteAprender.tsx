@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, ChevronRight, HeartPulse, Sparkles, Lightbulb, ShieldCheck } from "lucide-react";
+import { BookOpen, ChevronRight, HeartPulse, Sparkles, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { clinicalLibrary } from "@/data/clinicalLibrary";
 import {
   caseToGuidelineSlug,
-  valveTypeLabels,
-  valveDiseaseLabels,
 } from "@/lib/clinicalLabels";
 
 const PacienteAprender = () => {

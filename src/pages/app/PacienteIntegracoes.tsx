@@ -31,7 +31,7 @@ export default function PacienteIntegracoes() {
 
   const decide = async (id: string, status: "aprovado" | "recusado", note?: string) => {
     const { error } = await supabase.from("data_access_requests").update({ status, decision_note: note ?? null }).eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success(status === "aprovado" ? "Pedido aprovado." : "Pedido recusado.");
     reload();
   };
@@ -41,7 +41,7 @@ export default function PacienteIntegracoes() {
     const { error } = await supabase.from("data_access_grants").update({
       revoked_at: new Date().toISOString(), revoked_by: user?.id, revoke_reason: "Revogado pelo paciente",
     }).eq("id", grantId);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Acesso revogado."); reload();
   };
 

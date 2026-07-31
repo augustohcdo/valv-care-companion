@@ -63,7 +63,7 @@ export default function HospitalPortal() {
 
   const submitRequest = async () => {
     if (!selected || !user) return;
-    if (!patientId.trim()) return toast.error("Informe o ID do paciente.");
+    if (!patientId.trim()) { toast.error("Informe o ID do paciente."); return; }
     setSubmitting(true);
     const { error } = await supabase.from("data_access_requests").insert({
       hospital_id: selected,
@@ -79,7 +79,7 @@ export default function HospitalPortal() {
       patient_message: message || null,
     });
     setSubmitting(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Pedido enviado. O paciente foi notificado.");
     setPatientId(""); setDoctorName(""); setDoctorCrm(""); setDetails(""); setMessage("");
     const { data: r } = await supabase.from("data_access_requests").select("*").eq("hospital_id", selected).order("created_at", { ascending: false }).limit(50);

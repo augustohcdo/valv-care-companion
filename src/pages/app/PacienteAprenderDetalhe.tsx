@@ -3,7 +3,6 @@ import { ArrowLeft, BookOpen, Lightbulb } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { clinicalLibrary } from "@/data/clinicalLibrary";
 
 const PacienteAprenderDetalhe = () => {
