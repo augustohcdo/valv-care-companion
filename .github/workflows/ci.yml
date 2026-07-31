@@ -24,6 +24,9 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
+      - name: Type-check (strict, src/lib)
+        run: npm run typecheck:strict
+
       - name: Lint
         run: npm run lint
 

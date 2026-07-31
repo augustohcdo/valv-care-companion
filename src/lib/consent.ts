@@ -95,13 +95,13 @@ export async function registerConsent(params: {
   metadata?: Record<string, unknown>;
 }) {
   const userAgent =
-    typeof navigator !== "undefined" ? navigator.userAgent : null;
+    typeof navigator !== "undefined" ? navigator.userAgent : undefined;
   const { data, error } = await supabase.rpc("register_consent", {
     _consent_type: params.type,
     _granted: params.granted,
     _document_version: params.version ?? CONSENT_VERSION,
     _source: params.source ?? "portal",
-    _ip_address: null,
+    _ip_address: undefined,
     _user_agent: userAgent,
     _metadata: (params.metadata ?? null) as never,
   });
