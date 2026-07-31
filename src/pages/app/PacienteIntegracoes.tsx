@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +54,13 @@ export default function PacienteIntegracoes() {
 
   const pending = requests.filter(r => r.status === "pendente");
 
+  // Aba controlada: com `defaultValue` o Radix lê o valor só na primeira
+  // renderização, quando os dados ainda não chegaram e `pending` está vazio —
+  // então a aba de pendentes nunca abria sozinha. Enquanto o paciente não
+  // escolhe uma aba, a seleção acompanha os dados que chegam.
+  const [tab, setTab] = useState<string | null>(null);
+  const activeTab = tab ?? (pending.length ? "pendentes" : "ativos");
+
   return (
     <div className="container max-w-5xl py-8 space-y-6">
 
@@ -75,7 +83,7 @@ export default function PacienteIntegracoes() {
 
       {loading && <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />}
 
-      <Tabs defaultValue={pending.length ? "pendentes" : "ativos"} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="pendentes">Pedidos pendentes {pending.length > 0 && <Badge className="ml-2" variant="destructive">{pending.length}</Badge>}</TabsTrigger>
           <TabsTrigger value="ativos">Acessos ativos ({grants.filter(g => !g.revoked_at).length})</TabsTrigger>
