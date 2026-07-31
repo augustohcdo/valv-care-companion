@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessagesSquare, Send, Loader2, Trash2, Stethoscope, Award } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,52 +17,67 @@ interface Props {
   canComment: boolean;
 }
 
+export const caseDiscussionKey = (caseId: string) => ["case-discussion", caseId] as const;
+
 export const CaseDiscussion = ({ caseId, canComment }: Props) => {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [items, setItems] = useState<any[]>([]);
-  const [authors, setAuthors] = useState<Record<string, any>>({});
-  const [loading, setLoading] = useState(true);
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [isHeartTeam, setIsHeartTeam] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
-  const load = async () => {
-    const { data } = await supabase
-      .from("case_comments")
-      .select("*")
-      .eq("case_id", caseId)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: true });
+  // Comentários e autores são buscados juntos porque os autores dependem dos
+  // ids que só existem depois de carregar os comentários.
+  const { data, isLoading: loading } = useQuery({
+    queryKey: caseDiscussionKey(caseId),
+    queryFn: async () => {
+      const { data: comments, error } = await supabase
+        .from("case_comments")
+        .select("*")
+        .eq("case_id", caseId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
 
-    const userIds = [...new Set((data || []).map((c) => c.author_id))];
-    const { data: profs } = userIds.length
-      ? await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)
-      : { data: [] as any[] };
-    const { data: docs } = userIds.length
-      ? await supabase.from("doctors").select("user_id, crm, crm_uf, specialty").in("user_id", userIds)
-      : { data: [] as any[] };
-    const map: Record<string, any> = {};
-    userIds.forEach((uid) => {
-      const p = profs?.find((x: any) => x.user_id === uid);
-      const d = docs?.find((x: any) => x.user_id === uid);
-      map[uid] = { full_name: p?.full_name || "Médico", ...d };
-    });
+      const userIds = [...new Set((comments ?? []).map((c) => c.author_id))];
+      const { data: profs } = userIds.length
+        ? await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)
+        : { data: [] as any[] };
+      const { data: docs } = userIds.length
+        ? await supabase.from("doctors").select("user_id, crm, crm_uf, specialty").in("user_id", userIds)
+        : { data: [] as any[] };
+      const authors: Record<string, any> = {};
+      userIds.forEach((uid) => {
+        const p = profs?.find((x: any) => x.user_id === uid);
+        const d = docs?.find((x: any) => x.user_id === uid);
+        authors[uid] = { full_name: p?.full_name || "Médico", ...d };
+      });
 
-    setAuthors(map);
-    setItems(data || []);
-    setLoading(false);
-    setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-  };
+      return { items: comments ?? [], authors };
+    },
+  });
+
+  const items = data?.items ?? [];
+  const authors = data?.authors ?? {};
+
+  const load = () => queryClient.invalidateQueries({ queryKey: caseDiscussionKey(caseId) });
 
   useEffect(() => {
-    load();
     const channel = supabase
       .channel(`discussion-${caseId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "case_comments", filter: `case_id=eq.${caseId}` }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]);
+
+  // Rola para a última mensagem sempre que a lista muda.
+  useEffect(() => {
+    if (!items.length) return;
+    const t = setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    return () => clearTimeout(t);
+  }, [items.length]);
 
   const send = async () => {
     if (!user || !body.trim()) return;

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { logAudit } from "@/lib/auditLog";
 import {
   CalendarDays,
@@ -50,10 +51,11 @@ const toLocalInput = (date: Date) => {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 };
 
+export const caseAppointmentsKey = (caseId: string) => ["case-appointments", caseId] as const;
+
 export const CaseAppointments = ({ caseId, readOnly = false }: Props) => {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -64,20 +66,21 @@ export const CaseAppointments = ({ caseId, readOnly = false }: Props) => {
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
 
-  const load = async () => {
-    const { data } = await supabase
+  const { data: items = [], isLoading: loading } = useQuery({
+    queryKey: caseAppointmentsKey(caseId),
+    queryFn: async () => {
+      const { data, error } = await supabase
       .from("appointments")
       .select("*")
       .eq("case_id", caseId)
       .is("deleted_at", null)
       .order("scheduled_at", { ascending: true });
-    setItems(data || []);
-    setLoading(false);
-  };
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
-  useEffect(() => {
-    load();
-  }, [caseId]);
+  const load = () => queryClient.invalidateQueries({ queryKey: caseAppointmentsKey(caseId) });
 
   const reset = () => {
     setType("consulta_retorno");

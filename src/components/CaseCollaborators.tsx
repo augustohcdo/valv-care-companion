@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Users, Plus, Loader2, Check, X, Trash2, ShieldCheck, Eye, MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,10 +36,11 @@ const statusColors: Record<string, string> = {
   removido: "bg-muted text-muted-foreground border-border",
 };
 
+export const caseCollaboratorsKey = (caseId: string) => ["case-collaborators", caseId] as const;
+
 export const CaseCollaborators = ({ caseId, isOwner }: Props) => {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [crm, setCrm] = useState("");
@@ -46,39 +48,43 @@ export const CaseCollaborators = ({ caseId, isOwner }: Props) => {
   const [accessLevel, setAccessLevel] = useState<"leitura" | "comentar">("comentar");
   const [message, setMessage] = useState("");
 
-  const load = async () => {
-    const { data: collabs } = await supabase
-      .from("case_collaborators")
-      .select("*")
-      .eq("case_id", caseId)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false });
+  const { data: items = [], isLoading: loading } = useQuery({
+    queryKey: caseCollaboratorsKey(caseId),
+    queryFn: async (): Promise<any[]> => {
+      const { data: collabs, error } = await supabase
+        .from("case_collaborators")
+        .select("*")
+        .eq("case_id", caseId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
 
-    const docIds = [...new Set((collabs || []).map((c) => c.doctor_id))];
-    const { data: docs } = docIds.length
-      ? await supabase.from("doctors").select("id, user_id, crm, crm_uf, specialty").in("id", docIds)
-      : { data: [] as any[] };
-    const userIds = (docs || []).map((d: any) => d.user_id);
-    const { data: profs } = userIds.length
-      ? await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)
-      : { data: [] as any[] };
+      const docIds = [...new Set((collabs ?? []).map((c) => c.doctor_id))];
+      const { data: docs } = docIds.length
+        ? await supabase.from("doctors").select("id, user_id, crm, crm_uf, specialty").in("id", docIds)
+        : { data: [] as any[] };
+      const userIds = (docs ?? []).map((d: any) => d.user_id);
+      const { data: profs } = userIds.length
+        ? await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)
+        : { data: [] as any[] };
 
-    const enriched = (collabs || []).map((c) => {
-      const d = docs?.find((x: any) => x.id === c.doctor_id);
-      const p = d ? profs?.find((x: any) => x.user_id === d.user_id) : null;
-      return { ...c, doctor: d ? { ...d, full_name: p?.full_name } : null };
-    });
-    setItems(enriched);
-    setLoading(false);
-  };
+      return (collabs ?? []).map((c) => {
+        const d = docs?.find((x: any) => x.id === c.doctor_id);
+        const p = d ? profs?.find((x: any) => x.user_id === d.user_id) : null;
+        return { ...c, doctor: d ? { ...d, full_name: p?.full_name } : null };
+      });
+    },
+  });
+
+  const load = () => queryClient.invalidateQueries({ queryKey: caseCollaboratorsKey(caseId) });
 
   useEffect(() => {
-    load();
     const channel = supabase
       .channel(`collab-${caseId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "case_collaborators", filter: `case_id=eq.${caseId}` }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]);
 
   const invite = async () => {

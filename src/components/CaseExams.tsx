@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   FlaskConical, Plus, Loader2, Trash2, Edit2, TrendingUp, TrendingDown, Minus,
 } from "lucide-react";
@@ -66,27 +67,31 @@ const emptyForm = {
   six_min_walk: "",
 };
 
+export const caseExamsKey = (caseId: string) => ["case-exams", caseId] as const;
+
 export const CaseExams = ({ caseId, readOnly = false }: Props) => {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
 
-  const load = async () => {
-    const { data } = await supabase
+  const { data: items = [], isLoading: loading } = useQuery({
+    queryKey: caseExamsKey(caseId),
+    queryFn: async (): Promise<any[]> => {
+      const { data, error } = await supabase
       .from("case_exams")
       .select("*")
       .eq("case_id", caseId)
       .is("deleted_at", null)
       .order("exam_date", { ascending: false });
-    setItems(data || []);
-    setLoading(false);
-  };
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
-  useEffect(() => { load(); }, [caseId]);
+  const load = () => queryClient.invalidateQueries({ queryKey: caseExamsKey(caseId) });
 
   const reset = () => { setForm(emptyForm); setEditingId(null); };
 

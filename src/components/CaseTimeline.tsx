@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   Loader2,
@@ -58,10 +59,11 @@ interface Props {
   readOnly?: boolean;
 }
 
+export const caseEventsKey = (caseId: string) => ["case-events", caseId] as const;
+
 export const CaseTimeline = ({ caseId, readOnly = false }: Props) => {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [events, setEvents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -70,21 +72,22 @@ export const CaseTimeline = ({ caseId, readOnly = false }: Props) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
-  const load = async () => {
-    const { data } = await supabase
+  const { data: events = [], isLoading: loading } = useQuery({
+    queryKey: caseEventsKey(caseId),
+    queryFn: async () => {
+      const { data, error } = await supabase
       .from("case_events")
       .select("*")
       .eq("case_id", caseId)
       .is("deleted_at", null)
       .order("event_date", { ascending: false })
       .order("created_at", { ascending: false });
-    setEvents(data || []);
-    setLoading(false);
-  };
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
-  useEffect(() => {
-    load();
-  }, [caseId]);
+  const load = () => queryClient.invalidateQueries({ queryKey: caseEventsKey(caseId) });
 
   const reset = () => {
     setEventType("observacao");
