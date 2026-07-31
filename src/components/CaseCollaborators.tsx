@@ -15,6 +15,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { logAudit } from "@/lib/auditLog";
 
 interface Props {
   caseId: string;
@@ -50,6 +51,7 @@ export const CaseCollaborators = ({ caseId, isOwner }: Props) => {
       .from("case_collaborators")
       .select("*")
       .eq("case_id", caseId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false });
 
     const docIds = [...new Set((collabs || []).map((c) => c.doctor_id))];
@@ -127,8 +129,9 @@ export const CaseCollaborators = ({ caseId, isOwner }: Props) => {
 
   const remove = async (id: string) => {
     if (!confirm("Remover este colaborador do caso?")) return;
-    await supabase.from("case_collaborators").delete().eq("id", id);
+    await supabase.from("case_collaborators").update({ deleted_at: new Date().toISOString() }).eq("id", id);
     toast.success("Colaborador removido");
+    logAudit("collaborator_removed", "case_collaborators", id, { case_id: caseId });
     load();
   };
 

@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { logAudit } from "@/lib/auditLog";
 
 interface Props {
   caseId: string;
@@ -30,6 +31,7 @@ export const CaseDiscussion = ({ caseId, canComment }: Props) => {
       .from("case_comments")
       .select("*")
       .eq("case_id", caseId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: true });
 
     const userIds = [...new Set((data || []).map((c) => c.author_id))];
@@ -82,7 +84,8 @@ export const CaseDiscussion = ({ caseId, canComment }: Props) => {
 
   const remove = async (id: string) => {
     if (!confirm("Remover este comentário?")) return;
-    await supabase.from("case_comments").delete().eq("id", id);
+    await supabase.from("case_comments").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+    logAudit("comment_deleted", "case_comments", id, { case_id: caseId });
     load();
   };
 

@@ -60,7 +60,15 @@ export type Database = {
           status?: Database["public"]["Enums"]["appointment_status"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "appointments_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "clinical_cases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       audit_logs: {
         Row: {
@@ -97,6 +105,7 @@ export type Database = {
           access_level: Database["public"]["Enums"]["collaborator_access"]
           case_id: string
           created_at: string
+          deleted_at: string | null
           doctor_id: string
           id: string
           invited_by: string
@@ -109,6 +118,7 @@ export type Database = {
           access_level?: Database["public"]["Enums"]["collaborator_access"]
           case_id: string
           created_at?: string
+          deleted_at?: string | null
           doctor_id: string
           id?: string
           invited_by: string
@@ -121,6 +131,7 @@ export type Database = {
           access_level?: Database["public"]["Enums"]["collaborator_access"]
           case_id?: string
           created_at?: string
+          deleted_at?: string | null
           doctor_id?: string
           id?: string
           invited_by?: string
@@ -138,6 +149,7 @@ export type Database = {
           body: string
           case_id: string
           created_at: string
+          deleted_at: string | null
           id: string
           is_heart_team_decision: boolean
           updated_at: string
@@ -148,6 +160,7 @@ export type Database = {
           body: string
           case_id: string
           created_at?: string
+          deleted_at?: string | null
           id?: string
           is_heart_team_decision?: boolean
           updated_at?: string
@@ -158,6 +171,7 @@ export type Database = {
           body?: string
           case_id?: string
           created_at?: string
+          deleted_at?: string | null
           id?: string
           is_heart_team_decision?: boolean
           updated_at?: string
@@ -251,7 +265,15 @@ export type Database = {
           metadata?: Json | null
           title?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "case_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "clinical_cases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       case_exams: {
         Row: {
@@ -326,7 +348,15 @@ export type Database = {
           updated_at?: string
           valve_area?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "case_exams_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "clinical_cases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       case_messages: {
         Row: {
@@ -1358,6 +1388,7 @@ export type Database = {
         Row: {
           body: string | null
           created_at: string
+          deleted_at: string | null
           id: string
           link: string | null
           metadata: Json | null
@@ -1369,6 +1400,7 @@ export type Database = {
         Insert: {
           body?: string | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
           link?: string | null
           metadata?: Json | null
@@ -1380,6 +1412,7 @@ export type Database = {
         Update: {
           body?: string | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
           link?: string | null
           metadata?: Json | null
@@ -1627,6 +1660,7 @@ export type Database = {
           bp_systolic: number | null
           chest_pain: number | null
           created_at: string
+          deleted_at: string | null
           dyspnea: number | null
           edema: boolean
           entry_date: string
@@ -1645,6 +1679,7 @@ export type Database = {
           bp_systolic?: number | null
           chest_pain?: number | null
           created_at?: string
+          deleted_at?: string | null
           dyspnea?: number | null
           edema?: boolean
           entry_date?: string
@@ -1663,6 +1698,7 @@ export type Database = {
           bp_systolic?: number | null
           chest_pain?: number | null
           created_at?: string
+          deleted_at?: string | null
           dyspnea?: number | null
           edema?: boolean
           entry_date?: string

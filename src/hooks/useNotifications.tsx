@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { logAudit } from "@/lib/auditLog";
 
 export interface Notification {
   id: string;
@@ -25,6 +26,7 @@ export const useNotifications = () => {
       .from("notifications")
       .select("*")
       .eq("user_id", user.id)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(30);
     setItems((data as Notification[]) || []);
@@ -74,7 +76,8 @@ export const useNotifications = () => {
   };
 
   const remove = async (id: string) => {
-    await supabase.from("notifications").delete().eq("id", id);
+    await supabase.from("notifications").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+    logAudit("notification_deleted", "notifications", id);
   };
 
   return { items, unread, loading, markAsRead, markAllAsRead, remove, reload: load };

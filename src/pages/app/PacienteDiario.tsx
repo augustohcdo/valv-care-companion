@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logAudit } from "@/lib/auditLog";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,7 @@ export default function PacienteDiario() {
       .from("symptom_entries")
       .select("*")
       .eq("patient_id", pat.id)
+      .is("deleted_at", null)
       .order("entry_date", { ascending: false })
       .limit(60);
     setItems(data || []);
@@ -116,6 +118,10 @@ export default function PacienteDiario() {
       bp_systolic: num(form.bp_systolic),
       bp_diastolic: num(form.bp_diastolic),
       notes: form.notes.trim() || null,
+      // Garante que um novo registro no mesmo dia "reviva" a linha em vez de
+      // ficar invisível caso o registro anterior daquele dia tenha sido
+      // soft-deletado (upsert usa patient_id+entry_date como chave).
+      deleted_at: null,
     };
     let error;
     if (editingId) {
@@ -137,8 +143,9 @@ export default function PacienteDiario() {
 
   const remove = async (id: string) => {
     if (!confirm("Remover este registro?")) return;
-    await supabase.from("symptom_entries").delete().eq("id", id);
+    await supabase.from("symptom_entries").update({ deleted_at: new Date().toISOString() }).eq("id", id);
     toast.success("Removido");
+    logAudit("symptom_entry_deleted", "symptom_entries", id);
     load();
   };
 
