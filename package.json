@@ -12,6 +12,7 @@
     "build:dev": "vite build --mode development",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit",
     "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit",
+    "types:generate": "node scripts/generate-supabase-types.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

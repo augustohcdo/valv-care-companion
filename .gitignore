@@ -25,3 +25,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Um único lockfile é a fonte de verdade (package-lock.json, validado pelo CI)
+bun.lockb
+bun.lock
+yarn.lock
+pnpm-lock.yaml

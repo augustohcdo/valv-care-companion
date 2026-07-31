@@ -12,18 +12,20 @@ Plataforma de apoio a pacientes e médicos no acompanhamento de valvopatias card
 
 ## Rodando localmente
 
-Pré-requisitos: Node.js 18+ (ou [Bun](https://bun.sh/)).
+Pré-requisitos: **Node.js 20.19+** (exigido por Vite 8, ESLint 10 e React Router 7 — está travado em `engines` no `package.json`).
 
 ```sh
 # instalar dependências
-npm install   # ou: bun install
+npm install
 
 # copiar variáveis de ambiente e preencher com os valores do seu projeto Supabase
 cp .env.example .env
 
 # subir o servidor de desenvolvimento
-npm run dev   # ou: bun run dev
+npm run dev
 ```
+
+O gerenciador de pacotes é o **npm** — o `package-lock.json` é a fonte de verdade e é o que o CI valida com `npm ci`.
 
 Scripts disponíveis:
 
@@ -33,9 +35,12 @@ Scripts disponíveis:
 | `build` | Build de produção |
 | `build:dev` | Build em modo desenvolvimento |
 | `preview` | Preview local do build de produção |
+| `typecheck` | Checagem de tipos (app + configs de build) |
+| `typecheck:strict` | Checagem de tipos em modo `strict` no escopo já migrado (`src/lib/`) |
 | `lint` | ESLint |
 | `test` | Roda os testes uma vez (Vitest) |
 | `test:watch` | Testes em modo watch |
+| `types:generate` | Regenera os tipos do Supabase a partir do schema (ver abaixo) |
 
 ## Estrutura
 
@@ -56,6 +61,36 @@ supabase/
 
 ## Backend
 
-O backend roda em Supabase: Postgres com Row Level Security em todas as tabelas de dados sensíveis, autenticação nativa (e-mail/senha + OAuth Google), e edge functions para integrações FHIR com hospitais parceiros, geração/consulta de chaves de API, e o assistente de IA clínica (`clinical-ai`), que usa a Anthropic Messages API para geração de texto e a OpenAI Embeddings API para a busca RAG na base de conhecimento.
+O backend roda em Supabase: Postgres com Row Level Security em todas as tabelas de dados sensíveis, autenticação nativa (e-mail/senha + OAuth Google), e edge functions para integrações FHIR com hospitais parceiros, geração/consulta de chaves de API, e o assistente de IA clínica (`clinical-ai`), que usa a Gemini API tanto para geração de texto (`gemini-3.5-flash`) quanto para os embeddings da busca RAG na base de conhecimento (`gemini-embedding-001`).
 
-Segredos necessários nas edge functions (Supabase Dashboard → Edge Functions → Secrets): `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, além dos já provisionados pelo Supabase (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, etc).
+Segredos necessários nas edge functions (Supabase Dashboard → Edge Functions → Secrets):
+
+| Segredo | Usado por |
+| --- | --- |
+| `GEMINI_API_KEY` | `clinical-ai`, `knowledge-seed` (geração de texto e embeddings) |
+| `TURNSTILE_SECRET_KEY` | `turnstile-verify` (validação do captcha) |
+| `TURNSTILE_SITE_KEY` | `turnstile-config` (entrega a site key ao frontend) |
+
+Além desses, o Supabase já provisiona automaticamente `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` e `SUPABASE_PUBLISHABLE_KEY`.
+
+### Tipos gerados do Supabase
+
+`src/integrations/supabase/types.ts` é **gerado a partir do schema do banco**, não escrito à mão. Sempre que uma migration adicionar ou alterar colunas/tabelas, regenere:
+
+```sh
+SUPABASE_ACCESS_TOKEN=sbp_xxx npm run types:generate
+```
+
+O token é um [Personal Access Token](https://supabase.com/dashboard/account/tokens) da Management API — não confundir com a anon key nem com a service role key. Como ele tem poder praticamente total sobre o projeto, não deve ser commitado nem guardado como secret de CI. Esquecer esse passo faz o `npm run typecheck` falhar com erros do tipo `'<coluna>' does not exist in type ...`.
+
+## CI
+
+O workflow em `.github/workflows/ci.yml` roda a cada push e pull request, em Node 22, e falha o build se qualquer etapa quebrar:
+
+`npm ci` → `typecheck` → `typecheck:strict` → `lint` → `test` → `build`
+
+Nenhuma credencial do Supabase é necessária: o build é estático e o cliente só é instanciado em runtime, no navegador.
+
+### TypeScript strict — migração incremental
+
+O `tsconfig.app.json` compartilhado ainda roda com `strict: false` (dívida herdada). Em vez de virar a chave de uma vez, existe um `tsconfig.strict.json` separado que aplica `strict: true` a um subconjunto já limpo do código — hoje `src/lib/`, onde mora a lógica clínica pura (`riskScore.ts`, `guidelines.ts`). Ele roda como etapa própria do CI (`typecheck:strict`), então uma regressão nesse escopo falha de forma específica. A ideia é ampliar o `include` aos poucos.
