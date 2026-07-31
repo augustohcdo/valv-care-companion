@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+import { useState, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Upload, FileText, Trash2, Loader2, Download, Paperclip } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,26 +16,30 @@ interface Props {
   readOnly?: boolean;
 }
 
+export const caseDocumentsKey = (caseId: string) => ["case-documents", caseId] as const;
+
 export const CaseDocuments = ({ caseId, readOnly = false }: Props) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
-  const [docs, setDocs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [docType, setDocType] = useState<string>("ecocardiograma");
 
-  const load = async () => {
-    const { data } = await supabase
-      .from("case_documents")
-      .select("*")
-      .eq("case_id", caseId)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false });
-    setDocs(data || []);
-    setLoading(false);
-  };
+  const { data: docs = [], isLoading: loading } = useQuery({
+    queryKey: caseDocumentsKey(caseId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("case_documents")
+        .select("*")
+        .eq("case_id", caseId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
-  useEffect(() => { load(); }, [caseId]);
+  const load = () => queryClient.invalidateQueries({ queryKey: caseDocumentsKey(caseId) });
 
   const handleFile = async (file: File) => {
     if (!user) return;
