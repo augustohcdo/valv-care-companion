@@ -93,4 +93,10 @@ Nenhuma credencial do Supabase é necessária: o build é estático e o cliente 
 
 ### TypeScript strict — migração incremental
 
-O `tsconfig.app.json` compartilhado ainda roda com `strict: false` (dívida herdada). Em vez de virar a chave de uma vez, existe um `tsconfig.strict.json` separado que aplica `strict: true` a um subconjunto já limpo do código — hoje `src/lib/`, onde mora a lógica clínica pura (`riskScore.ts`, `guidelines.ts`). Ele roda como etapa própria do CI (`typecheck:strict`), então uma regressão nesse escopo falha de forma específica. A ideia é ampliar o `include` aos poucos.
+O `tsconfig.app.json` compartilhado ainda roda com `strict: false` (dívida herdada). Em vez de virar a chave de uma vez, existe um `tsconfig.strict.json` separado que roda como etapa própria do CI (`typecheck:strict`), então uma regressão de tipagem falha de forma específica e isolada.
+
+Hoje ele cobre **todo o `src/`** (exceto arquivos de teste) com `strict` mais `noImplicitAny`, `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`, `noImplicitReturns`, `noImplicitOverride` e `noPropertyAccessFromIndexSignature`.
+
+> **Atenção ao editar esse arquivo:** ele estende o `tsconfig.app.json`, que desliga várias sub-flags de `strict` explicitamente. Uma flag explícita no config pai **vence** o `strict: true` do filho — por isso as quatro precisam ser religadas uma a uma. Confira com `npx tsc -p tsconfig.strict.json --showConfig` se tiver dúvida sobre o que está realmente valendo.
+
+Flags ainda não adotadas, com o custo já medido: `exactOptionalPropertyTypes` (31 erros), `verbatimModuleSyntax` (20) e `noUncheckedIndexedAccess` (16).
