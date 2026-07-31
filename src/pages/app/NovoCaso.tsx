@@ -353,7 +353,7 @@ export default function NovoCaso() {
 
     const payload = { ...buildPayload(form), status: "avaliacao_inicial" as any };
     let caseId = draftIdRef.current;
-    let error: any = null;
+    let error: any;
 
     if (caseId) {
       const res = await supabase.from("clinical_cases").update(payload).eq("id", caseId);

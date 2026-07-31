@@ -83,7 +83,6 @@ export function addCoverPage(doc: jsPDF, input: CoverPageInput) {
   }
   if (input.periodLabel) {
     doc.text(input.periodLabel, mx, infoY);
-    infoY += 6;
   }
   doc.setFontSize(8);
   doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`, mx, pageH - 12);
