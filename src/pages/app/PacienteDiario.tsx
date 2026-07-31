@@ -1,4 +1,6 @@
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePatient } from "@/hooks/usePatient";
 import { format, subDays, startOfDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -10,7 +12,6 @@ import {
   AlertTriangle,
   Activity,
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
@@ -59,33 +60,36 @@ const emptyForm = {
   notes: "",
 };
 
+export const symptomEntriesKey = (patientId?: string) => ["symptom-entries", patientId] as const;
+
 export default function PacienteDiario() {
-  const { user } = useAuth();
-  const [patient, setPatient] = useState<any>(null);
-  const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
 
-  const load = async () => {
-    if (!user) return;
-    const { data: pat } = await supabase.from("patients").select("id").is("deleted_at", null).eq("user_id", user.id).maybeSingle();
-    if (!pat) { setLoading(false); return; }
-    setPatient(pat);
-    const { data } = await supabase
-      .from("symptom_entries")
-      .select("*")
-      .eq("patient_id", pat.id)
-      .is("deleted_at", null)
-      .order("entry_date", { ascending: false })
-      .limit(60);
-    setItems(data || []);
-    setLoading(false);
-  };
+  const { data: patient, isLoading: loadingPatient } = usePatient();
 
-  useEffect(() => { load(); }, [user]);
+  const { data: items = [], isLoading: loadingEntries } = useQuery({
+    queryKey: symptomEntriesKey(patient?.id),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("symptom_entries")
+        .select("*")
+        .eq("patient_id", patient!.id)
+        .is("deleted_at", null)
+        .order("entry_date", { ascending: false })
+        .limit(60);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!patient?.id,
+  });
+
+  const loading = loadingPatient || (!!patient?.id && loadingEntries);
+
+  const load = () => queryClient.invalidateQueries({ queryKey: symptomEntriesKey(patient?.id) });
 
   const reset = () => { setForm(emptyForm); setEditingId(null); };
 

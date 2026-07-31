@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePatient } from "@/hooks/usePatient";
 import { format } from "date-fns";
 import { Pill, Plus, Loader2, Edit2, Trash2, Check, X, Clock, CalendarOff } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -28,12 +29,14 @@ const emptyForm = {
   notes: "",
 };
 
+export const medicationsKey = (patientId?: string) => ["medications", patientId] as const;
+// A data entra na chave: sem isso, o cache continuaria servindo os registros
+// de ontem depois da virada de meia-noite com a tela aberta.
+export const medicationLogsKey = (patientId?: string, date?: string) =>
+  ["medication-logs", patientId, date] as const;
+
 export default function PacienteMedicacoes() {
-  const { user } = useAuth();
-  const [patient, setPatient] = useState<any>(null);
-  const [meds, setMeds] = useState<any[]>([]);
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -41,21 +44,38 @@ export default function PacienteMedicacoes() {
 
   const today = format(new Date(), "yyyy-MM-dd");
 
-  const load = async () => {
-    if (!user) return;
-    const { data: pat } = await supabase.from("patients").select("id").is("deleted_at", null).eq("user_id", user.id).maybeSingle();
-    if (!pat) { setLoading(false); return; }
-    setPatient(pat);
-    const [{ data: m }, { data: l }] = await Promise.all([
-      supabase.from("medications").select("*").eq("patient_id", pat.id).order("active", { ascending: false }).order("created_at", { ascending: false }),
-      supabase.from("medication_logs").select("*").eq("patient_id", pat.id).eq("log_date", today),
-    ]);
-    setMeds(m || []);
-    setLogs(l || []);
-    setLoading(false);
-  };
+  const { data: patient, isLoading: loadingPatient } = usePatient();
+  const patientId = patient?.id as string | undefined;
 
-  useEffect(() => { load(); }, [user]);
+  const { data: meds = [], isLoading: loadingMeds } = useQuery({
+    queryKey: medicationsKey(patientId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("medications").select("*").eq("patient_id", patientId!)
+        .order("active", { ascending: false }).order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!patientId,
+  });
+
+  const { data: logs = [] } = useQuery({
+    queryKey: medicationLogsKey(patientId, today),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("medication_logs").select("*").eq("patient_id", patientId!).eq("log_date", today);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!patientId,
+  });
+
+  const loading = loadingPatient || (!!patientId && loadingMeds);
+
+  const load = () => {
+    queryClient.invalidateQueries({ queryKey: medicationsKey(patientId) });
+    queryClient.invalidateQueries({ queryKey: medicationLogsKey(patientId, today) });
+  };
 
   const reset = () => { setForm(emptyForm); setEditingId(null); };
 

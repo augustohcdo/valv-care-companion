@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,26 +8,32 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Hospital, Check, X, Copy, ShieldOff, Loader2, FileText } from "lucide-react";
 
+export const patientIntegrationsKey = (userId?: string) => ["patient-integrations", userId] as const;
+
 export default function PacienteIntegracoes() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [requests, setRequests] = useState<any[]>([]);
-  const [grants, setGrants] = useState<any[]>([]);
-  const [inbound, setInbound] = useState<any[]>([]);
+  const queryClient = useQueryClient();
 
-  const reload = async () => {
-    if (!user) return;
-    setLoading(true);
-    const [{ data: r }, { data: g }, { data: i }] = await Promise.all([
-      supabase.from("data_access_requests").select("*, hospitals(trade_name, legal_name)").eq("patient_id", user.id).order("created_at", { ascending: false }),
-      supabase.from("data_access_grants").select("*, hospitals(trade_name, legal_name)").eq("patient_id", user.id).order("granted_at", { ascending: false }),
-      supabase.from("fhir_resources_inbound").select("*, hospitals(trade_name, legal_name)").eq("patient_id", user.id).order("received_at", { ascending: false }).limit(50),
-    ]);
-    setRequests(r ?? []); setGrants(g ?? []); setInbound(i ?? []);
-    setLoading(false);
-  };
+  // As três listas são buscadas juntas porque a tela sempre as mostra juntas
+  // (abas do mesmo painel) e compartilham o mesmo gatilho de recarga.
+  const { data, isFetching: loading } = useQuery({
+    queryKey: patientIntegrationsKey(user?.id),
+    queryFn: async () => {
+      const [{ data: r }, { data: g }, { data: i }] = await Promise.all([
+        supabase.from("data_access_requests").select("*, hospitals(trade_name, legal_name)").eq("patient_id", user!.id).order("created_at", { ascending: false }),
+        supabase.from("data_access_grants").select("*, hospitals(trade_name, legal_name)").eq("patient_id", user!.id).order("granted_at", { ascending: false }),
+        supabase.from("fhir_resources_inbound").select("*, hospitals(trade_name, legal_name)").eq("patient_id", user!.id).order("received_at", { ascending: false }).limit(50),
+      ]);
+      return { requests: r ?? [], grants: g ?? [], inbound: i ?? [] };
+    },
+    enabled: !!user,
+  });
 
-  useEffect(() => { reload(); }, [user]);
+  const requests = data?.requests ?? [];
+  const grants = data?.grants ?? [];
+  const inbound = data?.inbound ?? [];
+
+  const reload = () => queryClient.invalidateQueries({ queryKey: patientIntegrationsKey(user?.id) });
 
   const decide = async (id: string, status: "aprovado" | "recusado", note?: string) => {
     const { error } = await supabase.from("data_access_requests").update({ status, decision_note: note ?? null }).eq("id", id);

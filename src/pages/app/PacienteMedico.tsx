@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePatient, patientKey } from "@/hooks/usePatient";
 import { Search, Stethoscope, MapPin, Building2, BadgeCheck, Link2, Unlink, Loader2, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -47,48 +49,47 @@ interface Doctor {
   verified: boolean;
 }
 
+export const linkedDoctorKey = (doctorId?: string) => ["linked-doctor", doctorId] as const;
+
 const PacienteMedico = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [crm, setCrm] = useState("");
   const [uf, setUf] = useState("SP");
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<(Doctor & { full_name: string })[]>([]);
   const [linking, setLinking] = useState(false);
-  const [currentDoctor, setCurrentDoctor] = useState<(Doctor & { full_name: string }) | null>(null);
-  const [patientId, setPatientId] = useState<string | null>(null);
 
-  const loadCurrent = async () => {
-    if (!user) return;
-    const { data: pat } = await supabase
-      .from("patients")
-      .select("id, linked_doctor_id, linked_at")
-      .is("deleted_at", null)
-      .eq("user_id", user.id)
-      .maybeSingle();
+  const { data: patient } = usePatient();
+  const patientId = (patient?.id as string | undefined) ?? null;
 
-    if (!pat) return;
-    setPatientId(pat.id);
-    if (!pat.linked_doctor_id) {
-      setCurrentDoctor(null);
-      return;
-    }
-    const { data: doc } = await supabase
-      .from("doctors")
-      .select("*")
-      .eq("id", pat.linked_doctor_id)
-      .maybeSingle();
-    if (!doc) return;
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("user_id", doc.user_id)
-      .maybeSingle();
-    setCurrentDoctor({ ...(doc as any), full_name: prof?.full_name || "Médico(a)" });
+  // Médico vinculado, já enriquecido com o nome do perfil. Diferente do código
+  // anterior, se o médico não for encontrado o card é limpo em vez de manter o
+  // valor antigo na tela.
+  const { data: currentDoctor = null } = useQuery({
+    queryKey: linkedDoctorKey(patient?.linked_doctor_id ?? undefined),
+    queryFn: async (): Promise<(Doctor & { full_name: string }) | null> => {
+      const { data: doc, error } = await supabase
+        .from("doctors")
+        .select("*")
+        .eq("id", patient!.linked_doctor_id!)
+        .maybeSingle();
+      if (error) throw error;
+      if (!doc) return null;
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", doc.user_id)
+        .maybeSingle();
+      return { ...(doc as any), full_name: prof?.full_name || "Médico(a)" };
+    },
+    enabled: !!patient?.linked_doctor_id,
+  });
+
+  const loadCurrent = () => {
+    queryClient.invalidateQueries({ queryKey: patientKey(user?.id) });
+    queryClient.invalidateQueries({ queryKey: ["linked-doctor"] });
   };
-
-  useEffect(() => {
-    loadCurrent();
-  }, [user]);
 
   const search = async () => {
     if (!crm.trim()) {

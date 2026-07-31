@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePatient } from "@/hooks/usePatient";
 import { logAudit } from "@/lib/auditLog";
 import {
   Upload,
@@ -30,12 +32,12 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { documentTypeLabels, formatBytes } from "@/lib/clinicalLabels";
 
+export const patientDocumentsKey = (patientId?: string) => ["patient-documents", patientId] as const;
+
 const PacienteDocumentos = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
-  const [patientId, setPatientId] = useState<string | null>(null);
-  const [docs, setDocs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
   // form
@@ -43,32 +45,27 @@ const PacienteDocumentos = () => {
   const [description, setDescription] = useState("");
   const [shareWithDoctor, setShareWithDoctor] = useState(true);
 
-  const load = async () => {
-    if (!user) return;
-    const { data: pat } = await supabase
-      .from("patients")
-      .select("id")
-      .is("deleted_at", null)
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (!pat) {
-      setLoading(false);
-      return;
-    }
-    setPatientId(pat.id);
-    const { data } = await supabase
-      .from("patient_documents")
-      .select("*")
-      .eq("patient_id", pat.id)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false });
-    setDocs(data || []);
-    setLoading(false);
-  };
+  const { data: patient, isLoading: loadingPatient } = usePatient();
+  const patientId = patient?.id ?? null;
 
-  useEffect(() => {
-    load();
-  }, [user]);
+  const { data: docs = [], isLoading: loadingDocs } = useQuery({
+    queryKey: patientDocumentsKey(patientId ?? undefined),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("patient_documents")
+        .select("*")
+        .eq("patient_id", patientId!)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!patientId,
+  });
+
+  const loading = loadingPatient || (!!patientId && loadingDocs);
+
+  const load = () => queryClient.invalidateQueries({ queryKey: patientDocumentsKey(patientId ?? undefined) });
 
   const handleFile = async (file: File) => {
     if (!user || !patientId) return;
