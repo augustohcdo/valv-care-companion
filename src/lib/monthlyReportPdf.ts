@@ -112,8 +112,11 @@ export function exportMonthlyReportPDF(m: MonthlyReportInput) {
   // INDICADORES
   section("Indicadores do período");
   const total = m.cases.length;
+  // 'grave' não existe no enum severity_level — o valor de alta gravidade
+  // abaixo de 'critica' é 'importante'. Enquanto a comparação errada esteve
+  // aqui, este indicador contava só os críticos e omitia os importantes.
   const severeCount = m.cases.filter(
-    (c) => c.severity === "grave" || c.severity === "critica",
+    (c) => c.severity === "importante" || c.severity === "critica",
   ).length;
   const intervened = m.cases.filter((c) => c.status === "pos_intervencao").length;
   const interventionRate = total ? Math.round((intervened / total) * 100) : 0;
@@ -137,7 +140,7 @@ export function exportMonthlyReportPDF(m: MonthlyReportInput) {
   }
 
   line("Casos novos no período", total);
-  line("Casos graves/críticos", severeCount);
+  line("Casos importantes/críticos", severeCount);
   line("Pós-intervenção", intervened);
   line("Taxa de intervenção", `${interventionRate}%`);
   line("Consultas realizadas", apptDone);

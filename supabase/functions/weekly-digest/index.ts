@@ -56,10 +56,21 @@ Deno.serve(async (req) => {
     if (error) throw error;
 
     let created = 0;
+    let failed = 0;
+    let firstError: string | null = null;
+
     for (const d of doctors ?? []) {
-      const { data: digest } = await supabase.rpc("doctor_weekly_digest", {
+      // O erro do rpc() precisa ser olhado. Sem isto, uma falha vira `digest`
+      // nulo, os contadores viram zero e o médico é pulado em silêncio — foi
+      // o que manteve este resumo sem sair para ninguém, reportando ok:true.
+      const { data: digest, error: rpcError } = await supabase.rpc("doctor_weekly_digest", {
         _doctor_user_id: d.user_id,
       });
+      if (rpcError) {
+        failed++;
+        firstError ??= rpcError.message;
+        continue;
+      }
       const stats = (digest ?? {}) as Record<string, number>;
       const newCases = stats.new_cases ?? 0;
       const upcoming = stats.upcoming_appointments ?? 0;
@@ -72,7 +83,7 @@ Deno.serve(async (req) => {
       const body =
         `Esta semana: ${newCases} novo(s) caso(s) · ${upcoming} retorno(s) agendado(s)` +
         (pending > 0 ? ` · ${pending} caso(s) sem atualização há 30+ dias` : "") +
-        (severe > 0 ? ` · ${severe} grave(s) ativo(s)` : "");
+        (severe > 0 ? ` · ${severe} caso(s) importante(s)/crítico(s) ativo(s)` : "");
 
       await supabase.from("notifications").insert({
         user_id: d.user_id,
@@ -85,7 +96,17 @@ Deno.serve(async (req) => {
       created++;
     }
 
-    return new Response(JSON.stringify({ ok: true, sent: created }), {
+    if (failed > 0) {
+      await logError({
+        source: "edge_function", context: "weekly-digest",
+        message: `resumo falhou para ${failed} de ${doctors?.length ?? 0} médico(s): ${firstError}`,
+      });
+    }
+
+    // `ok` reflete a realidade: um digest que falhou para todo mundo não pode
+    // responder sucesso.
+    return new Response(JSON.stringify({ ok: failed === 0, sent: created, failed }), {
+      status: failed > 0 ? 500 : 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
