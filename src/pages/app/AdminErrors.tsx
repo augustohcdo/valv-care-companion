@@ -15,11 +15,44 @@ type ClientError = {
   created_at: string;
 };
 
-export const clientErrorsKey = () => ["client-errors"] as const;
-export const lastBackupKey = () => ["last-backup"] as const;
+type JobRun = {
+  job: string;
+  finished_at: string | null;
+  items_ok: number;
+  items_failed: number;
+  details: Record<string, number> | null;
+};
 
-/** Depois de quantos dias um backup semanal passa a ser motivo de alarme. */
-const BACKUP_STALE_DAYS = 8;
+export const clientErrorsKey = () => ["client-errors"] as const;
+export const jobRunsKey = () => ["job-runs"] as const;
+
+/**
+ * As tarefas agendadas que precisam dar sinal de vida, e em quantos dias o
+ * silêncio vira alarme. Ambas rodam toda segunda-feira, daí o limite de 8.
+ *
+ * Uma tarefa que nunca rodou aparece vermelha desde o primeiro dia: foi
+ * exatamente esse estado — agendado, "ativo", nunca tendo produzido nada — que
+ * passou despercebido no backup e no resumo semanal.
+ */
+const WATCHED_JOBS: {
+  job: string;
+  label: string;
+  staleDays: number;
+  describe: (r: JobRun) => string;
+}[] = [
+  {
+    job: "weekly-export",
+    label: "Backup semanal",
+    staleDays: 8,
+    describe: (r) => `${r.items_ok} tabelas, ${r.details?.["total_rows"] ?? 0} registros.`,
+  },
+  {
+    job: "weekly-digest",
+    label: "Resumo semanal do médico",
+    staleDays: 8,
+    describe: (r) => `${r.items_ok} médico(s) notificado(s).`,
+  },
+];
 
 export default function AdminErrors() {
   const [openStack, setOpenStack] = useState<string | null>(null);
@@ -44,27 +77,21 @@ export default function AdminErrors() {
   // mantém o botão girando até a resposta chegar.
   const reload = () => refetch();
 
-  // Um backup que para de rodar precisa gritar. Esta tela ficou semanas
-  // mostrando "nenhum erro" enquanto o export nunca produzia arquivo nenhum.
-  const { data: lastBackup, isLoading: loadingBackup } = useQuery({
-    queryKey: lastBackupKey(),
-    queryFn: async () => {
+  // Uma tarefa agendada que para de rodar precisa gritar. Esta tela ficou
+  // semanas mostrando "nenhum erro" enquanto o export nunca produzia arquivo.
+  const { data: runs = [], isLoading: loadingRuns } = useQuery({
+    queryKey: jobRunsKey(),
+    queryFn: async (): Promise<JobRun[]> => {
       const { data, error } = await supabase
-        .from("backup_runs")
-        .select("finished_at, ok, tables_ok, tables_failed, total_rows, error")
+        .from("job_runs")
+        .select("job, finished_at, items_ok, items_failed, details")
         .eq("ok", true)
         .order("finished_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(50);
       if (error) throw error;
-      return data;
+      return (data as JobRun[]) ?? [];
     },
   });
-
-  const backupAgeDays = lastBackup?.finished_at
-    ? (Date.now() - new Date(lastBackup.finished_at).getTime()) / 86_400_000
-    : null;
-  const backupStale = backupAgeDays === null || backupAgeDays > BACKUP_STALE_DAYS;
 
   return (
     <div className="container max-w-4xl py-8 space-y-6">
@@ -81,28 +108,43 @@ export default function AdminErrors() {
         </Button>
       </header>
 
-      {!loadingBackup && (
-        <Card className={backupStale ? "border-destructive bg-destructive/5" : "border-success/40 bg-success/5"}>
-          <CardContent className="p-4 flex items-start gap-3">
-            <DatabaseBackup className={`h-5 w-5 mt-0.5 shrink-0 ${backupStale ? "text-destructive" : "text-success"}`} />
-            <div className="text-sm">
-              <p className="font-medium">
-                {backupAgeDays === null
-                  ? "Nenhum backup registrado"
-                  : backupStale
-                  ? `Último backup há ${Math.floor(backupAgeDays)} dias`
-                  : `Último backup há ${Math.floor(backupAgeDays)} dia(s)`}
-              </p>
-              <p className="text-muted-foreground">
-                {backupAgeDays === null
-                  ? "O export semanal nunca concluiu com sucesso. Verifique o agendamento antes de confiar em qualquer recuperação."
-                  : backupStale
-                  ? "O export semanal deveria rodar toda segunda-feira. Passou do prazo — verifique o agendamento."
-                  : `${lastBackup?.tables_ok} tabelas, ${lastBackup?.total_rows} registros.`}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      {!loadingRuns && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {WATCHED_JOBS.map((j) => {
+            const last = runs.find((r) => r.job === j.job);
+            const ageDays = last?.finished_at
+              ? (Date.now() - new Date(last.finished_at).getTime()) / 86_400_000
+              : null;
+            const stale = ageDays === null || ageDays > j.staleDays;
+            return (
+              <Card
+                key={j.job}
+                className={stale ? "border-destructive bg-destructive/5" : "border-success/40 bg-success/5"}
+              >
+                <CardContent className="p-4 flex items-start gap-3">
+                  <DatabaseBackup
+                    className={`h-5 w-5 mt-0.5 shrink-0 ${stale ? "text-destructive" : "text-success"}`}
+                  />
+                  <div className="text-sm">
+                    <p className="font-medium">{j.label}</p>
+                    <p className="font-medium">
+                      {ageDays === null
+                        ? "Nunca executou com sucesso"
+                        : `Última execução há ${Math.floor(ageDays)} dia(s)`}
+                    </p>
+                    <p className="text-muted-foreground">
+                      {ageDays === null
+                        ? "Agendada, mas sem nenhuma execução bem sucedida registrada. Verifique o agendamento antes de confiar nela."
+                        : stale
+                        ? "Deveria rodar toda segunda-feira. Passou do prazo — verifique o agendamento."
+                        : j.describe(last!)}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
       <div className="space-y-3">

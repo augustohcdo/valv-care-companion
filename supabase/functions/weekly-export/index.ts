@@ -4,6 +4,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { logError } from "../_shared/logError.ts";
+import { recordJobRun } from "../_shared/jobRun.ts";
+
+const JOB = "weekly-export";
 
 const TABLES = [
   "clinical_cases",
@@ -35,6 +38,10 @@ const BUCKET = "clinical-exports";
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Fora do try: o catch precisa dos dois para registrar a execução que falhou.
+  const startedAt = new Date().toISOString();
+  let triggeredBy = "desconhecido";
 
   try {
   const supabase = createClient(
@@ -80,8 +87,7 @@ Deno.serve(async (req) => {
   }
 
   const stamp = new Date().toISOString().slice(0, 10);
-  const startedAt = new Date().toISOString();
-  const triggeredBy = cronHeader ? "pg_cron" : "admin";
+  triggeredBy = cronHeader ? "pg_cron" : "admin";
   const results: Record<string, { rows: number; bytes: number; error?: string }> = {};
 
   for (const table of TABLES) {
@@ -132,16 +138,18 @@ Deno.serve(async (req) => {
   // que deixou o export quebrado por semanas sem ninguém perceber.
   const entries = Object.values(results);
   const failed = entries.filter((r) => r.error);
-  await supabase.from("backup_runs").insert({
-    started_at: startedAt,
-    finished_at: new Date().toISOString(),
+  await recordJobRun({
+    job: JOB,
+    startedAt,
     ok: failed.length === 0,
-    tables_ok: entries.length - failed.length,
-    tables_failed: failed.length,
-    total_rows: entries.reduce((a, r) => a + r.rows, 0),
-    total_bytes: entries.reduce((a, r) => a + r.bytes, 0),
-    error: failed.length ? failed.map((r) => r.error).join("; ").slice(0, 2000) : null,
-    triggered_by: triggeredBy,
+    itemsOk: entries.length - failed.length,
+    itemsFailed: failed.length,
+    details: {
+      total_rows: entries.reduce((a, r) => a + r.rows, 0),
+      total_bytes: entries.reduce((a, r) => a + r.bytes, 0),
+    },
+    error: failed.length ? failed.map((r) => r.error).join("; ") : null,
+    triggeredBy,
   });
   await supabase.storage
     .from(BUCKET)
@@ -154,6 +162,13 @@ Deno.serve(async (req) => {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
   } catch (e) {
+    // Um crash antes do laço das tabelas não gravava linha nenhuma, e a tela de
+    // admin não tinha como distinguir isso de "ainda não chegou a hora".
+    await recordJobRun({
+      job: JOB, startedAt, ok: false,
+      error: e instanceof Error ? e.message : String(e),
+      triggeredBy,
+    });
     await logError({
       source: "edge_function", context: "weekly-export",
       message: e instanceof Error ? e.message : String(e),

@@ -11,8 +11,17 @@ const ERRORS = [
 let gate: Promise<void> | null = null;
 let openGate: (() => void) | null = null;
 
-// data do último backup bem sucedido; null = nunca rodou
-let lastBackupAt: string | null = new Date().toISOString();
+// execuções bem sucedidas devolvidas pelo banco fake
+let jobRuns: Record<string, unknown>[] = [];
+
+const run = (job: string, daysAgo: number, extra: Record<string, unknown> = {}) => ({
+  job,
+  finished_at: new Date(Date.now() - daysAgo * 86_400_000).toISOString(),
+  items_ok: 22,
+  items_failed: 0,
+  details: { total_rows: 5 },
+  ...extra,
+});
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -21,15 +30,8 @@ vi.mock("@/integrations/supabase/client", () => ({
         const chain: any = {
           eq: () => chain,
           order: () => chain,
-          maybeSingle: () =>
-            Promise.resolve({
-              data: lastBackupAt
-                ? { finished_at: lastBackupAt, ok: true, tables_ok: 22, tables_failed: 0, total_rows: 5, error: null }
-                : null,
-              error: null,
-            }),
           limit: () => {
-            if (table === "backup_runs") return chain;
+            if (table === "job_runs") return Promise.resolve({ data: jobRuns, error: null });
             return gate ? gate.then(() => ({ data: ERRORS, error: null })) : Promise.resolve({ data: ERRORS, error: null });
           },
         };
@@ -50,7 +52,7 @@ describe("AdminErrors", () => {
   beforeEach(() => {
     gate = null;
     openGate = null;
-    lastBackupAt = new Date().toISOString();
+    jobRuns = [run("weekly-export", 1), run("weekly-digest", 1, { items_ok: 3, details: null })];
     client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
     vi.clearAllMocks();
   });
@@ -80,24 +82,33 @@ describe("AdminErrors", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: /Atualizar/i })).not.toBeDisabled());
   });
 
-  it("mostra o último backup quando ele está em dia", async () => {
+  it("mostra cada tarefa agendada em dia, com os números próprios de cada uma", async () => {
     render(<AdminErrors />, { wrapper });
-    await waitFor(() => expect(screen.getByText(/Último backup há/)).toBeInTheDocument());
-    expect(screen.getByText(/22 tabelas/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Backup semanal")).toBeInTheDocument());
+    expect(screen.getByText("Resumo semanal do médico")).toBeInTheDocument();
+    expect(screen.getByText(/22 tabelas, 5 registros/)).toBeInTheDocument();
+    expect(screen.getByText(/3 médico\(s\) notificado\(s\)/)).toBeInTheDocument();
   });
 
-  // Este é o estado que a tela precisava ter mostrado durante semanas: o
-  // export estava agendado, "ativo", e nunca tinha produzido um arquivo.
-  it("alarma quando nunca houve backup", async () => {
-    lastBackupAt = null;
+  // Este é o estado que a tela precisava ter mostrado durante semanas: a tarefa
+  // estava agendada, "ativa", e nunca tinha produzido nada.
+  it("alarma quando uma tarefa nunca executou", async () => {
+    jobRuns = [];
     render(<AdminErrors />, { wrapper });
-    await waitFor(() => expect(screen.getByText(/Nenhum backup registrado/)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getAllByText(/Nunca executou com sucesso/)).toHaveLength(2),
+    );
   });
 
-  it("alarma quando o backup passou do prazo semanal", async () => {
-    lastBackupAt = new Date(Date.now() - 20 * 86_400_000).toISOString();
+  // A regressão que motivou generalizar a tabela: com o alarme preso ao
+  // backup, o resumo semanal podia parar de rodar sem ninguém ver.
+  it("alarma a tarefa atrasada sem contaminar a que está em dia", async () => {
+    jobRuns = [run("weekly-export", 1), run("weekly-digest", 20, { items_ok: 3 })];
     render(<AdminErrors />, { wrapper });
-    await waitFor(() => expect(screen.getByText(/Último backup há 20 dias/)).toBeInTheDocument());
-    expect(screen.getByText(/Passou do prazo/)).toBeInTheDocument();
+
+    await waitFor(() => expect(screen.getByText(/Última execução há 20 dia/)).toBeInTheDocument());
+    expect(screen.getByText(/Última execução há 1 dia/)).toBeInTheDocument();
+    // só uma das duas passou do prazo
+    expect(screen.getAllByText(/Passou do prazo/)).toHaveLength(1);
   });
 });

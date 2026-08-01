@@ -1,10 +1,17 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { logError } from "../_shared/logError.ts";
+import { recordJobRun } from "../_shared/jobRun.ts";
+
+const JOB = "weekly-digest";
 
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // Fora do try: o catch precisa dos dois para registrar a execução que falhou.
+  const startedAt = new Date().toISOString();
+  let triggeredBy = "desconhecido";
 
   try {
     const supabase = createClient(
@@ -23,6 +30,7 @@ Deno.serve(async (req) => {
     // Auth: allow (a) valid cron secret via header, or (b) authenticated admin JWT.
     const cronHeader = req.headers.get("x-cron-secret");
     let authorized = !!(CRON_SECRET && cronHeader === CRON_SECRET);
+    triggeredBy = cronHeader ? "pg_cron" : "admin";
 
     if (!authorized) {
       const authHeader = req.headers.get("Authorization") ?? "";
@@ -96,6 +104,19 @@ Deno.serve(async (req) => {
       created++;
     }
 
+    // Registro da execução. Um digest que respondeu `sent: 0` porque ninguém
+    // tinha novidade e um que nunca rodou eram, até aqui, o mesmo silêncio.
+    await recordJobRun({
+      job: JOB,
+      startedAt,
+      ok: failed === 0,
+      itemsOk: created,
+      itemsFailed: failed,
+      details: { doctors: doctors?.length ?? 0 },
+      error: firstError,
+      triggeredBy,
+    });
+
     if (failed > 0) {
       await logError({
         source: "edge_function", context: "weekly-digest",
@@ -110,6 +131,11 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    await recordJobRun({
+      job: JOB, startedAt, ok: false,
+      error: e instanceof Error ? e.message : String(e),
+      triggeredBy,
+    });
     await logError({
       source: "edge_function", context: "weekly-digest",
       message: e instanceof Error ? e.message : String(e),
