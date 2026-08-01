@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,35 +60,48 @@ const STATUS_META: Record<DpoStatus, { label: string; color: string; icon: typeo
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 const daysLeft = (iso: string) => Math.ceil((new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
+export const dpoRequestsKey = (userId?: string) => ["dpo-requests", userId] as const;
+
 export default function DPO() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [right, setRight] = useState<RightId>("acesso");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [cpf, setCpf] = useState("");
   const [details, setDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [requests, setRequests] = useState<DpoRequest[]>([]);
-  const [loadingList, setLoadingList] = useState(false);
+
 
   const selectedRight = RIGHTS.find((r) => r.id === right)!;
 
+  // Prefill do e-mail: sincronização de formulário, não busca de dados.
+  /* eslint-disable react-hooks/set-state-in-effect -- sincronização de formulário com dado assíncrono: é o caso legítimo desta regra */
   useEffect(() => {
     if (user?.email) setEmail(user.email);
   }, [user]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  const loadRequests = async () => {
-    if (!user) return;
-    setLoadingList(true);
-    const { data, error } = await supabase
-      .from("dpo_requests")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (!error && data) setRequests(data as DpoRequest[]);
-    setLoadingList(false);
-  };
+  // A consulta NÃO filtra por user_id — a separação é toda por RLS. Por isso o
+  // id do usuário precisa estar na chave: sem ele, a segunda conta a usar o
+  // mesmo navegador leria do cache os pedidos LGPD da primeira.
+  const { data: requests = [], isLoading: loadingList } = useQuery({
+    queryKey: dpoRequestsKey(user?.id),
+    queryFn: async (): Promise<DpoRequest[]> => {
+      const { data, error } = await supabase
+        .from("dpo_requests")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data as DpoRequest[]) ?? [];
+    },
+    // isLoading (não isPending): no v5 uma query desabilitada fica "pending",
+    // o que deixaria o visitante deslogado preso num carregamento eterno.
+    enabled: !!user,
+  });
 
-  useEffect(() => { loadRequests(); }, [user]);
+  const loadRequests = () =>
+    queryClient.invalidateQueries({ queryKey: dpoRequestsKey(user?.id) });
 
   // Realtime updates de status
   useEffect(() => {

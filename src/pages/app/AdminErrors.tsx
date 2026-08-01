@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,23 +15,30 @@ type ClientError = {
   created_at: string;
 };
 
+export const clientErrorsKey = () => ["client-errors"] as const;
+
 export default function AdminErrors() {
-  const [errors, setErrors] = useState<ClientError[]>([]);
-  const [loading, setLoading] = useState(true);
   const [openStack, setOpenStack] = useState<string | null>(null);
 
-  const reload = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("client_errors")
-      .select("id, source, context, message, stack, created_at")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    setErrors((data as ClientError[]) ?? []);
-    setLoading(false);
-  };
+  // Duas noções distintas de "carregando": `isLoading` é a primeira carga (o
+  // spinner no meio da lista) e `isFetching` cobre também as recargas manuais
+  // (o spinner dentro do botão). Usar só uma delas quebraria um dos dois.
+  const { data: errors = [], isLoading, isFetching, refetch } = useQuery({
+    queryKey: clientErrorsKey(),
+    queryFn: async (): Promise<ClientError[]> => {
+      const { data, error } = await supabase
+        .from("client_errors")
+        .select("id, source, context, message, stack, created_at")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data as ClientError[]) ?? [];
+    },
+  });
 
-  useEffect(() => { reload(); }, []);
+  // refetch(), não invalidateQueries(): só o refetch devolve a promessa que
+  // mantém o botão girando até a resposta chegar.
+  const reload = () => refetch();
 
   return (
     <div className="container max-w-4xl py-8 space-y-6">
@@ -41,14 +49,14 @@ export default function AdminErrors() {
           </h1>
           <p className="text-muted-foreground">Últimos 100 erros capturados no cliente e nas edge functions.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+        <Button variant="outline" size="sm" onClick={reload} disabled={isFetching}>
+          {isFetching ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
           Atualizar
         </Button>
       </header>
 
       <div className="space-y-3">
-        {loading && !errors.length && <Loader2 className="h-5 w-5 animate-spin" />}
+        {isLoading && <Loader2 className="h-5 w-5 animate-spin" />}
         {errors.map((err) => (
           <Card key={err.id}>
             <CardContent className="p-4 space-y-2 text-sm">
@@ -83,7 +91,7 @@ export default function AdminErrors() {
             </CardContent>
           </Card>
         ))}
-        {!errors.length && !loading && <p className="text-muted-foreground text-sm">Nenhum erro registrado.</p>}
+        {!errors.length && !isLoading && <p className="text-muted-foreground text-sm">Nenhum erro registrado.</p>}
       </div>
     </div>
   );

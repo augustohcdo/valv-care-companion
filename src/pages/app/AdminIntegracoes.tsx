@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,13 +13,12 @@ import { toast } from "sonner";
 import { ShieldCheck, KeyRound, Plus, Loader2, Copy } from "lucide-react";
 import { Navigate } from "react-router-dom";
 
+export const adminRoleKey = (userId?: string) => ["admin-role", userId] as const;
+export const adminIntegrationsKey = () => ["admin-integrations"] as const;
+
 export default function AdminIntegracoes() {
   const { user, loading: authLoading } = useAuth();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [hospitals, setHospitals] = useState<any[]>([]);
-  const [keys, setKeys] = useState<any[]>([]);
-  const [members, setMembers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Add member
   const [memberHospital, setMemberHospital] = useState("");
@@ -32,28 +32,40 @@ export default function AdminIntegracoes() {
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [creatingKey, setCreatingKey] = useState(false);
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
-      setIsAdmin(!!data);
-    })();
-  }, [user]);
+  const { data: isAdmin } = useQuery({
+    queryKey: adminRoleKey(user?.id),
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("has_role", { _user_id: user!.id, _role: "admin" });
+      if (error) throw error;
+      return !!data;
+    },
+    enabled: !!user,
+  });
 
-  const reload = async () => {
-    setLoading(true);
-    const [{ data: h }, { data: k }, { data: m }] = await Promise.all([
-      supabase.from("hospitals").select("*").order("created_at", { ascending: false }),
-      supabase.from("hospital_api_keys").select("*").order("created_at", { ascending: false }),
-      supabase.from("hospital_members").select("*, hospitals(legal_name, trade_name)").order("created_at", { ascending: false }),
-    ]);
-    setHospitals(h ?? []); setKeys(k ?? []); setMembers(m ?? []);
-    setLoading(false);
-  };
+  const { data, isLoading: loadingLists } = useQuery({
+    queryKey: adminIntegrationsKey(),
+    queryFn: async () => {
+      const [{ data: h }, { data: k }, { data: m }] = await Promise.all([
+        supabase.from("hospitals").select("*").order("created_at", { ascending: false }),
+        supabase.from("hospital_api_keys").select("*").order("created_at", { ascending: false }),
+        supabase.from("hospital_members").select("*, hospitals(legal_name, trade_name)").order("created_at", { ascending: false }),
+      ]);
+      return { hospitals: h ?? [], keys: k ?? [], members: m ?? [] };
+    },
+    enabled: isAdmin === true,
+  });
 
-  useEffect(() => { if (isAdmin) reload(); }, [isAdmin]);
+  const hospitals = data?.hospitals ?? [];
+  const keys = data?.keys ?? [];
+  const members = data?.members ?? [];
+  const loading = loadingLists;
 
-  if (authLoading || isAdmin === null) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+  const reload = () => queryClient.invalidateQueries({ queryKey: adminIntegrationsKey() });
+
+  // `isAdmin === undefined` é "ainda não sei" e precisa continuar mostrando o
+  // spinner. Tratar undefined como falso mandaria o próprio admin para a tela
+  // do médico durante o carregamento normal.
+  if (authLoading || isAdmin === undefined) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   if (!isAdmin) return <Navigate to="/app/medico" replace />;
 
   const approveHospital = async (id: string, status: "ativo" | "encerrado") => {

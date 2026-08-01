@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { FileText, Copy, Loader2, Sparkles, Stethoscope, HeartHandshake, ClipboardList, Scissors, Activity, LogOut } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { hasActiveConsent } from "@/lib/consent";
 import { toast } from "sonner";
+
+export const prosthesisKey = (prosthesisId?: string | null) =>
+  ["prosthesis", prosthesisId] as const;
 
 interface Props {
   caso: any;
@@ -25,14 +29,17 @@ const AI_MODES: Record<string, { label: string; toastFail: string }> = {
 };
 
 export function DocumentGenerator({ caso, riskScore }: Props) {
-  const [prosthesis, setProsthesis] = useState<{ manufacturer: string; model_name: string; size: number | null } | null>(null);
-  useEffect(() => {
-    if (!caso?.prosthesis_id) { setProsthesis(null); return; }
-    supabase.from("prosthesis_catalog")
-      .select("manufacturer, model_name, size")
-      .eq("id", caso.prosthesis_id).maybeSingle()
-      .then(({ data }) => setProsthesis((data as any) ?? null));
-  }, [caso?.prosthesis_id]);
+  const { data: prosthesis = null } = useQuery({
+    queryKey: prosthesisKey(caso?.prosthesis_id),
+    queryFn: async () => {
+      const { data, error } = await supabase.from("prosthesis_catalog")
+        .select("manufacturer, model_name, size")
+        .eq("id", caso!.prosthesis_id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!caso?.prosthesis_id,
+  });
   const [text, setText] = useState("");
   const [kind, setKind] = useState<DocKind | null>(null);
   const [loading, setLoading] = useState(false);

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ShieldCheck, History, Loader2, AlertTriangle, Check, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -45,11 +46,12 @@ interface AuditRow {
   created_at: string;
 }
 
+export const privacyPreferencesKey = (userId?: string) =>
+  ["privacy-preferences", userId] as const;
+
 export function PrivacyPreferencesPanel() {
   const { user, profile } = useAuth();
-  const [consents, setConsents] = useState<ConsentRow[]>([]);
-  const [audit, setAudit] = useState<AuditRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [saving, setSaving] = useState<ConsentType | null>(null);
   const [pendingRevoke, setPendingRevoke] = useState<ConsentType | null>(null);
 
@@ -58,30 +60,34 @@ export function PrivacyPreferencesPanel() {
     (c) => c.audience === "all" || c.audience === audience
   );
 
-  const load = async () => {
-    if (!user) return;
-    setLoading(true);
-    const [{ data: c }, { data: a }] = await Promise.all([
-      supabase
-        .from("user_consents")
-        .select("consent_type, granted, granted_at, revoked_at, document_version, updated_at")
-        .eq("user_id", user.id),
-      supabase
-        .from("consent_audit_log")
-        .select("id, consent_type, action, document_version, source, created_at")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(30),
-    ]);
-    setConsents((c ?? []) as ConsentRow[]);
-    setAudit((a ?? []) as AuditRow[]);
-    setLoading(false);
-  };
+  // Consentimentos e trilha vêm juntos porque a tela sempre os mostra juntos e
+  // uma mudança de consentimento invalida os dois ao mesmo tempo.
+  const { data, isLoading: loadingData } = useQuery({
+    queryKey: privacyPreferencesKey(user?.id),
+    queryFn: async () => {
+      const [{ data: c }, { data: a }] = await Promise.all([
+        supabase
+          .from("user_consents")
+          .select("consent_type, granted, granted_at, revoked_at, document_version, updated_at")
+          .eq("user_id", user!.id),
+        supabase
+          .from("consent_audit_log")
+          .select("id, consent_type, action, document_version, source, created_at")
+          .eq("user_id", user!.id)
+          .order("created_at", { ascending: false })
+          .limit(30),
+      ]);
+      return { consents: (c ?? []) as ConsentRow[], audit: (a ?? []) as AuditRow[] };
+    },
+    enabled: !!user,
+  });
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  const consents = data?.consents ?? [];
+  const audit = data?.audit ?? [];
+  const loading = !user || loadingData;
+
+  const load = () =>
+    queryClient.invalidateQueries({ queryKey: privacyPreferencesKey(user?.id) });
 
   const stateOf = (type: ConsentType) =>
     consents.find((c) => c.consent_type === type);

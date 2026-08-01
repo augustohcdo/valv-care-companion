@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -59,37 +60,38 @@ interface DpoRequest {
   created_at: string;
 }
 
+export const dpoRequestsAdminKey = () => ["dpo-requests-admin"] as const;
+
 export default function AdminDPO() {
-  const [requests, setRequests] = useState<DpoRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [drafts, setDrafts] = useState<Record<string, { status: DpoStatus; response: string }>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [exporting, setExporting] = useState<string | null>(null);
   const [exportUrls, setExportUrls] = useState<Record<string, string>>({});
 
-  const reload = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("dpo_requests")
-      .select("*")
-      .order("created_at", { ascending: false });
-    const rows = (data as DpoRequest[]) ?? [];
-    setRequests(rows);
-    setDrafts((prev) => {
-      const next = { ...prev };
-      for (const r of rows) {
-        if (!next[r.id]) next[r.id] = { status: r.status, response: r.response ?? "" };
-      }
-      return next;
-    });
-    setLoading(false);
-  };
+  const { data: requests = [], isLoading: loading } = useQuery({
+    queryKey: dpoRequestsAdminKey(),
+    queryFn: async (): Promise<DpoRequest[]> => {
+      const { data, error } = await supabase
+        .from("dpo_requests")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data as DpoRequest[]) ?? [];
+    },
+  });
 
-  useEffect(() => { reload(); }, []);
+  const reload = () => queryClient.invalidateQueries({ queryKey: dpoRequestsAdminKey() });
+
+  /** O rascunho só existe depois que o admin edita algum campo; antes disso
+   *  vale o que está gravado. Antes, o loader semeava `drafts` num efeito e
+   *  `saveResponse` desistia em silêncio se a semeadura não tivesse rodado —
+   *  ou seja, "Salvar" sem editar nada não fazia nada. */
+  const draftOf = (req: DpoRequest) =>
+    drafts[req.id] ?? { status: req.status, response: req.response ?? "" };
 
   const saveResponse = async (req: DpoRequest) => {
-    const draft = drafts[req.id];
-    if (!draft) return;
+    const draft = draftOf(req);
     setSaving(req.id);
     const { error } = await supabase
       .from("dpo_requests")
@@ -149,7 +151,7 @@ export default function AdminDPO() {
           requests.map((req) => {
             const meta = STATUS_META[req.status];
             const StatusIcon = meta.icon;
-            const draft = drafts[req.id] ?? { status: req.status, response: req.response ?? "" };
+            const draft = draftOf(req);
             const canExport = req.right_type === "acesso" || req.right_type === "portabilidade";
             return (
               <Card key={req.id}>

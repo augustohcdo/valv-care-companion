@@ -32,6 +32,7 @@ export default function MedicoPerfil() {
 
   // Preenche o formulário quando os dados chegam. Isto é sincronização de
   // formulário, não busca de dados — continua num efeito de propósito.
+  /* eslint-disable react-hooks/set-state-in-effect -- sincronização de formulário com dado assíncrono: é o caso legítimo desta regra */
   useEffect(() => {
     if (doctor) {
       setCrm(doctor.crm || "");
@@ -45,6 +46,7 @@ export default function MedicoPerfil() {
     setFullName(profile?.full_name || "");
     setPhone(profile?.phone || "");
   }, [doctor, profile]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSave = async () => {
     if (!user) return;

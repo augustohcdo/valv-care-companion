@@ -91,12 +91,15 @@ export default function CasoDetalhe() {
   const patientUserId = data?.patientUserId ?? null;
   const loading = loadingDoctor || loadingCase;
 
-  // Preenche o formulário quando o caso chega.
+  // Preenche o formulário quando o caso chega. Sincronização de formulário
+  // com dado assíncrono é justamente o caso em que este efeito é correto.
+  /* eslint-disable react-hooks/set-state-in-effect -- sincronização de formulário com dado assíncrono: é o caso legítimo desta regra */
   useEffect(() => {
     if (!caso) return;
     setStatus(caso.status);
     setNotes(caso.clinical_notes || "");
   }, [caso]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // A auditoria de "prontuário aberto" fica fora da query de propósito: o
   // react-query refaz a busca ao voltar o foco da janela, e isso encheria a

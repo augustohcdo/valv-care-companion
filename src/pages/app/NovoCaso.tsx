@@ -202,6 +202,7 @@ export default function NovoCaso() {
   const savingRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- sincronização de formulário com dado assíncrono: é o caso legítimo desta regra */
   // Recupera o rascunho mais recente, uma vez só.
   //
   // Isto continua num efeito de propósito: virar useQuery faria o react-query
@@ -234,6 +235,7 @@ export default function NovoCaso() {
       setDraftLoaded(true);
     })();
   }, [loadingDoctor, doctorId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Autosave (debounced) — only after minimum required fields are set
   const canAutosave =

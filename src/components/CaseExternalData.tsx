@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,23 +11,26 @@ interface Props { caseId: string; patientUserId: string | null }
  * Mostra recursos FHIR recebidos de hospitais parceiros relacionados a este paciente.
  * Render é read-only: dados vêm via API key validada por grant ativo.
  */
+export const externalDataKey = (patientUserId?: string | null) =>
+  ["case-external-data", patientUserId] as const;
+
 export const CaseExternalData = ({ patientUserId }: Props) => {
-  const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    if (!patientUserId) { setLoading(false); return; }
-    (async () => {
-      const { data } = await supabase
+  const { data: items = [], isLoading: loading } = useQuery({
+    queryKey: externalDataKey(patientUserId),
+    queryFn: async (): Promise<any[]> => {
+      const { data, error } = await supabase
         .from("fhir_resources_inbound")
         .select("*, hospitals(trade_name, legal_name)")
-        .eq("patient_id", patientUserId)
+        .eq("patient_id", patientUserId!)
         .order("received_at", { ascending: false })
         .limit(30);
-      setItems(data ?? []); setLoading(false);
-    })();
-  }, [patientUserId]);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!patientUserId,
+  });
 
   if (!patientUserId) return null;
 
