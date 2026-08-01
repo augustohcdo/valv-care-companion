@@ -64,9 +64,9 @@ export default function MedicoPacienteDetalhe() {
 
         const [{ data: exams }, { data: syms }, { data: meds }, { data: logs }] = await Promise.all([
           caseIds.length
-            ? supabase.from("case_exams").select("*").in("case_id", caseIds).order("exam_date", { ascending: true })
+            ? supabase.from("case_exams").select("*").in("case_id", caseIds).is("deleted_at", null).order("exam_date", { ascending: true })
             : Promise.resolve({ data: [] as any[] }),
-          supabase.from("symptom_entries").select("*").eq("patient_id", patient.id)
+          supabase.from("symptom_entries").select("*").eq("patient_id", patient.id).is("deleted_at", null)
             .gte("entry_date", sinceISO).order("entry_date", { ascending: false }),
           supabase.from("medications").select("*").eq("patient_id", patient.id).eq("active", true),
           supabase.from("medication_logs").select("*").eq("patient_id", patient.id).gte("log_date", sinceISO),

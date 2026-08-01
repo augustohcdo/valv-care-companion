@@ -92,7 +92,8 @@ Deno.serve(async (req) => {
     const { data: cases } = await admin
       .from("clinical_cases")
       .select("id, valve_type, valve_disease, severity, status, created_at")
-      .eq("patient_id", (await admin.from("patients").select("id").eq("user_id", patientId).maybeSingle()).data?.id ?? "00000000-0000-0000-0000-000000000000");
+      .is("deleted_at", null)
+      .eq("patient_id", (await admin.from("patients").select("id").is("deleted_at", null).eq("user_id", patientId).maybeSingle()).data?.id ?? "00000000-0000-0000-0000-000000000000");
     for (const c of cases ?? []) {
       entries.push({
         resource: {
@@ -109,12 +110,13 @@ Deno.serve(async (req) => {
 
   // Observations ← symptom_entries (últimos 30)
   if (allowed.includes("Observation")) {
-    const patient = (await admin.from("patients").select("id").eq("user_id", patientId).maybeSingle()).data;
+    const patient = (await admin.from("patients").select("id").is("deleted_at", null).eq("user_id", patientId).maybeSingle()).data;
     if (patient) {
       const { data: syms } = await admin
         .from("symptom_entries")
         .select("entry_date, dyspnea, fatigue, chest_pain, weight_kg, bp_systolic, bp_diastolic")
         .eq("patient_id", patient.id)
+        .is("deleted_at", null)
         .order("entry_date", { ascending: false })
         .limit(30);
       for (const s of syms ?? []) {
@@ -141,7 +143,7 @@ Deno.serve(async (req) => {
 
   // MedicationStatement ← medications ativas
   if (allowed.includes("MedicationStatement")) {
-    const patient = (await admin.from("patients").select("id").eq("user_id", patientId).maybeSingle()).data;
+    const patient = (await admin.from("patients").select("id").is("deleted_at", null).eq("user_id", patientId).maybeSingle()).data;
     if (patient) {
       const { data: meds } = await admin
         .from("medications")

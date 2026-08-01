@@ -28,6 +28,7 @@ export default function MedicoColaboracoes() {
       .from("case_collaborators")
       .select("*")
       .eq("doctor_id", doc.id)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false });
 
     const caseIds = [...new Set((collabs || []).map((c) => c.case_id))];

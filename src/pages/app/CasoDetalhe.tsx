@@ -80,6 +80,7 @@ export default function CasoDetalhe() {
             .select("access_level, status")
             .eq("case_id", id)
             .eq("doctor_id", doc.id)
+            .is("deleted_at", null)
             .maybeSingle();
           if (cancelled) return;
           setCanComment(collab?.status === "aceito" && collab?.access_level === "comentar");
@@ -131,9 +132,9 @@ export default function CasoDetalhe() {
     toast.info("Gerando PDF...");
     // Buscar dados relacionados
     const [{ data: events }, { data: appts }, { data: docs }, { data: doctor }] = await Promise.all([
-      supabase.from("case_events").select("*").eq("case_id", caso.id).order("event_date", { ascending: false }),
-      supabase.from("appointments").select("*").eq("case_id", caso.id).order("scheduled_at"),
-      supabase.from("case_documents").select("*").eq("case_id", caso.id).order("created_at", { ascending: false }),
+      supabase.from("case_events").select("*").eq("case_id", caso.id).is("deleted_at", null).order("event_date", { ascending: false }),
+      supabase.from("appointments").select("*").eq("case_id", caso.id).is("deleted_at", null).order("scheduled_at"),
+      supabase.from("case_documents").select("*").eq("case_id", caso.id).is("deleted_at", null).order("created_at", { ascending: false }),
       supabase.from("doctors").select("*").eq("id", caso.doctor_id).maybeSingle(),
     ]);
 

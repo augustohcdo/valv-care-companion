@@ -296,7 +296,7 @@ ${raw.slice(0, 8000)}
 
     // Carrega contexto do caso (RLS garante autorização)
     const { data: caso, error: caseErr } = await supabase
-      .from("clinical_cases").select("*").eq("id", caseId).maybeSingle();
+      .from("clinical_cases").select("*").eq("id", caseId).is("deleted_at", null).maybeSingle();
     if (caseErr || !caso) {
       return new Response(JSON.stringify({ error: "Caso não acessível" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -304,14 +304,14 @@ ${raw.slice(0, 8000)}
     }
 
     const { data: exams } = await supabase
-      .from("case_exams").select("*").eq("case_id", caseId)
+      .from("case_exams").select("*").eq("case_id", caseId).is("deleted_at", null)
       .order("exam_date", { ascending: true });
 
     let symptomCtx = "";
     if (caso.patient_id) {
       const { data: syms } = await supabase
         .from("symptom_entries").select("*")
-        .eq("patient_id", caso.patient_id)
+        .eq("patient_id", caso.patient_id).is("deleted_at", null)
         .order("entry_date", { ascending: false }).limit(14);
       if (syms && syms.length) {
         symptomCtx = `\nDIÁRIO DE SINTOMAS (últimos ${syms.length} registros):\n` +
@@ -398,9 +398,9 @@ Gere EXATAMENTE 3 bullet points curtos (máx. 2 linhas cada), em português clar
       // Carrega dados de suporte estritamente do caso — timeline, consultas, prótese
       const [{ data: events }, { data: appts }] = await Promise.all([
         supabase.from("case_events").select("event_date, event_type, title, description")
-          .eq("case_id", caseId).order("event_date", { ascending: true }),
+          .eq("case_id", caseId).is("deleted_at", null).order("event_date", { ascending: true }),
         supabase.from("appointments").select("scheduled_at, appointment_type, status, location, notes")
-          .eq("case_id", caseId).order("scheduled_at", { ascending: true }),
+          .eq("case_id", caseId).is("deleted_at", null).order("scheduled_at", { ascending: true }),
       ]);
       let prosthesisTxt = "não registrada no caso";
       if ((caso as any).prosthesis_id) {

@@ -74,7 +74,7 @@ export default function MedicoRelatorios() {
         const since = new Date(); since.setDate(since.getDate() - 30);
         const sinceISO = since.toISOString().slice(0, 10);
         const [{ data: syms }, { data: logs }] = await Promise.all([
-          supabase.from("symptom_entries").select("*").in("patient_id", patientIds).gte("entry_date", sinceISO),
+          supabase.from("symptom_entries").select("*").in("patient_id", patientIds).is("deleted_at", null).gte("entry_date", sinceISO),
           supabase.from("medication_logs").select("*").in("patient_id", patientIds).gte("log_date", sinceISO),
         ]);
         setSymptoms(syms || []);
@@ -204,6 +204,7 @@ export default function MedicoRelatorios() {
                 .from("appointments")
                 .select("scheduled_at, status, case_id")
                 .in("case_id", caseIds)
+                .is("deleted_at", null)
                 .gte("scheduled_at", fromIso)
                 .lte("scheduled_at", toIso)
             : Promise.resolve({ data: [] as any[] }),
@@ -212,6 +213,7 @@ export default function MedicoRelatorios() {
                 .from("case_events")
                 .select("event_type, event_date, case_id")
                 .in("case_id", caseIds)
+                .is("deleted_at", null)
             : Promise.resolve({ data: [] as any[] }),
         ]);
 

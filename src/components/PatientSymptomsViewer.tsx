@@ -29,7 +29,7 @@ export const PatientSymptomsViewer = ({ patientId }: Props) => {
     (async () => {
       const since = format(subDays(new Date(), 60), "yyyy-MM-dd");
       const [{ data: e }, { data: m }, { data: l }] = await Promise.all([
-        supabase.from("symptom_entries").select("*").eq("patient_id", patientId).gte("entry_date", since).order("entry_date", { ascending: false }),
+        supabase.from("symptom_entries").select("*").eq("patient_id", patientId).is("deleted_at", null).gte("entry_date", since).order("entry_date", { ascending: false }),
         supabase.from("medications").select("*").eq("patient_id", patientId).eq("active", true).order("name"),
         supabase.from("medication_logs").select("status, log_date").eq("patient_id", patientId).gte("log_date", format(subDays(new Date(), 30), "yyyy-MM-dd")),
       ]);

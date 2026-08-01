@@ -45,6 +45,7 @@ export default function MedicoAgenda() {
           .from("appointments")
           .select("id, case_id, scheduled_at, duration_minutes, appointment_type, status, location, notes, clinical_cases(id, patient_name)")
           .in("case_id", ids)
+          .is("deleted_at", null)
           .order("scheduled_at", { ascending: true });
         setAppts((data as any) ?? []);
       } catch (e) {
