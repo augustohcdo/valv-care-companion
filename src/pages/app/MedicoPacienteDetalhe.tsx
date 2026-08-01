@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, MapPin, Phone, FileText, Loader2, User as UserIcon, Download } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -11,46 +13,56 @@ import { Badge } from "@/components/ui/badge";
 import { PatientSymptomsViewer } from "@/components/PatientSymptomsViewer";
 import { queuePatientPdf } from "@/lib/exporters";
 
+export const doctorPatientDetailKey = (doctorId?: string, patientId?: string) =>
+  ["doctor-patient-detail", doctorId, patientId] as const;
+
 export default function MedicoPacienteDetalhe() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [patient, setPatient] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
-  const [doctor, setDoctor] = useState<any>(null);
-  const [doctorProfile, setDoctorProfile] = useState<any>(null);
-  const [cases, setCases] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
-  useEffect(() => {
-    if (!id || !user) return;
-    (async () => {
-      const { data: doc } = await supabase.from("doctors").select("*").eq("user_id", user.id).maybeSingle();
-      if (!doc) { navigate("/app/medico/pacientes"); return; }
-      const { data: docProf } = await supabase
-        .from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
+  const { data: doctor, isLoading: loadingDoctor } = useDoctor();
 
-      const { data: pat, error } = await supabase
-        .from("patients").select("*").is("deleted_at", null).eq("id", id).eq("linked_doctor_id", doc.id).maybeSingle();
-      if (error || !pat) {
-        toast.error("Paciente não encontrado ou sem vínculo");
-        navigate("/app/medico/pacientes");
-        return;
-      }
+  const { data, isLoading: loadingDetail } = useQuery({
+    queryKey: doctorPatientDetailKey(doctor?.id, id),
+    queryFn: async () => {
+      const { data: docProf } = await supabase
+        .from("profiles").select("full_name").eq("user_id", user!.id).maybeSingle();
+
+      // O vínculo faz parte do filtro: sem `linked_doctor_id`, um médico
+      // enxergaria o prontuário de paciente de outro só trocando a URL.
+      const { data: pat } = await supabase
+        .from("patients").select("*").is("deleted_at", null).eq("id", id!).eq("linked_doctor_id", doctor!.id).maybeSingle();
+      if (!pat) return null;
+
       const { data: prof } = await supabase
         .from("profiles").select("*").eq("user_id", pat.user_id).maybeSingle();
       const { data: cs } = await supabase
-        .from("clinical_cases").select("*").is("deleted_at", null).eq("patient_id", pat.id).eq("doctor_id", doc.id).neq("status", "draft" as any).order("created_at", { ascending: false });
+        .from("clinical_cases").select("*").is("deleted_at", null).eq("patient_id", pat.id).eq("doctor_id", doctor!.id).neq("status", "draft" as any).order("created_at", { ascending: false });
 
-      setDoctor(doc);
-      setDoctorProfile(docProf);
-      setPatient(pat);
-      setProfile(prof);
-      setCases(cs || []);
-      setLoading(false);
-    })();
-  }, [id, user, navigate]);
+      return { patient: pat, profile: prof, cases: cs ?? [], doctorProfile: docProf };
+    },
+    enabled: !!doctor?.id && !!id,
+  });
+
+  const patient = data?.patient ?? null;
+  const profile = data?.profile ?? null;
+  const cases = data?.cases ?? [];
+  const doctorProfile = data?.doctorProfile ?? null;
+  const loading = loadingDoctor || (!!doctor?.id && loadingDetail);
+
+  // Redireciona quando o médico não existe, ou quando o paciente não existe /
+  // não está vinculado a ele. Só depois que a busca termina, para não expulsar
+  // ninguém enquanto os dados ainda estão a caminho.
+  useEffect(() => {
+    if (loading) return;
+    if (!doctor) { navigate("/app/medico/pacientes"); return; }
+    if (!patient) {
+      toast.error("Paciente não encontrado ou sem vínculo");
+      navigate("/app/medico/pacientes");
+    }
+  }, [loading, doctor, patient, navigate]);
 
   const handleExportPdf = async () => {
     if (!patient) return;
@@ -133,7 +145,7 @@ export default function MedicoPacienteDetalhe() {
                 {profile?.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> {profile.phone}</span>}
                 {profile?.birth_date && <span className="inline-flex items-center gap-1"><UserIcon className="h-3 w-3" /> nasc. {new Date(profile.birth_date).toLocaleDateString("pt-BR")}</span>}
               </div>
-              {patient.comorbidities?.length > 0 && (
+              {!!patient.comorbidities?.length && (
                 <div className="flex flex-wrap gap-1 mt-3">
                   {patient.comorbidities.map((c: string) => (
                     <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Users, Inbox, ChevronRight, Check, X, Loader2 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -13,51 +13,51 @@ import {
 } from "@/lib/clinicalLabels";
 import { EmptyState } from "@/components/EmptyState";
 
+export const doctorCollaborationsKey = (doctorId?: string) =>
+  ["doctor-collaborations", doctorId] as const;
+
 export default function MedicoColaboracoes() {
-  const { user } = useAuth();
-  const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: doctor, isLoading: loadingDoctor } = useDoctor();
 
-  const load = async () => {
-    if (!user) return;
-    const { data: doc } = await supabase
-      .from("doctors").select("id").eq("user_id", user.id).maybeSingle();
-    if (!doc) { setLoading(false); return; }
+  const { data: items = [], isLoading: loadingItems } = useQuery({
+    queryKey: doctorCollaborationsKey(doctor?.id),
+    queryFn: async (): Promise<any[]> => {
+      const { data: collabs } = await supabase
+        .from("case_collaborators")
+        .select("*")
+        .eq("doctor_id", doctor!.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
 
-    const { data: collabs } = await supabase
-      .from("case_collaborators")
-      .select("*")
-      .eq("doctor_id", doc.id)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false });
+      const caseIds = [...new Set((collabs || []).map((c) => c.case_id))];
+      const { data: cases } = caseIds.length
+        ? await supabase.from("clinical_cases").select("*").is("deleted_at", null).in("id", caseIds).neq("status", "draft" as any)
+        : { data: [] as any[] };
 
-    const caseIds = [...new Set((collabs || []).map((c) => c.case_id))];
-    const { data: cases } = caseIds.length
-      ? await supabase.from("clinical_cases").select("*").is("deleted_at", null).in("id", caseIds).neq("status", "draft" as any)
-      : { data: [] as any[] };
+      // Médico responsável de cada caso
+      const docIds = [...new Set((cases || []).map((c: any) => c.doctor_id))];
+      const { data: owners } = docIds.length
+        ? await supabase.from("doctors").select("id, user_id, crm, crm_uf").in("id", docIds)
+        : { data: [] as any[] };
+      const userIds = (owners || []).map((d: any) => d.user_id);
+      const { data: profs } = userIds.length
+        ? await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)
+        : { data: [] as any[] };
 
-    // Médico responsável de cada caso
-    const docIds = [...new Set((cases || []).map((c: any) => c.doctor_id))];
-    const { data: owners } = docIds.length
-      ? await supabase.from("doctors").select("id, user_id, crm, crm_uf").in("id", docIds)
-      : { data: [] as any[] };
-    const userIds = (owners || []).map((d: any) => d.user_id);
-    const { data: profs } = userIds.length
-      ? await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)
-      : { data: [] as any[] };
+      return (collabs || []).map((c) => {
+        const cs = cases?.find((x: any) => x.id === c.case_id);
+        const owner = cs ? owners?.find((o: any) => o.id === cs.doctor_id) : null;
+        const ownerProfile = owner ? profs?.find((p: any) => p.user_id === owner.user_id) : null;
+        return { ...c, caso: cs, owner: owner ? { ...owner, full_name: ownerProfile?.full_name } : null };
+      });
+    },
+    enabled: !!doctor?.id,
+  });
 
-    const enriched = (collabs || []).map((c) => {
-      const cs = cases?.find((x: any) => x.id === c.case_id);
-      const owner = cs ? owners?.find((o: any) => o.id === cs.doctor_id) : null;
-      const ownerProfile = owner ? profs?.find((p: any) => p.user_id === owner.user_id) : null;
-      return { ...c, caso: cs, owner: owner ? { ...owner, full_name: ownerProfile?.full_name } : null };
-    });
-
-    setItems(enriched);
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); }, [user]);
+  const loading = loadingDoctor || (!!doctor?.id && loadingItems);
+  const load = () =>
+    queryClient.invalidateQueries({ queryKey: doctorCollaborationsKey(doctor?.id) });
 
   const respond = async (id: string, status: "aceito" | "recusado") => {
     const { error } = await supabase

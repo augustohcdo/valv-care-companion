@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { format, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, isToday, isAfter, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, MapPin, Clock, FileText } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,37 +25,39 @@ interface Appt {
   clinical_cases?: { id: string; patient_name: string };
 }
 
+export const doctorAgendaKey = (doctorId?: string) => ["doctor-agenda", doctorId] as const;
+
 export default function MedicoAgenda() {
-  const { user } = useAuth();
-  const [appts, setAppts] = useState<Appt[]>([]);
-  const [loading, setLoading] = useState(true);
   const [cursor, setCursor] = useState<Date>(new Date());
   const [selected, setSelected] = useState<Date>(new Date());
 
+  const { data: doctor, isLoading: loadingDoctor } = useDoctor();
+
+  const { data: appts = [], isLoading: loadingAppts, error } = useQuery({
+    queryKey: doctorAgendaKey(doctor?.id),
+    queryFn: async (): Promise<Appt[]> => {
+      const { data: cases } = await supabase.from("clinical_cases").select("id").is("deleted_at", null).eq("doctor_id", doctor!.id).neq("status", "draft" as any);
+      const ids = (cases ?? []).map((c) => c.id);
+      if (ids.length === 0) return [];
+      const { data, error } = await supabase
+        .from("appointments")
+        .select("id, case_id, scheduled_at, duration_minutes, appointment_type, status, location, notes, clinical_cases(id, patient_name)")
+        .in("case_id", ids)
+        .is("deleted_at", null)
+        .order("scheduled_at", { ascending: true });
+      if (error) throw error;
+      return (data as any) ?? [];
+    },
+    enabled: !!doctor?.id,
+  });
+
+  const loading = loadingDoctor || (!!doctor?.id && loadingAppts);
+
+  // O aviso de erro continua sendo um toast, como antes — mas num efeito, não
+  // no corpo do render.
   useEffect(() => {
-    if (!user) return;
-    (async () => {
-      setLoading(true);
-      try {
-        const { data: doc } = await supabase.from("doctors").select("id").eq("user_id", user.id).maybeSingle();
-        if (!doc) return;
-        const { data: cases } = await supabase.from("clinical_cases").select("id").is("deleted_at", null).eq("doctor_id", doc.id).neq("status", "draft" as any);
-        const ids = (cases ?? []).map((c) => c.id);
-        if (ids.length === 0) { setAppts([]); return; }
-        const { data } = await supabase
-          .from("appointments")
-          .select("id, case_id, scheduled_at, duration_minutes, appointment_type, status, location, notes, clinical_cases(id, patient_name)")
-          .in("case_id", ids)
-          .is("deleted_at", null)
-          .order("scheduled_at", { ascending: true });
-        setAppts((data as any) ?? []);
-      } catch (e) {
-        toast.error("Erro ao carregar agenda", { description: (e as Error).message });
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [user]);
+    if (error) toast.error("Erro ao carregar agenda", { description: (error as Error).message });
+  }, [error]);
 
   const monthStart = startOfMonth(cursor);
   const monthEnd = endOfMonth(cursor);

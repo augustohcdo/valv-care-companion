@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
+import type { ReactNode } from "react";
 
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString();
 
@@ -24,7 +26,7 @@ vi.mock("@/integrations/supabase/client", () => ({
           eq: () => chain,
           neq: () => Promise.resolve({ data: [{ id: "c1" }], error: null }),
           in: () => chain,
-          maybeSingle: () => Promise.resolve({ data: { id: "d1" }, error: null }),
+          maybeSingle: () => Promise.resolve({ data: { id: "d1", user_id: "u1" }, error: null }),
           order: () =>
             Promise.resolve({
               // o "banco" devolve só o que não está apagado, como o Postgres faria
@@ -43,6 +45,15 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import MedicoAgenda from "./MedicoAgenda";
 
+function wrapper({ children }: { children: ReactNode }) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  return (
+    <MemoryRouter>
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    </MemoryRouter>
+  );
+}
+
 describe("MedicoAgenda", () => {
   beforeEach(() => {
     filteredDeleted = false;
@@ -53,11 +64,7 @@ describe("MedicoAgenda", () => {
   // agenda: o soft-delete foi aplicado em CaseAppointments, mas esta consulta
   // nunca ganhou o filtro correspondente.
   it("não mostra na agenda um compromisso que foi removido", async () => {
-    render(
-      <MemoryRouter>
-        <MedicoAgenda />
-      </MemoryRouter>,
-    );
+    render(<MedicoAgenda />, { wrapper });
 
     await waitFor(() => expect(screen.getAllByText(/Ana Souza/).length).toBeGreaterThan(0));
     expect(filteredDeleted).toBe(true);

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Search, Users, FileText, MapPin } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,21 +10,19 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/EmptyState";
 
+export const doctorPatientsKey = (doctorId?: string) => ["doctor-patients", doctorId] as const;
+
 export default function MedicoPacientes() {
-  const { user } = useAuth();
-  const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data: doc } = await supabase.from("doctors").select("id").eq("user_id", user.id).maybeSingle();
-      if (!doc) { setLoading(false); return; }
+  const { data: doctor, isLoading: loadingDoctor } = useDoctor();
 
+  const { data: items = [], isLoading: loadingPatients } = useQuery({
+    queryKey: doctorPatientsKey(doctor?.id),
+    queryFn: async (): Promise<any[]> => {
       const [{ data: patients }, { data: cases }] = await Promise.all([
-        supabase.from("patients").select("id, user_id, sex, city, uf, comorbidities, linked_at").is("deleted_at", null).eq("linked_doctor_id", doc.id),
-        supabase.from("clinical_cases").select("id, patient_id").is("deleted_at", null).eq("doctor_id", doc.id).neq("status", "draft" as any),
+        supabase.from("patients").select("id, user_id, sex, city, uf, comorbidities, linked_at").is("deleted_at", null).eq("linked_doctor_id", doctor!.id),
+        supabase.from("clinical_cases").select("id, patient_id").is("deleted_at", null).eq("doctor_id", doctor!.id).neq("status", "draft" as any),
       ]);
 
       const userIds = (patients || []).map((p) => p.user_id);
@@ -31,15 +30,18 @@ export default function MedicoPacientes() {
         ? await supabase.from("profiles").select("user_id, full_name, phone").in("user_id", userIds)
         : { data: [] as any[] };
 
-      const enriched = (patients || []).map((p) => {
+      return (patients || []).map((p) => {
         const prof = profiles?.find((x: any) => x.user_id === p.user_id);
         const caseCount = (cases || []).filter((c) => c.patient_id === p.id).length;
         return { ...p, full_name: prof?.full_name || "Paciente", phone: prof?.phone, caseCount };
       });
-      setItems(enriched);
-      setLoading(false);
-    })();
-  }, [user]);
+    },
+    enabled: !!doctor?.id,
+  });
+
+  // Quem não tem registro de médico não fica carregando para sempre: a query
+  // filha nem dispara e a tela cai direto no estado vazio.
+  const loading = loadingDoctor || (!!doctor?.id && loadingPatients);
 
   const filtered = items.filter((p) => !q.trim() || p.full_name?.toLowerCase().includes(q.toLowerCase()));
 

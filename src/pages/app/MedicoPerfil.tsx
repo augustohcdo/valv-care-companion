@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { useDoctor, doctorKey } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,9 +16,9 @@ const UFs = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","P
 
 export default function MedicoPerfil() {
   const { user, profile, refreshProfile } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
-  const [doctor, setDoctor] = useState<any>(null);
+  const { data: doctor, isLoading: loading } = useDoctor();
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -28,25 +30,21 @@ export default function MedicoPerfil() {
   const [city, setCity] = useState("");
   const [bio, setBio] = useState("");
 
+  // Preenche o formulário quando os dados chegam. Isto é sincronização de
+  // formulário, não busca de dados — continua num efeito de propósito.
   useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data } = await supabase.from("doctors").select("*").eq("user_id", user.id).maybeSingle();
-      if (data) {
-        setDoctor(data);
-        setCrm(data.crm || "");
-        setCrmUf(data.crm_uf || "SP");
-        setSpecialty(data.specialty || "");
-        setRqe(data.rqe || "");
-        setInstitution(data.institution || "");
-        setCity(data.city || "");
-        setBio(data.bio || "");
-      }
-      setFullName(profile?.full_name || "");
-      setPhone(profile?.phone || "");
-      setLoading(false);
-    })();
-  }, [user, profile]);
+    if (doctor) {
+      setCrm(doctor.crm || "");
+      setCrmUf(doctor.crm_uf || "SP");
+      setSpecialty(doctor.specialty || "");
+      setRqe(doctor.rqe || "");
+      setInstitution(doctor.institution || "");
+      setCity(doctor.city || "");
+      setBio(doctor.bio || "");
+    }
+    setFullName(profile?.full_name || "");
+    setPhone(profile?.phone || "");
+  }, [doctor, profile]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -65,6 +63,8 @@ export default function MedicoPerfil() {
       if (dErr) throw dErr;
 
       await refreshProfile();
+      // sem isto o selo de verificação e o CRM continuariam vindo do cache
+      queryClient.invalidateQueries({ queryKey: doctorKey(user.id) });
       toast({ title: "Perfil atualizado", description: "Suas informações foram salvas." });
     } catch (e: any) {
       toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
