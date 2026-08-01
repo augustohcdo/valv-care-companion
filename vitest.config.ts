@@ -11,6 +11,12 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
   },
   resolve: {
-    alias: { "@": path.resolve(import.meta.dirname, "./src") },
+    alias: {
+      "@": path.resolve(import.meta.dirname, "./src"),
+      // As edge functions rodam em Deno e importam com o prefixo `npm:`. O
+      // alias deixa o vitest testar o arquivo que de fato é publicado, em vez
+      // de uma cópia que divergiria com o tempo.
+      "npm:zod@3": "zod",
+    },
   },
 });

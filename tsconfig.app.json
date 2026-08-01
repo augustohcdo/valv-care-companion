@@ -23,7 +23,11 @@
     "noFallthroughCasesInSwitch": false,
 
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      /* As edge functions rodam em Deno e importam com o prefixo `npm:`. O
+         mapeamento deixa o tsc e o vitest checarem o arquivo que é de fato
+         publicado, em vez de uma cópia que divergiria com o tempo. */
+      "npm:zod@3": ["./node_modules/zod"]
     }
   },
   "include": ["src"]

@@ -4,11 +4,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { logError } from "../_shared/logError.ts";
-
-const ALLOWED_TYPES = new Set([
-  "Observation", "DiagnosticReport", "Condition", "MedicationStatement",
-  "Procedure", "Encounter", "AllergyIntolerance", "ImagingStudy",
-]);
+import {
+  buildSummary, extractPatientId, extractResources, parseResource,
+  MAX_RESOURCES_PER_REQUEST,
+} from "../_shared/fhirSchema.ts";
 
 async function sha256Hex(s: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -59,23 +58,25 @@ Deno.serve(async (req) => {
   let body: any;
   try { body = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
 
-  const resources: any[] = body?.resourceType === "Bundle"
-    ? (body.entry ?? []).map((e: any) => e.resource).filter(Boolean)
-    : [body];
+  const rawResources = extractResources(body);
+  if (rawResources.length > MAX_RESOURCES_PER_REQUEST) {
+    return json({ error: "too_many_resources", max: MAX_RESOURCES_PER_REQUEST, received: rawResources.length }, 413);
+  }
 
   const results: any[] = [];
-  for (const r of resources) {
-    const rt = r?.resourceType;
-    if (!rt || !ALLOWED_TYPES.has(rt)) {
-      results.push({ ok: false, error: "unsupported_resource_type", resourceType: rt });
+  for (const raw of rawResources) {
+    // Valida a forma antes de qualquer coisa: nada entra no prontuário sem
+    // passar pelo contrato.
+    const parsed = parseResource(raw);
+    if (!parsed.ok) {
+      results.push({ ok: false, error: parsed.error, issues: parsed.issues });
       continue;
     }
+    const r = parsed.resource;
+    const rt = r.resourceType;
 
-    // Identifica paciente: campo subject.identifier.value = patient_user_id (uuid) OU subject.reference="Patient/<uuid>"
-    const subjectRef: string | undefined = r.subject?.reference;
-    const subjectIdentifier: string | undefined = r.subject?.identifier?.value;
-    const patientId = subjectIdentifier ?? (subjectRef?.startsWith("Patient/") ? subjectRef.slice(8) : undefined);
-    if (!patientId) { results.push({ ok: false, error: "missing_patient_reference" }); continue; }
+    const patientId = extractPatientId(r);
+    if (!patientId) { results.push({ ok: false, error: "missing_or_invalid_patient_reference" }); continue; }
 
     // Verifica grant ativo
     const { data: grant } = await admin
@@ -102,8 +103,7 @@ Deno.serve(async (req) => {
       results.push({ ok: false, error: "grant_is_outbound_only" }); continue;
     }
 
-    // Resumo curto
-    const summary = r.code?.text ?? r.code?.coding?.[0]?.display ?? r.conclusion ?? rt;
+    const summary = buildSummary(r);
 
     const { data: inserted, error } = await admin
       .from("fhir_resources_inbound")
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
         resource_type: rt,
         fhir_id: r.id ?? null,
         payload: r,
-        summary: String(summary).slice(0, 500),
+        summary,
       })
       .select("id")
       .single();
