@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Trash2, Loader2, Save, Activity, Download } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -34,71 +35,86 @@ import { CaseExternalData } from "@/components/CaseExternalData";
 import { DocumentGenerator } from "@/components/DocumentGenerator";
 import { logAudit } from "@/lib/auditLog";
 
+export const caseDetailKey = (caseId?: string, doctorId?: string) =>
+  ["case-detail", caseId, doctorId] as const;
+
 export default function CasoDetalhe() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const [caso, setCaso] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
-  const [isOwner, setIsOwner] = useState(false);
-  const [canComment, setCanComment] = useState(false);
-  const [patientUserId, setPatientUserId] = useState<string | null>(null);
+  const auditedRef = useRef<string | null>(null);
+
+  const { data: doctor, isLoading: loadingDoctor } = useDoctor();
+
+  // O papel do usuário entra na mesma query porque depende do caso e do
+  // médico ao mesmo tempo — e porque o id do médico já faz parte da chave,
+  // de modo que trocar de conta no mesmo navegador não reaproveita permissão.
+  const { data, isLoading: loadingCase, error } = useQuery({
+    queryKey: caseDetailKey(id, doctor?.id),
+    queryFn: async () => {
+      const { data: caso, error } = await supabase
+        .from("clinical_cases").select("*").is("deleted_at", null).eq("id", id!).maybeSingle();
+      if (error) throw error;
+      if (!caso) return null;
+
+      const isOwner = !!doctor && doctor.id === caso.doctor_id;
+      let canComment = isOwner;
+      if (!isOwner && doctor) {
+        const { data: collab } = await supabase
+          .from("case_collaborators")
+          .select("access_level, status")
+          .eq("case_id", id!)
+          .eq("doctor_id", doctor.id)
+          .is("deleted_at", null)
+          .maybeSingle();
+        canComment = collab?.status === "aceito" && collab?.access_level === "comentar";
+      }
+
+      let patientUserId: string | null = null;
+      if (caso.patient_id) {
+        const { data: pat } = await supabase
+          .from("patients").select("user_id").is("deleted_at", null).eq("id", caso.patient_id).maybeSingle();
+        patientUserId = pat?.user_id ?? null;
+      }
+
+      return { caso, isOwner, canComment, patientUserId };
+    },
+    enabled: !!id && !loadingDoctor,
+  });
+
+  const caso = data?.caso ?? null;
+  const isOwner = data?.isOwner ?? false;
+  const canComment = data?.canComment ?? false;
+  const patientUserId = data?.patientUserId ?? null;
+  const loading = loadingDoctor || loadingCase;
+
+  // Preenche o formulário quando o caso chega.
+  useEffect(() => {
+    if (!caso) return;
+    setStatus(caso.status);
+    setNotes(caso.clinical_notes || "");
+  }, [caso]);
+
+  // A auditoria de "prontuário aberto" fica fora da query de propósito: o
+  // react-query refaz a busca ao voltar o foco da janela, e isso encheria a
+  // trilha de auditoria de aberturas que nunca aconteceram. O ref garante uma
+  // entrada por caso aberto.
+  useEffect(() => {
+    if (!caso || auditedRef.current === caso.id) return;
+    auditedRef.current = caso.id;
+    logAudit("case_viewed", "clinical_cases", caso.id);
+  }, [caso]);
 
   useEffect(() => {
-    if (!id || !user) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from("clinical_cases").select("*").is("deleted_at", null).eq("id", id).maybeSingle();
-        if (cancelled) return;
-        if (error || !data) {
-          toast.error("Caso não encontrado");
-          navigate("/app/medico/casos");
-          return;
-        }
-        setCaso(data);
-        setStatus(data.status);
-        setNotes(data.clinical_notes || "");
-        logAudit("case_viewed", "clinical_cases", id);
-
-        // Determinar papel: owner ou colaborador
-        const { data: doc } = await supabase
-          .from("doctors").select("id").eq("user_id", user.id).maybeSingle();
-        if (cancelled) return;
-        const owner = !!doc && doc.id === data.doctor_id;
-        setIsOwner(owner);
-
-        if (owner) {
-          setCanComment(true);
-        } else if (doc) {
-          const { data: collab } = await supabase
-            .from("case_collaborators")
-            .select("access_level, status")
-            .eq("case_id", id)
-            .eq("doctor_id", doc.id)
-            .is("deleted_at", null)
-            .maybeSingle();
-          if (cancelled) return;
-          setCanComment(collab?.status === "aceito" && collab?.access_level === "comentar");
-        }
-
-        if (data.patient_id) {
-          const { data: pat } = await supabase.from("patients").select("user_id").is("deleted_at", null).eq("id", data.patient_id).maybeSingle();
-          if (cancelled) return;
-          setPatientUserId(pat?.user_id ?? null);
-        }
-      } catch (e) {
-        if (!cancelled) toast.error("Erro ao carregar caso", { description: (e as Error).message });
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [id, user, navigate]);
+    if (error) toast.error("Erro ao carregar caso", { description: (error as Error).message });
+    else if (!loading && data === null) {
+      toast.error("Caso não encontrado");
+      navigate("/app/medico/casos");
+    }
+  }, [error, loading, data, navigate]);
 
   const saveChanges = async () => {
     setSaving(true);
@@ -111,6 +127,8 @@ export default function CasoDetalhe() {
     else {
       toast.success("Caso atualizado");
       logAudit("case_updated", "clinical_cases", id!, { status });
+      // sem isto o cabeçalho continuaria mostrando o status anterior
+      queryClient.invalidateQueries({ queryKey: caseDetailKey(id, doctor?.id) });
     }
   };
 
@@ -229,7 +247,7 @@ export default function CasoDetalhe() {
               <Info label="Área valvar" value={caso.valve_area ? `${caso.valve_area} cm²` : "—"} />
               <Info label="Regurgitação" value={caso.regurgitation_grade || "—"} />
 
-              {caso.symptoms?.length > 0 && (
+              {!!caso.symptoms?.length && (
                 <div className="sm:col-span-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1.5">Sintomas</p>
                   <div className="flex flex-wrap gap-1.5">
@@ -237,7 +255,7 @@ export default function CasoDetalhe() {
                   </div>
                 </div>
               )}
-              {caso.comorbidities?.length > 0 && (
+              {!!caso.comorbidities?.length && (
                 <div className="sm:col-span-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1.5">Comorbidades</p>
                   <div className="flex flex-wrap gap-1.5">

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Check, Cloud, CloudOff, Loader2, Sparkles, Trash2 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -135,9 +135,10 @@ function hydrateForm(row: any): FormState {
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export default function NovoCaso() {
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const [doctorId, setDoctorId] = useState<string | null>(null);
+  const { data: doctor, isLoading: loadingDoctor } = useDoctor();
+  const doctorId = doctor?.id ?? null;
+  const draftLoadedRef = useRef(false);
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -201,20 +202,22 @@ export default function NovoCaso() {
   const savingRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load doctor + recover latest draft (if any)
+  // Recupera o rascunho mais recente, uma vez só.
+  //
+  // Isto continua num efeito de propósito: virar useQuery faria o react-query
+  // refazer a busca ao voltar o foco da janela e re-hidratar o formulário por
+  // cima do que o médico está digitando.
   useEffect(() => {
-    if (!user) return;
+    if (loadingDoctor) return;
+    if (!doctorId) { setDraftLoaded(true); return; }
+    if (draftLoadedRef.current) return;
+    draftLoadedRef.current = true;
     (async () => {
-      const { data: doc } = await supabase
-        .from("doctors").select("id").eq("user_id", user.id).maybeSingle();
-      if (!doc?.id) { setDraftLoaded(true); return; }
-      setDoctorId(doc.id);
-
       const { data: draft } = await supabase
         .from("clinical_cases")
         .select("*")
         .is("deleted_at", null)
-        .eq("doctor_id", doc.id)
+        .eq("doctor_id", doctorId)
         .eq("status", "draft" as any)
         .order("updated_at", { ascending: false })
         .limit(1)
@@ -230,7 +233,7 @@ export default function NovoCaso() {
       }
       setDraftLoaded(true);
     })();
-  }, [user]);
+  }, [loadingDoctor, doctorId]);
 
   // Autosave (debounced) — only after minimum required fields are set
   const canAutosave =

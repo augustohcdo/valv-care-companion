@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
   Users,
@@ -11,6 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,41 +19,33 @@ import { Badge } from "@/components/ui/badge";
 import { DashboardCharts } from "@/components/DashboardCharts";
 import { AdvancedStats } from "@/components/AdvancedStats";
 
-export default function MedicoHome() {
-  const { user, profile } = useAuth();
-  const [doctor, setDoctor] = useState<any>(null);
-  const [patientCount, setPatientCount] = useState(0);
-  const [caseCount, setCaseCount] = useState(0);
-  const [activeCount, setActiveCount] = useState(0);
-  const [cases, setCases] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export const doctorDashboardKey = (doctorId?: string) => ["doctor-dashboard", doctorId] as const;
 
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      const { data: doc } = await supabase.from("doctors").select("*").eq("user_id", user.id).maybeSingle();
-      if (cancelled) return;
-      setDoctor(doc);
-      if (doc) {
-        const [{ count: pc }, { count: cc }, { count: ac }, { data: caseRows }] = await Promise.all([
-          supabase.from("patients").select("id", { count: "exact", head: true }).is("deleted_at", null).eq("linked_doctor_id", doc.id),
-          supabase.from("clinical_cases").select("id", { count: "exact", head: true }).is("deleted_at", null).eq("doctor_id", doc.id).neq("status", "draft" as any),
-          supabase.from("clinical_cases").select("id", { count: "exact", head: true }).is("deleted_at", null)
-            .eq("doctor_id", doc.id).in("status", ["avaliacao_inicial", "em_seguimento", "pre_intervencao"]),
-          supabase.from("clinical_cases").select("id, created_at, valve_type, severity, status, nyha").is("deleted_at", null).eq("doctor_id", doc.id).neq("status", "draft" as any),
-        ]);
-        if (cancelled) return;
-        setPatientCount(pc ?? 0);
-        setCaseCount(cc ?? 0);
-        setActiveCount(ac ?? 0);
-        setCases(caseRows ?? []);
-      }
-      if (!cancelled) setLoading(false);
-    })();
-    return () => { cancelled = true; };
-  }, [user]);
+export default function MedicoHome() {
+  const { profile } = useAuth();
+
+  const { data: doctor, isLoading: loadingDoctor } = useDoctor();
+
+  const { data: dashboard, isLoading: loadingDashboard } = useQuery({
+    queryKey: doctorDashboardKey(doctor?.id),
+    queryFn: async () => {
+      const [{ count: pc }, { count: cc }, { count: ac }, { data: caseRows }] = await Promise.all([
+        supabase.from("patients").select("id", { count: "exact", head: true }).is("deleted_at", null).eq("linked_doctor_id", doctor!.id),
+        supabase.from("clinical_cases").select("id", { count: "exact", head: true }).is("deleted_at", null).eq("doctor_id", doctor!.id).neq("status", "draft" as any),
+        supabase.from("clinical_cases").select("id", { count: "exact", head: true }).is("deleted_at", null)
+          .eq("doctor_id", doctor!.id).in("status", ["avaliacao_inicial", "em_seguimento", "pre_intervencao"]),
+        supabase.from("clinical_cases").select("id, created_at, valve_type, severity, status, nyha").is("deleted_at", null).eq("doctor_id", doctor!.id).neq("status", "draft" as any),
+      ]);
+      return { patientCount: pc ?? 0, caseCount: cc ?? 0, activeCount: ac ?? 0, cases: caseRows ?? [] };
+    },
+    enabled: !!doctor?.id,
+  });
+
+  const patientCount = dashboard?.patientCount ?? 0;
+  const caseCount = dashboard?.caseCount ?? 0;
+  const activeCount = dashboard?.activeCount ?? 0;
+  const cases = dashboard?.cases ?? [];
+  const loading = loadingDoctor || (!!doctor?.id && loadingDashboard);
 
   if (loading) {
     return (

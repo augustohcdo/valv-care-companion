@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Loader2, BarChart3, Download, FileSpreadsheet, FileText, Users, Activity,
   Heart, AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -37,52 +39,46 @@ interface Aggregates {
   avgAdherence: number | null;
 }
 
+export const doctorReportsKey = (doctorId?: string) => ["doctor-reports", doctorId] as const;
+
 export default function MedicoRelatorios() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [doctorInfo, setDoctorInfo] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
-  const [cases, setCases] = useState<any[]>([]);
-  const [patients, setPatients] = useState<any[]>([]);
-  const [symptoms, setSymptoms] = useState<any[]>([]);
-  const [medLogs, setMedLogs] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data: doc } = await supabase
-        .from("doctors").select("*").eq("user_id", user.id).maybeSingle();
-      if (!doc) { setLoading(false); return; }
+  const { data: doctorInfo, isLoading: loadingDoctor } = useDoctor();
+
+  const { data: report, isLoading: loadingReport } = useQuery({
+    queryKey: doctorReportsKey(doctorInfo?.id),
+    queryFn: async () => {
       const { data: prof } = await supabase
-        .from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
+        .from("profiles").select("full_name").eq("user_id", user!.id).maybeSingle();
 
-      const [
-        { data: cs },
-        { data: pts },
-      ] = await Promise.all([
-        supabase.from("clinical_cases").select("*").is("deleted_at", null).eq("doctor_id", doc.id).neq("status", "draft" as any),
-        supabase.from("patients").select("id, comorbidities").is("deleted_at", null).eq("linked_doctor_id", doc.id),
+      const [{ data: cs }, { data: pts }] = await Promise.all([
+        supabase.from("clinical_cases").select("*").is("deleted_at", null).eq("doctor_id", doctorInfo!.id).neq("status", "draft" as any),
+        supabase.from("patients").select("id, comorbidities").is("deleted_at", null).eq("linked_doctor_id", doctorInfo!.id),
       ]);
 
-      setDoctorInfo(doc);
-      setProfile(prof);
-      setCases(cs || []);
-      setPatients(pts || []);
-
       const patientIds = (pts || []).map((p) => p.id);
-      if (patientIds.length) {
-        const since = new Date(); since.setDate(since.getDate() - 30);
-        const sinceISO = since.toISOString().slice(0, 10);
-        const [{ data: syms }, { data: logs }] = await Promise.all([
-          supabase.from("symptom_entries").select("*").in("patient_id", patientIds).is("deleted_at", null).gte("entry_date", sinceISO),
-          supabase.from("medication_logs").select("*").in("patient_id", patientIds).gte("log_date", sinceISO),
-        ]);
-        setSymptoms(syms || []);
-        setMedLogs(logs || []);
+      if (!patientIds.length) {
+        return { profile: prof, cases: cs ?? [], patients: pts ?? [], symptoms: [], medLogs: [] };
       }
-      setLoading(false);
-    })();
-  }, [user]);
+
+      const since = new Date(); since.setDate(since.getDate() - 30);
+      const sinceISO = since.toISOString().slice(0, 10);
+      const [{ data: syms }, { data: logs }] = await Promise.all([
+        supabase.from("symptom_entries").select("*").in("patient_id", patientIds).is("deleted_at", null).gte("entry_date", sinceISO),
+        supabase.from("medication_logs").select("*").in("patient_id", patientIds).gte("log_date", sinceISO),
+      ]);
+      return { profile: prof, cases: cs ?? [], patients: pts ?? [], symptoms: syms ?? [], medLogs: logs ?? [] };
+    },
+    enabled: !!doctorInfo?.id,
+  });
+
+  const profile = report?.profile ?? null;
+  const cases = report?.cases ?? [];
+  const patients = report?.patients ?? [];
+  const symptoms = report?.symptoms ?? [];
+  const medLogs = report?.medLogs ?? [];
+  const loading = loadingDoctor || (!!doctorInfo?.id && loadingReport);
 
   const agg: Aggregates = useMemo(() => {
     const bySeverity: Record<string, number> = {};
