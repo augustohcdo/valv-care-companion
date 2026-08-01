@@ -36,17 +36,21 @@ interface Props {
   readOnly?: boolean;
 }
 
-const numericFields: { key: string; label: string; unit: string }[] = [
-  { key: "ejection_fraction", label: "FE", unit: "%" },
-  { key: "mean_gradient", label: "Grad. médio", unit: "mmHg" },
-  { key: "peak_gradient", label: "Grad. máx", unit: "mmHg" },
-  { key: "valve_area", label: "Área valvar", unit: "cm²" },
-  { key: "psap", label: "PSAP", unit: "mmHg" },
-  { key: "lv_diameter", label: "Diâm. VE", unit: "mm" },
-  { key: "septal_thickness", label: "Septo", unit: "mm" },
-  { key: "bnp", label: "BNP", unit: "pg/mL" },
-  { key: "nt_probnp", label: "NT-proBNP", unit: "pg/mL" },
-  { key: "six_min_walk", label: "TC6min", unit: "m" },
+// `higherIsBetter` define o sentido clínico de cada parâmetro, usado só para
+// colorir o comparativo. Sem isso, um gradiente médio subindo (progressão de
+// estenose) apareceria em verde ao lado de uma FE em queda em amarelo — o
+// inverso da leitura clínica nos dois casos.
+const numericFields: { key: string; label: string; unit: string; higherIsBetter: boolean }[] = [
+  { key: "ejection_fraction", label: "FE", unit: "%", higherIsBetter: true },
+  { key: "mean_gradient", label: "Grad. médio", unit: "mmHg", higherIsBetter: false },
+  { key: "peak_gradient", label: "Grad. máx", unit: "mmHg", higherIsBetter: false },
+  { key: "valve_area", label: "Área valvar", unit: "cm²", higherIsBetter: true },
+  { key: "psap", label: "PSAP", unit: "mmHg", higherIsBetter: false },
+  { key: "lv_diameter", label: "Diâm. VE", unit: "mm", higherIsBetter: false },
+  { key: "septal_thickness", label: "Septo", unit: "mm", higherIsBetter: false },
+  { key: "bnp", label: "BNP", unit: "pg/mL", higherIsBetter: false },
+  { key: "nt_probnp", label: "NT-proBNP", unit: "pg/mL", higherIsBetter: false },
+  { key: "six_min_walk", label: "TC6min", unit: "m", higherIsBetter: true },
 ];
 
 const emptyForm = {
@@ -347,10 +351,12 @@ export const CaseExams = ({ caseId, readOnly = false }: Props) => {
                   ) : (
                     <div className="grid sm:grid-cols-2 gap-2">
                       {comparison.diffs.map((d) => {
-                        const positive = d.delta > 0;
+                        const rose = d.delta > 0;
                         const stable = d.delta === 0;
-                        const Icon = stable ? Minus : positive ? TrendingUp : TrendingDown;
-                        const color = stable ? "text-muted-foreground" : positive ? "text-success" : "text-warning";
+                        // A seta segue o número; a cor segue o sentido clínico.
+                        const Icon = stable ? Minus : rose ? TrendingUp : TrendingDown;
+                        const improved = rose === d.higherIsBetter;
+                        const color = stable ? "text-muted-foreground" : improved ? "text-success" : "text-warning";
                         return (
                           <div key={d.key} className="p-3 rounded-lg border border-border bg-secondary/20 flex items-center gap-3">
                             <Icon className={`h-5 w-5 ${color}`} />
