@@ -14,7 +14,7 @@ import {
   UF_LIST,
 } from "@/lib/validators";
 import { registerConsent, ConsentType } from "@/lib/consent";
-import { TurnstileWidget, verifyTurnstile } from "@/components/TurnstileWidget";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -266,7 +266,13 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
   useScrollToError(errors, doctorFieldOrder, submitCount);
 
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
   const handleCaptcha = useCallback((t: string | null) => setCaptchaToken(t), []);
+  /** O servidor de auth consome o token mesmo quando o cadastro é recusado. */
+  const renewCaptcha = () => {
+    setCaptchaToken(null);
+    setCaptchaReset((n) => n + 1);
+  };
 
   const onSubmit = async (values: DoctorSignupInput) => {
     if (!captchaToken) {
@@ -277,14 +283,8 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
     }
     setSubmitting(true);
 
-    const captchaOk = await verifyTurnstile(captchaToken, "signup");
-    if (!captchaOk) {
-      setSubmitting(false);
-      setCaptchaToken(null);
-      toast.error("Verificação de segurança falhou", { description: "Tente novamente." });
-      return;
-    }
-
+    // O token não é validado aqui: ele é de uso único e quem precisa da prova é
+    // o servidor de auth. Ver o comentário em TurnstileWidget.
     // 1) Verifica CRM duplicado antes do signup
     const { data: existing } = await supabase
       .from("doctors")
@@ -305,6 +305,7 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
       email: values.email,
       password: values.password,
       options: {
+        captchaToken,
         emailRedirectTo: `${window.location.origin}/app/medico`,
         data: {
           full_name: values.full_name,
@@ -318,6 +319,7 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
     });
     if (signupError || !signupData.user) {
       setSubmitting(false);
+      renewCaptcha();
       toast.error("Não foi possível criar a conta", { description: signupError?.message });
       return;
     }
@@ -405,7 +407,7 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
 
           <ConsentBlock register={register} errors={errors} />
 
-          <TurnstileWidget onToken={handleCaptcha} action="signup" />
+          <TurnstileWidget onToken={handleCaptcha} action="signup" resetSignal={captchaReset} />
 
           <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -439,7 +441,13 @@ function PatientForm({ onBack }: { onBack: () => void }) {
   const docCrmUf = watch("doctor_crm_uf");
 
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
   const handleCaptcha = useCallback((t: string | null) => setCaptchaToken(t), []);
+  /** O servidor de auth consome o token mesmo quando o cadastro é recusado. */
+  const renewCaptcha = () => {
+    setCaptchaToken(null);
+    setCaptchaReset((n) => n + 1);
+  };
 
   const onSubmit = async (values: PatientSignupInput) => {
     if (!captchaToken) {
@@ -450,19 +458,14 @@ function PatientForm({ onBack }: { onBack: () => void }) {
     }
     setSubmitting(true);
 
-    const captchaOk = await verifyTurnstile(captchaToken, "signup");
-    if (!captchaOk) {
-      setSubmitting(false);
-      setCaptchaToken(null);
-      toast.error("Verificação de segurança falhou", { description: "Tente novamente." });
-      return;
-    }
-
+    // O token não é validado aqui: ele é de uso único e quem precisa da prova é
+    // o servidor de auth. Ver o comentário em TurnstileWidget.
     // Signup — pass all data via metadata so the DB trigger creates profile + role + patient
     const { data: signupData, error: signupError } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
       options: {
+        captchaToken,
         emailRedirectTo: `${window.location.origin}/app/paciente`,
         data: {
           full_name: values.full_name,
@@ -474,6 +477,7 @@ function PatientForm({ onBack }: { onBack: () => void }) {
     });
     if (signupError || !signupData.user) {
       setSubmitting(false);
+      renewCaptcha();
       toast.error("Não foi possível criar a conta", { description: signupError?.message });
       return;
     }
@@ -560,7 +564,7 @@ function PatientForm({ onBack }: { onBack: () => void }) {
 
           <ConsentBlock register={register} errors={errors} />
 
-          <TurnstileWidget onToken={handleCaptcha} action="signup" />
+          <TurnstileWidget onToken={handleCaptcha} action="signup" resetSignal={captchaReset} />
 
           <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}

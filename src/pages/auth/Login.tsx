@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Logo } from "@/components/Logo";
-import { TurnstileWidget, verifyTurnstile } from "@/components/TurnstileWidget";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -61,7 +61,13 @@ export default function Login() {
   };
 
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
   const handleCaptcha = useCallback((t: string | null) => setCaptchaToken(t), []);
+  /** O servidor de auth consome o token mesmo quando a senha está errada. */
+  const renewCaptcha = () => {
+    setCaptchaToken(null);
+    setCaptchaReset((n) => n + 1);
+  };
 
   const onSubmit = async (values: LoginInput) => {
     const remaining = getLockRemaining(values.email);
@@ -78,24 +84,21 @@ export default function Login() {
       return;
     }
     setSubmitting(true);
-    const captchaOk = await verifyTurnstile(captchaToken, "login");
-    if (!captchaOk) {
-      setSubmitting(false);
-      setCaptchaToken(null);
-      toast.error("Verificação de segurança falhou", {
-        description: "Tente novamente.",
-      });
-      return;
-    }
+    // O token vai para o servidor de auth, que é quem valida contra a
+    // Cloudflare. Não dá para validar aqui antes: o token do Turnstile é de uso
+    // único, então gastá-lo numa checagem nossa faria o servidor recusar o
+    // login com 'timeout-or-duplicate'. Quem precisa da prova é quem guarda a
+    // porta — o navegador só transporta.
     const { error } = await supabase.auth.signInWithPassword({
       email: values.email,
       password: values.password,
+      options: { captchaToken },
     });
     setSubmitting(false);
     if (error) {
       const applied = registerFail(values.email);
       setLockMs(getLockRemaining(values.email));
-      setCaptchaToken(null);
+      renewCaptcha();
       toast.error("Não foi possível entrar", {
         description:
           applied > 0
@@ -197,7 +200,7 @@ export default function Login() {
               )}
 
               <div className="pt-1">
-                <TurnstileWidget onToken={handleCaptcha} action="login" />
+                <TurnstileWidget onToken={handleCaptcha} action="login" resetSignal={captchaReset} />
               </div>
 
               <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting || lockMs > 0 || !captchaToken}>

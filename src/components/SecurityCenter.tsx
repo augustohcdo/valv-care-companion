@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,29 +9,47 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 export function SecurityCenter() {
   const { user, signOut } = useAuth();
   const [sendingReset, setSendingReset] = useState(false);
   const [signingOutAll, setSigningOutAll] = useState(false);
+  // O widget só aparece quando a ação é pedida — não faz sentido cobrar
+  // verificação anti-robô de quem só abriu a tela de segurança para olhar.
+  const [askCaptcha, setAskCaptcha] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
+  const handleCaptcha = useCallback((t: string | null) => setCaptchaToken(t), []);
 
   const provider = user?.app_metadata?.provider ?? "email";
   const lastSignIn = user?.last_sign_in_at ? new Date(user.last_sign_in_at) : null;
   const createdAt = user?.created_at ? new Date(user.created_at) : null;
   const emailConfirmed = !!user?.email_confirmed_at;
 
+  // Mesmo com sessão válida, o /recover do servidor de auth é protegido por
+  // captcha — sem o token aqui, "Trocar minha senha" pararia de funcionar.
   const sendPasswordReset = async () => {
     if (!user?.email) return;
+    if (!captchaToken) {
+      setAskCaptcha(true);
+      return;
+    }
     setSendingReset(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
         redirectTo: `${window.location.origin}/auth/redefinir`,
+        captchaToken,
       });
       if (error) throw error;
+      setAskCaptcha(false);
       toast.success("Enviamos um link para redefinir sua senha.");
     } catch (e: any) {
       toast.error("Não foi possível enviar", { description: e.message });
     } finally {
+      // O token é de uso único: gasto na tentativa, com sucesso ou sem.
+      setCaptchaToken(null);
+      setCaptchaReset((n) => n + 1);
       setSendingReset(false);
     }
   };
@@ -128,6 +146,15 @@ export function SecurityCenter() {
             <li>Trilha de auditoria de consentimentos</li>
           </ul>
         </div>
+
+        {askCaptcha && provider === "email" && (
+          <div className="space-y-2 rounded-md border border-border/70 p-3">
+            <p className="text-xs text-muted-foreground">
+              Confirme que você não é um robô para receber o link de redefinição.
+            </p>
+            <TurnstileWidget onToken={handleCaptcha} action="recover" resetSignal={captchaReset} />
+          </div>
+        )}
 
         {/* Ações */}
         <div className="flex flex-wrap gap-2">

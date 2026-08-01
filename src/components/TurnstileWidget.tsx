@@ -36,9 +36,17 @@ function ensureScript(): Promise<void> {
 interface Props {
   onToken: (token: string | null) => void;
   action?: string;
+  /**
+   * Muda de valor para pedir um token novo. O token do Turnstile é de uso
+   * único: depois de uma tentativa de login/cadastro — mesmo malsucedida — ele
+   * já foi gasto no servidor de auth. Sem este reset o widget continuaria
+   * exibindo "verificado" segurando um token morto, e a tentativa seguinte
+   * falharia com uma mensagem que não explica nada.
+   */
+  resetSignal?: number;
 }
 
-export function TurnstileWidget({ onToken, action }: Props) {
+export function TurnstileWidget({ onToken, action, resetSignal = 0 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
   const [siteKey, setSiteKey] = useState<string | null>(null);
@@ -90,17 +98,20 @@ export function TurnstileWidget({ onToken, action }: Props) {
     };
   }, [siteKey, action, onToken]);
 
+  // Descarta o token gasto e pede um novo desafio.
+  useEffect(() => {
+    if (!resetSignal || !widgetId.current || !window.turnstile) return;
+    try {
+      window.turnstile.reset(widgetId.current);
+      onToken(null);
+    } catch {
+      /* o widget pode já ter sido removido; nada a fazer */
+    }
+  }, [resetSignal, onToken]);
+
   if (error) {
     return <p className="text-xs text-destructive">{error}</p>;
   }
 
   return <div ref={ref} className="flex justify-center" />;
-}
-
-export async function verifyTurnstile(token: string, action?: string) {
-  const { data, error } = await supabase.functions.invoke("turnstile-verify", {
-    body: { token, action },
-  });
-  if (error) return false;
-  return !!data?.success;
 }

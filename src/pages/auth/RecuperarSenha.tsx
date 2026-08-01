@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import { Loader2, Mail, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Logo } from "@/components/Logo";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 const schema = z.object({ email: z.string().trim().email().max(255) });
 
@@ -17,17 +18,35 @@ export default function RecuperarSenha() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  // Este formulário dispara envio de e-mail para qualquer endereço digitado —
+  // é o tipo de endpoint que atrai abuso, e estava sem verificação nenhuma.
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
+  const handleCaptcha = useCallback((t: string | null) => setCaptchaToken(t), []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsed = schema.safeParse({ email });
     if (!parsed.success) { toast.error("E-mail inválido"); return; }
+    if (!captchaToken) {
+      toast.error("Verificação de segurança", {
+        description: "Complete a verificação anti-robô antes de continuar.",
+      });
+      return;
+    }
     setSubmitting(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/redefinir`,
+      captchaToken,
     });
     setSubmitting(false);
-    if (error) { toast.error("Falha ao enviar", { description: error.message }); return; }
+    if (error) {
+      // O token é de uso único e já foi consumido pela tentativa.
+      setCaptchaToken(null);
+      setCaptchaReset((n) => n + 1);
+      toast.error("Falha ao enviar", { description: error.message });
+      return;
+    }
     setSent(true);
   };
 
@@ -60,7 +79,8 @@ export default function RecuperarSenha() {
                   <Label htmlFor="email">E-mail cadastrado</Label>
                   <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </div>
-                <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting}>
+                <TurnstileWidget onToken={handleCaptcha} action="recover" resetSignal={captchaReset} />
+                <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting || !captchaToken}>
                   {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                   Enviar link
                 </Button>
