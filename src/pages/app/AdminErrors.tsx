@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw, DatabaseBackup } from "lucide-react";
 
 type ClientError = {
   id: string;
@@ -16,6 +16,10 @@ type ClientError = {
 };
 
 export const clientErrorsKey = () => ["client-errors"] as const;
+export const lastBackupKey = () => ["last-backup"] as const;
+
+/** Depois de quantos dias um backup semanal passa a ser motivo de alarme. */
+const BACKUP_STALE_DAYS = 8;
 
 export default function AdminErrors() {
   const [openStack, setOpenStack] = useState<string | null>(null);
@@ -40,6 +44,28 @@ export default function AdminErrors() {
   // mantém o botão girando até a resposta chegar.
   const reload = () => refetch();
 
+  // Um backup que para de rodar precisa gritar. Esta tela ficou semanas
+  // mostrando "nenhum erro" enquanto o export nunca produzia arquivo nenhum.
+  const { data: lastBackup, isLoading: loadingBackup } = useQuery({
+    queryKey: lastBackupKey(),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("backup_runs")
+        .select("finished_at, ok, tables_ok, tables_failed, total_rows, error")
+        .eq("ok", true)
+        .order("finished_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const backupAgeDays = lastBackup?.finished_at
+    ? (Date.now() - new Date(lastBackup.finished_at).getTime()) / 86_400_000
+    : null;
+  const backupStale = backupAgeDays === null || backupAgeDays > BACKUP_STALE_DAYS;
+
   return (
     <div className="container max-w-4xl py-8 space-y-6">
       <header className="flex items-center justify-between gap-4 flex-wrap">
@@ -54,6 +80,30 @@ export default function AdminErrors() {
           Atualizar
         </Button>
       </header>
+
+      {!loadingBackup && (
+        <Card className={backupStale ? "border-destructive bg-destructive/5" : "border-success/40 bg-success/5"}>
+          <CardContent className="p-4 flex items-start gap-3">
+            <DatabaseBackup className={`h-5 w-5 mt-0.5 shrink-0 ${backupStale ? "text-destructive" : "text-success"}`} />
+            <div className="text-sm">
+              <p className="font-medium">
+                {backupAgeDays === null
+                  ? "Nenhum backup registrado"
+                  : backupStale
+                  ? `Último backup há ${Math.floor(backupAgeDays)} dias`
+                  : `Último backup há ${Math.floor(backupAgeDays)} dia(s)`}
+              </p>
+              <p className="text-muted-foreground">
+                {backupAgeDays === null
+                  ? "O export semanal nunca concluiu com sucesso. Verifique o agendamento antes de confiar em qualquer recuperação."
+                  : backupStale
+                  ? "O export semanal deveria rodar toda segunda-feira. Passou do prazo — verifique o agendamento."
+                  : `${lastBackup?.tables_ok} tabelas, ${lastBackup?.total_rows} registros.`}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-3">
         {isLoading && <Loader2 className="h-5 w-5 animate-spin" />}

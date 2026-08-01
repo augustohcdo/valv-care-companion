@@ -80,6 +80,8 @@ Deno.serve(async (req) => {
   }
 
   const stamp = new Date().toISOString().slice(0, 10);
+  const startedAt = new Date().toISOString();
+  const triggeredBy = cronHeader ? "pg_cron" : "admin";
   const results: Record<string, { rows: number; bytes: number; error?: string }> = {};
 
   for (const table of TABLES) {
@@ -125,6 +127,22 @@ Deno.serve(async (req) => {
     stamp,
     tables: results,
   };
+
+  // Registro da execução. Sem isto, uma falha do backup é invisível — foi o
+  // que deixou o export quebrado por semanas sem ninguém perceber.
+  const entries = Object.values(results);
+  const failed = entries.filter((r) => r.error);
+  await supabase.from("backup_runs").insert({
+    started_at: startedAt,
+    finished_at: new Date().toISOString(),
+    ok: failed.length === 0,
+    tables_ok: entries.length - failed.length,
+    tables_failed: failed.length,
+    total_rows: entries.reduce((a, r) => a + r.rows, 0),
+    total_bytes: entries.reduce((a, r) => a + r.bytes, 0),
+    error: failed.length ? failed.map((r) => r.error).join("; ").slice(0, 2000) : null,
+    triggered_by: triggeredBy,
+  });
   await supabase.storage
     .from(BUCKET)
     .upload(`exports/${stamp}/_manifest.json`, new TextEncoder().encode(JSON.stringify(manifest, null, 2)), {

@@ -100,6 +100,45 @@ export type Database = {
         }
         Relationships: []
       }
+      backup_runs: {
+        Row: {
+          error: string | null
+          finished_at: string | null
+          id: string
+          ok: boolean
+          started_at: string
+          tables_failed: number
+          tables_ok: number
+          total_bytes: number
+          total_rows: number
+          triggered_by: string | null
+        }
+        Insert: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          ok?: boolean
+          started_at?: string
+          tables_failed?: number
+          tables_ok?: number
+          total_bytes?: number
+          total_rows?: number
+          triggered_by?: string | null
+        }
+        Update: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          ok?: boolean
+          started_at?: string
+          tables_failed?: number
+          tables_ok?: number
+          total_bytes?: number
+          total_rows?: number
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       case_collaborators: {
         Row: {
           access_level: Database["public"]["Enums"]["collaborator_access"]

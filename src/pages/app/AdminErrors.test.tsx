@@ -11,13 +11,27 @@ const ERRORS = [
 let gate: Promise<void> | null = null;
 let openGate: (() => void) | null = null;
 
+// data do último backup bem sucedido; null = nunca rodou
+let lastBackupAt: string | null = new Date().toISOString();
+
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    from: () => ({
+    from: (table: string) => ({
       select: () => {
         const chain: any = {
+          eq: () => chain,
           order: () => chain,
-          limit: () => (gate ? gate.then(() => ({ data: ERRORS, error: null })) : Promise.resolve({ data: ERRORS, error: null })),
+          maybeSingle: () =>
+            Promise.resolve({
+              data: lastBackupAt
+                ? { finished_at: lastBackupAt, ok: true, tables_ok: 22, tables_failed: 0, total_rows: 5, error: null }
+                : null,
+              error: null,
+            }),
+          limit: () => {
+            if (table === "backup_runs") return chain;
+            return gate ? gate.then(() => ({ data: ERRORS, error: null })) : Promise.resolve({ data: ERRORS, error: null });
+          },
         };
         return chain;
       },
@@ -36,6 +50,7 @@ describe("AdminErrors", () => {
   beforeEach(() => {
     gate = null;
     openGate = null;
+    lastBackupAt = new Date().toISOString();
     client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
     vi.clearAllMocks();
   });
@@ -63,5 +78,26 @@ describe("AdminErrors", () => {
 
     openGate!();
     await waitFor(() => expect(screen.getByRole("button", { name: /Atualizar/i })).not.toBeDisabled());
+  });
+
+  it("mostra o último backup quando ele está em dia", async () => {
+    render(<AdminErrors />, { wrapper });
+    await waitFor(() => expect(screen.getByText(/Último backup há/)).toBeInTheDocument());
+    expect(screen.getByText(/22 tabelas/)).toBeInTheDocument();
+  });
+
+  // Este é o estado que a tela precisava ter mostrado durante semanas: o
+  // export estava agendado, "ativo", e nunca tinha produzido um arquivo.
+  it("alarma quando nunca houve backup", async () => {
+    lastBackupAt = null;
+    render(<AdminErrors />, { wrapper });
+    await waitFor(() => expect(screen.getByText(/Nenhum backup registrado/)).toBeInTheDocument());
+  });
+
+  it("alarma quando o backup passou do prazo semanal", async () => {
+    lastBackupAt = new Date(Date.now() - 20 * 86_400_000).toISOString();
+    render(<AdminErrors />, { wrapper });
+    await waitFor(() => expect(screen.getByText(/Último backup há 20 dias/)).toBeInTheDocument());
+    expect(screen.getByText(/Passou do prazo/)).toBeInTheDocument();
   });
 });
