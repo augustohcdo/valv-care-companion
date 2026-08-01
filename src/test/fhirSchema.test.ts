@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildSummary, extractPatientId, extractResources, parseResource,
-  MAX_RESOURCE_BYTES,
+  isValidPatientId, resolveAllowedTypes, MAX_RESOURCE_BYTES,
 } from "../../supabase/functions/_shared/fhirSchema";
 import type { ParseResult } from "../../supabase/functions/_shared/fhirSchema";
 
@@ -137,5 +137,36 @@ describe("achatamento de Bundle", () => {
 
   it("não quebra com Bundle sem entry", () => {
     expect(extractResources({ resourceType: "Bundle" })).toHaveLength(0);
+  });
+});
+
+describe("escopo de leitura (fhir-read)", () => {
+  it("devolve só o que o paciente autorizou", () => {
+    expect(resolveAllowedTypes(["Condition", "Observation"], ["Observation"])).toEqual(["Observation"]);
+  });
+
+  // "Patient" (nome e data de nascimento) é um escopo como qualquer outro.
+  // Antes, o recurso Patient era montado fora do filtro e ia junto de
+  // qualquer forma — dado pessoal saindo além do que o paciente autorizou.
+  it("não libera a identificação do paciente sem o escopo Patient", () => {
+    const permitido = resolveAllowedTypes(["Patient", "Observation"], ["Observation"]);
+    expect(permitido).not.toContain("Patient");
+    expect(permitido).toEqual(["Observation"]);
+  });
+
+  it("libera a identificação quando o paciente autorizou", () => {
+    expect(resolveAllowedTypes(["Patient", "Observation"], ["Patient", "Observation"]))
+      .toEqual(["Patient", "Observation"]);
+  });
+
+  it("um escopo autorizado que o hospital não pediu não é devolvido", () => {
+    expect(resolveAllowedTypes(["Observation"], ["Observation", "Condition"])).toEqual(["Observation"]);
+  });
+
+  it("aceita como paciente só um UUID", () => {
+    expect(isValidPatientId("3f2b1c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d")).toBe(true);
+    expect(isValidPatientId("joao-da-silva")).toBe(false);
+    expect(isValidPatientId("")).toBe(false);
+    expect(isValidPatientId(null)).toBe(false);
   });
 });

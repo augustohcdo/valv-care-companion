@@ -3,6 +3,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { logError } from "../_shared/logError.ts";
+import { isValidPatientId, resolveAllowedTypes } from "../_shared/fhirSchema.ts";
 
 async function sha256Hex(s: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -23,9 +24,11 @@ Deno.serve(async (req) => {
   try {
   const url = new URL(req.url);
   const patientId = url.searchParams.get("patient");
-  const types = (url.searchParams.get("type") ?? "Condition,Observation,MedicationStatement")
+  const types = (url.searchParams.get("type") ?? "Patient,Condition,Observation,MedicationStatement")
     .split(",").map(s => s.trim()).filter(Boolean);
-  if (!patientId) return json({ error: "missing_patient" }, 400);
+  // UUID inválido chegava até a consulta e voltava como "no_active_grant",
+  // mandando o hospital investigar a autorização em vez do próprio pedido.
+  if (!isValidPatientId(patientId)) return json({ error: "missing_or_invalid_patient" }, 400);
 
   const apiKey = req.headers.get("x-api-key") ?? "";
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
@@ -71,20 +74,23 @@ Deno.serve(async (req) => {
   }
   if (grant.direction === "inbound") return json({ error: "grant_is_inbound_only" }, 403);
 
-  const allowed = types.filter(t => grant.resource_scopes.includes(t));
+  const allowed = resolveAllowedTypes(types, grant.resource_scopes);
   const entries: any[] = [];
 
-  // Patient resource (mínimo)
-  const { data: profile } = await admin.from("profiles").select("full_name, birth_date").eq("user_id", patientId).maybeSingle();
-  if (profile) {
-    entries.push({
-      resource: {
-        resourceType: "Patient",
-        id: patientId,
-        name: [{ text: profile.full_name }],
-        birthDate: profile.birth_date ?? undefined,
-      },
-    });
+  // Nome e data de nascimento são dado pessoal, e "Patient" é um escopo como
+  // qualquer outro: só sai se o paciente tiver autorizado explicitamente.
+  if (allowed.includes("Patient")) {
+    const { data: profile } = await admin.from("profiles").select("full_name, birth_date").eq("user_id", patientId).maybeSingle();
+    if (profile) {
+      entries.push({
+        resource: {
+          resourceType: "Patient",
+          id: patientId,
+          name: [{ text: profile.full_name }],
+          birthDate: profile.birth_date ?? undefined,
+        },
+      });
+    }
   }
 
   // Conditions ← clinical_cases

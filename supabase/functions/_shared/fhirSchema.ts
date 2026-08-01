@@ -71,6 +71,24 @@ export function buildSummary(resource: FhirResource): string {
   return String(candidate).slice(0, 500);
 }
 
+/** O identificador de paciente na URL/no payload precisa ser um UUID. */
+export function isValidPatientId(id: string | null | undefined): id is string {
+  return !!id && uuid.safeParse(id).success;
+}
+
+/**
+ * Interseção entre o que o hospital pediu e o que o paciente autorizou.
+ *
+ * O `Patient` (nome e data de nascimento) é um escopo como qualquer outro no
+ * enum `fhir_resource_type` — o paciente pode autorizar exames sem autorizar
+ * a própria identificação. Antes, o recurso Patient era montado fora deste
+ * filtro e ia junto de qualquer forma.
+ */
+export function resolveAllowedTypes(requested: string[], granted: string[]): string[] {
+  const grantedSet = new Set(granted);
+  return requested.filter((t) => grantedSet.has(t));
+}
+
 export type ValidationIssue = { path: string; message: string };
 
 export type ParseResult =
