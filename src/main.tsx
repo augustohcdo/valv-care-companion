@@ -72,7 +72,14 @@ window.addEventListener("error", (e) => {
     }
     return;
   }
-  reportError(e.error ?? msg);
+  // filename/lineno/colno vinham no evento e eram jogados fora. Num
+  // "Script error." — sem stack por vir de outra origem — eles são a única
+  // pista de onde o erro nasceu.
+  reportError(e.error ?? msg, {
+    filename: e.filename || undefined,
+    lineno: e.lineno || undefined,
+    colno: e.colno || undefined,
+  });
 });
 
 window.addEventListener("unhandledrejection", (e) => {

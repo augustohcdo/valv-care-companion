@@ -393,8 +393,10 @@ export type Database = {
           context: string
           created_at: string
           id: string
+          last_seen_at: string
           message: string
           metadata: Json | null
+          occurrences: number
           source: string
           stack: string | null
           user_id: string | null
@@ -403,8 +405,10 @@ export type Database = {
           context: string
           created_at?: string
           id?: string
+          last_seen_at?: string
           message: string
           metadata?: Json | null
+          occurrences?: number
           source: string
           stack?: string | null
           user_id?: string | null
@@ -413,8 +417,10 @@ export type Database = {
           context?: string
           created_at?: string
           id?: string
+          last_seen_at?: string
           message?: string
           metadata?: Json | null
+          occurrences?: number
           source?: string
           stack?: string | null
           user_id?: string | null

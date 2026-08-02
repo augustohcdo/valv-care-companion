@@ -13,7 +13,18 @@ type ClientError = {
   message: string;
   stack: string | null;
   created_at: string;
+  last_seen_at: string;
+  occurrences: number;
+  metadata: Record<string, unknown> | null;
 };
+
+/** `filename:linha`, quando o navegador informou de onde o erro veio. */
+function origemDoErro(meta: Record<string, unknown> | null): string | null {
+  const arquivo = typeof meta?.["filename"] === "string" ? (meta["filename"] as string) : null;
+  if (!arquivo) return null;
+  const linha = typeof meta?.["lineno"] === "number" ? meta["lineno"] : null;
+  return linha ? `${arquivo}:${linha}` : arquivo;
+}
 
 type JobRun = {
   job: string;
@@ -63,10 +74,12 @@ export default function AdminErrors() {
   const { data: errors = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: clientErrorsKey(),
     queryFn: async (): Promise<ClientError[]> => {
+      // Por última ocorrência, não por criação: um erro antigo que voltou a
+      // acontecer agora importa mais que um erro novo que aconteceu uma vez.
       const { data, error } = await supabase
         .from("client_errors")
-        .select("id, source, context, message, stack, created_at")
-        .order("created_at", { ascending: false })
+        .select("id, source, context, message, stack, created_at, last_seen_at, occurrences, metadata")
+        .order("last_seen_at", { ascending: false })
         .limit(100);
       if (error) throw error;
       return (data as ClientError[]) ?? [];
@@ -159,11 +172,24 @@ export default function AdminErrors() {
                       {err.source === "edge_function" ? "edge function" : "cliente"}
                     </Badge>
                     <span className="font-mono text-xs text-muted-foreground">{err.context}</span>
+                    {err.occurrences > 1 && (
+                      <Badge variant="outline" className="text-xs">×{err.occurrences}</Badge>
+                    )}
                   </div>
                   <div className="font-medium">{err.message}</div>
+                  {origemDoErro(err.metadata) && (
+                    <div className="font-mono text-xs text-muted-foreground break-all">
+                      {origemDoErro(err.metadata)}
+                    </div>
+                  )}
                 </div>
-                <div className="text-xs text-muted-foreground whitespace-nowrap">
-                  {new Date(err.created_at).toLocaleString("pt-BR")}
+                <div className="text-xs text-muted-foreground whitespace-nowrap text-right">
+                  {new Date(err.last_seen_at).toLocaleString("pt-BR")}
+                  {err.occurrences > 1 && (
+                    <div className="text-[11px]">
+                      1ª vez: {new Date(err.created_at).toLocaleString("pt-BR")}
+                    </div>
+                  )}
                 </div>
               </div>
               {err.stack && (

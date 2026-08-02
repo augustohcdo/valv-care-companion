@@ -35,9 +35,12 @@ Deno.serve(async (req) => {
   const userClient = createClient(SUPABASE_URL, ANON, {
     global: { headers: { Authorization: authHeader } },
   });
-  const { data: claims } = await userClient.auth.getClaims(authHeader.replace("Bearer ", ""));
-  if (!claims?.claims?.sub) return json({ error: "unauthorized" }, 401);
-  const userId = claims.claims.sub;
+  // `getClaims` não existe no SDK 2.45.0 importado acima — esta era a única
+  // verificação de identidade da função, então ela nunca chegou a autorizar
+  // ninguém. `getUser` valida o token no servidor e existe nas duas versões.
+  const { data: userData } = await userClient.auth.getUser(authHeader.replace("Bearer ", ""));
+  const userId = userData?.user?.id;
+  if (!userId) return json({ error: "unauthorized" }, 401);
 
   const admin = createClient(SUPABASE_URL, SERVICE, { auth: { persistSession: false } });
   const { data: isAdmin } = await admin.rpc("has_role", { _user_id: userId, _role: "admin" });

@@ -26,6 +26,10 @@ function ensureScript(): Promise<void> {
       s.src = SCRIPT_SRC;
       s.async = true;
       s.defer = true;
+      // Sem isto, qualquer erro vindo do script da Cloudflare chega ao nosso
+      // monitoramento como "Script error." sem stack — o navegador omite os
+      // detalhes de script de outra origem que não foi buscado com CORS.
+      s.crossOrigin = "anonymous";
       document.head.appendChild(s);
     }
     const check = () => (window.turnstile ? resolve() : setTimeout(check, 50));

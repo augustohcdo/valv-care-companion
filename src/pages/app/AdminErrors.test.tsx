@@ -3,9 +3,20 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
-const ERRORS = [
-  { id: "e1", source: "edge_function", context: "clinical-ai", message: "Boom", stack: "at x", created_at: "2026-08-01T10:00:00Z" },
-];
+let ERRORS: Record<string, unknown>[] = [];
+
+const erro = (over: Record<string, unknown> = {}) => ({
+  id: "e1",
+  source: "edge_function",
+  context: "clinical-ai",
+  message: "Boom",
+  stack: "at x",
+  created_at: "2026-08-01T10:00:00Z",
+  last_seen_at: "2026-08-01T10:00:00Z",
+  occurrences: 1,
+  metadata: null,
+  ...over,
+});
 
 // portão para segurar a resposta e observar o estado de carregamento
 let gate: Promise<void> | null = null;
@@ -53,6 +64,7 @@ describe("AdminErrors", () => {
     gate = null;
     openGate = null;
     jobRuns = [run("weekly-export", 1), run("weekly-digest", 1, { items_ok: 3, details: null })];
+    ERRORS = [erro()];
     client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
     vi.clearAllMocks();
   });
@@ -80,6 +92,32 @@ describe("AdminErrors", () => {
 
     openGate!();
     await waitFor(() => expect(screen.getByRole("button", { name: /Atualizar/i })).not.toBeDisabled());
+  });
+
+  // 20 repetições idênticas foram tudo o que esta tabela recebeu na vida real.
+  // Listadas uma a uma, empurram qualquer outro erro para fora da janela.
+  it("agrupa repetições num contador em vez de listar linha a linha", async () => {
+    ERRORS = [erro({ occurrences: 20, last_seen_at: "2026-08-01T10:00:06Z" })];
+    render(<AdminErrors />, { wrapper });
+    await waitFor(() => expect(screen.getByText("×20")).toBeInTheDocument());
+    expect(screen.getByText(/1ª vez:/)).toBeInTheDocument();
+    expect(screen.getAllByText("Boom")).toHaveLength(1);
+  });
+
+  it("não polui a linha com contador quando o erro aconteceu uma vez só", async () => {
+    render(<AdminErrors />, { wrapper });
+    await waitFor(() => expect(screen.getByText("Boom")).toBeInTheDocument());
+    expect(screen.queryByText(/^×/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/1ª vez:/)).not.toBeInTheDocument();
+  });
+
+  // Num "Script error." o navegador não manda stack; a origem é a única pista.
+  it("mostra de onde o erro veio quando o navegador informou", async () => {
+    ERRORS = [erro({ metadata: { filename: "https://valvepath.com.br/assets/x.js", lineno: 42 } })];
+    render(<AdminErrors />, { wrapper });
+    await waitFor(() =>
+      expect(screen.getByText("https://valvepath.com.br/assets/x.js:42")).toBeInTheDocument(),
+    );
   });
 
   it("mostra cada tarefa agendada em dia, com os números próprios de cada uma", async () => {

@@ -36,8 +36,11 @@ Deno.serve(async (req) => {
       const authHeader = req.headers.get("Authorization") ?? "";
       if (authHeader.startsWith("Bearer ")) {
         const token = authHeader.replace("Bearer ", "");
-        const { data } = await supabase.auth.getClaims(token);
-        const uid = data?.claims?.sub;
+        // `getClaims` não existe no SDK 2.45.0 fixado acima: este ramo (admin
+        // disparando o resumo à mão) nunca funcionou. O agendamento usa o
+        // segredo de cron, por isso a falha passou despercebida.
+        const { data } = await supabase.auth.getUser(token);
+        const uid = data?.user?.id;
         if (uid) {
           const { data: role } = await supabase
             .from("user_roles")
