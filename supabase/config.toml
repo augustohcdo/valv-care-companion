@@ -11,9 +11,6 @@ verify_jwt = false
 [functions.fhir-ingest]
 verify_jwt = false
 
-[functions.turnstile-verify]
-verify_jwt = false
-
 [functions.turnstile-config]
 verify_jwt = false
 
