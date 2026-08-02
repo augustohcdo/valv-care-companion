@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { checarUpload, ACCEPT_DOCUMENTOS } from "@/lib/upload";
 import {
   Select,
   SelectContent,
@@ -69,8 +70,9 @@ const PacienteDocumentos = () => {
 
   const handleFile = async (file: File) => {
     if (!user || !patientId) return;
-    if (file.size > 20 * 1024 * 1024) {
-      toast.error("Arquivo excede 20 MB");
+    const check = checarUpload(file, "patient-documents");
+    if (!check.ok) {
+      toast.error("Arquivo não aceito", { description: check.motivo });
       return;
     }
     setUploading(true);
@@ -79,7 +81,7 @@ const PacienteDocumentos = () => {
 
     const { error: upErr } = await supabase.storage
       .from("patient-documents")
-      .upload(path, file, { contentType: file.type });
+      .upload(path, file, { contentType: check.contentType });
 
     if (upErr) {
       setUploading(false);
@@ -193,7 +195,7 @@ const PacienteDocumentos = () => {
             ref={fileInput}
             type="file"
             hidden
-            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+            accept={ACCEPT_DOCUMENTOS}
             onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
           />
           <Button

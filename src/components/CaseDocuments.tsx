@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { documentTypeLabels, formatBytes } from "@/lib/clinicalLabels";
 import { logAudit } from "@/lib/auditLog";
+import { checarUpload, ACCEPT_DOCUMENTOS } from "@/lib/upload";
 
 interface Props {
   caseId: string;
@@ -43,8 +44,9 @@ export const CaseDocuments = ({ caseId, readOnly = false }: Props) => {
 
   const handleFile = async (file: File) => {
     if (!user) return;
-    if (file.size > 20 * 1024 * 1024) {
-      toast.error("Arquivo excede 20 MB");
+    const check = checarUpload(file, "medical-documents");
+    if (!check.ok) {
+      toast.error("Arquivo não aceito", { description: check.motivo });
       return;
     }
     setUploading(true);
@@ -53,7 +55,9 @@ export const CaseDocuments = ({ caseId, readOnly = false }: Props) => {
 
     const { error: upErr } = await supabase.storage
       .from("medical-documents")
-      .upload(path, file, { contentType: file.type });
+      // O tipo vem da extensão, não do que o navegador declara: para .dcm o
+      // `file.type` chega vazio e o bucket recusaria a imagem médica.
+      .upload(path, file, { contentType: check.contentType });
 
     if (upErr) {
       setUploading(false);
@@ -123,7 +127,7 @@ export const CaseDocuments = ({ caseId, readOnly = false }: Props) => {
               ref={fileInput}
               type="file"
               hidden
-              accept=".pdf,.jpg,.jpeg,.png,.dcm,.doc,.docx"
+              accept={ACCEPT_DOCUMENTOS}
               onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
             />
             <Button
