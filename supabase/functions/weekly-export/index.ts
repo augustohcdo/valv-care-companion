@@ -8,6 +8,15 @@ import { recordJobRun } from "../_shared/jobRun.ts";
 
 const JOB = "weekly-export";
 
+// A lista é escrita à mão e por isso envelhece mal: uma migration que cria
+// tabela nova não a atualiza, e o export segue relatando sucesso porque nunca
+// soube que deveria copiar mais. Foi assim que 15 tabelas ficaram de fora, entre
+// elas a trilha de auditoria e a de papéis. `src/test/backupCoverage.test.ts`
+// compara esta lista com o schema real e quebra o CI quando alguma escapa.
+//
+// Fora daqui, de propósito: `internal_secrets` — segredos de cron e URL base,
+// sem dado clínico ou de usuário, recriáveis por migration; copiá-los para um
+// arquivo num bucket só ampliaria a exposição.
 const TABLES = [
   "clinical_cases",
   "case_events",
@@ -31,6 +40,21 @@ const TABLES = [
   "profiles",
   "doctors",
   "patients",
+  // Faltavam desde sempre.
+  "audit_logs",            // trilha de auditoria clínica
+  "user_roles",            // quem é admin: sem isto a restauração é ingovernável
+  "case_collaborators",    // permissão de acesso a caso
+  "prosthesis_catalog",    // catálogo, com a correção de valve_position
+  "knowledge_chunks",      // base do RAG, com embeddings
+  "knowledge_sources",     // procedência do conteúdo do RAG
+  "content_review_status",
+  "hospitals",
+  "hospital_members",
+  "hospital_api_keys",
+  "notifications",
+  "saved_filters",
+  "client_errors",
+  "job_runs",
 ];
 
 const BUCKET = "clinical-exports";
