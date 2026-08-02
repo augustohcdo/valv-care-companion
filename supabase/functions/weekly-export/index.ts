@@ -4,7 +4,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { logError } from "../_shared/logError.ts";
-import { recordJobRun } from "../_shared/jobRun.ts";
+import { recordJobRun, quemDisparou } from "../_shared/jobRun.ts";
 
 const JOB = "weekly-export";
 
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
   }
 
   const stamp = new Date().toISOString().slice(0, 10);
-  triggeredBy = cronHeader ? "pg_cron" : "admin";
+  triggeredBy = quemDisparou(await req.json().catch(() => ({})), !!cronHeader);
   const results: Record<string, { rows: number; bytes: number; error?: string }> = {};
 
   for (const table of TABLES) {

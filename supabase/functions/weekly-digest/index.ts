@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { logError } from "../_shared/logError.ts";
-import { recordJobRun } from "../_shared/jobRun.ts";
+import { recordJobRun, quemDisparou } from "../_shared/jobRun.ts";
 
 const JOB = "weekly-digest";
 
@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     // Auth: allow (a) valid cron secret via header, or (b) authenticated admin JWT.
     const cronHeader = req.headers.get("x-cron-secret");
     let authorized = !!(CRON_SECRET && cronHeader === CRON_SECRET);
-    triggeredBy = cronHeader ? "pg_cron" : "admin";
+    triggeredBy = quemDisparou(await req.json().catch(() => ({})), !!cronHeader);
 
     if (!authorized) {
       const authHeader = req.headers.get("Authorization") ?? "";

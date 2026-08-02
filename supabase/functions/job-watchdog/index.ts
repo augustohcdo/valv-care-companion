@@ -11,7 +11,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { logError } from "../_shared/logError.ts";
-import { recordJobRun } from "../_shared/jobRun.ts";
+import { recordJobRun, quemDisparou } from "../_shared/jobRun.ts";
 import { sendAlert } from "../_shared/sendAlert.ts";
 
 const JOB = "job-watchdog";
@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
     const { data: secretRow } = await supabase
       .from("internal_secrets").select("value").eq("key", "export_cron_secret").maybeSingle();
     const cronHeader = req.headers.get("x-cron-secret");
-    triggeredBy = cronHeader ? "pg_cron" : "admin";
+    triggeredBy = quemDisparou(await req.json().catch(() => ({})), !!cronHeader);
     if (!secretRow?.value || cronHeader !== secretRow.value) {
       return new Response(JSON.stringify({ error: "unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },

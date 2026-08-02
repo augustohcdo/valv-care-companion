@@ -7,6 +7,23 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.0";
  * ausência da linha é justamente o que faz a tela de admin acusar atraso, então
  * um registro que não entrou merece pelo menos aparecer no log da função.
  */
+/**
+ * Quem de fato disparou a execução.
+ *
+ * Antes isto era inferido da presença do cabeçalho `x-cron-secret` — o que
+ * marcava como "pg_cron" qualquer chamada feita com o segredo, inclusive as
+ * manuais de verificação. O campo afirmava um fato que não conhecia, e no
+ * histórico ficava impossível separar execução agendada de teste.
+ *
+ * O comando do cron manda `{"source":"pg_cron"}` no corpo; é essa marca que
+ * vale. Com o segredo mas sem a marca, é chamada manual autenticada.
+ */
+export function quemDisparou(body: unknown, temSegredo: boolean): string {
+  const source = (body as { source?: unknown })?.source;
+  if (source === "pg_cron") return "pg_cron";
+  return temSegredo ? "cron_secret" : "admin";
+}
+
 export async function recordJobRun(opts: {
   job: string;
   startedAt: string;
