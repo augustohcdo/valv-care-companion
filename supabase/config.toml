@@ -20,5 +20,8 @@ verify_jwt = false
 [functions.weekly-digest]
 verify_jwt = false
 
+[functions.job-watchdog]
+verify_jwt = false
+
 [functions.report-error]
 verify_jwt = false

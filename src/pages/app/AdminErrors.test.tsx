@@ -34,13 +34,19 @@ const run = (job: string, daysAgo: number, extra: Record<string, unknown> = {}) 
   ...extra,
 });
 
+// A lista de tarefas vigiadas vive no banco (watched_jobs), não mais numa
+// constante: o vigia precisa da mesma lista, e duplicá-la já custou caro na
+// lista de tabelas do backup.
+let watched: Record<string, unknown>[] = [];
+
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: (table: string) => ({
       select: () => {
         const chain: any = {
           eq: () => chain,
-          order: () => chain,
+          // watched_jobs termina em .order(), sem .limit()
+          order: () => (table === "watched_jobs" ? Promise.resolve({ data: watched, error: null }) : chain),
           limit: () => {
             if (table === "job_runs") return Promise.resolve({ data: jobRuns, error: null });
             return gate ? gate.then(() => ({ data: ERRORS, error: null })) : Promise.resolve({ data: ERRORS, error: null });
@@ -64,6 +70,10 @@ describe("AdminErrors", () => {
     gate = null;
     openGate = null;
     jobRuns = [run("weekly-export", 1), run("weekly-digest", 1, { items_ok: 3, details: null })];
+    watched = [
+      { job: "weekly-export", label: "Backup semanal", stale_after_days: 8 },
+      { job: "weekly-digest", label: "Resumo semanal do médico", stale_after_days: 8 },
+    ];
     ERRORS = [erro()];
     client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
     vi.clearAllMocks();
@@ -130,6 +140,26 @@ describe("AdminErrors", () => {
 
   // Este é o estado que a tela precisava ter mostrado durante semanas: a tarefa
   // estava agendada, "ativa", e nunca tinha produzido nada.
+  // A lista vigiada passou a vir do banco. Uma tarefa nova aparece no painel
+  // sem redeploy — e, se isso quebrar, o painel some sem avisar.
+  it("mostra tarefa vinda do banco que o código não conhece", async () => {
+    watched = [{ job: "tarefa-nova", label: "Tarefa recém-criada", stale_after_days: 3 }];
+    jobRuns = [run("tarefa-nova", 1, { items_ok: 7, details: null })];
+    render(<AdminErrors />, { wrapper });
+    await waitFor(() => expect(screen.getByText("Tarefa recém-criada")).toBeInTheDocument());
+    // sem `describe` própria, cai no texto genérico em vez de quebrar
+    expect(screen.getByText(/7 item\(ns\) processado\(s\)/)).toBeInTheDocument();
+  });
+
+  it("usa o prazo que veio do banco, não um fixo no código", async () => {
+    watched = [{ job: "weekly-export", label: "Backup semanal", stale_after_days: 3 }];
+    jobRuns = [run("weekly-export", 5)];
+    render(<AdminErrors />, { wrapper });
+    await waitFor(() =>
+      expect(screen.getByText(/Sem execução bem sucedida há mais de 3 dias/)).toBeInTheDocument(),
+    );
+  });
+
   it("alarma quando uma tarefa nunca executou", async () => {
     jobRuns = [];
     render(<AdminErrors />, { wrapper });
@@ -147,6 +177,6 @@ describe("AdminErrors", () => {
     await waitFor(() => expect(screen.getByText(/Última execução há 20 dia/)).toBeInTheDocument());
     expect(screen.getByText(/Última execução há 1 dia/)).toBeInTheDocument();
     // só uma das duas passou do prazo
-    expect(screen.getAllByText(/Passou do prazo/)).toHaveLength(1);
+    expect(screen.getAllByText(/Sem execução bem sucedida há mais de/)).toHaveLength(1);
   });
 });

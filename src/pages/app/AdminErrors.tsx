@@ -37,33 +37,27 @@ type JobRun = {
 export const clientErrorsKey = () => ["client-errors"] as const;
 export const jobRunsKey = () => ["job-runs"] as const;
 
+type WatchedJob = { job: string; label: string; stale_after_days: number };
+
+export const watchedJobsKey = () => ["watched-jobs"] as const;
+
 /**
- * As tarefas agendadas que precisam dar sinal de vida, e em quantos dias o
- * silêncio vira alarme. Ambas rodam toda segunda-feira, daí o limite de 8.
- *
- * Uma tarefa que nunca rodou aparece vermelha desde o primeiro dia: foi
- * exatamente esse estado — agendado, "ativo", nunca tendo produzido nada — que
- * passou despercebido no backup e no resumo semanal.
+ * O que cada tarefa conta quando está saudável. Fica no código porque é função,
+ * não dado — a lista em si (quem é vigiado e por quanto tempo) vive em
+ * `watched_jobs`, no banco, para não existir em dois lugares: era assim que a
+ * lista de tabelas do backup ficava para trás sem ninguém notar.
  */
-const WATCHED_JOBS: {
-  job: string;
-  label: string;
-  staleDays: number;
-  describe: (r: JobRun) => string;
-}[] = [
-  {
-    job: "weekly-export",
-    label: "Backup semanal",
-    staleDays: 8,
-    describe: (r) => `${r.items_ok} tabelas, ${r.details?.["total_rows"] ?? 0} registros.`,
-  },
-  {
-    job: "weekly-digest",
-    label: "Resumo semanal do médico",
-    staleDays: 8,
-    describe: (r) => `${r.items_ok} médico(s) notificado(s).`,
-  },
-];
+const DESCRICAO: Record<string, (r: JobRun) => string> = {
+  "weekly-export": (r) => `${r.items_ok} tabelas, ${r.details?.["total_rows"] ?? 0} registros.`,
+  "weekly-digest": (r) => `${r.items_ok} médico(s) notificado(s).`,
+  "job-watchdog": (r) =>
+    r.items_failed > 0
+      ? `${r.items_failed} tarefa(s) com problema.`
+      : `${r.items_ok} tarefa(s) verificada(s), tudo em dia.`,
+};
+
+const descrever = (job: string, r: JobRun) =>
+  DESCRICAO[job]?.(r) ?? `${r.items_ok} item(ns) processado(s).`;
 
 export default function AdminErrors() {
   const [openStack, setOpenStack] = useState<string | null>(null);
@@ -106,6 +100,19 @@ export default function AdminErrors() {
     },
   });
 
+  const { data: watched = [], isLoading: loadingWatched } = useQuery({
+    queryKey: watchedJobsKey(),
+    queryFn: async (): Promise<WatchedJob[]> => {
+      const { data, error } = await supabase
+        .from("watched_jobs")
+        .select("job, label, stale_after_days")
+        .eq("enabled", true)
+        .order("job");
+      if (error) throw error;
+      return (data as WatchedJob[]) ?? [];
+    },
+  });
+
   return (
     <div className="container max-w-4xl py-8 space-y-6">
       <header className="flex items-center justify-between gap-4 flex-wrap">
@@ -121,14 +128,14 @@ export default function AdminErrors() {
         </Button>
       </header>
 
-      {!loadingRuns && (
+      {!loadingRuns && !loadingWatched && (
         <div className="grid gap-3 sm:grid-cols-2">
-          {WATCHED_JOBS.map((j) => {
+          {watched.map((j) => {
             const last = runs.find((r) => r.job === j.job);
             const ageDays = last?.finished_at
               ? (Date.now() - new Date(last.finished_at).getTime()) / 86_400_000
               : null;
-            const stale = ageDays === null || ageDays > j.staleDays;
+            const stale = ageDays === null || ageDays > j.stale_after_days;
             return (
               <Card
                 key={j.job}
@@ -149,8 +156,8 @@ export default function AdminErrors() {
                       {ageDays === null
                         ? "Agendada, mas sem nenhuma execução bem sucedida registrada. Verifique o agendamento antes de confiar nela."
                         : stale
-                        ? "Deveria rodar toda segunda-feira. Passou do prazo — verifique o agendamento."
-                        : j.describe(last!)}
+                        ? `Sem execução bem sucedida há mais de ${j.stale_after_days} dias — verifique o agendamento.`
+                        : descrever(j.job, last!)}
                     </p>
                   </div>
                 </CardContent>

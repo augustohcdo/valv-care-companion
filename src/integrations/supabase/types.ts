@@ -1819,6 +1819,30 @@ export type Database = {
         }
         Relationships: []
       }
+      watched_jobs: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          job: string
+          label: string
+          stale_after_days: number
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          job: string
+          label: string
+          stale_after_days?: number
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          job?: string
+          label?: string
+          stale_after_days?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       active_data_access_grants: {

@@ -55,6 +55,7 @@ const TABLES = [
   "saved_filters",
   "client_errors",
   "job_runs",
+  "watched_jobs",          // quem é vigiado e com que prazo
 ];
 
 const BUCKET = "clinical-exports";
