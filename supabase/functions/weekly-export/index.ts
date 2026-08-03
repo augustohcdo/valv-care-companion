@@ -56,6 +56,7 @@ const TABLES = [
   "client_errors",
   "job_runs",
   "watched_jobs",          // quem é vigiado e com que prazo
+  "page_views",            // audiência agregada por dia; não identifica ninguém
 ];
 
 const BUCKET = "clinical-exports";

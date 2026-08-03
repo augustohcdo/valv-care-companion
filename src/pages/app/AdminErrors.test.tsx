@@ -39,8 +39,12 @@ const run = (job: string, daysAgo: number, extra: Record<string, unknown> = {}) 
 // lista de tabelas do backup.
 let watched: Record<string, unknown>[] = [];
 
+// Métricas do site, devolvidas pelo RPC admin_site_metrics.
+let metrics: Record<string, unknown> | null = null;
+
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
+    rpc: () => Promise.resolve({ data: metrics, error: null }),
     from: (table: string) => ({
       select: () => {
         const chain: any = {
@@ -75,8 +79,44 @@ describe("AdminErrors", () => {
       { job: "weekly-digest", label: "Resumo semanal do médico", stale_after_days: 8 },
     ];
     ERRORS = [erro()];
+    metrics = {
+      medicos: 12, medicos_30d: 3,
+      pacientes: 40, pacientes_30d: 7,
+      casos: 55, casos_30d: 9,
+      contas_confirmadas: 50, contas_pendentes: 2,
+      views_30d: 1234, visitas_30d: 300,
+      top_paths: [{ path: "/", views: 800 }, { path: "/aprender", views: 200 }],
+    };
     client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
     vi.clearAllMocks();
+  });
+
+  it("mostra os números do site com o crescimento de 30 dias", async () => {
+    render(<AdminErrors />, { wrapper });
+    await waitFor(() => expect(screen.getByText("Médicos cadastrados")).toBeInTheDocument());
+    expect(screen.getByText("12")).toBeInTheDocument();
+    expect(screen.getByText("+3 nos últimos 30 dias")).toBeInTheDocument();
+    expect(screen.getByText("+7 nos últimos 30 dias")).toBeInTheDocument();
+    expect(screen.getByText("/aprender")).toBeInTheDocument();
+  });
+
+  // O contador não identifica ninguém, então não sabe dizer "visitantes". Se a
+  // tela chamar assim, quem lê toma decisão com base num número que mede outra
+  // coisa — o defeito mais recorrente desta base.
+  it("chama a audiência pelo nome certo, e não de visitantes", async () => {
+    render(<AdminErrors />, { wrapper });
+    await waitFor(() => expect(screen.getByText("Telas abertas (30 dias)")).toBeInTheDocument());
+    expect(screen.getByText("1.234")).toBeInTheDocument();
+    expect(screen.getByText(/300 sessão\(ões\) de navegador/)).toBeInTheDocument();
+    expect(screen.getByText(/não visitantes únicos/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Visitantes/)).not.toBeInTheDocument();
+  });
+
+  it("não quebra a tela quando as métricas não vêm", async () => {
+    metrics = null;
+    render(<AdminErrors />, { wrapper });
+    await waitFor(() => expect(screen.getByText("Boom")).toBeInTheDocument());
+    expect(screen.queryByText("Médicos cadastrados")).not.toBeInTheDocument();
   });
 
   it("lista os erros capturados", async () => {

@@ -4,7 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Loader2, RefreshCw, DatabaseBackup } from "lucide-react";
+import {
+  AlertTriangle, Loader2, RefreshCw, DatabaseBackup,
+  Stethoscope, HeartPulse, FolderOpen, Eye,
+} from "lucide-react";
 
 type ClientError = {
   id: string;
@@ -36,6 +39,25 @@ type JobRun = {
 
 export const clientErrorsKey = () => ["client-errors"] as const;
 export const jobRunsKey = () => ["job-runs"] as const;
+export const siteMetricsKey = () => ["site-metrics"] as const;
+
+/**
+ * Números do site. Vêm de um RPC porque contar no cliente exigiria trazer as
+ * linhas de paciente para o navegador do admin só para descartá-las depois.
+ *
+ * `visitas_30d` é sessão de navegador, não pessoa: quem volta amanhã conta de
+ * novo. O rótulo na tela precisa dizer isso — não medimos visitante único
+ * porque escolhemos não identificar ninguém, e um número verdadeiro com o nome
+ * errado engana mais do que a ausência dele.
+ */
+type SiteMetrics = {
+  medicos: number; medicos_30d: number;
+  pacientes: number; pacientes_30d: number;
+  casos: number; casos_30d: number;
+  contas_confirmadas: number; contas_pendentes: number;
+  views_30d: number; visitas_30d: number;
+  top_paths: { path: string; views: number }[];
+};
 
 type WatchedJob = { job: string; label: string; stale_after_days: number };
 
@@ -58,6 +80,23 @@ const DESCRICAO: Record<string, (r: JobRun) => string> = {
 
 const descrever = (job: string, r: JobRun) =>
   DESCRICAO[job]?.(r) ?? `${r.items_ok} item(ns) processado(s).`;
+
+function MetricCard({
+  icon, label, value, hint,
+}: { icon: React.ReactNode; label: string; value: number; hint: string }) {
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-1">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          {icon}
+          <span>{label}</span>
+        </div>
+        <p className="text-2xl font-bold">{value.toLocaleString("pt-BR")}</p>
+        <p className="text-xs text-muted-foreground">{hint}</p>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function AdminErrors() {
   const [openStack, setOpenStack] = useState<string | null>(null);
@@ -100,6 +139,15 @@ export default function AdminErrors() {
     },
   });
 
+  const { data: metrics } = useQuery({
+    queryKey: siteMetricsKey(),
+    queryFn: async (): Promise<SiteMetrics> => {
+      const { data, error } = await supabase.rpc("admin_site_metrics");
+      if (error) throw error;
+      return data as unknown as SiteMetrics;
+    },
+  });
+
   const { data: watched = [], isLoading: loadingWatched } = useQuery({
     queryKey: watchedJobsKey(),
     queryFn: async (): Promise<WatchedJob[]> => {
@@ -127,6 +175,68 @@ export default function AdminErrors() {
           Atualizar
         </Button>
       </header>
+
+      {metrics && (
+        <section className="space-y-3">
+          <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+            <MetricCard
+              icon={<Stethoscope className="h-5 w-5 text-primary" />}
+              label="Médicos cadastrados"
+              value={metrics.medicos}
+              hint={`+${metrics.medicos_30d} nos últimos 30 dias`}
+            />
+            <MetricCard
+              icon={<HeartPulse className="h-5 w-5 text-primary" />}
+              label="Pacientes cadastrados"
+              value={metrics.pacientes}
+              hint={`+${metrics.pacientes_30d} nos últimos 30 dias`}
+            />
+            <MetricCard
+              icon={<FolderOpen className="h-5 w-5 text-primary" />}
+              label="Casos clínicos"
+              value={metrics.casos}
+              hint={`+${metrics.casos_30d} nos últimos 30 dias`}
+            />
+            <MetricCard
+              icon={<Eye className="h-5 w-5 text-primary" />}
+              label="Telas abertas (30 dias)"
+              value={metrics.views_30d}
+              hint={`${metrics.visitas_30d} sessão(ões) de navegador`}
+            />
+          </div>
+
+          <Card>
+            <CardContent className="p-4 text-sm space-y-3">
+              <p className="text-muted-foreground">
+                <strong className="text-foreground">{metrics.contas_confirmadas}</strong> conta(s) com
+                e-mail confirmado
+                {metrics.contas_pendentes > 0 && (
+                  <> · <strong className="text-foreground">{metrics.contas_pendentes}</strong> aguardando confirmação</>
+                )}
+              </p>
+              {/* Dizer o que o número é evita que ele seja lido como "pessoas". */}
+              <p className="text-xs text-muted-foreground">
+                A audiência é contada sem cookie, sem IP e sem identificador — por isso são telas
+                abertas e sessões de navegador, não visitantes únicos. Quem volta outro dia conta
+                como uma nova sessão.
+              </p>
+              {metrics.top_paths.length > 0 && (
+                <div className="space-y-1">
+                  <p className="font-medium">Páginas mais abertas (30 dias)</p>
+                  <ul className="space-y-0.5">
+                    {metrics.top_paths.map((p) => (
+                      <li key={p.path} className="flex justify-between gap-4 font-mono text-xs">
+                        <span className="truncate text-muted-foreground">{p.path}</span>
+                        <span>{p.views}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       {!loadingRuns && !loadingWatched && (
         <div className="grid gap-3 sm:grid-cols-2">

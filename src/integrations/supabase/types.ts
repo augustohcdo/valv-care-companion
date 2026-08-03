@@ -1468,6 +1468,27 @@ export type Database = {
         }
         Relationships: []
       }
+      page_views: {
+        Row: {
+          day: string
+          path: string
+          views: number
+          visits: number
+        }
+        Insert: {
+          day?: string
+          path: string
+          views?: number
+          visits?: number
+        }
+        Update: {
+          day?: string
+          path?: string
+          views?: number
+          visits?: number
+        }
+        Relationships: []
+      }
       patient_documents: {
         Row: {
           created_at: string
@@ -1940,6 +1961,7 @@ export type Database = {
       }
     }
     Functions: {
+      admin_site_metrics: { Args: never; Returns: Json }
       can_access_case: {
         Args: { _case_id: string; _user_id: string }
         Returns: boolean
@@ -2028,6 +2050,34 @@ export type Database = {
           source_year: number
           topic: string
         }[]
+      }
+      normalize_path: { Args: { _path: string }; Returns: string }
+      recent_confirmed_users: {
+        Args: { _since: string }
+        Returns: {
+          account_type: string
+          confirmed_at: string
+          email: string
+          full_name: string
+          user_id: string
+        }[]
+      }
+      record_consent_for: {
+        Args: {
+          _consent_type: Database["public"]["Enums"]["consent_type"]
+          _document_version?: string
+          _granted: boolean
+          _ip_address?: string
+          _metadata?: Json
+          _source?: string
+          _user: string
+          _user_agent?: string
+        }
+        Returns: string
+      }
+      record_page_view: {
+        Args: { _new_visit?: boolean; _path: string }
+        Returns: undefined
       }
       register_consent: {
         Args: {
