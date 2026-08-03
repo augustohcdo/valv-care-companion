@@ -97,7 +97,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    let alerta: Awaited<ReturnType<typeof sendAlert>> = { sent: false, reason: "not_configured" };
+    // Sem problema não há o que avisar, e isso não é o mesmo que "provedor de
+    // e-mail ausente". Antes o valor inicial dizia `not_configured` mesmo com a
+    // chave gravada — um campo afirmando algo que não era verdade, na mesma
+    // família dos outros achados desta base.
+    let alerta: Awaited<ReturnType<typeof sendAlert>> & { reason?: string } = {
+      sent: false,
+      reason: "nada_a_avisar",
+    };
     if (problemas.length) {
       const corpo = [
         "Tarefas agendadas do ValvePath com problema:",

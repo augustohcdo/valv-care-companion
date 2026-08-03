@@ -21,7 +21,11 @@ export async function sendAlert(opts: {
 }): Promise<AlertResult> {
   const key = Deno.env.get("RESEND_API_KEY");
   const to = Deno.env.get("ALERT_EMAIL_TO");
-  const from = Deno.env.get("ALERT_EMAIL_FROM") ?? "ValvePath <alertas@valvepath.com.br>";
+  const from = Deno.env.get("ALERT_EMAIL_FROM") ??
+    "ValvePath <nao-responda@envio.valvepath.com.br>";
+  // O domínio de envio não recebe e-mail: resposta a ele volta. O Reply-To
+  // manda quem responder para uma caixa que existe de verdade.
+  const replyTo = Deno.env.get("ALERT_EMAIL_TO");
 
   if (!key || !to) {
     console.log(`[alerta não enviado: sem provedor configurado] ${opts.subject}`);
@@ -35,6 +39,7 @@ export async function sendAlert(opts: {
       body: JSON.stringify({
         from,
         to: to.split(",").map((e) => e.trim()).filter(Boolean),
+        reply_to: replyTo,
         subject: opts.subject,
         text: opts.body,
       }),
