@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useId, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Stethoscope, HeartPulse, ShieldCheck, ArrowLeft } from "lucide-react";
+import { Loader2, Stethoscope, HeartPulse, ShieldCheck, ArrowLeft, Mail } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +13,7 @@ import {
   PatientSignupInput,
   UF_LIST,
 } from "@/lib/validators";
-import { registerConsent, ConsentType } from "@/lib/consent";
+import { ConsentType, CONSENT_VERSION } from "@/lib/consent";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Logo } from "@/components/Logo";
 
-type Step = "choose" | "medico" | "paciente";
+type Step = "choose" | "medico" | "paciente" | "confirmar";
 
 /** Scroll to first validation error field, focus it, and announce via live region.
  *  `submitCount` ensures the effect re-fires even when the same errors persist.
@@ -100,25 +100,63 @@ function useScrollToError(errors: Record<string, any>, fieldOrder: string[], sub
   }, [errorKeys, submitCount]);
 }
 
-async function recordSignupConsents(audience: "medico" | "paciente") {
-  const baseTypes: ConsentType[] = [
-    "terms_of_use",
-    "privacy_policy",
-    "medical_disclaimer",
-  ];
+/**
+ * Consentimentos aceitos no formulário, enviados nos metadados do cadastro.
+ *
+ * Eles NÃO são gravados daqui. A confirmação de e-mail é obrigatória, então o
+ * `signUp` devolve `session: null` — e a RLS de `user_consents` exige sessão.
+ * Gravar pelo navegador era impossível: a chamada ficava dentro de um
+ * `if (session)` e nunca era sequer tentada. Quem grava é o gatilho
+ * `handle_new_user`, no mesmo instante da criação da conta.
+ */
+function consentimentosDoCadastro(audience: "medico" | "paciente"): ConsentType[] {
+  const tipos: ConsentType[] = ["terms_of_use", "privacy_policy", "medical_disclaimer"];
   // O paciente também já consente, no cadastro, com compartilhamento com o médico vinculado
-  if (audience === "paciente") baseTypes.push("data_sharing_doctor");
-  for (const t of baseTypes) {
-    try {
-      await registerConsent({ type: t, granted: true, source: "signup" });
-    } catch (e) {
-      console.error("consent register failed", t, e);
-    }
-  }
+  if (audience === "paciente") tipos.push("data_sharing_doctor");
+  return tipos;
+}
+
+/**
+ * O cadastro não termina no formulário: a conta só passa a existir de verdade
+ * quando o e-mail é confirmado. Antes desta tela o usuário era mandado direto
+ * para a área logada, sem sessão, e voltava expulso para o login sem entender
+ * o motivo.
+ */
+function ConfirmeSeuEmail({ email }: { email: string }) {
+  return (
+    <Card className="shadow-md-soft border-border/70">
+      <CardContent className="p-8 text-center space-y-4">
+        <div className="h-14 w-14 rounded-full bg-accent/10 text-accent grid place-items-center mx-auto">
+          <Mail className="h-7 w-7" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="font-serif text-2xl text-primary">Confirme seu e-mail</h2>
+          <p className="text-sm text-muted-foreground">
+            Enviamos um link de confirmação para <strong className="text-foreground">{email}</strong>.
+            Abra o e-mail e clique no link para ativar sua conta.
+          </p>
+        </div>
+        <div className="rounded-lg bg-secondary/50 p-4 text-left text-sm space-y-1.5">
+          <p className="font-medium text-primary">Por que este passo existe</p>
+          <p className="text-muted-foreground">
+            Confirmar o e-mail garante que só você tenha acesso à sua conta e que
+            possamos falar com você sobre dados de saúde com segurança.
+          </p>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Não recebeu? Verifique a caixa de spam. O link vale por 1 hora.
+        </p>
+        <Button asChild variant="outline" className="w-full h-11">
+          <Link to="/auth/login">Já confirmei — ir para o login</Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function Cadastro() {
   const [step, setStep] = useState<Step>("choose");
+  const [emailPendente, setEmailPendente] = useState("");
 
   return (
     <div className="min-h-[calc(100vh-4rem)] px-4 py-10 bg-gradient-to-b from-background to-secondary/40">
@@ -133,15 +171,28 @@ export default function Cadastro() {
         </div>
 
         {step === "choose" && <ChooseAccount onPick={(t) => setStep(t)} />}
-        {step === "medico" && <DoctorForm onBack={() => setStep("choose")} />}
-        {step === "paciente" && <PatientForm onBack={() => setStep("choose")} />}
+        {step === "medico" && (
+          <DoctorForm
+            onBack={() => setStep("choose")}
+            onAguardandoConfirmacao={(e) => { setEmailPendente(e); setStep("confirmar"); }}
+          />
+        )}
+        {step === "paciente" && (
+          <PatientForm
+            onBack={() => setStep("choose")}
+            onAguardandoConfirmacao={(e) => { setEmailPendente(e); setStep("confirmar"); }}
+          />
+        )}
+        {step === "confirmar" && <ConfirmeSeuEmail email={emailPendente} />}
 
-        <p className="text-center text-sm text-muted-foreground mt-6">
-          Já tem conta?{" "}
-          <Link to="/auth/login" className="text-primary font-medium hover:underline">
-            Entrar
-          </Link>
-        </p>
+        {step !== "confirmar" && (
+          <p className="text-center text-sm text-muted-foreground mt-6">
+            Já tem conta?{" "}
+            <Link to="/auth/login" className="text-primary font-medium hover:underline">
+              Entrar
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   );
@@ -246,7 +297,7 @@ function StepProgress({ current, total, label }: { current: number; total: numbe
   );
 }
 
-function DoctorForm({ onBack }: { onBack: () => void }) {
+function DoctorForm({ onBack, onAguardandoConfirmacao }: { onBack: () => void; onAguardandoConfirmacao: (email: string) => void }) {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const ufTriggerRef = useRef<HTMLButtonElement>(null);
@@ -314,6 +365,9 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
           crm_uf: values.crm_uf,
           specialty: values.specialty,
           institution: values.institution || null,
+          phone: values.phone || null,
+          consents: consentimentosDoCadastro("medico"),
+          consent_version: CONSENT_VERSION,
         },
       },
     });
@@ -324,17 +378,16 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
       return;
     }
 
-    // 3) Atualiza phone no profile (trigger já criou o profile)
-    if (values.phone && signupData.session) {
-      await supabase.from("profiles").update({ phone: values.phone }).eq("user_id", signupData.user.id);
-    }
-
-    // 4) Registra consentimentos granulares
-    if (signupData.session) {
-      await recordSignupConsents("medico");
-    }
-
     setSubmitting(false);
+
+    // Sem sessão = o Supabase exige confirmação de e-mail. Antes o código
+    // seguia para /app/medico, uma rota protegida, e o médico era expulso para
+    // o login sem ninguém explicar por quê.
+    if (!signupData.session) {
+      onAguardandoConfirmacao(values.email);
+      return;
+    }
+
     toast.success("Conta criada com sucesso");
     navigate("/app/medico", { replace: true });
   };
@@ -419,7 +472,7 @@ function DoctorForm({ onBack }: { onBack: () => void }) {
   );
 }
 
-function PatientForm({ onBack }: { onBack: () => void }) {
+function PatientForm({ onBack, onAguardandoConfirmacao }: { onBack: () => void; onAguardandoConfirmacao: (email: string) => void }) {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const ufTriggerRef = useRef<HTMLButtonElement>(null);
@@ -472,6 +525,9 @@ function PatientForm({ onBack }: { onBack: () => void }) {
           account_type: "paciente",
           doctor_crm: values.doctor_crm || null,
           doctor_crm_uf: values.doctor_crm_uf || null,
+          phone: values.phone || null,
+          consents: consentimentosDoCadastro("paciente"),
+          consent_version: CONSENT_VERSION,
         },
       },
     });
@@ -482,15 +538,13 @@ function PatientForm({ onBack }: { onBack: () => void }) {
       return;
     }
 
-    if (values.phone && signupData.session) {
-      await supabase.from("profiles").update({ phone: values.phone }).eq("user_id", signupData.user.id);
-    }
-
-    if (signupData.session) {
-      await recordSignupConsents("paciente");
-    }
-
     setSubmitting(false);
+
+    if (!signupData.session) {
+      onAguardandoConfirmacao(values.email);
+      return;
+    }
+
     const linkedDoctor = values.doctor_crm && values.doctor_crm_uf;
     toast.success("Bem-vindo ao ValvePath", {
       description: linkedDoctor ? "Vínculo com seu médico estabelecido." : undefined,
