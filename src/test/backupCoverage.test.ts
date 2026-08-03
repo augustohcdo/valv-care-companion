@@ -88,3 +88,59 @@ describe("cobertura do backup semanal", () => {
     expect(orfas, `Exclusões obsoletas: ${orfas.join(", ")}`).toEqual([]);
   });
 });
+
+/**
+ * As contas de usuário vivem em `auth.users`, fora do alcance do PostgREST, e
+ * por isso são exportadas por RPC — numa lista à parte de `TABLES`.
+ *
+ * Sem elas o backup não restaura um sistema: quatro tabelas de `public`
+ * (`profiles`, `doctors`, `patients`, `user_roles`) têm chave estrangeira
+ * apontando para `auth.users`, então numa restauração não carregariam — e,
+ * mesmo carregando, ninguém conseguiria entrar.
+ */
+const MIGRATION_AUTH = "supabase/migrations/20260803170000_auth_identity_export.sql";
+
+/**
+ * Colunas que NUNCA podem sair do banco para um arquivo em bucket.
+ *
+ * Levar o hash da senha pouparia um "esqueci minha senha" depois de um
+ * desastre e, em troca, transformaria o arquivo de backup num alvo muito mais
+ * valioso. A decisão foi levar identidade, não credencial — e esta guarda
+ * existe porque a tentação de "facilitar a restauração" é exatamente o tipo de
+ * melhoria bem-intencionada que desfaz isso em silêncio.
+ */
+const CREDENCIAIS_PROIBIDAS = [
+  "encrypted_password",
+  "recovery_token",
+  "confirmation_token",
+  "email_change_token",
+  "reauthentication_token",
+];
+
+describe("as contas no backup", () => {
+  const exportSrc = readFileSync(EXPORT_FN, "utf8");
+  const migrationSrc = readFileSync(MIGRATION_AUTH, "utf8");
+
+  it("os dois arquivos de identidade continuam sendo exportados", () => {
+    for (const arquivo of ["auth_users", "auth_identities"]) {
+      expect(exportSrc, `${EXPORT_FN} não exporta ${arquivo}`).toContain(`"${arquivo}"`);
+    }
+    for (const rpc of ["auth_users_export", "auth_identities_export"]) {
+      expect(exportSrc, `${EXPORT_FN} não chama ${rpc}`).toContain(rpc);
+      expect(migrationSrc, `${MIGRATION_AUTH} não define ${rpc}`).toContain(rpc);
+    }
+  });
+
+  it("nenhuma credencial atravessa para o arquivo de backup", () => {
+    for (const coluna of CREDENCIAIS_PROIBIDAS) {
+      // O nome pode aparecer em comentário explicando por que está fora; o que
+      // não pode é aparecer numa linha de SQL que o seleciona.
+      const linhasSql = migrationSrc
+        .split("\n")
+        .filter((l) => !l.trimStart().startsWith("--"))
+        .join("\n");
+      expect(linhasSql, `${MIGRATION_AUTH} seleciona ${coluna}`).not.toContain(coluna);
+      expect(exportSrc, `${EXPORT_FN} menciona ${coluna}`).not.toContain(coluna);
+    }
+  });
+});

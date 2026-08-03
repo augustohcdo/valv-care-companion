@@ -59,6 +59,22 @@ const TABLES = [
   "page_views",            // audiência agregada por dia; não identifica ninguém
 ];
 
+// As contas. Ficam numa lista à parte porque não são tabelas de `public`: são
+// RPCs sobre `auth`, que o PostgREST não expõe. A guarda de cobertura compara
+// `TABLES` com o schema real e quebraria se um nome daqui entrasse lá.
+//
+// Sem isto o backup não restaura um sistema: `profiles`, `doctors`, `patients`
+// e `user_roles` têm chave estrangeira para `auth.users`, então numa
+// restauração essas quatro nem carregariam — e ninguém conseguiria entrar.
+//
+// As funções devolvem identidade, nunca credencial: sem hash de senha e sem
+// token de recuperação. Ver o motivo em
+// supabase/migrations/20260803170000_auth_identity_export.sql.
+const AUTH_EXPORTS: Array<{ arquivo: string; rpc: string }> = [
+  { arquivo: "auth_users", rpc: "auth_users_export" },
+  { arquivo: "auth_identities", rpc: "auth_identities_export" },
+];
+
 const BUCKET = "clinical-exports";
 
 Deno.serve(async (req) => {
@@ -150,6 +166,28 @@ Deno.serve(async (req) => {
       results[table] = { rows: total, bytes: bytes.byteLength };
     } catch (e) {
       results[table] = { rows: 0, bytes: 0, error: (e as Error).message };
+    }
+  }
+
+  // As contas, pelo mesmo caminho e no mesmo manifesto: um arquivo que não
+  // aparece na contagem é um arquivo que ninguém percebe faltar.
+  for (const { arquivo, rpc } of AUTH_EXPORTS) {
+    try {
+      const { data, error } = await supabase.rpc(rpc);
+      if (error) throw error;
+      const linhas = (data ?? []) as Record<string, unknown>[];
+      const body = linhas.map((r) => JSON.stringify(r)).join("\n");
+      const bytes = new TextEncoder().encode(body);
+      const { error: upErr } = await supabase.storage
+        .from(BUCKET)
+        .upload(`exports/${stamp}/${arquivo}.ndjson`, bytes, {
+          contentType: "application/x-ndjson",
+          upsert: true,
+        });
+      if (upErr) throw upErr;
+      results[arquivo] = { rows: linhas.length, bytes: bytes.byteLength };
+    } catch (e) {
+      results[arquivo] = { rows: 0, bytes: 0, error: (e as Error).message };
     }
   }
 

@@ -42,6 +42,13 @@ Scripts disponíveis:
 | `test:watch` | Testes em modo watch |
 | `types:generate` | Regenera os tipos do Supabase a partir do schema (ver abaixo) |
 
+## Recuperação
+
+O `weekly-export` grava o banco inteiro num bucket privado toda segunda. O
+procedimento para transformar aqueles arquivos em um sistema funcionando de
+novo está em [RECOVERY.md](RECOVERY.md), junto com o registro do ensaio que o
+executou de verdade — e dos três defeitos que só o ensaio encontrou.
+
 ## Estrutura
 
 ```
