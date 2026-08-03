@@ -56,7 +56,22 @@ export default function Login() {
       .select("account_type")
       .eq("user_id", user.id)
       .maybeSingle();
-    const dest = fromPath ?? (profile?.account_type === "medico" ? "/app/medico" : "/app/paciente");
+
+    // Quem administra a plataforma cai no painel, não na tela clínica. Sem
+    // isto a conta administrativa aterrissa numa área de médico sem registro
+    // de médico, e as telas de admin só existem para quem digita a URL.
+    const { data: ehAdmin } = await supabase.rpc("has_role", {
+      _user_id: user.id,
+      _role: "admin",
+    });
+
+    const dest =
+      fromPath ??
+      (ehAdmin
+        ? "/app/admin/erros"
+        : profile?.account_type === "medico"
+        ? "/app/medico"
+        : "/app/paciente");
     navigate(dest, { replace: true });
   };
 

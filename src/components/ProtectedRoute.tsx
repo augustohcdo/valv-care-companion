@@ -1,7 +1,7 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Loader2 } from "lucide-react";
 
 interface Props {
@@ -13,17 +13,9 @@ interface Props {
 export const ProtectedRoute = ({ children, requiredType, requireAdmin }: Props) => {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const { isAdmin, carregando: carregandoAdmin } = useIsAdmin();
 
-  useEffect(() => {
-    if (!requireAdmin || !user) return;
-    setIsAdmin(null);
-    supabase
-      .rpc("has_role", { _user_id: user.id, _role: "admin" })
-      .then(({ data }) => setIsAdmin(!!data));
-  }, [requireAdmin, user]);
-
-  if (loading || (requireAdmin && user && isAdmin === null)) {
+  if (loading || (requireAdmin && carregandoAdmin)) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />

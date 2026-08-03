@@ -19,8 +19,13 @@ import {
   BarChart3,
   ShieldCheck,
   Hospital,
+  ShieldAlert,
+  ScrollText,
+  Plug,
+  type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Logo } from "@/components/Logo";
 import { NotificationsBell } from "@/components/NotificationsBell";
 import { CommandPalette, CommandPaletteTrigger } from "@/components/CommandPalette";
@@ -35,7 +40,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const doctorNav = [
+/** Item de menu. O `exact` só existe no "Início", que casaria com tudo sem ele. */
+type NavItem = { to: string; label: string; icon: LucideIcon; exact?: boolean };
+
+const doctorNav: NavItem[] = [
   { to: "/app/medico", label: "Início", icon: LayoutDashboard, exact: true },
   { to: "/app/medico/pacientes", label: "Pacientes", icon: Users },
   { to: "/app/medico/casos", label: "Casos clínicos", icon: FileText },
@@ -47,7 +55,7 @@ const doctorNav = [
   { to: "/app/medico/perfil", label: "Perfil", icon: User },
 ];
 
-const patientNav = [
+const patientNav: NavItem[] = [
   { to: "/app/paciente", label: "Início", icon: LayoutDashboard, exact: true },
   { to: "/app/paciente/jornada", label: "Minha jornada", icon: HeartPulse },
   { to: "/app/paciente/diario", label: "Diário", icon: Activity },
@@ -57,6 +65,17 @@ const patientNav = [
   { to: "/app/paciente/integracoes", label: "Integrações", icon: Hospital },
   { to: "/app/paciente/aprender", label: "Aprender", icon: BookOpen },
   { to: "/app/paciente/perfil", label: "Perfil", icon: User },
+];
+
+/**
+ * Telas de administração. Existiam só por URL digitada — e como não havia
+ * administrador nenhum no sistema, ninguém nunca as abriu. Um painel que
+ * ninguém alcança é o mesmo que não ter painel.
+ */
+const adminNav: NavItem[] = [
+  { to: "/app/admin/erros", label: "Erros e tarefas", icon: ShieldAlert },
+  { to: "/app/admin/dpo", label: "Pedidos LGPD", icon: ScrollText },
+  { to: "/app/admin/integracoes", label: "Integrações", icon: Plug },
 ];
 
 // Prefetch da chunk da rota ao passar o mouse no link
@@ -96,8 +115,12 @@ export const AppLayout = () => {
   const location = useLocation();
   const [open, setOpen] = useState(false);
 
+  const { isAdmin } = useIsAdmin();
+
   const isDoctor = profile?.account_type === "medico";
-  const nav = isDoctor ? doctorNav : patientNav;
+  // O papel de administrador é somado ao menu clínico, não trocado por ele:
+  // a mesma pessoa pode acompanhar casos e cuidar da plataforma.
+  const nav = [...(isDoctor ? doctorNav : patientNav), ...(isAdmin ? adminNav : [])];
 
   const handleLogout = async () => {
     await signOut();

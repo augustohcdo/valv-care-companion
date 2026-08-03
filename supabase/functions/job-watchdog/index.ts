@@ -51,6 +51,22 @@ Deno.serve(async (req) => {
     const agora = Date.now();
     const problemas: Problema[] = [];
 
+    // Papel privilegiado é concessão rara e deliberada — hoje o sistema tem um
+    // administrador só, criado à mão. Um `admin` que aparece sozinho é o tipo
+    // de evento que ninguém percebe olhando tabela, e que muda tudo: quem tem
+    // esse papel lê o backup inteiro no bucket e edita a base que a IA cita
+    // como diretriz. Por isso o vigia cobra explicação por qualquer concessão
+    // recente, em vez de esperar alguém desconfiar.
+    //
+    // Fica FORA de `problemas` de propósito: aquela lista conta tarefa
+    // agendada, e somar uma concessão ali faria o registro dizer "1 tarefa
+    // falhou" quando nenhuma falhou. O aviso vai junto no e-mail; a contagem,
+    // não.
+    const { data: concessoesRaw } = await supabase.rpc("recent_privileged_grants", {
+      _since: new Date(agora - DIA_MS).toISOString(),
+    });
+    const concessoes = (concessoesRaw ?? []) as Array<{ user_id: string; role: string }>;
+
     for (const v of vigiadas ?? []) {
       // A última execução BEM SUCEDIDA. Uma tarefa que roda todo dia e falha
       // todo dia não pode passar por saudável só porque rodou.
@@ -105,21 +121,43 @@ Deno.serve(async (req) => {
       sent: false,
       reason: "nada_a_avisar",
     };
-    if (problemas.length) {
+    if (problemas.length || concessoes.length) {
       const corpo = [
-        "Tarefas agendadas do ValvePath com problema:",
-        "",
-        ...problemas.map((p) => `- ${p.label} (${p.job}): ${p.texto}`),
-        "",
+        ...(problemas.length
+          ? [
+              "Tarefas agendadas do ValvePath com problema:",
+              "",
+              ...problemas.map((p) => `- ${p.label} (${p.job}): ${p.texto}`),
+              "",
+            ]
+          : []),
+        ...(concessoes.length
+          ? [
+              "Papel privilegiado concedido nas últimas 24h:",
+              "",
+              ...concessoes.map((c) => `- "${c.role}" para o usuário ${c.user_id}`),
+              "",
+              "Se não foi você, remova o papel em user_roles e troque os segredos.",
+              "",
+            ]
+          : []),
         "Painel: https://valvepath.com.br/app/admin/erros",
       ].join("\n");
-      alerta = await sendAlert({
-        subject: `[ValvePath] ${problemas.length} tarefa(s) agendada(s) com problema`,
-        body: corpo,
-      });
+      // O assunto precisa dizer qual das duas coisas aconteceu: um e-mail que
+      // sempre diz "tarefa com problema" faria uma concessão de administrador
+      // passar por atraso de backup.
+      const assunto = problemas.length && concessoes.length
+        ? `[ValvePath] ${problemas.length} tarefa(s) com problema e ${concessoes.length} papel(is) privilegiado(s) concedido(s)`
+        : problemas.length
+        ? `[ValvePath] ${problemas.length} tarefa(s) agendada(s) com problema`
+        : `[ValvePath] ${concessoes.length} papel(is) privilegiado(s) concedido(s)`;
+      alerta = await sendAlert({ subject: assunto, body: corpo });
       await logError({
         source: "edge_function", context: JOB,
-        message: problemas.map((p) => `${p.job}: ${p.texto}`).join(" | "),
+        message: [
+          ...problemas.map((p) => `${p.job}: ${p.texto}`),
+          ...concessoes.map((c) => `papel ${c.role} concedido a ${c.user_id}`),
+        ].join(" | "),
       });
     }
 
@@ -134,6 +172,7 @@ Deno.serve(async (req) => {
       details: {
         verificadas: vigiadas?.length ?? 0,
         problemas: problemas.map((p) => `${p.job}: ${p.texto}`),
+        concessoes_privilegiadas: concessoes.length,
         alerta_enviado: alerta.sent,
         alerta_motivo: alerta.reason ?? null,
       },
@@ -152,6 +191,7 @@ Deno.serve(async (req) => {
       ok: true,
       verificadas: vigiadas?.length ?? 0,
       problemas,
+      concessoes_privilegiadas: concessoes.length,
       alerta,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
