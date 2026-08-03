@@ -25,3 +25,6 @@ verify_jwt = false
 
 [functions.report-error]
 verify_jwt = false
+
+[functions.welcome-email]
+verify_jwt = false

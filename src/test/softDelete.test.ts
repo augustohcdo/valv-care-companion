@@ -36,6 +36,9 @@ const ALLOWLIST: Record<string, string> = {
   "supabase/functions/dpo-export/index.ts": "export LGPD deve incluir o apagado",
   // Backup semanal: um backup que omite linhas apagadas não é backup.
   "supabase/functions/weekly-export/index.ts": "backup deve incluir o apagado",
+  // A notificação de boas-vindas é a marca de "já recebeu". Se a pessoa apagou
+  // o aviso do sino, ela viu — filtrar `deleted_at` aqui reenviaria a mensagem.
+  "supabase/functions/welcome-email/index.ts": "idempotência não pode ser desfeita por limpeza de caixa",
   // A própria varredura cita os nomes das tabelas.
   "src/test/softDelete.test.ts": "é este teste",
 };
