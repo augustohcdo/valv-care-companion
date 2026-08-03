@@ -3,8 +3,13 @@ import { render, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 
-const rpc = vi.fn(() => Promise.resolve({ error: null }));
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a) } }));
+type Args = { _path: string; _new_visit: boolean };
+type Resposta = Promise<{ error: { message: string } | null }>;
+
+const rpc = vi.fn((_fn: string, _args: Args): Resposta => Promise.resolve({ error: null }));
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: { rpc: (fn: string, args: Args) => rpc(fn, args) },
+}));
 
 import PageViewTracker from "./PageViewTracker";
 
@@ -53,15 +58,16 @@ describe("PageViewTracker", () => {
   it("não conta duas vezes quando a rota não mudou", async () => {
     const { rerender } = renderEm("/contato");
     await waitFor(() => expect(rpc).toHaveBeenCalledTimes(1));
+    // Mesmo tipo de elemento: o React reconcilia e mantém a instância, então
+    // isto é uma re-renderização de verdade, não uma remontagem.
     rerender(
       <MemoryRouter initialEntries={["/contato"]}>
         <PageViewTracker />
+        <Routes><Route path="*" element={null} /></Routes>
       </MemoryRouter>,
     );
-    // A remontagem cria outra instância; o que se prova aqui é que uma mesma
-    // instância re-renderizada não repete a chamada.
-    expect(rpc.mock.calls.filter((c) => (c[1] as { _path: string })._path === "/contato").length)
-      .toBeLessThanOrEqual(2);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc.mock.calls[0][1]._path).toBe("/contato");
   });
 
   it("não quebra quando o navegador bloqueia o armazenamento", async () => {
@@ -82,7 +88,7 @@ describe("PageViewTracker", () => {
   });
 
   it("uma falha na contagem não chega à tela", async () => {
-    rpc.mockResolvedValueOnce({ error: { message: "offline" } } as never);
+    rpc.mockResolvedValueOnce({ error: { message: "offline" } });
     const { container } = renderEm("/");
     await waitFor(() => expect(rpc).toHaveBeenCalled());
     expect(container).toBeInTheDocument();
