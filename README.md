@@ -68,10 +68,21 @@ Segredos necessários nas edge functions (Supabase Dashboard → Edge Functions 
 | Segredo | Usado por |
 | --- | --- |
 | `GEMINI_API_KEY` | `clinical-ai`, `knowledge-seed` (geração de texto e embeddings) |
-| `TURNSTILE_SECRET_KEY` | `turnstile-verify` (validação do captcha) |
 | `TURNSTILE_SITE_KEY` | `turnstile-config` (entrega a site key ao frontend) |
+| `RESEND_API_KEY` | `_shared/sendEmail.ts` — boas-vindas e alertas operacionais |
+| `ALERT_EMAIL_TO` | destinatário dos alertas do `job-watchdog`; também vira o `Reply-To` das mensagens |
+| `ALERT_EMAIL_FROM` | remetente (opcional; o padrão é `nao-responda@envio.valvepath.com.br`) |
 
 Além desses, o Supabase já provisiona automaticamente `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` e `SUPABASE_PUBLISHABLE_KEY`.
+
+O `TURNSTILE_SECRET_KEY` **não** é usado por edge function nenhuma: o captcha é validado pelo próprio servidor de autenticação do Supabase, configurado em Authentication → Attack Protection. Validar por conta própria seria impossível de qualquer forma — o token do Turnstile é de uso único, então quem valida primeiro impede o outro de validar.
+
+### E-mail
+
+Duas coisas distintas saem por e-mail, e ambas passam pelo Resend com o domínio `envio.valvepath.com.br`:
+
+- **Autenticação** (confirmação de cadastro, recuperação de senha, link de acesso): enviada pelo próprio Supabase Auth via SMTP do Resend, com os textos em português configurados em Authentication → Emails. O remetente padrão do Supabase **não** serve aqui: além de mandar texto em inglês que não pode ser trocado no plano gratuito, ele limita o envio a 2 e-mails por hora — a partir do terceiro cadastro na mesma hora, ninguém receberia o link de confirmação.
+- **Produto** (boas-vindas, alertas de tarefa agendada): enviada pelas edge functions via `_shared/sendEmail.ts`. Sem `RESEND_API_KEY` o envio fica inerte e devolve o motivo, sem lançar — nada quebra, só não sai e-mail.
 
 ### Tipos gerados do Supabase
 
