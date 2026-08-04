@@ -2,12 +2,20 @@ import { describe, it, expect } from "vitest";
 import { calculateRisk } from "./riskScore";
 
 describe("calculateRisk", () => {
-  it("retorna score 0, categoria Baixo e breakdown vazio para input vazio", () => {
+  // Este teste registrava o defeito como se fosse comportamento: score 0 e
+  // categoria "Baixo" continuam corretos aritmeticamente, mas nada disso pode
+  // ser apresentado como conclusão sobre um caso do qual não se sabe nada.
+  it("input vazio: score 0 e categoria Baixo, porém explicitamente não conclusiva", () => {
     const result = calculateRisk({});
     expect(result.score).toBe(0);
     expect(result.category).toBe("Baixo");
     expect(result.color).toBe("text-success");
     expect(result.breakdown).toEqual([]);
+
+    expect(result.categoriaDeterminada).toBe(false);
+    expect(result.faltando).toHaveLength(6);
+    expect(result.categoriaMaxima).toBe("Muito alto");
+    expect(result.description).not.toContain("favorável");
   });
 
   describe("idade", () => {
@@ -55,14 +63,33 @@ describe("calculateRisk", () => {
   });
 
   describe("sexo", () => {
-    it("pontua 3 para 'masculino'", () => {
+    // O valor que o formulário realmente grava é "M" (NovoCaso.tsx, opções
+    // F/M/O). A comparação era só com "masculino", então estes 3 pontos nunca
+    // somaram nada em produção.
+    it("pontua 3 para 'M', o valor que o formulário grava", () => {
+      const result = calculateRisk({ sex: "M" });
+      expect(result.score).toBe(3);
+      expect(result.breakdown).toContainEqual({ label: "Sexo masculino", points: 3 });
+    });
+
+    it("pontua 3 para 'masculino' (forma por extenso, dado antigo)", () => {
       const result = calculateRisk({ sex: "masculino" });
       expect(result.score).toBe(3);
       expect(result.breakdown).toContainEqual({ label: "Sexo masculino", points: 3 });
     });
 
-    it("não pontua para 'feminino'", () => {
+    it("não pontua para 'F' nem para 'feminino'", () => {
+      expect(calculateRisk({ sex: "F" }).score).toBe(0);
       expect(calculateRisk({ sex: "feminino" }).score).toBe(0);
+    });
+
+    // A opção do formulário se chama "Outro / não informado". O rótulo mistura
+    // as duas coisas, e afirmar conhecimento a partir dele seria o mesmo
+    // defeito que esta rodada corrige.
+    it("'O' (Outro / não informado) conta como sexo não informado", () => {
+      expect(calculateRisk({ sex: "O" }).score).toBe(0);
+      expect(calculateRisk({ sex: "O" }).faltando).toContain("sexo");
+      expect(calculateRisk({ sex: "F" }).faltando).not.toContain("sexo");
     });
 
     it("não pontua para variação de capitalização ('Masculino') — match é exato", () => {
@@ -367,6 +394,103 @@ describe("calculateRisk", () => {
       expect(result.score).toBe(65);
       expect(result.category).toBe("Muito alto");
       expect(result.color).toBe("text-destructive");
+    });
+  });
+
+  describe("completude do dado", () => {
+    const COMPLETO = {
+      age: 40,
+      sex: "feminino",
+      nyha: "I",
+      ejection_fraction: 60,
+      severity: "leve",
+      comorbidities: ["Diabetes"],
+    };
+
+    // O caso que motivou a rodada, e o mais realista: `severity` é a única
+    // coluna obrigatória no banco. Uma lesão importante sozinha soma 14, cai
+    // abaixo do limiar de 20 e era apresentada como "Perfil clínico favorável.
+    // Seguimento ambulatorial conforme diretrizes." — em verde.
+    it("lesão importante e mais nada: 14 pontos, mas o risco pode chegar a Muito alto", () => {
+      const result = calculateRisk({ severity: "importante" });
+      expect(result.score).toBe(14);
+      expect(result.category).toBe("Baixo");
+
+      expect(result.categoriaDeterminada).toBe(false);
+      expect(result.categoriaMaxima).toBe("Muito alto");
+      expect(result.description).not.toContain("favorável");
+      expect(result.description).toContain("Muito alto");
+      expect(result.faltando).toEqual([
+        "idade",
+        "sexo",
+        "classe NYHA",
+        "fração de ejeção",
+        "comorbidades",
+      ]);
+    });
+
+    it("caso completo mantém a descrição original, intacta", () => {
+      const result = calculateRisk(COMPLETO);
+      expect(result.faltando).toEqual([]);
+      expect(result.categoriaDeterminada).toBe(true);
+      expect(result.categoriaMaxima).toBe("Baixo");
+      expect(result.description).toBe(
+        "Perfil clínico favorável. Seguimento ambulatorial conforme diretrizes.",
+      );
+    });
+
+    // O par que prova que o critério é aritmético e não "faltou algo, desiste".
+    // Nos dois casos falta exatamente o mesmo campo — sexo, teto de 3 pontos —
+    // e a resposta muda só por causa da distância até o limiar de 20.
+    it("falta só o sexo (máx. 3) e a faixa não muda: categoria fica determinada", () => {
+      const result = calculateRisk({
+        ...COMPLETO,
+        sex: null,
+        nyha: "II",
+        severity: "moderada",
+      });
+      expect(result.score).toBe(16); // 16 + 3 = 19, ainda abaixo de 20
+      expect(result.faltando).toEqual(["sexo"]);
+      expect(result.categoriaDeterminada).toBe(true);
+      expect(result.description).toContain("favorável");
+    });
+
+    it("falta só o sexo, mas 3 pontos bastam para cruzar o limiar: não determinada", () => {
+      const result = calculateRisk({
+        ...COMPLETO,
+        sex: null,
+        nyha: "II",
+        severity: "moderada",
+        comorbidities: ["Diabetes", "Obesidade"],
+      });
+      expect(result.score).toBe(18); // 18 + 3 = 21, já é Intermediário
+      expect(result.faltando).toEqual(["sexo"]);
+      expect(result.categoriaDeterminada).toBe(false);
+      expect(result.categoriaMaxima).toBe("Intermediário");
+    });
+
+    // Um multi-select intocado é indistinguível de "nenhuma comorbidade".
+    // Tratar a lista vazia como informada seria afirmar o que ninguém disse —
+    // exatamente o defeito que esta rodada corrige.
+    it("lista de comorbidades vazia conta como não informada", () => {
+      expect(calculateRisk({ ...COMPLETO, comorbidities: [] }).faltando).toEqual(["comorbidades"]);
+    });
+
+    // Campo preenchido que soma zero é conhecimento, não ausência: NYHA I,
+    // sexo feminino, lesão leve e FE normal são respostas legítimas.
+    it("entrada informada que pontua zero não conta como faltando", () => {
+      const result = calculateRisk(COMPLETO);
+      expect(result.score).toBe(2);
+      expect(result.breakdown).toHaveLength(1);
+      expect(result.faltando).toEqual([]);
+    });
+
+    it("FE 0 é valor medido, não ausência de medida", () => {
+      expect(calculateRisk({ ejection_fraction: 0 }).faltando).not.toContain("fração de ejeção");
+    });
+
+    it("idade 0 é valor informado, não ausência", () => {
+      expect(calculateRisk({ age: 0 }).faltando).not.toContain("idade");
     });
   });
 });

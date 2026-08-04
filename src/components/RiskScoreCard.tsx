@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Activity, AlertTriangle, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { calculateRisk } from "@/lib/riskScore";
+import { calculateRisk, TOTAL_ENTRADAS } from "@/lib/riskScore";
 
 interface Props {
   caso: any;
@@ -22,14 +22,22 @@ export const RiskScoreCard = ({ caso }: Props) => {
     [caso]
   );
 
-  const ringColor =
-    result.category === "Baixo"
-      ? "stroke-success"
-      : result.category === "Intermediário"
-      ? "stroke-accent-foreground"
-      : result.category === "Alto"
-      ? "stroke-warning"
-      : "stroke-destructive";
+  // Anel neutro quando a categoria não é conclusiva.
+  //
+  // O verde era a parte mais alta da afirmação: um caso só com "lesão
+  // importante" preenchida somava 14 pontos, caía na faixa "Baixo" e aparecia
+  // com anel verde e "Perfil clínico favorável". Pintar de verde o resultado de
+  // um cálculo feito sobre quase nada é afirmar com a cor exatamente o que o
+  // texto passou a se recusar a afirmar.
+  const ringColor = !result.categoriaDeterminada
+    ? "stroke-muted-foreground"
+    : result.category === "Baixo"
+    ? "stroke-success"
+    : result.category === "Intermediário"
+    ? "stroke-accent-foreground"
+    : result.category === "Alto"
+    ? "stroke-warning"
+    : "stroke-destructive";
 
   const circumference = 2 * Math.PI * 36;
   const offset = circumference - (result.score / 100) * circumference;
@@ -64,10 +72,25 @@ export const RiskScoreCard = ({ caso }: Props) => {
           </div>
 
           <div className="flex-1 min-w-0">
-            <Badge variant="outline" className={`${result.color} border-current`}>
-              Risco {result.category}
+            <Badge
+              variant="outline"
+              className={
+                result.categoriaDeterminada
+                  ? `${result.color} border-current`
+                  : "text-muted-foreground border-current"
+              }
+            >
+              {result.categoriaDeterminada
+                ? `Risco ${result.category}`
+                : `Risco ${result.category} — não conclusivo`}
             </Badge>
             <p className="text-sm text-foreground mt-2 leading-relaxed">{result.description}</p>
+            {result.faltando.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-2">
+                {TOTAL_ENTRADAS - result.faltando.length} de {TOTAL_ENTRADAS} dados considerados.
+                Não informado: {result.faltando.join(", ")}.
+              </p>
+            )}
           </div>
         </div>
 

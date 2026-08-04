@@ -9,7 +9,7 @@ import {
   appointmentTypeLabels,
   appointmentStatusLabels,
 } from "@/lib/clinicalLabels";
-import { calculateRisk } from "@/lib/riskScore";
+import { calculateRisk, TOTAL_ENTRADAS } from "@/lib/riskScore";
 
 interface ExportData {
   caso: any;
@@ -171,7 +171,21 @@ export function exportCasePDF({ caso, doctor, events = [], appointments = [], do
   });
   sectionTitle("Estimativa de risco (educacional)");
   kv("Score", `${risk.score} / 100`);
-  kv("Categoria", `Risco ${risk.category}`);
+  kv(
+    "Categoria",
+    risk.categoriaDeterminada
+      ? `Risco ${risk.category}`
+      : `Risco ${risk.category} — não conclusivo`,
+  );
+  // O número viaja fora do sistema; a completude viaja junto. Sem esta linha o
+  // PDF impresso afirmaria "perfil clínico favorável" sobre um cálculo feito
+  // com um único dado preenchido, e quem o lesse depois não teria como saber.
+  if (risk.faltando.length) {
+    kv(
+      "Dados considerados",
+      `${TOTAL_ENTRADAS - risk.faltando.length} de ${TOTAL_ENTRADAS} — não informado: ${risk.faltando.join(", ")}`,
+    );
+  }
   paragraph(risk.description);
   if (risk.breakdown.length) {
     risk.breakdown.forEach((b) => {
