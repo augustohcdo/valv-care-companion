@@ -16,6 +16,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "smoke": "node scripts/smoke.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {

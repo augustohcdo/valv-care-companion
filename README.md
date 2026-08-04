@@ -101,6 +101,26 @@ SUPABASE_ACCESS_TOKEN=sbp_xxx npm run types:generate
 
 O token é um [Personal Access Token](https://supabase.com/dashboard/account/tokens) da Management API — não confundir com a anon key nem com a service role key. Como ele tem poder praticamente total sobre o projeto, não deve ser commitado nem guardado como secret de CI. Esquecer esse passo faz o `npm run typecheck` falhar com erros do tipo `'<coluna>' does not exist in type ...`.
 
+## Deploy (Vercel)
+
+O `vercel.json` da raiz existe por um motivo só, e **não pode ser removido**: o
+preset de Vite da Vercel não adiciona o *fallback* de SPA sozinho. Sem o
+`rewrite` de `/(.*)` para `/index.html`, qualquer caminho que não seja um arquivo
+no disco devolve o 404 da própria Vercel, antes de chegar ao React.
+
+Isso não aparece navegando pelo site — o React Router troca a rota no navegador,
+sem passar pelo servidor. Quebra só quando o caminho é **pedido** à Vercel:
+recarregar a página, abrir um favorito, ou clicar num link de e-mail. Foi assim
+que o link de redefinir senha, o retorno do login com Google (`/auth/callback`)
+e a confirmação de cadastro ficaram caindo em 404 sem ninguém perceber.
+
+Os *rewrites* são aplicados **depois** da checagem de arquivos, então
+`/assets/*`, `/robots.txt` e `/favicon.ico` continuam vindo do disco.
+
+`npm run smoke` pede cada rota do app à URL de produção e falha listando as
+quebradas — é a verificação que faltava, já que `npm run dev` tem o fallback
+embutido e por isso nunca reproduz esse defeito localmente.
+
 ## CI
 
 O workflow em `.github/workflows/ci.yml` roda a cada push e pull request, em Node 22, e falha o build se qualquer etapa quebrar:
