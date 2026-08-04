@@ -96,11 +96,25 @@ export const CaseDocuments = ({ caseId, readOnly = false }: Props) => {
     window.open(data.signedUrl, "_blank");
   };
 
+  // O arquivo NÃO é apagado do storage, de propósito.
+  //
+  // Antes era, e a linha logo abaixo marcava a linha como soft-deleted — ou
+  // seja, o registro dizia "recuperável" sobre bytes que já não existiam. Era o
+  // único ponto do sistema onde um clique era irreversível, num documento que é
+  // prontuário e tem retenção de 20 anos publicada na página do DPO.
+  //
+  // Documento do paciente (`PacienteDocumentos.tsx`) continua sendo apagado de
+  // verdade: aquele arquivo é dele, e a LGPD lhe dá esse controle. Aqui o dono
+  // do registro é o prontuário.
+  //
+  // Apagar de verdade um exame segue possível pelo atendimento de LGPD, que
+  // roda com service_role.
   const deleteDoc = async (doc: any) => {
-    if (!confirm(`Remover "${doc.file_name}"?`)) return;
-    await supabase.storage.from("medical-documents").remove([doc.storage_path]);
+    if (!confirm(`Remover "${doc.file_name}" da lista?\n\nO arquivo continua guardado no prontuário.`)) return;
     await supabase.from("case_documents").update({ deleted_at: new Date().toISOString() }).eq("id", doc.id);
-    toast.success("Documento removido");
+    toast.success("Documento removido da lista", {
+      description: "O arquivo permanece guardado no prontuário.",
+    });
     logAudit("document_deleted", "case_documents", doc.id, { case_id: caseId, file_name: doc.file_name });
     load();
   };

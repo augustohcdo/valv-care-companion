@@ -20,6 +20,7 @@ const base: Metricas = {
   views_7d: 0, visitas_7d: 0, views_30d: 0, visitas_30d: 0,
   erros_7d: 0, erros_ocorrencias_7d: 0,
   dpo_abertos: 0, dpo_vencidos: 0, dpo_vence_3d: 0,
+  documentos_ausentes: 0, arquivos_orfaos: 0,
 };
 
 const emDia: SaudeTarefa[] = [
@@ -102,6 +103,31 @@ describe("resumo semanal do administrador", () => {
   // que tem prazo ou parou de funcionar entra em "precisa da sua atenção".
   it("erro na semana não é tratado como item de ação", () => {
     expect(montarResumo({ ...base, erros_7d: 9 }, emDia).pendencias).toBe(0);
+  });
+
+  // Um exame que consta no prontuário e não abre só é descoberto pelo médico
+  // no momento em que ele precisa do exame. Tem que chegar antes disso.
+  it("documento vivo sem arquivo é pendência, e abre o e-mail", () => {
+    const r = montarResumo({ ...base, documentos_ausentes: 2 }, emDia);
+    expect(r.pendencias).toBe(1);
+    expect(r.corpo).toContain("2 documento(s) constam no prontuário mas o arquivo não existe mais");
+    const posAtencao = r.corpo.indexOf("PRECISA DA SUA ATENÇÃO");
+    expect(posAtencao).toBeGreaterThan(-1);
+    expect(posAtencao).toBeLessThan(r.corpo.indexOf("CADASTROS"));
+  });
+
+  // Arquivo sem linha não some nada do prontuário — só ocupa espaço. Tratar
+  // como urgência gastaria a atenção que o caso acima precisa.
+  it("arquivo órfão é informativo, não pendência", () => {
+    const r = montarResumo({ ...base, arquivos_orfaos: 3 }, emDia);
+    expect(r.pendencias).toBe(0);
+    expect(r.corpo).toContain("3 arquivo(s) no storage sem registro correspondente");
+  });
+
+  it("sem inconsistência, nenhuma das duas linhas aparece", () => {
+    const r = montarResumo(base, emDia);
+    expect(r.corpo).not.toContain("sem registro correspondente");
+    expect(r.corpo).not.toContain("o arquivo não existe mais");
   });
 
   it("contas aguardando confirmação só aparecem quando existem", () => {

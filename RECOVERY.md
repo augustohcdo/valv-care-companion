@@ -19,7 +19,7 @@ caminho que funcionou, não o que deveria funcionar.
 | Schema (tabelas, RLS, funções, gatilhos) | sim | `supabase/migrations/` no git |
 | Edge functions | sim | `supabase/functions/` no git |
 | **Senhas** | **não** | — cada pessoa redefine a sua |
-| **Arquivos de exame e documentos** | **não** | buckets `medical-documents` e `patient-documents` |
+| Arquivos de exame e documentos | só o **inventário** | buckets `medical-documents` e `patient-documents`; os bytes são copiados da origem na restauração (`--com-arquivos`) |
 | Segredos de cron e URL base | não, de propósito | recriados por migration |
 | Segredos das edge functions | não | painel do Supabase / seu gerenciador de senhas |
 
@@ -28,9 +28,12 @@ As duas ausências em negrito são decisões, não esquecimentos:
 - **Senha** — o backup leva identidade, não credencial. Um arquivo em bucket
   com hash de senha é alvo muito mais valioso que um com nome e e-mail, e o
   ganho seria só poupar um "esqueci minha senha" depois de um desastre.
-- **Arquivos** — hoje os dois buckets de documento estão vazios, então não há
-  nada a perder. Quando passarem a ter conteúdo, isto vira um buraco real e
-  precisa de rodada própria.
+- **Arquivos** — os bytes não são duplicados no bucket toda semana: isso
+  multiplicaria o armazenamento sem cobrir perda do projeto, que só uma cópia
+  externa cobre. O backup guarda o **inventário** (caminho, tamanho, tipo), e
+  `restore.mjs --com-arquivos` copia os arquivos direto da origem — que o
+  procedimento já pressupõe de pé. O mesmo inventário alimenta o alarme de
+  "documento no prontuário sem arquivo", que chega no resumo semanal.
 
 ---
 
@@ -59,9 +62,13 @@ Confira ao final: 39 tabelas em `public`, todas com RLS.
 ```sh
 export SUPABASE_ACCESS_TOKEN=sbp_...      # token da Management API
 export ORIGEM_SERVICE_KEY=eyJ...          # service_role de onde está o backup
+export ALVO_SERVICE_KEY=eyJ...            # service_role do projeto novo
 node scripts/restore.mjs \
-  --de <ref-de-origem> --para <ref-novo> --data 2026-08-03 --limpar
+  --de <ref-de-origem> --para <ref-novo> --data 2026-08-03 --limpar --com-arquivos
 ```
+
+`--com-arquivos` copia os exames e documentos da origem para o projeto novo,
+usando o inventário gravado no backup. Sem a flag, só os dados voltam.
 
 `--limpar` esvazia o alvo antes de carregar, e é necessário: as migrations
 semeiam dado próprio — o catálogo de próteses nasce com 246 linhas só de

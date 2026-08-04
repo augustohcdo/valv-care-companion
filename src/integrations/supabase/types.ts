@@ -1961,7 +1961,41 @@ export type Database = {
       }
     }
     Functions: {
+      admin_recipients: {
+        Args: never
+        Returns: {
+          email: string
+          user_id: string
+        }[]
+      }
       admin_site_metrics: { Args: never; Returns: Json }
+      auth_identities_export: {
+        Args: never
+        Returns: {
+          created_at: string
+          identity_data: Json
+          last_sign_in_at: string
+          provider: string
+          provider_id: string
+          user_id: string
+        }[]
+      }
+      auth_users_export: {
+        Args: never
+        Returns: {
+          banned_until: string
+          created_at: string
+          email: string
+          email_confirmed_at: string
+          id: string
+          is_anonymous: boolean
+          last_sign_in_at: string
+          phone: string
+          phone_confirmed_at: string
+          raw_app_meta_data: Json
+          raw_user_meta_data: Json
+        }[]
+      }
       can_access_case: {
         Args: { _case_id: string; _user_id: string }
         Returns: boolean
@@ -1993,6 +2027,13 @@ export type Database = {
         Returns: string
       }
       doctor_weekly_digest: { Args: { _doctor_user_id: string }; Returns: Json }
+      documentos_sem_arquivo: {
+        Args: never
+        Returns: {
+          arquivos_orfaos: number
+          documentos_ausentes: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2062,6 +2103,14 @@ export type Database = {
           user_id: string
         }[]
       }
+      recent_privileged_grants: {
+        Args: { _since: string }
+        Returns: {
+          granted_at: string
+          role: string
+          user_id: string
+        }[]
+      }
       record_consent_for: {
         Args: {
           _consent_type: Database["public"]["Enums"]["consent_type"]
@@ -2099,6 +2148,17 @@ export type Database = {
           result_type: string
           subtitle: string
           title: string
+        }[]
+      }
+      storage_inventory: {
+        Args: never
+        Returns: {
+          bucket_id: string
+          created_at: string
+          mime_type: string
+          name: string
+          size: number
+          updated_at: string
         }[]
       }
     }

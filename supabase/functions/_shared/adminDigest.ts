@@ -26,6 +26,7 @@ export type Metricas = {
   views_30d: number; visitas_30d: number;
   erros_7d: number; erros_ocorrencias_7d: number;
   dpo_abertos: number; dpo_vencidos: number; dpo_vence_3d: number;
+  documentos_ausentes: number; arquivos_orfaos: number;
 };
 
 export type SaudeTarefa = {
@@ -60,6 +61,13 @@ export function montarResumo(m: Metricas, tarefas: SaudeTarefa[]): Resumo {
   }
   if (m.dpo_vence_3d > 0) {
     acoes.push(`${m.dpo_vence_3d} pedido(s) de LGPD vencem nos próximos 3 dias.`);
+  }
+  if (m.documentos_ausentes > 0) {
+    // Um documento que consta no prontuário e não abre é falha clínica, não
+    // estatística: o médico só descobre no momento em que precisa do exame.
+    acoes.push(
+      `${m.documentos_ausentes} documento(s) constam no prontuário mas o arquivo não existe mais.`,
+    );
   }
   for (const t of atrasadas) {
     acoes.push(
@@ -116,6 +124,11 @@ export function montarResumo(m: Metricas, tarefas: SaudeTarefa[]): Resumo {
     m.dpo_abertos === 0
       ? "• Nenhum pedido de LGPD em aberto."
       : `• ${m.dpo_abertos} pedido(s) de LGPD em aberto.`,
+    // Arquivo sem linha é rastro de upload cujo registro falhou. Informativo:
+    // não some nada do prontuário, só ocupa espaço.
+    ...(m.arquivos_orfaos > 0
+      ? [`• ${m.arquivos_orfaos} arquivo(s) no storage sem registro correspondente.`]
+      : []),
     "",
     "Painel: https://valvepath.com.br/app/admin/erros",
     "Fila de LGPD: https://valvepath.com.br/app/admin/dpo",

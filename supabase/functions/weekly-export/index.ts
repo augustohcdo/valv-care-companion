@@ -59,8 +59,8 @@ const TABLES = [
   "page_views",            // audiência agregada por dia; não identifica ninguém
 ];
 
-// As contas. Ficam numa lista à parte porque não são tabelas de `public`: são
-// RPCs sobre `auth`, que o PostgREST não expõe. A guarda de cobertura compara
+// O que não é tabela de `public`. Fica numa lista à parte porque vem de RPC —
+// `auth` e `storage` não são expostos pelo PostgREST. A guarda de cobertura compara
 // `TABLES` com o schema real e quebraria se um nome daqui entrasse lá.
 //
 // Sem isto o backup não restaura um sistema: `profiles`, `doctors`, `patients`
@@ -70,12 +70,21 @@ const TABLES = [
 // As funções devolvem identidade, nunca credencial: sem hash de senha e sem
 // token de recuperação. Ver o motivo em
 // supabase/migrations/20260803170000_auth_identity_export.sql.
-const AUTH_EXPORTS: Array<{ arquivo: string; rpc: string }> = [
+const RPC_EXPORTS: Array<{ arquivo: string; rpc: string }> = [
   { arquivo: "auth_users", rpc: "auth_users_export" },
   { arquivo: "auth_identities", rpc: "auth_identities_export" },
+  // Os bytes dos exames NÃO entram no backup: copiá-los toda semana
+  // multiplicaria o armazenamento sem cobrir perda do projeto, que só uma cópia
+  // externa cobre (ver RECOVERY.md). O que entra é a lista do que deveria
+  // existir — barata, e é ela que permite a uma restauração saber o que trazer
+  // e a um alarme perceber que um documento vivo perdeu o arquivo.
+  { arquivo: "storage_inventory", rpc: "storage_inventory" },
 ];
 
 const BUCKET = "clinical-exports";
+
+/** Quantas execuções datadas ficam guardadas. Semanal, dá ~3 meses. */
+const MANTER_EXPORTS = 12;
 
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
@@ -171,7 +180,7 @@ Deno.serve(async (req) => {
 
   // As contas, pelo mesmo caminho e no mesmo manifesto: um arquivo que não
   // aparece na contagem é um arquivo que ninguém percebe faltar.
-  for (const { arquivo, rpc } of AUTH_EXPORTS) {
+  for (const { arquivo, rpc } of RPC_EXPORTS) {
     try {
       const { data, error } = await supabase.rpc(rpc);
       if (error) throw error;
@@ -222,7 +231,36 @@ Deno.serve(async (req) => {
       upsert: true,
     });
 
-  return new Response(JSON.stringify(manifest), {
+  // Retenção. O bucket acumulava uma pasta por execução, para sempre: 102
+  // objetos já estavam lá quando isto foi escrito, e cada pasta cresce junto
+  // com o banco. Não era volume, era ausência de fim.
+  //
+  // Duas travas, e as duas importam: só roda quando a execução do dia terminou
+  // sem nenhuma falha de tabela, e nunca toca nas mais recentes. Uma rotação
+  // que apaga backup bom porque o export do dia quebrou é pior que não ter
+  // rotação nenhuma.
+  const removidas: string[] = [];
+  if (failed.length === 0) {
+    try {
+      const { data: pastas } = await supabase.storage.from(BUCKET).list("exports", { limit: 1000 });
+      const datas = (pastas ?? [])
+        .map((p) => p.name)
+        .filter((n) => /^\d{4}-\d{2}-\d{2}$/.test(n))
+        .sort()
+        .reverse();
+      for (const antiga of datas.slice(MANTER_EXPORTS)) {
+        const { data: arquivos } = await supabase.storage.from(BUCKET).list(`exports/${antiga}`, { limit: 1000 });
+        const caminhos = (arquivos ?? []).map((a) => `exports/${antiga}/${a.name}`);
+        if (caminhos.length) await supabase.storage.from(BUCKET).remove(caminhos);
+        removidas.push(antiga);
+      }
+    } catch (e) {
+      // Falhar ao limpar não pode manchar um backup que deu certo.
+      console.error("retenção do export falhou", e);
+    }
+  }
+
+  return new Response(JSON.stringify({ ...manifest, retencao_removidas: removidas }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
   } catch (e) {

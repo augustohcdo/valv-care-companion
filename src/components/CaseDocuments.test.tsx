@@ -79,7 +79,7 @@ describe("CaseDocuments", () => {
     await waitFor(() => expect(screen.getByText(/Nenhum documento anexado/i)).toBeInTheDocument());
   });
 
-  it("excluir faz soft-delete, remove o arquivo do storage e registra auditoria", async () => {
+  it("excluir faz soft-delete, PRESERVA o arquivo e registra auditoria", async () => {
     renderComp();
     await waitFor(() => expect(screen.getByText("eco.pdf")).toBeInTheDocument());
 
@@ -97,8 +97,15 @@ describe("CaseDocuments", () => {
     expect(values.deleted_at).toBeTruthy();
     expect(col).toBe("id");
 
-    // o arquivo em si é removido de verdade do storage (privacidade)
-    expect(storageRemoveSpy).toHaveBeenCalledWith([expect.stringContaining("c1/")]);
+    // O arquivo NÃO pode sair do storage.
+    //
+    // Esta asserção já foi o contrário, com o comentário "removido de verdade
+    // (privacidade)". A leitura ignorava que exame enviado pelo médico é
+    // prontuário, com retenção de 20 anos publicada — e que a linha, marcada
+    // como soft-deleted, prometia uma recuperação que não existia mais.
+    // Documento do paciente continua sendo apagado; ver o teste de
+    // PacienteDocumentos.
+    expect(storageRemoveSpy).not.toHaveBeenCalled();
 
     expect(logAudit).toHaveBeenCalledWith(
       "document_deleted",

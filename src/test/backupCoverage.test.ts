@@ -99,6 +99,7 @@ describe("cobertura do backup semanal", () => {
  * mesmo carregando, ninguém conseguiria entrar.
  */
 const MIGRATION_AUTH = "supabase/migrations/20260803170000_auth_identity_export.sql";
+const MIGRATION_STORAGE = "supabase/migrations/20260803180000_keep_case_files_and_inventory.sql";
 
 /**
  * Colunas que NUNCA podem sair do banco para um arquivo em bucket.
@@ -121,14 +122,21 @@ describe("as contas no backup", () => {
   const exportSrc = readFileSync(EXPORT_FN, "utf8");
   const migrationSrc = readFileSync(MIGRATION_AUTH, "utf8");
 
-  it("os dois arquivos de identidade continuam sendo exportados", () => {
-    for (const arquivo of ["auth_users", "auth_identities"]) {
+  it("os arquivos vindos de RPC continuam sendo exportados", () => {
+    // O inventário de storage entra aqui pelo mesmo motivo das contas: sem ele
+    // uma restauração não sabe quais exames deveria trazer, e nada percebe que
+    // um documento vivo perdeu o arquivo.
+    for (const arquivo of ["auth_users", "auth_identities", "storage_inventory"]) {
       expect(exportSrc, `${EXPORT_FN} não exporta ${arquivo}`).toContain(`"${arquivo}"`);
     }
     for (const rpc of ["auth_users_export", "auth_identities_export"]) {
       expect(exportSrc, `${EXPORT_FN} não chama ${rpc}`).toContain(rpc);
       expect(migrationSrc, `${MIGRATION_AUTH} não define ${rpc}`).toContain(rpc);
     }
+    expect(
+      readFileSync(MIGRATION_STORAGE, "utf8"),
+      `${MIGRATION_STORAGE} não define storage_inventory`,
+    ).toContain("function public.storage_inventory");
   });
 
   it("nenhuma credencial atravessa para o arquivo de backup", () => {

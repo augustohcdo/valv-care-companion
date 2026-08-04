@@ -10,7 +10,9 @@
  * Uso:
  *   SUPABASE_ACCESS_TOKEN=sbp_...           # token da Management API
  *   ORIGEM_SERVICE_KEY=eyJ...               # service_role do projeto de ORIGEM
- *   node scripts/restore.mjs --de <ref-origem> --para <ref-alvo> --data 2026-08-03
+ *   ALVO_SERVICE_KEY=eyJ...                 # só com --com-arquivos
+ *   node scripts/restore.mjs --de <ref-origem> --para <ref-alvo> --data 2026-08-03 \
+ *     [--limpar] [--com-arquivos]
  *
  * O que ele NÃO faz, e está no RECOVERY.md: criar o projeto, aplicar as
  * migrations, publicar as edge functions, gravar segredos, recriar os
@@ -172,7 +174,11 @@ async function main() {
   if (!manifesto) throw new Error(`não achei o manifesto de ${DATA}`);
   console.log(`Manifesto gerado em ${manifesto.generated_at}, ${Object.keys(manifesto.tables).length} arquivos.\n`);
 
-  const tabelasAlvo = Object.keys(manifesto.tables).filter((t) => !t.startsWith("auth_"));
+  // Arquivos do manifesto que NÃO são tabela de `public`. Sem esta lista o
+  // carregador tentaria `select count(*) from public.storage_inventory` e
+  // quebraria a restauração inteira num nome que nunca foi tabela.
+  const NAO_SAO_TABELAS = new Set(["auth_users", "auth_identities", "storage_inventory"]);
+  const tabelasAlvo = Object.keys(manifesto.tables).filter((t) => !NAO_SAO_TABELAS.has(t));
 
   if (argv.includes("--limpar")) {
     console.log("Esvaziando o alvo antes de carregar.\n");
@@ -264,6 +270,47 @@ async function main() {
     } catch (e) {
       carregado[tabela] = `ERRO: ${e.message.slice(0, 120)}`;
     }
+  }
+
+  // ---- 2b. Os arquivos ---------------------------------------------------
+  // Os bytes não estão no backup: duplicá-los toda semana multiplicaria o
+  // armazenamento sem cobrir o caso que importa (perda do projeto), que só uma
+  // cópia externa cobre. O que o backup guarda é o inventário — e o
+  // procedimento já pressupõe a origem de pé, então dá para copiar direto de
+  // lá na hora da restauração.
+  let arquivos = { copiados: 0, faltando: 0 };
+  if (argv.includes("--com-arquivos")) {
+    const inventario = ndjson(await baixar("storage_inventory.ndjson"));
+    console.log(`\nCopiando ${inventario.length} arquivo(s) da origem.`);
+    for (const item of inventario) {
+      const origem = `https://${DE}.supabase.co/storage/v1/object/${item.bucket_id}/${item.name}`;
+      const r = await fetch(origem, { headers: { Authorization: `Bearer ${ORIGEM_KEY}` } });
+      if (!r.ok) {
+        // Arquivo listado no inventário e ausente na origem é exatamente o que
+        // o alarme de "documento sem arquivo" existe para pegar. Aqui ele
+        // aparece de novo, e precisa aparecer alto.
+        console.warn(`  ausente na origem: ${item.bucket_id}/${item.name}`);
+        arquivos.faltando++;
+        continue;
+      }
+      const bytes = new Uint8Array(await r.arrayBuffer());
+      const destino = `https://${PARA}.supabase.co/storage/v1/object/${item.bucket_id}/${item.name}`;
+      const up = await fetch(destino, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.ALVO_SERVICE_KEY ?? ""}`,
+          "Content-Type": item.mime_type || "application/octet-stream",
+          "x-upsert": "true",
+        },
+        body: bytes,
+      });
+      if (up.ok) arquivos.copiados++;
+      else {
+        console.warn(`  falha ao subir ${item.name}: ${up.status}`);
+        arquivos.faltando++;
+      }
+    }
+    console.log(`Arquivos: ${arquivos.copiados} copiados, ${arquivos.faltando} com problema.`);
   }
 
   // ---- 3. Conferência ----------------------------------------------------
