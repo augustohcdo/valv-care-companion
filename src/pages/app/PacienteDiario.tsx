@@ -15,6 +15,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
+import { aplicar } from "@/lib/mutate";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -153,8 +154,11 @@ export default function PacienteDiario() {
 
   const remove = async (id: string) => {
     if (!confirm("Remover este registro?")) return;
-    await supabase.from("symptom_entries").update({ deleted_at: new Date().toISOString() }).eq("id", id);
-    toast.success("Removido");
+    const ok = await aplicar(
+      supabase.from("symptom_entries").update({ deleted_at: new Date().toISOString() }).eq("id", id).select("id"),
+      { sucesso: "Registro removido", falha: "Não foi possível remover o registro" },
+    );
+    if (!ok) return;
     logAudit("symptom_entry_deleted", "symptom_entries", id);
     load();
   };

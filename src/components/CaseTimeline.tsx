@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/select";
 import { eventTypeLabels, eventTypeColors } from "@/lib/clinicalLabels";
 import { logAudit } from "@/lib/auditLog";
+import { aplicar } from "@/lib/mutate";
 
 const eventIcons: Record<string, any> = {
   consulta: Stethoscope,
@@ -124,8 +125,11 @@ export const CaseTimeline = ({ caseId, readOnly = false }: Props) => {
 
   const remove = async (id: string) => {
     if (!confirm("Remover este evento?")) return;
-    await supabase.from("case_events").update({ deleted_at: new Date().toISOString() }).eq("id", id);
-    toast.success("Evento removido");
+    const ok = await aplicar(
+      supabase.from("case_events").update({ deleted_at: new Date().toISOString() }).eq("id", id).select("id"),
+      { sucesso: "Evento removido", falha: "Não foi possível remover o evento" },
+    );
+    if (!ok) return;
     logAudit("event_deleted", "case_events", id, { case_id: caseId });
     load();
   };

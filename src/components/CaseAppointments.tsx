@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { logAudit } from "@/lib/auditLog";
+import { aplicar } from "@/lib/mutate";
 import {
   CalendarDays,
   Plus,
@@ -128,14 +129,27 @@ export const CaseAppointments = ({ caseId, readOnly = false }: Props) => {
   };
 
   const updateStatus = async (id: string, status: string) => {
-    await supabase.from("appointments").update({ status: status as any }).eq("id", id);
+    // Não anuncia sucesso, mas ignorava o erro do mesmo jeito: o status
+    // continuava o mesmo na tela e o médico concluía que o clique não pegou —
+    // sem nunca saber que o banco tinha recusado.
+    const { data: alteradas, error } = await supabase
+      .from("appointments").update({ status: status as any }).eq("id", id).select("id");
+    if (error || !alteradas?.length) {
+      toast.error("Não foi possível alterar o status", {
+        description: error?.message ?? "Você pode não ter permissão sobre este compromisso.",
+      });
+      return;
+    }
     load();
   };
 
   const remove = async (id: string) => {
     if (!confirm("Remover este compromisso?")) return;
-    await supabase.from("appointments").update({ deleted_at: new Date().toISOString() }).eq("id", id);
-    toast.success("Compromisso removido");
+    const ok = await aplicar(
+      supabase.from("appointments").update({ deleted_at: new Date().toISOString() }).eq("id", id).select("id"),
+      { sucesso: "Compromisso removido", falha: "Não foi possível remover o compromisso" },
+    );
+    if (!ok) return;
     logAudit("appointment_deleted", "appointments", id, { case_id: caseId });
     load();
   };

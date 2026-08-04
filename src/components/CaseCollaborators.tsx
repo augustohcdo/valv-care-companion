@@ -17,6 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { logAudit } from "@/lib/auditLog";
+import { aplicar } from "@/lib/mutate";
 
 interface Props {
   caseId: string;
@@ -135,8 +136,11 @@ export const CaseCollaborators = ({ caseId, isOwner }: Props) => {
 
   const remove = async (id: string) => {
     if (!confirm("Remover este colaborador do caso?")) return;
-    await supabase.from("case_collaborators").update({ deleted_at: new Date().toISOString() }).eq("id", id);
-    toast.success("Colaborador removido");
+    const ok = await aplicar(
+      supabase.from("case_collaborators").update({ deleted_at: new Date().toISOString() }).eq("id", id).select("id"),
+      { sucesso: "Colaborador removido", falha: "Não foi possível remover o colaborador" },
+    );
+    if (!ok) return;
     logAudit("collaborator_removed", "case_collaborators", id, { case_id: caseId });
     load();
   };

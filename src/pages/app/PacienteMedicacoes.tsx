@@ -4,6 +4,7 @@ import { usePatient } from "@/hooks/usePatient";
 import { format } from "date-fns";
 import { Pill, Plus, Loader2, Edit2, Trash2, Check, X, Clock, CalendarOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { aplicar } from "@/lib/mutate";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -125,8 +126,11 @@ export default function PacienteMedicacoes() {
 
   const remove = async (id: string) => {
     if (!confirm("Remover esta medicação? O histórico de adesão será mantido.")) return;
-    await supabase.from("medications").update({ active: false, end_date: today }).eq("id", id);
-    toast.success("Medicação suspensa");
+    const ok = await aplicar(
+      supabase.from("medications").update({ active: false, end_date: today }).eq("id", id).select("id"),
+      { sucesso: "Medicação suspensa", falha: "Não foi possível suspender a medicação" },
+    );
+    if (!ok) return;
     load();
   };
 

@@ -21,6 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { examTypeLabels, examTypeColors } from "@/lib/clinicalLabels";
 import { logAudit } from "@/lib/auditLog";
+import { aplicar } from "@/lib/mutate";
 import {
   LineChart,
   Line,
@@ -160,8 +161,11 @@ export const CaseExams = ({ caseId, readOnly = false }: Props) => {
 
   const remove = async (id: string) => {
     if (!confirm("Remover este exame?")) return;
-    await supabase.from("case_exams").update({ deleted_at: new Date().toISOString() }).eq("id", id);
-    toast.success("Exame removido");
+    const ok = await aplicar(
+      supabase.from("case_exams").update({ deleted_at: new Date().toISOString() }).eq("id", id).select("id"),
+      { sucesso: "Exame removido", falha: "Não foi possível remover o exame" },
+    );
+    if (!ok) return;
     logAudit("exam_deleted", "case_exams", id, { case_id: caseId });
     load();
   };

@@ -15,6 +15,27 @@ let patientRow: any = PATIENT;
 let docs: any[] = [...DOCS];
 const updateSpy = vi.fn();
 const storageRemoveSpy = vi.fn();
+/**
+ * Quantas linhas a escrita afeta. Zero é como a RLS recusa um UPDATE: o
+ * PostgREST responde 200 com `error: null` e lista vazia.
+ */
+let linhasAfetadas = 1;
+
+
+/**
+ * Resultado de escrita no formato do cliente real: dá para aguardar direto ou
+ * encadear `.select(...)`. Precisa dos dois porque o código passou a pedir as
+ * linhas afetadas — a RLS recusa devolvendo 200 com zero linhas, não erro.
+ */
+function escrita(resultado: { error: { message: string } | null }, afetadas = 1) {
+  const p: any = Promise.resolve(resultado);
+  p.select = () =>
+    Promise.resolve({
+      data: resultado.error ? [] : Array.from({ length: afetadas }, (_, i) => ({ id: `r${i}` })),
+      error: resultado.error,
+    });
+  return p;
+}
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -31,9 +52,11 @@ vi.mock("@/integrations/supabase/client", () => ({
       update: (values: any) => ({
         eq: (col: string, val: any) => {
           updateSpy(table, values, col, val);
-          if (values.deleted_at) docs = docs.filter((d) => d.id !== val);
-          else docs = docs.map((d) => (d.id === val ? { ...d, ...values } : d));
-          return Promise.resolve({ error: null });
+          if (linhasAfetadas > 0) {
+            if (values.deleted_at) docs = docs.filter((d) => d.id !== val);
+            else docs = docs.map((d) => (d.id === val ? { ...d, ...values } : d));
+          }
+          return escrita({ error: null }, linhasAfetadas);
         },
       }),
     }),
@@ -68,6 +91,7 @@ function wrapper({ children }: { children: ReactNode }) {
 describe("PacienteDocumentos", () => {
   beforeEach(() => {
     patientRow = PATIENT;
+    linhasAfetadas = 1;
     docs = [...DOCS];
     updateSpy.mockClear();
     storageRemoveSpy.mockClear();
@@ -105,6 +129,27 @@ describe("PacienteDocumentos", () => {
 
   // O arquivo em si é apagado de verdade (privacidade), mas a linha só recebe
   // deleted_at — trocar isso por .delete() destruiria a trilha de auditoria.
+
+  // A ordem importa e é decisão, não acaso: a linha primeiro, o arquivo depois.
+  // Na ordem inversa, uma recusa na marcação deixaria a linha viva apontando
+  // para um arquivo já destruído — exatamente o estado que o alarme de
+  // "documento sem arquivo" existe para denunciar.
+  it("escrita recusada: não apaga o arquivo, não audita e mantém o documento", async () => {
+    linhasAfetadas = 0;
+
+    render(<PacienteDocumentos />, { wrapper });
+    await waitFor(() => expect(screen.getByText("eco.pdf")).toBeInTheDocument());
+
+    fireEvent.click(
+      screen.queryAllByRole("button").filter((b) => b.className.includes("text-destructive"))[0],
+    );
+
+    await waitFor(() => expect(updateSpy).toHaveBeenCalled());
+    expect(storageRemoveSpy).not.toHaveBeenCalled();
+    expect(logAudit).not.toHaveBeenCalled();
+    expect(screen.getByText("eco.pdf")).toBeInTheDocument();
+  });
+
   it("remover apaga o arquivo do storage, faz soft-delete da linha e audita", async () => {
     render(<PacienteDocumentos />, { wrapper });
     await waitFor(() => expect(screen.getByText("eco.pdf")).toBeInTheDocument());

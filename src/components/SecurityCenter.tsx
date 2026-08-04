@@ -57,7 +57,15 @@ export function SecurityCenter() {
   const signOutEverywhere = async () => {
     setSigningOutAll(true);
     try {
-      await supabase.auth.signOut({ scope: "global" });
+      // `signOut` devolve `{ error }` em vez de lançar, então o catch abaixo
+      // nunca via falha nenhuma: uma sessão que continuou aberta era anunciada
+      // como encerrada. Numa tela de segurança isso é o pior tipo de mentira —
+      // a pessoa acredita que revogou o acesso e deixa de tomar outra medida.
+      const { error } = await supabase.auth.signOut({ scope: "global" });
+      if (error) {
+        toast.error("Erro ao encerrar sessões", { description: error.message });
+        return;
+      }
       toast.success("Você saiu de todos os dispositivos.");
     } catch (e: any) {
       toast.error("Erro ao encerrar sessões", { description: e.message });

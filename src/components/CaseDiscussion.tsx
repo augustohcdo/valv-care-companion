@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { logAudit } from "@/lib/auditLog";
+import { aplicar } from "@/lib/mutate";
 
 interface Props {
   caseId: string;
@@ -100,7 +101,11 @@ export const CaseDiscussion = ({ caseId, canComment }: Props) => {
 
   const remove = async (id: string) => {
     if (!confirm("Remover este comentário?")) return;
-    await supabase.from("case_comments").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+    const ok = await aplicar(
+      supabase.from("case_comments").update({ deleted_at: new Date().toISOString() }).eq("id", id).select("id"),
+      { sucesso: "Comentário removido", falha: "Não foi possível remover o comentário" },
+    );
+    if (!ok) return;
     logAudit("comment_deleted", "case_comments", id, { case_id: caseId });
     load();
   };

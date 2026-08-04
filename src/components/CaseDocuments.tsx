@@ -111,7 +111,22 @@ export const CaseDocuments = ({ caseId, readOnly = false }: Props) => {
   // roda com service_role.
   const deleteDoc = async (doc: any) => {
     if (!confirm(`Remover "${doc.file_name}" da lista?\n\nO arquivo continua guardado no prontuário.`)) return;
-    await supabase.from("case_documents").update({ deleted_at: new Date().toISOString() }).eq("id", doc.id);
+    const { data: alteradas, error } = await supabase
+      .from("case_documents")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", doc.id)
+      .select("id");
+    // Zero linhas com `error` nulo é como a RLS recusa: para o PostgREST,
+    // atualizar nada é sucesso. Sem esta checagem, um documento de outro
+    // médico sairia da tela como se tivesse sido removido.
+    if (error || !alteradas?.length) {
+      toast.error("Não foi possível remover o documento", {
+        description: error?.message ?? "Você pode não ter permissão sobre este documento.",
+      });
+      return;
+    }
+    // Mensagem própria em vez do helper: aqui a informação que importa não é
+    // "deu certo", é que o arquivo continua no prontuário.
     toast.success("Documento removido da lista", {
       description: "O arquivo permanece guardado no prontuário.",
     });

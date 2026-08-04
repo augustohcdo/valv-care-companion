@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePatient } from "@/hooks/usePatient";
 import { logAudit } from "@/lib/auditLog";
+import { aplicar } from "@/lib/mutate";
 import {
   Upload,
   FileText,
@@ -124,19 +125,35 @@ const PacienteDocumentos = () => {
   };
 
   const toggleShare = async (doc: any) => {
-    await supabase
-      .from("patient_documents")
-      .update({ shared_with_doctor: !doc.shared_with_doctor })
-      .eq("id", doc.id);
-    toast.success(doc.shared_with_doctor ? "Compartilhamento desativado" : "Compartilhado com médico");
+    const ok = await aplicar(
+      supabase
+        .from("patient_documents")
+        .update({ shared_with_doctor: !doc.shared_with_doctor })
+        .eq("id", doc.id)
+        .select("id"),
+      {
+        sucesso: doc.shared_with_doctor ? "Compartilhamento desativado" : "Compartilhado com médico",
+        falha: "Não foi possível alterar o compartilhamento",
+      },
+    );
+    if (!ok) return;
     load();
   };
 
   const deleteDoc = async (doc: any) => {
     if (!confirm(`Remover "${doc.file_name}"?`)) return;
+    // A linha primeiro: se a marcação falhar, o arquivo ainda existe e o
+    // documento continua íntegro. Na ordem inversa, uma falha aqui deixaria a
+    // linha viva apontando para um arquivo já destruído — exatamente o estado
+    // que o alarme de "documento sem arquivo" existe para denunciar.
+    const ok = await aplicar(
+      supabase.from("patient_documents").update({ deleted_at: new Date().toISOString() }).eq("id", doc.id).select("id"),
+      { sucesso: "Documento removido", falha: "Não foi possível remover o documento" },
+    );
+    if (!ok) return;
+    // Documento do paciente é dele, e a LGPD lhe dá o direito de apagar de
+    // verdade. Diferente do documento de caso, que é prontuário e fica.
     await supabase.storage.from("patient-documents").remove([doc.storage_path]);
-    await supabase.from("patient_documents").update({ deleted_at: new Date().toISOString() }).eq("id", doc.id);
-    toast.success("Documento removido");
     logAudit("patient_document_deleted", "patient_documents", doc.id, { file_name: doc.file_name });
     load();
   };

@@ -24,6 +24,22 @@ const PROFILES = [
 let collabs = [...COLLABS];
 const updateSpy = vi.fn();
 
+
+/**
+ * Resultado de escrita no formato do cliente real: dá para aguardar direto ou
+ * encadear `.select(...)`. Precisa dos dois porque o código passou a pedir as
+ * linhas afetadas — a RLS recusa devolvendo 200 com zero linhas, não erro.
+ */
+function escrita(resultado: { error: { message: string } | null }, afetadas = 1) {
+  const p: any = Promise.resolve(resultado);
+  p.select = () =>
+    Promise.resolve({
+      data: resultado.error ? [] : Array.from({ length: afetadas }, (_, i) => ({ id: `r${i}` })),
+      error: resultado.error,
+    });
+  return p;
+}
+
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: (table: string) => ({
@@ -47,7 +63,7 @@ vi.mock("@/integrations/supabase/client", () => ({
           updateSpy(values, col, val);
           if (values.deleted_at) collabs = collabs.filter((c) => c.id !== val);
           else collabs = collabs.map((c) => (c.id === val ? { ...c, ...values } : c));
-          return Promise.resolve({ error: null });
+          return escrita({ error: null });
         },
       }),
     }),

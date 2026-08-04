@@ -18,6 +18,21 @@ const EXAMS = [
 
 let rows: any[] = [...EXAMS];
 const updateSpy = vi.fn();
+/** Permite encenar uma recusa do banco (RLS, constraint, rede). */
+let updateResult: { error: { message: string } | null } = { error: null };
+
+
+/**
+ * Resultado de escrita no formato do cliente real: dá para aguardar direto ou
+ * encadear `.select(...)`. Precisa dos dois porque o código passou a pedir as
+ * linhas afetadas — a RLS recusa devolvendo 200 com zero linhas, não erro.
+ */
+function escrita(resultado: { error: { message: string } | null }) {
+  const p: any = Promise.resolve(resultado);
+  p.select = () =>
+    Promise.resolve({ data: resultado.error ? [] : [{ id: "r0" }], error: resultado.error });
+  return p;
+}
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -33,8 +48,8 @@ vi.mock("@/integrations/supabase/client", () => ({
       update: (values: any) => ({
         eq: (col: string, val: any) => {
           updateSpy(values, col, val);
-          rows = rows.filter((r) => r.id !== val);
-          return Promise.resolve({ error: null });
+          if (!updateResult.error) rows = rows.filter((r) => r.id !== val);
+          return escrita(updateResult);
         },
       }),
     }),
@@ -47,6 +62,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { CaseExams } from "./CaseExams";
 import { logAudit } from "@/lib/auditLog";
+import { toast } from "sonner";
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
@@ -62,6 +78,7 @@ const openComparativo = () =>
 describe("CaseExams", () => {
   beforeEach(() => {
     rows = [...EXAMS];
+    updateResult = { error: null };
     updateSpy.mockClear();
     vi.clearAllMocks();
     vi.spyOn(window, "confirm").mockReturnValue(true);
@@ -98,6 +115,30 @@ describe("CaseExams", () => {
     );
 
     await waitFor(() => expect(screen.queryByText("ECO controle")).not.toBeInTheDocument());
+  });
+
+  // O caso que estava sem rede: o cliente do Supabase devolve `{ error }` em
+  // vez de lançar, então uma recusa de RLS virava "Exame removido" na tela E
+  // uma linha em audit_logs dizendo que o exame foi removido. Numa trilha de
+  // conformidade, afirmar o que não aconteceu é pior que omitir.
+  it("escrita recusada: avisa o erro, não audita e mantém o exame na lista", async () => {
+    updateResult = { error: { message: "new row violates row-level security policy" } };
+    renderComp();
+    await waitFor(() => expect(screen.getByText("ECO controle")).toBeInTheDocument());
+
+    const deleteButtons = screen.getAllByRole("button").filter((b) =>
+      b.className.includes("text-destructive"),
+    );
+    fireEvent.click(deleteButtons[0]);
+
+    await waitFor(() => expect(updateSpy).toHaveBeenCalled());
+    expect(toast.error).toHaveBeenCalledWith(
+      "Não foi possível remover o exame",
+      { description: "new row violates row-level security policy" },
+    );
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(logAudit).not.toHaveBeenCalled();
+    expect(screen.getByText("ECO controle")).toBeInTheDocument();
   });
 
   it("em readOnly não oferece criar, editar nem excluir", async () => {
