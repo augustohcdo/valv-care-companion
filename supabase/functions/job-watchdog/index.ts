@@ -13,6 +13,7 @@ import { buildCorsHeaders } from "../_shared/cors.ts";
 import { logError } from "../_shared/logError.ts";
 import { recordJobRun, quemDisparou } from "../_shared/jobRun.ts";
 import { sendAlert } from "../_shared/sendAlert.ts";
+import { sondarRotas, type RotaQuebrada } from "../_shared/siteRoutes.ts";
 
 const JOB = "job-watchdog";
 const DIA_MS = 86_400_000;
@@ -66,6 +67,20 @@ Deno.serve(async (req) => {
       _since: new Date(agora - DIA_MS).toISOString(),
     });
     const concessoes = (concessoesRaw ?? []) as Array<{ user_id: string; role: string }>;
+
+    // O site publicado responde? Esta pergunta ficou uma semana sem ser feita:
+    // faltava o rewrite de SPA na Vercel e **toda** rota que não fosse `/`
+    // devolvia 404 — quebrando o link de redefinir senha, o retorno do login
+    // com Google e a confirmação de cadastro. Nada no sistema notou, porque
+    // toda verificação olhava o banco, nunca a entrega.
+    //
+    // A URL vem de `internal_secrets`, ao lado da base das functions, para não
+    // cravar domínio no código pela segunda vez.
+    const { data: baseRow } = await supabase
+      .from("internal_secrets").select("value").eq("key", "site_base_url").maybeSingle();
+    const rotasQuebradas: RotaQuebrada[] = baseRow?.value
+      ? await sondarRotas(baseRow.value)
+      : [];
 
     for (const v of vigiadas ?? []) {
       // A última execução BEM SUCEDIDA. Uma tarefa que roda todo dia e falha
@@ -121,8 +136,22 @@ Deno.serve(async (req) => {
       sent: false,
       reason: "nada_a_avisar",
     };
-    if (problemas.length || concessoes.length) {
+    if (problemas.length || concessoes.length || rotasQuebradas.length) {
       const corpo = [
+        // As rotas vêm primeiro: site fora do ar é a falha que os usuários
+        // sentem na hora, enquanto um backup atrasado ainda tem margem.
+        ...(rotasQuebradas.length
+          ? [
+              "Rotas do site que não respondem:",
+              "",
+              ...rotasQuebradas.map((r) => `- ${r.rota}: ${r.motivo}`),
+              "",
+              rotasQuebradas.length >= 4
+                ? "Se forem quase todas menos `/`, o rewrite de SPA do vercel.json não está valendo."
+                : "",
+              "",
+            ]
+          : []),
         ...(problemas.length
           ? [
               "Tarefas agendadas do ValvePath com problema:",
@@ -143,18 +172,20 @@ Deno.serve(async (req) => {
           : []),
         "Painel: https://valvepath.com.br/app/admin/erros",
       ].join("\n");
-      // O assunto precisa dizer qual das duas coisas aconteceu: um e-mail que
-      // sempre diz "tarefa com problema" faria uma concessão de administrador
-      // passar por atraso de backup.
-      const assunto = problemas.length && concessoes.length
-        ? `[ValvePath] ${problemas.length} tarefa(s) com problema e ${concessoes.length} papel(is) privilegiado(s) concedido(s)`
-        : problemas.length
-        ? `[ValvePath] ${problemas.length} tarefa(s) agendada(s) com problema`
-        : `[ValvePath] ${concessoes.length} papel(is) privilegiado(s) concedido(s)`;
+      // O assunto precisa dizer qual das coisas aconteceu: um e-mail que sempre
+      // diz "tarefa com problema" faria uma concessão de administrador — ou o
+      // site fora do ar — passar por atraso de backup.
+      const partes = [
+        rotasQuebradas.length ? `${rotasQuebradas.length} rota(s) do site fora do ar` : "",
+        problemas.length ? `${problemas.length} tarefa(s) agendada(s) com problema` : "",
+        concessoes.length ? `${concessoes.length} papel(is) privilegiado(s) concedido(s)` : "",
+      ].filter(Boolean);
+      const assunto = `[ValvePath] ${partes.join(" e ")}`;
       alerta = await sendAlert({ subject: assunto, body: corpo });
       await logError({
         source: "edge_function", context: JOB,
         message: [
+          ...rotasQuebradas.map((r) => `rota ${r.rota}: ${r.motivo}`),
           ...problemas.map((p) => `${p.job}: ${p.texto}`),
           ...concessoes.map((c) => `papel ${c.role} concedido a ${c.user_id}`),
         ].join(" | "),
@@ -173,6 +204,7 @@ Deno.serve(async (req) => {
         verificadas: vigiadas?.length ?? 0,
         problemas: problemas.map((p) => `${p.job}: ${p.texto}`),
         concessoes_privilegiadas: concessoes.length,
+        rotas_quebradas: rotasQuebradas.map((r) => `${r.rota}: ${r.motivo}`),
         alerta_enviado: alerta.sent,
         alerta_motivo: alerta.reason ?? null,
       },
@@ -191,6 +223,7 @@ Deno.serve(async (req) => {
       ok: true,
       verificadas: vigiadas?.length ?? 0,
       problemas,
+      rotas_quebradas: rotasQuebradas,
       concessoes_privilegiadas: concessoes.length,
       alerta,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
