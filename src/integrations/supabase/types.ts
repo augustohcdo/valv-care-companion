@@ -1961,6 +1961,32 @@ export type Database = {
       }
     }
     Functions: {
+      admin_definir_papel: {
+        Args: {
+          _conceder: boolean
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: undefined
+      }
+      admin_listar_usuarios: {
+        Args: never
+        Returns: {
+          account_type: string
+          criado_em: string
+          crm: string
+          crm_uf: string
+          doctor_id: string
+          eh_paciente: boolean
+          email: string
+          email_confirmado: boolean
+          full_name: string
+          papeis: string[]
+          ultimo_acesso: string
+          user_id: string
+          verificado: boolean
+        }[]
+      }
       admin_recipients: {
         Args: never
         Returns: {
@@ -1969,6 +1995,10 @@ export type Database = {
         }[]
       }
       admin_site_metrics: { Args: never; Returns: Json }
+      admin_verificar_medico: {
+        Args: { _doctor_id: string; _verificado: boolean }
+        Returns: undefined
+      }
       auth_identities_export: {
         Args: never
         Returns: {

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
   ShieldCheck, Stethoscope, HeartPulse, FolderOpen, Eye,
-  ShieldAlert, ScrollText, Plug, ChevronRight, Loader2,
+  ShieldAlert, ScrollText, Plug, Users, ChevronRight, Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,10 +19,13 @@ type SiteMetrics = {
 
 export const adminHomeMetricsKey = () => ["site-metrics"] as const;
 
-// "Usuários e papéis" entra na próxima fatia, junto com a tela. Um atalho para
-// uma rota que ainda não existe seria mais uma promessa que a interface não
-// cumpre — foi disso que esta sessão inteira tratou.
 const ATALHOS = [
+  {
+    to: "/app/admin/usuarios",
+    label: "Usuários e papéis",
+    descricao: "Contas, permissão de administrador e verificação de CRM.",
+    icon: Users,
+  },
   {
     to: "/app/admin/erros",
     label: "Erros e tarefas",
