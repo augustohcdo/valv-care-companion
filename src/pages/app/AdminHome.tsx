@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
   ShieldCheck, Stethoscope, HeartPulse, FolderOpen, Eye,
-  ShieldAlert, ScrollText, Plug, Users, ChevronRight, Loader2,
+  ShieldAlert, ScrollText, Plug, Users, BookOpenCheck, ChevronRight, Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +25,12 @@ const ATALHOS = [
     label: "Usuários e papéis",
     descricao: "Contas, permissão de administrador e verificação de CRM.",
     icon: Users,
+  },
+  {
+    to: "/app/admin/conteudo",
+    label: "Revisão de conteúdo",
+    descricao: "Trechos que alimentam a IA clínica, e quem os revisou.",
+    icon: BookOpenCheck,
   },
   {
     to: "/app/admin/erros",

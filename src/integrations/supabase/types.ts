@@ -2123,6 +2123,15 @@ export type Database = {
         }[]
       }
       normalize_path: { Args: { _path: string }; Returns: string }
+      posso_revisar_conteudo: {
+        Args: never
+        Returns: {
+          crm: string
+          motivo: string
+          pode: boolean
+          revisor: string
+        }[]
+      }
       recent_confirmed_users: {
         Args: { _since: string }
         Returns: {
@@ -2169,6 +2178,10 @@ export type Database = {
           _user_agent?: string
         }
         Returns: string
+      }
+      revisar_trecho: {
+        Args: { _aprovar: boolean; _chunk_id: string; _notas?: string }
+        Returns: undefined
       }
       search_global: {
         Args: { _query: string; _user_id: string }
