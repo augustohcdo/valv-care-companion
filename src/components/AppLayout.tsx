@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useDoctor } from "@/hooks/useDoctor";
+import { usePatient } from "@/hooks/usePatient";
 import { Logo } from "@/components/Logo";
 import { NotificationsBell } from "@/components/NotificationsBell";
 import { CommandPalette, CommandPaletteTrigger } from "@/components/CommandPalette";
@@ -73,6 +75,7 @@ const patientNav: NavItem[] = [
  * ninguém alcança é o mesmo que não ter painel.
  */
 const adminNav: NavItem[] = [
+  { to: "/app/admin", label: "Administração", icon: ShieldCheck, exact: true },
   { to: "/app/admin/erros", label: "Erros e tarefas", icon: ShieldAlert },
   { to: "/app/admin/dpo", label: "Pedidos LGPD", icon: ScrollText },
   { to: "/app/admin/integracoes", label: "Integrações", icon: Plug },
@@ -116,11 +119,34 @@ export const AppLayout = () => {
   const [open, setOpen] = useState(false);
 
   const { isAdmin } = useIsAdmin();
+  const { data: medico, isLoading: carregandoMedico } = useDoctor();
+  const { data: paciente, isLoading: carregandoPaciente } = usePatient();
 
   const isDoctor = profile?.account_type === "medico";
+
   // O papel de administrador é somado ao menu clínico, não trocado por ele:
   // a mesma pessoa pode acompanhar casos e cuidar da plataforma.
-  const nav = [...(isDoctor ? doctorNav : patientNav), ...(isAdmin ? adminNav : [])];
+  //
+  // Mas `account_type` sozinho mente sobre a conta administrativa. O
+  // `profiles_account_type_check` só aceita `medico` e `paciente`, então ela é
+  // obrigada a se declarar médica — e recebia o menu clínico inteiro, com
+  // Pacientes, Casos e Agenda, sem ter registro em `doctors`. Quem entrava via
+  // ali só encontrava pedidos para completar um cadastro que não faz sentido.
+  //
+  // O registro clínico é o que separa os dois casos: um médico recém-cadastrado
+  // **ainda não** tem linha em `doctors` e precisa da área clínica para criá-la;
+  // a conta administrativa não tem e nunca terá. Por isso a supressão só vale
+  // para quem é admin — para todo o resto, nada muda.
+  const registroConhecido = isDoctor ? !carregandoMedico : !carregandoPaciente;
+  const temRegistroClinico = isDoctor ? !!medico : !!paciente;
+  // Enquanto não se sabe, o admin fica sem o menu clínico: é melhor ele
+  // aparecer um instante depois do que piscar para quem não deveria vê-lo.
+  const mostrarClinico = isAdmin ? registroConhecido && temRegistroClinico : true;
+
+  const nav = [
+    ...(mostrarClinico ? (isDoctor ? doctorNav : patientNav) : []),
+    ...(isAdmin ? adminNav : []),
+  ];
 
   const handleLogout = async () => {
     await signOut();

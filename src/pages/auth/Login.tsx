@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { loginSchema, LoginInput } from "@/lib/validators";
+import { resolverHome } from "@/lib/homeDoUsuario";
 import {
   getLockRemaining,
   registerFail,
@@ -51,27 +52,9 @@ export default function Login() {
   const redirectAfterLogin = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("account_type")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    // Quem administra a plataforma cai no painel, não na tela clínica. Sem
-    // isto a conta administrativa aterrissa numa área de médico sem registro
-    // de médico, e as telas de admin só existem para quem digita a URL.
-    const { data: ehAdmin } = await supabase.rpc("has_role", {
-      _user_id: user.id,
-      _role: "admin",
-    });
-
-    const dest =
-      fromPath ??
-      (ehAdmin
-        ? "/app/admin/erros"
-        : profile?.account_type === "medico"
-        ? "/app/medico"
-        : "/app/paciente");
+    // A regra de destino é uma só, em `homeDoUsuario` — antes existia aqui, no
+    // `AuthCallback` e no `ProtectedRoute`, em três versões que discordavam.
+    const dest = fromPath ?? (await resolverHome(user.id));
     navigate(dest, { replace: true });
   };
 
