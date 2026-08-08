@@ -31,7 +31,7 @@ export function Hero({ eyebrow, title, subtitle, actions, trustItems, media, bac
       )}
 
       <div className="container-vp relative py-20 sm:py-28 lg:py-32">
-        <div className={media ? "grid lg:grid-cols-[1.15fr_0.85fr] gap-10 items-center" : ""}>
+        <div className={media ? "grid lg:grid-cols-[1.15fr_0.85fr] gap-10 items-center [&>*]:min-w-0" : ""}>
           <motion.div
             className="max-w-3xl"
             initial={{ opacity: 0, y: 20 }}

@@ -121,6 +121,26 @@ Os *rewrites* são aplicados **depois** da checagem de arquivos, então
 quebradas — é a verificação que faltava, já que `npm run dev` tem o fallback
 embutido e por isso nunca reproduz esse defeito localmente.
 
+### Layout mobile
+
+`npm run mobile` abre um conjunto de páginas num viewport de celular (via
+Playwright) e falha listando qualquer elemento mais largo que a tela. Existe
+porque `html, body` tem `overflow-x: hidden` — necessário para não deixar a
+página inteira arrastar de lado num toque acidental, mas isso tem um efeito
+colateral sério: um elemento largo demais não vira barra de rolagem, vira
+**texto cortado no meio da palavra**, sem aviso nenhum na tela. Já aconteceu com
+um item de grid (`min-width: auto` por padrão) e com um botão de texto longo
+(`whitespace-nowrap` por padrão, sem `min-w-0` no container flex). Ambos os
+casos deixam de existir com a rolagem visível, mas o corte silencioso é pior:
+ninguém vê, e a mensagem clínica chega incompleta.
+
+Exige o Playwright — não é dependência do projeto (seria peso para um script
+sob demanda); instale com `npm i -g playwright` se ainda não tiver.
+
+Assim como o `smoke`, fica fora do CI: exigiria Chromium em todo push, e o
+ganho não paga esse custo aqui. Rode manualmente depois de qualquer mudança de
+layout, sobretudo em grids e flexs com texto de tamanho variável.
+
 ## CI
 
 O workflow em `.github/workflows/ci.yml` roda a cada push e pull request, em Node 22, e falha o build se qualquer etapa quebrar:

@@ -34,8 +34,13 @@ const TopicDetail = () => {
       />
 
       <article className="container-vp py-12">
+        {/* `min-w-0` nos dois filhos: item de grid nasce com `min-width: auto`,
+            que o proíbe de encolher abaixo do conteúdo mínimo. Aqui isso dava
+            487px numa tela de 390 — e, como `html, body` tinha
+            `overflow-x: hidden`, o excedente não virava rolagem, virava texto
+            cortado no meio da palavra. */}
         <div className="grid lg:grid-cols-[1fr_280px] gap-10">
-          <div className="max-w-3xl">
+          <div className="min-w-0 max-w-3xl">
             {Illustration && (
               <ScrollReveal>
                 <Card className="p-6 mb-8 card-elevated bg-accent-soft/60 flex items-center justify-center">
@@ -73,25 +78,34 @@ const TopicDetail = () => {
 
             <MedicalDisclaimer className="mb-8" />
 
+            {/* O `Button` base tem `whitespace-nowrap` (certo para botão comum),
+                mas aqui o texto é o título do tópico vizinho — sem tamanho
+                previsível. "Febre reumática e doença valvar" sozinho já bastava
+                para estourar a largura, porque item de flex também nasce com
+                `min-width: auto` e se recusa a encolher abaixo do texto que não
+                pode quebrar. `min-w-0` libera o encolhimento; `truncate` no
+                título evita cortar no meio de uma letra. */}
             <div className="flex justify-between gap-3 pt-6 border-t border-border">
               {prev ? (
-                <Button asChild variant="ghost" size="sm">
+                <Button asChild variant="ghost" size="sm" className="min-w-0 max-w-[46%]">
                   <Link to={`/aprender/${prev.slug}`}>
-                    <ArrowLeft className="h-4 w-4" /> {prev.title}
+                    <ArrowLeft className="h-4 w-4 shrink-0" />
+                    <span className="min-w-0 truncate">{prev.title}</span>
                   </Link>
                 </Button>
               ) : <span />}
               {next && (
-                <Button asChild variant="ghost" size="sm">
+                <Button asChild variant="ghost" size="sm" className="min-w-0 max-w-[46%]">
                   <Link to={`/aprender/${next.slug}`}>
-                    {next.title} <ArrowRight className="h-4 w-4" />
+                    <span className="min-w-0 truncate">{next.title}</span>
+                    <ArrowRight className="h-4 w-4 shrink-0" />
                   </Link>
                 </Button>
               )}
             </div>
           </div>
 
-          <aside className="lg:sticky lg:top-20 self-start">
+          <aside className="min-w-0 lg:sticky lg:top-20 self-start">
             <Card className="p-5 bg-secondary/40">
               <h3 className="font-display font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-accent" /> Base científica

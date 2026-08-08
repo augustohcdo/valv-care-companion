@@ -141,10 +141,28 @@
     overscroll-behavior: none;
     touch-action: manipulation;
     -webkit-overflow-scrolling: touch;
-    /* Bloqueia scroll horizontal em qualquer tela — evita "vazamento" de layout */
-    overflow-x: hidden;
-    max-width: 100vw;
   }
+
+  /*
+   * Não existe mais `overflow-x: hidden` global aqui, e é proposital.
+   *
+   * O comentário anterior dizia "evita vazamento de layout" — mas ele não
+   * evitava vazamento nenhum: convertia layout largo demais em texto
+   * apagado. Sem barra de rolagem para denunciar o excesso, o iPhone
+   * mostrava frases inteiras cortadas no meio da palavra em `/aprender/*`
+   * (item de grid com `min-width: auto`, e depois um botão com
+   * `whitespace-nowrap` sem `min-w-0` no container flex), e nada no sistema
+   * — nem quem programava, nem quem usava — via sinal do defeito.
+   *
+   * A causa raiz foi corrigida nos dois pontos (ver `TopicDetail.tsx` e
+   * `Hero.tsx`). Se outro caso aparecer, o conserto é no elemento que
+   * transborda — `min-w-0` no item de grid/flex, `overflow-x: auto` no
+   * próprio container se o conteúdo for legitimamente largo (tabela, bloco
+   * de código) — nunca esconder de novo na raiz do documento.
+   *
+   * `npm run mobile` audita isso: abre as páginas em viewport de celular e
+   * falha listando qualquer elemento mais largo que a tela.
+   */
 
   /* Respeitar safe-areas do iPhone (notch/dynamic island) em containers principais */
   body {
