@@ -57,6 +57,7 @@ const TABLES = [
   "job_runs",
   "watched_jobs",          // quem é vigiado e com que prazo
   "page_views",            // audiência agregada por dia; não identifica ninguém
+  "retention_policies",    // o que é expurgado e com que prazo
 ];
 
 // O que não é tabela de `public`. Fica numa lista à parte porque vem de RPC —

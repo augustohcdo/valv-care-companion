@@ -3,7 +3,10 @@ import { ShieldCheck, Lock, FileCheck2, KeyRound } from "lucide-react";
 const items = [
   { icon: ShieldCheck, label: "LGPD", desc: "Conformidade Lei 13.709" },
   { icon: Lock, label: "Criptografia", desc: "TLS + at-rest" },
-  { icon: KeyRound, label: "Senhas verificadas", desc: "Checagem HIBP ativa" },
+  // "Checagem ativa" prometia mais do que existe: a verificação roda no
+  // navegador, ao criar a senha, e não bloqueia se a base pública estiver fora
+  // do ar. O selo diz o que ela é.
+  { icon: KeyRound, label: "Senhas verificadas", desc: "Checadas contra vazamentos" },
   { icon: FileCheck2, label: "Auditoria", desc: "Trilha imutável" },
 ];
 

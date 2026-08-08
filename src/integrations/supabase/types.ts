@@ -1687,6 +1687,33 @@ export type Database = {
         }
         Relationships: []
       }
+      retention_policies: {
+        Row: {
+          coluna_data: string
+          created_at: string
+          dias: number
+          enabled: boolean
+          motivo: string | null
+          tabela: string
+        }
+        Insert: {
+          coluna_data: string
+          created_at?: string
+          dias: number
+          enabled?: boolean
+          motivo?: string | null
+          tabela: string
+        }
+        Update: {
+          coluna_data?: string
+          created_at?: string
+          dias?: number
+          enabled?: boolean
+          motivo?: string | null
+          tabela?: string
+        }
+        Relationships: []
+      }
       saved_filters: {
         Row: {
           config: Json
@@ -1999,6 +2026,7 @@ export type Database = {
         Args: { _doctor_id: string; _verificado: boolean }
         Returns: undefined
       }
+      aplicar_retencao: { Args: { _triggered_by?: string }; Returns: Json }
       auth_identities_export: {
         Args: never
         Returns: {

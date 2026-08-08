@@ -95,7 +95,7 @@ const Privacidade = () => (
           heading: "Segurança da informação",
           body: [
             "Criptografia em trânsito (TLS 1.2+) e em repouso.",
-            "Verificação contra senhas vazadas (Have I Been Pwned).",
+            "Verificação da senha contra a base pública Have I Been Pwned no momento em que ela é criada ou trocada, por k-anonimato — só os 5 primeiros caracteres do hash deixam o navegador; a senha em si, nunca.",
             "Row-Level Security (RLS) em todas as tabelas clínicas.",
             "Segregação de papéis (médico, paciente, admin) e princípio do menor privilégio.",
             "Trilha de auditoria imutável de consentimentos.",

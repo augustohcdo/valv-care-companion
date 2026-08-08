@@ -148,7 +148,7 @@ export function SecurityCenter() {
             <ShieldCheck className="h-3.5 w-3.5" /> Sua conta está protegida por:
           </p>
           <ul className="pl-5 list-disc space-y-0.5">
-            <li>Verificação contra senhas vazadas (HIBP)</li>
+            <li>Senha checada contra vazamentos públicos (HIBP) ao ser criada ou trocada</li>
             <li>Criptografia em trânsito (TLS) e em repouso</li>
             <li>Row-Level Security em todas as tabelas clínicas</li>
             <li>Trilha de auditoria de consentimentos</li>

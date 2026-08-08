@@ -27,7 +27,7 @@ const purpose = [
 
 const measures = [
   { icon: Lock, title: "Criptografia em trânsito e em repouso", desc: "TLS 1.2+ no transporte e criptografia gerenciada no armazenamento." },
-  { icon: KeyRound, title: "Senhas verificadas (HIBP)", desc: "Bloqueamos senhas que apareceram em vazamentos públicos via Have I Been Pwned." },
+  { icon: KeyRound, title: "Senhas verificadas (HIBP)", desc: "Ao criar ou trocar a senha, ela é checada contra a base pública Have I Been Pwned e recusada se já tiver vazado. A checagem roda no seu navegador por k-anonimato: só os 5 primeiros caracteres do hash saem daqui — a senha, nunca." },
   { icon: ShieldCheck, title: "Row-Level Security (RLS)", desc: "Toda tabela clínica tem políticas que isolam dados por usuário, vínculo e papel." },
   { icon: UserCheck, title: "Papéis segregados", desc: "Médico, paciente e admin com permissões distintas em tabela dedicada — sem escalada de privilégio." },
   { icon: FileKey, title: "Vínculo médico-paciente autorizado", desc: "A conexão exige aceite. O paciente vê e revoga o vínculo a qualquer momento." },
