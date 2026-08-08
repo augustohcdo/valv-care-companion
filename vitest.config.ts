@@ -4,6 +4,11 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+  // O CI não tem `.env`, e a máquina de quem desenvolve tem — foi essa diferença
+  // que deixou a suíte verde aqui e vermelha lá por seis commits seguidos.
+  // Apontando para um diretório sem `.env`, a suíte local roda nas mesmas
+  // condições do CI. Ver src/test/sem-env/README.md.
+  envDir: path.resolve(import.meta.dirname, "./src/test/sem-env"),
   test: {
     environment: "jsdom",
     globals: true,
