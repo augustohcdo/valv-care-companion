@@ -14,6 +14,7 @@ import {
   UF_LIST,
 } from "@/lib/validators";
 import { ConsentType, CONSENT_VERSION } from "@/lib/consent";
+import { bloquearSeSenhaVazada } from "@/lib/hibp";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 import { Button } from "@/components/ui/button";
@@ -334,6 +335,15 @@ function DoctorForm({ onBack, onAguardandoConfirmacao }: { onBack: () => void; o
     }
     setSubmitting(true);
 
+    // Senha vazada é recusada antes de criar a conta. A verificação é por
+    // k-anonimato: só os 5 primeiros caracteres do hash saem do navegador.
+    // Se a base pública estiver fora do ar, o cadastro segue — ver o comentário
+    // em `bloquearSeSenhaVazada`.
+    if (await bloquearSeSenhaVazada(values.password)) {
+      setSubmitting(false);
+      return;
+    }
+
     // O token não é validado aqui: ele é de uso único e quem precisa da prova é
     // o servidor de auth. Ver o comentário em TurnstileWidget.
     // 1) Verifica CRM duplicado antes do signup
@@ -510,6 +520,15 @@ function PatientForm({ onBack, onAguardandoConfirmacao }: { onBack: () => void; 
       return;
     }
     setSubmitting(true);
+
+    // Senha vazada é recusada antes de criar a conta. A verificação é por
+    // k-anonimato: só os 5 primeiros caracteres do hash saem do navegador.
+    // Se a base pública estiver fora do ar, o cadastro segue — ver o comentário
+    // em `bloquearSeSenhaVazada`.
+    if (await bloquearSeSenhaVazada(values.password)) {
+      setSubmitting(false);
+      return;
+    }
 
     // O token não é validado aqui: ele é de uso único e quem precisa da prova é
     // o servidor de auth. Ver o comentário em TurnstileWidget.

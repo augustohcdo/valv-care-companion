@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { supabase } from "@/integrations/supabase/client";
+import { bloquearSeSenhaVazada } from "@/lib/hibp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -113,6 +114,14 @@ export default function RedefinirSenha() {
       return;
     }
     setSubmitting(true);
+
+    // Redefinir senha é o outro ponto em que uma senha nasce — não adiantaria
+    // barrar senha vazada só no cadastro.
+    if (await bloquearSeSenhaVazada(password)) {
+      setSubmitting(false);
+      return;
+    }
+
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
       setSubmitting(false);

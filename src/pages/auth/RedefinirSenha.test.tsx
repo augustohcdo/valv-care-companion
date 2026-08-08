@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   unsubscribe: vi.fn(),
   updateUser: vi.fn(),
   signOut: vi.fn(),
+  bloquearSeSenhaVazada: vi.fn(),
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -28,7 +29,17 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-const { unsubscribe, updateUser, signOut } = mocks;
+/**
+ * A verificação de senha vazada é uma chamada de rede a um serviço de
+ * terceiro; num teste ela precisa ser determinística. E há um detalhe que
+ * custou uma investigação: a senha usada aqui, `SenhaBoa123`, **está** na base
+ * da HIBP (64 aparições, conferido contra a API real). Sem este mock, a
+ * verificação de verdade rodava e bloqueava a troca — o código estava certo, o
+ * fixture é que era uma senha vazada.
+ */
+vi.mock("@/lib/hibp", () => ({ bloquearSeSenhaVazada: mocks.bloquearSeSenhaVazada }));
+
+const { unsubscribe, updateUser, signOut, bloquearSeSenhaVazada } = mocks;
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -71,6 +82,7 @@ describe("RedefinirSenha", () => {
     vi.clearAllMocks();
     updateUser.mockResolvedValue({ error: null });
     signOut.mockResolvedValue({ error: null });
+    bloquearSeSenhaVazada.mockResolvedValue(false);
   });
 
   afterEach(() => {
@@ -142,6 +154,26 @@ describe("RedefinirSenha", () => {
     // Deixar a sessão de recuperação viva daria acesso à conta sem ninguém ter
     // digitado a senha nova.
     expect(signOut).toHaveBeenCalled();
+  });
+
+  /**
+   * Redefinir senha é o outro ponto em que uma senha nasce. Barrar senha
+   * vazada só no cadastro deixaria a porta aberta justamente para quem está
+   * trocando a senha porque desconfia que ela vazou.
+   */
+  it("senha exposta em vazamento não chega a ser gravada", async () => {
+    bloquearSeSenhaVazada.mockResolvedValue(true);
+    renderTela();
+    await recuperacaoChega("admin@exemplo.com");
+
+    preencher("SenhaBoa123");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Atualizar senha/i }));
+    });
+
+    expect(bloquearSeSenhaVazada).toHaveBeenCalledWith("SenhaBoa123");
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
   });
 
   it("cancela a inscrição do ouvinte ao desmontar", async () => {
