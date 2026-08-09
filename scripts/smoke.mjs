@@ -69,6 +69,45 @@ async function emLotes(itens, tamanho, tarefa) {
   return saida;
 }
 
+/**
+ * O outro lado do rewrite, e o que faltava aqui.
+ *
+ * O fallback de SPA precisa valer para rota de aplicação e **não** para arquivo
+ * estático. Enquanto ele valia para tudo, um `/assets/*.js` que não existe mais
+ * — o caso normal na aba que ficou aberta durante um deploy — devolvia o
+ * `index.html` com status 200 e `text/html`. O navegador pediu um módulo
+ * JavaScript, recebeu uma página, e a tela quebrou com
+ * `'text/html' is not a valid JavaScript MIME type`. Aconteceu em produção em
+ * 08/08, com usuário logado, e a recarga automática não pegou porque essa
+ * mensagem não estava na lista dela.
+ *
+ * Um arquivo estático ausente tem que devolver 404. É a diferença entre o
+ * navegador saber que o arquivo sumiu (e o app se recarregar sozinho) e receber
+ * HTML disfarçado de script.
+ */
+async function sondarAssetInexistente() {
+  const caminho = `/assets/__smoke-inexistente-${Date.now()}.js`;
+  try {
+    const resposta = await fetch(BASE + caminho);
+    const corpo = await resposta.text();
+    if (corpo.includes(MARCADOR)) {
+      return {
+        caminho,
+        ok: false,
+        motivo:
+          `devolveu o shell do app (HTTP ${resposta.status}, ${resposta.headers.get("content-type")}) — ` +
+          "o rewrite está engolindo /assets/, e a aba aberta durante um deploy quebra",
+      };
+    }
+    if (resposta.status !== 404) {
+      return { caminho, ok: false, motivo: `esperado 404, veio HTTP ${resposta.status}` };
+    }
+    return { caminho, ok: true };
+  } catch (erro) {
+    return { caminho, ok: false, motivo: erro instanceof Error ? erro.message : String(erro) };
+  }
+}
+
 const rotas = rotasDoApp();
 if (rotas.length === 0) {
   console.error("Nenhuma rota encontrada em src/App.tsx — o parser quebrou, não o site.");
@@ -81,6 +120,7 @@ const inexistente = "/__smoke_rota_inexistente";
 
 console.log(`Sondando ${rotas.length + 1} rotas em ${BASE}\n`);
 const resultados = await emLotes([...rotas, inexistente], 6, sondar);
+resultados.push(await sondarAssetInexistente());
 const quebradas = resultados.filter((r) => !r.ok);
 
 for (const r of quebradas) console.log(`  ✗ ${r.caminho} — ${r.motivo}`);

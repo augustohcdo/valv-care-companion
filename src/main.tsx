@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import { reportError } from "./lib/reportError";
+import { isChunkLoadError, recarregarUmaVez, liberarRecarga } from "./lib/chunkReload";
 import "./index.css";
 
 type BoundaryProps = { children: ReactNode };
@@ -55,21 +56,14 @@ class GlobalErrorBoundary extends Component<BoundaryProps, BoundaryState> {
   }
 }
 
-// Auto-reload once when a lazy-loaded chunk fails to load (typically after a
-// redeploy invalidates the hashed filenames the current tab still references).
-const RELOAD_KEY = "vp:chunk-reloaded";
-const isChunkLoadError = (msg: string) =>
-  /Importing a module script failed|Failed to fetch dynamically imported module|Loading chunk \d+ failed|ChunkLoadError/i.test(
-    msg,
-  );
-
+// Recarga automática quando um pedaço do app não carrega — tipicamente depois de
+// um deploy, na aba que ficou aberta. O reconhecimento vive em
+// `lib/chunkReload.ts`, testável com as mensagens reais que os navegadores
+// emitem: a lista que estava aqui não cobria a que apareceu em produção.
 window.addEventListener("error", (e) => {
   const msg = e?.message || "";
   if (isChunkLoadError(msg)) {
-    if (!sessionStorage.getItem(RELOAD_KEY)) {
-      sessionStorage.setItem(RELOAD_KEY, "1");
-      window.location.reload();
-    }
+    recarregarUmaVez(sessionStorage, () => window.location.reload());
     return;
   }
   // filename/lineno/colno vinham no evento e eram jogados fora. Num
@@ -85,17 +79,15 @@ window.addEventListener("error", (e) => {
 window.addEventListener("unhandledrejection", (e) => {
   const msg = (e?.reason && (e.reason.message || String(e.reason))) || "";
   if (isChunkLoadError(msg)) {
-    if (!sessionStorage.getItem(RELOAD_KEY)) {
-      sessionStorage.setItem(RELOAD_KEY, "1");
-      window.location.reload();
-    }
+    recarregarUmaVez(sessionStorage, () => window.location.reload());
     return;
   }
   reportError(e.reason ?? msg);
 });
 
-// Clear the guard once the app boots successfully so future deploys can recover again.
-setTimeout(() => sessionStorage.removeItem(RELOAD_KEY), 10_000);
+// Libera a trava depois que o app subiu, para que um deploy seguinte na mesma
+// aba volte a poder se curar sozinho.
+setTimeout(() => liberarRecarga(sessionStorage), 10_000);
 
 // Idle prefetch of likely-next routes based on where the user landed.
 const idle: (cb: () => void) => void =
