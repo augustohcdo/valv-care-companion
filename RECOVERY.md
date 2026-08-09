@@ -79,6 +79,31 @@ O script termina comparando linha a linha com o `_manifest.json` e sai com
 código diferente de zero se algo divergir. **Se ele disser "Tudo bateu", bateu
 de verdade; se não disser, não considere restaurado.**
 
+#### 3b. Quando o projeto de origem não existe mais
+
+É o cenário que a cópia externa existe para cobrir. Aqui não há
+`ORIGEM_SERVICE_KEY` nem `--de`: a fonte é o provedor externo.
+
+```sh
+export SUPABASE_ACCESS_TOKEN=sbp_...
+export OFFSITE_ENDPOINT=https://s3.<regiao>.backblazeb2.com
+export OFFSITE_REGION=<regiao>
+export OFFSITE_BUCKET=<bucket>
+export OFFSITE_KEY_ID=...
+export OFFSITE_SECRET=...
+node scripts/restore.mjs --offsite --para <ref-novo> --data 2026-08-03 --limpar
+```
+
+O script baixa primeiro o `_offsite_manifest.json` e **confere o SHA-256 de
+cada arquivo** enquanto carrega: a cópia já releu tudo no destino na hora de
+gravar, e isto cobre o que pode ter acontecido depois. Um NDJSON corrompido
+produziria uma restauração parcial com cara de completa, que é o pior desfecho
+possível aqui.
+
+`--com-arquivos` **não vale** neste modo: a cópia externa leva os registros do
+banco, não os anexos dos exames. O script recusa a combinação em vez de deixar a
+restauração parecer completa.
+
 ### 4. Publicar as edge functions e os segredos
 
 Publique as functions de `supabase/functions/` (endpoint multipart
@@ -162,10 +187,27 @@ backup e saber que ele volta.
 
 ---
 
+## A cópia externa
+
+O backup principal mora dentro do mesmo projeto que ele protege — cobre exclusão
+acidental de registro, não cobre perda do projeto. A tarefa `offsite-copy` roda
+toda segunda 03:45 UTC, espelha a pasta datada mais recente num provedor
+S3-compatível e **relê cada arquivo no destino conferindo o hash** antes de dar a
+cópia por concluída. Falha gera alerta, e a tarefa está na lista do vigia diário.
+
+Para ligar (ou trocar de provedor), grave nos segredos do projeto Supabase:
+`OFFSITE_ENDPOINT`, `OFFSITE_REGION`, `OFFSITE_BUCKET`, `OFFSITE_KEY_ID`,
+`OFFSITE_SECRET`, e ponha `watched_jobs.enabled = true` para `offsite-copy`.
+Sem as variáveis a função responde `not_configured` e **não registra execução** —
+de propósito: alarme sobre recurso desligado é o caminho mais curto para ninguém
+mais olhar alarme nenhum.
+
+A credencial deve ser restrita ao bucket e **sem permissão de exclusão**: uma
+chave que não apaga não pode ser usada para destruir o backup.
+
 ## Limitação que continua valendo
 
-O backup mora **dentro do mesmo projeto Supabase que ele protege**. Cobre
-exclusão acidental de registro; não cobre perda do projeto inteiro. Uma cópia
-externa de verdade (S3 ou equivalente) depende de credencial que ainda não
-existe — e, enquanto não existir, este procedimento pressupõe que a origem
-ainda está de pé.
+Os anexos dos exames (`medical-documents`, `patient-documents`) **não** vão na
+cópia externa — só os registros do banco. O backup guarda o inventário deles
+(caminho, tamanho, tipo), então uma restauração sabe o que falta; mas os bytes
+dependem do ambiente principal estar de pé.

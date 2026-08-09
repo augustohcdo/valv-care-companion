@@ -14,11 +14,21 @@
  *   node scripts/restore.mjs --de <ref-origem> --para <ref-alvo> --data 2026-08-03 \
  *     [--limpar] [--com-arquivos]
  *
+ * A partir da cópia externa, quando o projeto de origem não existe mais:
+ *   SUPABASE_ACCESS_TOKEN=sbp_...
+ *   OFFSITE_ENDPOINT=... OFFSITE_REGION=... OFFSITE_BUCKET=...
+ *   OFFSITE_KEY_ID=... OFFSITE_SECRET=...
+ *   node scripts/restore.mjs --offsite --para <ref-alvo> --data 2026-08-03 [--limpar]
+ *
  * O que ele NÃO faz, e está no RECOVERY.md: criar o projeto, aplicar as
  * migrations, publicar as edge functions, gravar segredos, recriar os
  * agendamentos do pg_cron e reapontar a Vercel. Este script cuida só dos dados.
  */
 import { argv, env, exit } from "node:process";
+import { webcrypto } from "node:crypto";
+
+/** Hashes do `_offsite_manifest.json`, preenchidos no início de `main()`. */
+let offsiteHashes = null;
 
 const arg = (nome, obrigatorio = true) => {
   const i = argv.indexOf(`--${nome}`);
@@ -30,16 +40,52 @@ const arg = (nome, obrigatorio = true) => {
   return v;
 };
 
+/**
+ * `--offsite` lê a cópia externa em vez do bucket do Supabase.
+ *
+ * Não é um extra: é o único modo que serve ao cenário que justifica a cópia
+ * externa. Se o projeto de origem sumiu, `ORIGEM_SERVICE_KEY` e `--de` não
+ * existem mais — exigi-los aqui travaria a restauração exatamente no dia em que
+ * ela é a última coisa que resta.
+ */
+const OFFSITE = argv.includes("--offsite");
+
 const TOKEN = env.SUPABASE_ACCESS_TOKEN;
 const ORIGEM_KEY = env.ORIGEM_SERVICE_KEY;
-if (!TOKEN || !ORIGEM_KEY) {
-  console.error("Defina SUPABASE_ACCESS_TOKEN e ORIGEM_SERVICE_KEY.");
+if (!TOKEN || (!ORIGEM_KEY && !OFFSITE)) {
+  console.error("Defina SUPABASE_ACCESS_TOKEN e ORIGEM_SERVICE_KEY (ou use --offsite).");
   exit(1);
 }
-const DE = arg("de");
+
+const OFF = OFFSITE
+  ? {
+      endpoint: (env.OFFSITE_ENDPOINT ?? "").replace(/\/+$/, ""),
+      region: env.OFFSITE_REGION,
+      bucket: env.OFFSITE_BUCKET,
+      keyId: env.OFFSITE_KEY_ID,
+      secret: env.OFFSITE_SECRET,
+    }
+  : null;
+if (OFFSITE && Object.values(OFF).some((v) => !v)) {
+  console.error(
+    "Com --offsite, defina OFFSITE_ENDPOINT, OFFSITE_REGION, OFFSITE_BUCKET, " +
+      "OFFSITE_KEY_ID e OFFSITE_SECRET.",
+  );
+  exit(1);
+}
+
+const DE = arg("de", !OFFSITE);
 const PARA = arg("para");
 const DATA = arg("data");
 const BUCKET = "clinical-exports";
+
+if (OFFSITE && argv.includes("--com-arquivos")) {
+  // A cópia externa leva as linhas do banco, não os anexos dos exames — está
+  // escrito no RECOVERY.md. Aceitar a combinação em silêncio faria a
+  // restauração parecer completa quando não é.
+  console.error("--com-arquivos não vale com --offsite: a cópia externa não leva os anexos.");
+  exit(1);
+}
 
 /** SQL no projeto alvo, pela Management API. */
 async function sql(query) {
@@ -53,9 +99,56 @@ async function sql(query) {
   return JSON.parse(texto);
 }
 
+/** Cliente assinado do provedor externo, criado só quando `--offsite`. */
+let awsClient = null;
+async function clienteOffsite() {
+  if (!awsClient) {
+    // A mesma `aws4fetch` que a edge function usa para escrever. Uma
+    // implementação de assinatura só: duas divergiriam, e a que menos roda
+    // seria justamente a do dia do desastre.
+    const { AwsClient } = await import("aws4fetch");
+    awsClient = new AwsClient({
+      accessKeyId: OFF.keyId,
+      secretAccessKey: OFF.secret,
+      service: "s3",
+      region: OFF.region,
+    });
+  }
+  return awsClient;
+}
+
 /** Um arquivo do export da origem. `null` quando não existe. */
 async function baixar(nome) {
-  const url = `https://${DE}.supabase.co/storage/v1/object/${BUCKET}/exports/${DATA}/${nome}`;
+  const caminho = `exports/${DATA}/${nome}`;
+
+  if (OFFSITE) {
+    const aws = await clienteOffsite();
+    const r = await aws.fetch(`${OFF.endpoint}/${OFF.bucket}/${caminho}`, { method: "GET" });
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(`download externo de ${nome} falhou (${r.status})`);
+    const bytes = new Uint8Array(await r.arrayBuffer());
+
+    // Conferência de integridade contra o manifesto da cópia. A gravação já
+    // releu cada objeto na hora de copiar; isto cobre o que pode ter acontecido
+    // **depois** — corrupção silenciosa, truncamento, arquivo trocado. Carregar
+    // um NDJSON corrompido produziria uma restauração parcial com cara de
+    // completa, que é o pior desfecho possível aqui.
+    const esperado = offsiteHashes?.[nome]?.sha256;
+    if (esperado) {
+      const hash = Buffer.from(
+        await webcrypto.subtle.digest("SHA-256", bytes),
+      ).toString("hex");
+      if (hash !== esperado) {
+        throw new Error(
+          `integridade falhou em ${nome}: manifesto diz ${esperado.slice(0, 12)}…, ` +
+            `arquivo baixado é ${hash.slice(0, 12)}…`,
+        );
+      }
+    }
+    return new TextDecoder().decode(bytes);
+  }
+
+  const url = `https://${DE}.supabase.co/storage/v1/object/${BUCKET}/${caminho}`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${ORIGEM_KEY}` } });
   if (r.status === 404 || r.status === 400) return null;
   if (!r.ok) throw new Error(`download de ${nome} falhou (${r.status})`);
@@ -168,7 +261,28 @@ async function limparAlvo(tabelas) {
 }
 
 async function main() {
-  console.log(`Restaurando o export de ${DATA} (projeto ${DE}) em ${PARA}\n`);
+  const origem = OFFSITE ? `cópia externa em ${OFF.bucket}` : `projeto ${DE}`;
+  console.log(`Restaurando o export de ${DATA} (${origem}) em ${PARA}\n`);
+
+  if (OFFSITE) {
+    // Precisa vir antes de qualquer outro download: é ele que permite conferir
+    // o hash de cada arquivo enquanto baixa.
+    const off = JSON.parse((await baixar("_offsite_manifest.json")) ?? "null");
+    if (!off?.arquivos) {
+      throw new Error(
+        `não achei _offsite_manifest.json em ${DATA} — sem ele não dá para ` +
+          "conferir a integridade do que foi copiado.",
+      );
+    }
+    offsiteHashes = off.arquivos;
+    console.log(
+      `Manifesto da cópia externa: ${Object.keys(off.arquivos).length} arquivo(s), ` +
+        `copiados em ${off.copiado_em}.`,
+    );
+    if (Object.keys(off.falhas ?? {}).length) {
+      console.warn(`ATENÇÃO: a cópia registrou falhas em: ${Object.keys(off.falhas).join(", ")}`);
+    }
+  }
 
   const manifesto = JSON.parse((await baixar("_manifest.json")) ?? "null");
   if (!manifesto) throw new Error(`não achei o manifesto de ${DATA}`);

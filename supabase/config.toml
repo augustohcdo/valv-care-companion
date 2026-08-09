@@ -31,3 +31,6 @@ verify_jwt = false
 
 [functions.admin-digest]
 verify_jwt = false
+
+[functions.offsite-copy]
+verify_jwt = false
