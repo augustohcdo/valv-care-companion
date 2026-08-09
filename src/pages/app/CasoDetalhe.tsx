@@ -188,6 +188,19 @@ export default function CasoDetalhe() {
 
   return (
     <div className="max-w-5xl space-y-6">
+      {/* A válvula de segurança clínica da pseudonimização.
+          Quando o titular pede eliminação, o nome sai do prontuário — mas o
+          médico precisa saber que aquele caso tem dono identificável, e por
+          onde recuperar a identidade se o atendimento exigir. Sem este aviso,
+          o código pareceria erro de cadastro. */}
+      {caso.patient_name?.startsWith("Titular removido") && (
+        <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-[13px] leading-relaxed">
+          <strong>Titular solicitou eliminação dos dados (LGPD, Art. 18, VI).</strong> O registro
+          clínico é preservado por 20 anos, como manda a Lei 13.787/2018, mas o nome foi
+          substituído por um código. A identificação continua guardada em base restrita: peça ao
+          encarregado de dados (DPO) se o atendimento exigir.
+        </div>
+      )}
       <PageHeader
         eyebrow="Caso clínico"
         title={caso.patient_name}

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
+import { EncerrarContaDialog } from "@/components/EncerrarContaDialog";
 
 const RIGHT_LABELS: Record<string, string> = {
   confirmacao: "Confirmação de tratamento",
@@ -43,11 +44,39 @@ const STATUS_META: Record<DpoStatus, { label: string; color: string; icon: typeo
   negado: { label: "Negado", color: "bg-red-500/10 text-red-600 border-red-500/30", icon: XCircle },
 };
 
+/**
+ * Transforma o relatório do encerramento no texto que o titular vai ler.
+ *
+ * O relatório vem do próprio RPC que executou a ação, então a resposta descreve
+ * o que aconteceu de fato — e não o que alguém lembrou de escrever.
+ */
+export function textoDaResposta(relatorio: unknown): string {
+  const r = relatorio as { apagado?: Record<string, unknown>; mantido?: Record<string, unknown> } | null;
+  if (!r?.apagado && !r?.mantido) return "Conta encerrada.";
+
+  const linhas = (obj: Record<string, unknown> = {}) =>
+    Object.values(obj)
+      .filter((v) => v !== null && v !== undefined && v !== 0 && v !== "")
+      .map((v) => `• ${String(v)}`)
+      .join("\n");
+
+  return [
+    "Sua solicitação foi atendida. A conta foi encerrada.",
+    "",
+    "Apagado:",
+    linhas(r.apagado),
+    "",
+    "Mantido, por obrigação legal:",
+    linhas(r.mantido),
+  ].join("\n");
+}
+
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 
 interface DpoRequest {
   id: string;
+  user_id: string;
   right_type: string;
   status: DpoStatus;
   requester_name: string;
@@ -179,6 +208,35 @@ export default function AdminDPO() {
                     <div className="text-xs bg-secondary/40 rounded-md p-3">
                       <p className="font-medium text-foreground/80 mb-1">Detalhes do solicitante</p>
                       <p className="text-muted-foreground whitespace-pre-line">{req.details}</p>
+                    </div>
+                  )}
+
+                  {(req.right_type === "eliminacao" || req.right_type === "anonimizacao") && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <EncerrarContaDialog
+                        userId={req.user_id}
+                        rotulo="Encerrar conta do titular"
+                        onEncerrada={(relatorio) => {
+                          // A resposta ao titular nasce do relatório do próprio
+                          // encerramento, em vez de ser redigida de memória — é
+                          // o que garante que ela descreva o que de fato foi
+                          // feito. O admin pode editar antes de salvar.
+                          setDrafts((prev) => ({
+                            ...prev,
+                            [req.id]: {
+                              status: "atendido",
+                              response: textoDaResposta(relatorio),
+                            },
+                          }));
+                          logAudit("account_closed_via_dpo", "dpo_requests", req.id, {
+                            titular: req.user_id,
+                          });
+                          reload();
+                        }}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        Preenche a resposta com o que foi apagado e o que a lei obriga a manter.
+                      </span>
                     </div>
                   )}
 

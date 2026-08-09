@@ -58,6 +58,11 @@ const TABLES = [
   "watched_jobs",          // quem é vigiado e com que prazo
   "page_views",            // audiência agregada por dia; não identifica ninguém
   "retention_policies",    // o que é expurgado e com que prazo
+  // A correspondência entre o pseudônimo e o nome real. Deixá-la de fora
+  // tornaria a restauração incapaz de reidentificar o titular — e é justamente
+  // a capacidade de reidentificar que a guarda de 20 anos exige. O arquivo mora
+  // no mesmo bucket privado do resto do backup.
+  "pseudonym_map",
 ];
 
 // O que não é tabela de `public`. Fica numa lista à parte porque vem de RPC —

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
+import { EncerrarContaDialog } from "@/components/EncerrarContaDialog";
 
 export function SecurityCenter() {
   const { user, signOut } = useAuth();
@@ -189,6 +190,28 @@ export function SecurityCenter() {
           <Button variant="ghost" size="sm" onClick={signOut}>
             Sair apenas deste dispositivo
           </Button>
+        </div>
+
+        {/* Encerramento da conta.
+            Fica separado das outras ações, com borda própria, porque é a única
+            aqui que não se desfaz — misturá-lo aos botões de sessão convidaria
+            ao clique distraído. */}
+        <div className="pt-4 mt-2 border-t border-destructive/20 space-y-2">
+          <p className="text-sm font-medium">Encerrar minha conta</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Direito de eliminação (Art. 18, VI da LGPD). O acesso é revogado e os dados de
+            cadastro são apagados. O registro clínico é mantido porque a lei obriga a guardá-lo
+            por 20 anos — seu nome deixa de aparecer nele, substituído por um código.
+          </p>
+          <EncerrarContaDialog
+            confirmarComEmail={user?.email ?? undefined}
+            rotulo="Encerrar minha conta"
+            onEncerrada={async () => {
+              // A sessão precisa cair aqui também: o servidor já a invalidou, e
+              // deixar a tela aberta como se ainda houvesse conta seria mentira.
+              await signOut();
+            }}
+          />
         </div>
       </CardContent>
     </Card>

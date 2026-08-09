@@ -1711,6 +1711,36 @@ export type Database = {
         }
         Relationships: []
       }
+      pseudonym_map: {
+        Row: {
+          criado_em: string
+          id: string
+          motivo: string | null
+          origem: string
+          origem_id: string
+          user_id: string
+          valor_original: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          motivo?: string | null
+          origem: string
+          origem_id: string
+          user_id: string
+          valor_original: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          motivo?: string | null
+          origem?: string
+          origem_id?: string
+          user_id?: string
+          valor_original?: string
+        }
+        Relationships: []
+      }
       retention_policies: {
         Row: {
           coluna_data: string
@@ -2123,6 +2153,10 @@ export type Database = {
           arquivos_orfaos: number
           documentos_ausentes: number
         }[]
+      }
+      encerrar_conta: {
+        Args: { _motivo?: string; _user_id: string }
+        Returns: Json
       }
       has_role: {
         Args: {
