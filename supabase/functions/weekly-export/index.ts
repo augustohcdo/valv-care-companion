@@ -63,6 +63,10 @@ const TABLES = [
   // a capacidade de reidentificar que a guarda de 20 anos exige. O arquivo mora
   // no mesmo bucket privado do resto do backup.
   "pseudonym_map",
+  // A ficha das obras que originam a base clínica. O PDF em si fica fora do
+  // backup de propósito — é material de origem, que o dono tem em mãos —, mas
+  // a ficha entra: é ela que diz de onde veio cada citação.
+  "reference_works",
 ];
 
 // O que não é tabela de `public`. Fica numa lista à parte porque vem de RPC —

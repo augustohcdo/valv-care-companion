@@ -1750,6 +1750,48 @@ export type Database = {
         }
         Relationships: []
       }
+      reference_works: {
+        Row: {
+          authors: string | null
+          created_at: string
+          edition: string | null
+          file_bytes: number | null
+          id: string
+          notes: string | null
+          publisher: string | null
+          storage_path: string
+          title: string
+          uploaded_by: string | null
+          year: number | null
+        }
+        Insert: {
+          authors?: string | null
+          created_at?: string
+          edition?: string | null
+          file_bytes?: number | null
+          id?: string
+          notes?: string | null
+          publisher?: string | null
+          storage_path: string
+          title: string
+          uploaded_by?: string | null
+          year?: number | null
+        }
+        Update: {
+          authors?: string | null
+          created_at?: string
+          edition?: string | null
+          file_bytes?: number | null
+          id?: string
+          notes?: string | null
+          publisher?: string | null
+          storage_path?: string
+          title?: string
+          uploaded_by?: string | null
+          year?: number | null
+        }
+        Relationships: []
+      }
       retention_policies: {
         Row: {
           coluna_data: string

@@ -79,6 +79,7 @@ const adminNav: NavItem[] = [
   { to: "/app/admin", label: "Administração", icon: ShieldCheck, exact: true },
   { to: "/app/admin/usuarios", label: "Usuários e papéis", icon: Users },
   { to: "/app/admin/conteudo", label: "Revisão de conteúdo", icon: BookOpenCheck },
+  { to: "/app/admin/biblioteca", label: "Biblioteca de referência", icon: BookOpen },
   { to: "/app/admin/erros", label: "Erros e tarefas", icon: ShieldAlert },
   { to: "/app/admin/dpo", label: "Pedidos LGPD", icon: ScrollText },
   { to: "/app/admin/integracoes", label: "Integrações", icon: Plug },

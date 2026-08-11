@@ -2,7 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
   ShieldCheck, Stethoscope, HeartPulse, FolderOpen, Eye,
-  ShieldAlert, ScrollText, Plug, Users, BookOpenCheck, ChevronRight, Loader2,
+  ShieldAlert, ScrollText, Plug, Users, BookOpen,
+  BookOpenCheck, ChevronRight, Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +32,12 @@ const ATALHOS = [
     label: "Revisão de conteúdo",
     descricao: "Trechos que alimentam a IA clínica, e quem os revisou.",
     icon: BookOpenCheck,
+  },
+  {
+    to: "/app/admin/biblioteca",
+    label: "Biblioteca de referência",
+    descricao: "As obras que originam a base clínica, para conferir na fonte.",
+    icon: BookOpen,
   },
   {
     to: "/app/admin/erros",
