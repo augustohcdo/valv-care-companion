@@ -1293,11 +1293,14 @@ export type Database = {
       }
       knowledge_sources: {
         Row: {
+          authors: string | null
           citation: string | null
           created_at: string
           description: string | null
+          edition: string | null
           id: string
           is_primary_br: boolean
+          license_note: string | null
           organization: string
           review_status: string
           reviewed_at: string | null
@@ -1310,11 +1313,14 @@ export type Database = {
           year: number
         }
         Insert: {
+          authors?: string | null
           citation?: string | null
           created_at?: string
           description?: string | null
+          edition?: string | null
           id?: string
           is_primary_br?: boolean
+          license_note?: string | null
           organization: string
           review_status?: string
           reviewed_at?: string | null
@@ -1327,11 +1333,14 @@ export type Database = {
           year: number
         }
         Update: {
+          authors?: string | null
           citation?: string | null
           created_at?: string
           description?: string | null
+          edition?: string | null
           id?: string
           is_primary_br?: boolean
+          license_note?: string | null
           organization?: string
           review_status?: string
           reviewed_at?: string | null
