@@ -109,6 +109,9 @@ interface ReqBody {
   question?: string;
   history?: { role: "user" | "assistant"; content: string }[];
   rawText?: string; // for extract_echo
+  /** Laudo em arquivo: foto ou PDF do documento, em base64 (sem o prefixo data:). */
+  fileBase64?: string;
+  fileMimeType?: string;
 }
 
 // O frontend manda "assistant" (convenção comum); a API do Gemini espera "model".
@@ -179,8 +182,27 @@ Deno.serve(async (req) => {
     // ==========================================================
     if (mode === "extract_echo") {
       const raw = (body.rawText ?? "").trim();
-      if (!raw) {
-        return new Response(JSON.stringify({ error: "rawText obrigatório" }), {
+      const arquivo = body.fileBase64?.trim();
+      const arquivoTipo = (body.fileMimeType ?? "").trim();
+
+      if (!raw && !arquivo) {
+        return new Response(JSON.stringify({ error: "rawText ou fileBase64 obrigatório" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Só formato de documento. Não é uma limitação técnica arbitrária: é a
+      // linha entre transcrever um laudo e interpretar um exame.
+      const TIPOS_LAUDO = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+      if (arquivo && !TIPOS_LAUDO.includes(arquivoTipo)) {
+        return new Response(JSON.stringify({ error: "tipo de arquivo não suportado" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // ~8 MB em base64 ≈ 6 MB de arquivo. Acima disso a chamada estoura o
+      // limite do modelo e falha com erro obscuro.
+      if (arquivo && arquivo.length > 8_000_000) {
+        return new Response(JSON.stringify({ error: "arquivo grande demais (máx. ~6 MB)" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -197,10 +219,20 @@ Regras:
 - Se o campo não estiver claramente descrito no laudo, use null.
 - Nunca invente valores. Nunca converta unidades sem certeza.
 
-LAUDO:
-"""
-${raw.slice(0, 8000)}
-"""`;
+REGRA QUE MANDA EM TODAS AS OUTRAS — você TRANSCREVE, não INTERPRETA:
+- Só reporte número que esteja ESCRITO no documento, em texto. Você está lendo
+  um laudo, não avaliando um exame.
+- É PROIBIDO estimar, medir ou deduzir qualquer valor a partir da imagem do
+  ultrassom, do traçado Doppler, da régua ou de qualquer elemento gráfico. Um
+  gradiente medido "de olho" numa curva é invenção com aparência de dado, e
+  quem lê depois não tem como saber que foi inventado.
+- Se o que chegou for imagem de exame sem laudo escrito, devolva TODOS os
+  campos como null e is_laudo = false.
+- is_laudo = true apenas quando o documento contém texto de laudo legível.
+
+${raw
+  ? `LAUDO:\n"""\n${raw.slice(0, 8000)}\n"""`
+  : "O laudo vem no arquivo anexado a esta mensagem."}`;
 
       const numOrNull = { type: "NUMBER", nullable: true };
       const r = await fetch(GEMINI_URL, {
@@ -222,16 +254,27 @@ ${raw.slice(0, 8000)}
                   mitral_annulus_mm: numOrNull,
                   aortic_annulus_mm: numOrNull,
                   tricuspid_annulus_mm: numOrNull,
+                  is_laudo: {
+                    type: "BOOLEAN",
+                    description:
+                      "true quando o documento contém texto de laudo legível; false quando é imagem de exame sem laudo escrito.",
+                  },
                 },
                 required: [
                   "lvef", "mean_gradient", "aortic_valve_area", "psap",
                   "mitral_annulus_mm", "aortic_annulus_mm", "tricuspid_annulus_mm",
+                  "is_laudo",
                 ],
               },
             }],
           }],
           toolConfig: { functionCallingConfig: { mode: "ANY", allowedFunctionNames: ["extract_echo_data"] } },
-          contents: [{ role: "user", parts: [{ text: extractPrompt }] }],
+          contents: [{
+            role: "user",
+            parts: arquivo
+              ? [{ text: extractPrompt }, { inlineData: { mimeType: arquivoTipo, data: arquivo } }]
+              : [{ text: extractPrompt }],
+          }],
         }),
       });
       if (!r.ok) {
@@ -252,6 +295,10 @@ ${raw.slice(0, 8000)}
       const mitral_annulus_mm = clean(parsed.mitral_annulus_mm);
       const aortic_annulus_mm = clean(parsed.aortic_annulus_mm);
       const tricuspid_annulus_mm = clean(parsed.tricuspid_annulus_mm);
+      // Só é `false` quando o modelo afirma que não há laudo escrito. Ausente
+      // (modelo antigo, resposta truncada) não vira acusação: a tela só avisa
+      // com a negativa explícita.
+      const is_laudo = parsed.is_laudo === false ? false : true;
 
       // Sugestão de anéis compatíveis (nunca preenchimento automático — o médico revisa)
       const ringSuggestions: Array<{ id: string; manufacturer: string; model_name: string; size: number; annulus_range: string; reference_url: string | null; valve: string }> = [];
@@ -281,6 +328,7 @@ ${raw.slice(0, 8000)}
       if (tricuspid_annulus_mm) ringSuggestions.push(...(await suggestFor(tricuspid_annulus_mm, "tricuspide")));
 
       return new Response(JSON.stringify({
+        is_laudo,
         lvef, mean_gradient, aortic_valve_area, psap,
         mitral_annulus_mm, aortic_annulus_mm, tricuspid_annulus_mm,
         ring_suggestions: ringSuggestions,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, Cloud, CloudOff, Loader2, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Cloud, CloudOff, Loader2, Sparkles, Trash2, Upload } from "lucide-react";
 import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -144,22 +144,49 @@ export default function NovoCaso() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [prostheses, setProstheses] = useState<Array<{ id: string; manufacturer: string; model_name: string; type: string; size: number | null; effective_orifice_area: number | null }>>([]);
   const [echoRaw, setEchoRaw] = useState("");
+  const laudoInputRef = useRef<HTMLInputElement>(null);
   const [echoExtracting, setEchoExtracting] = useState(false);
   const [ringSuggestions, setRingSuggestions] = useState<Array<{ id: string; manufacturer: string; model_name: string; size: number; annulus_range: string; reference_url: string | null; valve: string }>>([]);
 
-  const extractEcho = async () => {
-    if (!echoRaw.trim()) return;
+  /**
+   * Extrai os números do laudo — do texto colado ou do arquivo do laudo.
+   *
+   * O que a IA faz aqui é **transcrever** o que está escrito no documento, não
+   * avaliar o exame: medir um gradiente "de olho" num traçado Doppler seria
+   * inventar um dado com aparência de medida, e quem lesse depois não teria
+   * como saber. Por isso a função devolve `is_laudo: false` quando recebe
+   * imagem de exame sem laudo escrito, e a tela avisa em vez de preencher.
+   */
+  const extractEcho = async (arquivo?: File) => {
+    if (!arquivo && !echoRaw.trim()) return;
     setEchoExtracting(true);
     setRingSuggestions([]);
     try {
-      const { data, error } = await supabase.functions.invoke("clinical-ai", {
-        body: { mode: "extract_echo", rawText: echoRaw },
-      });
+      let corpo: Record<string, unknown> = { mode: "extract_echo", rawText: echoRaw };
+      if (arquivo) {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onerror = () => reject(new Error("não consegui ler o arquivo"));
+          // `result` vem como data:<tipo>;base64,<dados> — a função quer só os dados.
+          fr.onload = () => resolve(String(fr.result).split(",")[1] ?? "");
+          fr.readAsDataURL(arquivo);
+        });
+        corpo = { mode: "extract_echo", fileBase64: base64, fileMimeType: arquivo.type };
+      }
+      const { data, error } = await supabase.functions.invoke("clinical-ai", { body: corpo });
       if (error) {
         toast.error("Falha na extração", { description: (error as any)?.message });
         return;
       }
       if (data?.error) { toast.error(data.error); return; }
+      if (data?.is_laudo === false) {
+        toast.warning("Isto parece imagem de exame, não laudo", {
+          description:
+            "A leitura transcreve o texto do laudo; ela não mede nada na imagem do ultrassom. " +
+            "Envie o laudo escrito ou digite os valores.",
+        });
+        return;
+      }
       const patch: Partial<FormState> = {};
       if (typeof data.lvef === "number") patch.ejection_fraction = String(data.lvef);
       if (typeof data.mean_gradient === "number") patch.mean_gradient = String(data.mean_gradient);
@@ -606,21 +633,57 @@ export default function NovoCaso() {
                     placeholder="Cole aqui o texto do laudo (FE, gradiente médio, AVA, PSAP...). A IA irá extrair os números para você revisar."
                     className="mt-1.5 min-h-[110px] text-xs"
                   />
-                  <div className="flex items-center justify-between gap-2 mt-2">
-                    <p className="text-[11px] text-muted-foreground">
+                  <div className="flex items-center justify-between gap-2 mt-2 flex-wrap">
+                    <p className="text-[11px] text-muted-foreground min-w-0">
                       Extração automática de LVEF, gradiente médio, AVA e PSAP. Você revisa antes de salvar.
                     </p>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      disabled={!echoRaw.trim() || echoExtracting}
-                      onClick={extractEcho}
-                    >
-                      {echoExtracting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                      Extrair Dados Clínicos
-                    </Button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Anexar o laudo em vez de digitar. A leitura transcreve o
+                          texto do documento — foto do laudo impresso ou PDF do
+                          laboratório —, e não avalia a imagem do exame. */}
+                      <input
+                        ref={laudoInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          e.target.value = "";
+                          if (!f) return;
+                          if (f.size > 6 * 1024 * 1024) {
+                            toast.error("Arquivo grande demais", { description: "Máximo 6 MB." });
+                            return;
+                          }
+                          void extractEcho(f);
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={echoExtracting}
+                        onClick={() => laudoInputRef.current?.click()}
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        Anexar laudo
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={!echoRaw.trim() || echoExtracting}
+                        onClick={() => void extractEcho()}
+                      >
+                        {echoExtracting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                        Extrair Dados Clínicos
+                      </Button>
+                    </div>
                   </div>
+                  <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                    A leitura <strong>transcreve o que está escrito</strong> no laudo (foto ou PDF). Ela não mede
+                    nem interpreta a imagem do exame — para isso não existe base comprovada, e um número estimado
+                    de um traçado seria invenção com cara de medida.
+                  </p>
                   {ringSuggestions.length > 0 && (
                     <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
                       <p className="text-xs font-semibold text-primary mb-2">
