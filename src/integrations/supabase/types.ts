@@ -1757,7 +1757,9 @@ export type Database = {
           edition: string | null
           file_bytes: number | null
           id: string
+          kind: string
           notes: string | null
+          pages: number | null
           publisher: string | null
           storage_path: string
           title: string
@@ -1770,7 +1772,9 @@ export type Database = {
           edition?: string | null
           file_bytes?: number | null
           id?: string
+          kind?: string
           notes?: string | null
+          pages?: number | null
           publisher?: string | null
           storage_path: string
           title: string
@@ -1783,7 +1787,9 @@ export type Database = {
           edition?: string | null
           file_bytes?: number | null
           id?: string
+          kind?: string
           notes?: string | null
+          pages?: number | null
           publisher?: string | null
           storage_path?: string
           title?: string

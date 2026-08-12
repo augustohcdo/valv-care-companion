@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Download, Loader2, Trash2, Upload } from "lucide-react";
+import { BookOpen, Download, FileText, Loader2, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
+import { extrairTexto } from "@/lib/pdfTexto";
 import { useAuth } from "@/hooks/useAuth";
 import { aplicar } from "@/lib/mutate";
 import { logAudit } from "@/lib/auditLog";
@@ -39,6 +40,8 @@ interface Obra {
   storage_path: string;
   file_bytes: number | null;
   notes: string | null;
+  kind: string;
+  pages: number | null;
   created_at: string;
 }
 
@@ -54,7 +57,9 @@ export default function AdminBiblioteca() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ ...vazio });
   const [enviando, setEnviando] = useState(false);
+  const [progresso, setProgresso] = useState<{ pagina: number; total: number } | null>(null);
   const arquivoRef = useRef<HTMLInputElement>(null);
+  const textoRef = useRef<HTMLInputElement>(null);
 
   const { data: obras = [], isLoading } = useQuery({
     queryKey: bibliotecaKey(),
@@ -130,6 +135,111 @@ export default function AdminBiblioteca() {
     }
 
     logAudit("reference_work_added", "reference_works", caminho, { title: form.title.trim() });
+    setForm({ ...vazio });
+    recarregar();
+  };
+
+  /**
+   * O caminho principal para obra grande: o PDF **não sobe**.
+   *
+   * O teto do projeto é 50 MB e não pode ser levantado no plano gratuito, mas o
+   * arquivo grande não é o que interessa — um livro pesa 300 MB por causa de
+   * imagem e fonte embutida, e o texto dele são poucos megabytes. Extrai-se
+   * aqui, no navegador, e sobe só o texto, com a página junto para a citação
+   * continuar chegando à página.
+   */
+  const enviarTexto = async (arquivo: File) => {
+    if (!form.title.trim()) {
+      toast.error("Informe o título da obra antes de enviar");
+      return;
+    }
+    if (!arquivo.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("Só PDF", { description: "A extração de texto lê apenas .pdf." });
+      return;
+    }
+
+    setEnviando(true);
+    setProgresso({ pagina: 0, total: 0 });
+    let extraido;
+    try {
+      extraido = await extrairTexto(arquivo, (pagina, total) => setProgresso({ pagina, total }));
+    } catch (e) {
+      setEnviando(false);
+      setProgresso(null);
+      toast.error("Não consegui ler o PDF", {
+        description: e instanceof Error ? e.message : String(e),
+      });
+      return;
+    }
+    setProgresso(null);
+
+    if (extraido.semTextoLegivel) {
+      setEnviando(false);
+      // Dois motivos possíveis, mesma saída prática: ou a obra é digitalização
+      // de imagem, ou a camada de texto existe e não decodifica (fonte sem mapa
+      // Unicode, OCR antigo). Deixar qualquer um dos dois subir produziria um
+      // arquivo com a cara certa e nada aproveitável dentro.
+      const motivo =
+        extraido.caracteres < 200
+          ? "Este PDF não tem texto — é digitalização de imagem."
+          : `O texto deste PDF não decodifica (só ${Math.round(extraido.legibilidade * 100)}% legível).`;
+      toast.error(motivo, {
+        description:
+          "Recorte só as páginas do capítulo (Imprimir → Salvar como PDF) e use o envio do arquivo, " +
+          "que cabe nos 50 MB — eu leio renderizando as páginas.",
+      });
+      return;
+    }
+
+    const conteudo = JSON.stringify({
+      obra: form.title.trim(),
+      extraido_em: new Date().toISOString(),
+      paginas: extraido.paginas,
+    });
+    const blob = new Blob([conteudo], { type: "application/json" });
+    const limpo = arquivo.name.replace(/\.pdf$/i, "").replace(/[^a-zA-Z0-9._-]/g, "_");
+    const caminho = `texto/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID().slice(0, 8)}-${limpo}.json`;
+
+    const { error: erroUpload } = await supabase.storage
+      .from(BUCKET)
+      .upload(caminho, blob, { contentType: "application/json", upsert: false });
+    if (erroUpload) {
+      setEnviando(false);
+      toast.error("Falha no envio do texto", { description: erroUpload.message });
+      return;
+    }
+
+    const ok = await aplicar(
+      supabase.from("reference_works").insert({
+        title: form.title.trim(),
+        authors: form.authors.trim() || null,
+        edition: form.edition.trim() || null,
+        year: form.year ? Number(form.year) : null,
+        publisher: form.publisher.trim() || null,
+        notes: form.notes.trim() || null,
+        storage_path: caminho,
+        file_bytes: blob.size,
+        kind: "texto",
+        pages: extraido.totalPaginas,
+        uploaded_by: user?.id ?? null,
+      }),
+      { sucesso: "Texto enviado", falha: "Não foi possível registrar a obra" },
+    );
+    setEnviando(false);
+    if (!ok) {
+      await supabase.storage.from(BUCKET).remove([caminho]);
+      return;
+    }
+
+    const de = (arquivo.size / 1024 / 1024).toFixed(0);
+    const para = (blob.size / 1024 / 1024).toFixed(1);
+    toast.success(`${extraido.totalPaginas} páginas extraídas`, {
+      description: `${de} MB de PDF viraram ${para} MB de texto — o arquivo não saiu do seu computador.`,
+    });
+    logAudit("reference_text_added", "reference_works", caminho, {
+      title: form.title.trim(),
+      paginas: extraido.totalPaginas,
+    });
     setForm({ ...vazio });
     recarregar();
   };
@@ -235,15 +345,55 @@ export default function AdminBiblioteca() {
               if (f) void enviar(f);
             }}
           />
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button onClick={() => arquivoRef.current?.click()} disabled={enviando}>
-              {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              Escolher PDF e enviar
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              Até 50 MB por arquivo. Obra maior: abra no navegador, Imprimir → Salvar como PDF,
-              escolhendo só as páginas do capítulo.
-            </p>
+          <input
+            ref={textoRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) void enviarTexto(f);
+            }}
+          />
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <Button onClick={() => textoRef.current?.click()} disabled={enviando}>
+                {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                Extrair texto e enviar
+              </Button>
+              <p className="text-xs text-muted-foreground min-w-0">
+                <strong>Sem limite de tamanho.</strong> O PDF é lido aqui no seu navegador e{" "}
+                <strong>não sai do seu computador</strong> — sobe só o texto, com o número de cada página.
+              </p>
+            </div>
+
+            {progresso && (
+              <div className="space-y-1">
+                <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all"
+                    style={{ width: progresso.total ? `${(progresso.pagina / progresso.total) * 100}%` : "0%" }}
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {progresso.total
+                    ? `Lendo página ${progresso.pagina} de ${progresso.total}…`
+                    : "Abrindo o documento…"}
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 flex-wrap pt-2 border-t border-border">
+              <Button variant="outline" onClick={() => arquivoRef.current?.click()} disabled={enviando}>
+                <Upload className="h-4 w-4" />
+                Enviar o PDF inteiro
+              </Button>
+              <p className="text-xs text-muted-foreground min-w-0">
+                Até 50 MB (teto do plano). Útil quando ter o original ajuda — capítulo recortado,
+                diretriz curta, ou obra escaneada, que não tem texto para extrair.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -270,7 +420,8 @@ export default function AdminBiblioteca() {
                   </p>
                   {o.notes && <p className="text-xs text-muted-foreground mt-1">{o.notes}</p>}
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    {tamanho(o.file_bytes)} · enviado em{" "}
+                    {o.kind === "texto" ? "Texto extraído" : "PDF"}
+                    {o.pages ? ` · ${o.pages} páginas` : ""} · {tamanho(o.file_bytes)} · enviado em{" "}
                     {new Date(o.created_at).toLocaleDateString("pt-BR")}
                   </p>
                 </div>
