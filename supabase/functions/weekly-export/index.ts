@@ -56,6 +56,7 @@ const TABLES = [
   "client_errors",
   "job_runs",
   "watched_jobs",          // quem é vigiado e com que prazo
+  "trusted_sources",       // onde a IA pode pesquisar e o escopo de cada fonte
   "page_views",            // audiência agregada por dia; não identifica ninguém
   "retention_policies",    // o que é expurgado e com que prazo
   // A correspondência entre o pseudônimo e o nome real. Deixá-la de fora

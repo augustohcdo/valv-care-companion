@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Sparkles, Loader2, FileText, Stethoscope, TrendingUp, Send, AlertTriangle, BookOpen, ExternalLink, ShieldAlert } from "lucide-react";
+import { Sparkles, Loader2, FileText, Stethoscope, TrendingUp, Send, AlertTriangle, BookOpen, ExternalLink, ShieldAlert, Globe } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,6 +15,8 @@ import { toast } from "sonner";
 type Source = { title: string; organization: string; year: number; scope: "br" | "international"; url: string | null; similarity: number; review_status: string };
 /** Vem de `src/lib/aiModes.ts`, que é conferido contra a edge function. */
 type Mode = ModoPainel;
+/** Camada externa: artigo indexado, com o desenho do estudo à vista. */
+type Artigo = { pmid: string; titulo: string; revista: string; ano: string; tipos: string[]; url: string };
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
 interface Props {
@@ -25,6 +29,10 @@ export function ClinicalAIPanel({ caseId }: Props) {
   const [results, setResults] = useState<Record<string, string>>({});
   const [sourcesByMode, setSourcesByMode] = useState<Record<string, Source[]>>({});
   const [ragHitByMode, setRagHitByMode] = useState<Record<string, boolean>>({});
+  const [artigosByMode, setArtigosByMode] = useState<Record<string, Artigo[]>>({});
+  const [chatArtigos, setChatArtigos] = useState<Artigo[]>([]);
+  // Desligado por padrão: a busca externa é mais lenta e o médico deve pedi-la.
+  const [pesquisar, setPesquisar] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMsg[]>([]);
   const [chatSources, setChatSources] = useState<Source[]>([]);
   const [chatRagHit, setChatRagHit] = useState<boolean | null>(null);
@@ -57,7 +65,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("clinical-ai", {
-        body: { mode: targetMode, caseId, question, history },
+        body: { mode: targetMode, caseId, question, history, pesquisar },
       });
       if (error) {
         const status = (error as any)?.context?.status;
@@ -77,7 +85,10 @@ export function ClinicalAIPanel({ caseId }: Props) {
         toast.error(data.error);
         return null;
       }
-      return data as { content: string; sources?: Source[]; rag_hit?: boolean };
+      return data as {
+        content: string; sources?: Source[]; rag_hit?: boolean;
+        external_sources?: Artigo[];
+      };
     } catch (e) {
       console.error(e);
       toast.error("Falha de comunicação com a IA");
@@ -93,6 +104,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
       setResults((prev) => ({ ...prev, [m]: res.content }));
       setSourcesByMode((prev) => ({ ...prev, [m]: res.sources ?? [] }));
       setRagHitByMode((prev) => ({ ...prev, [m]: !!res.rag_hit }));
+      setArtigosByMode((prev) => ({ ...prev, [m]: res.external_sources ?? [] }));
     }
   };
 
@@ -107,6 +119,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
       setChatHistory([...newHistory, { role: "assistant", content: res.content }]);
       setChatSources(res.sources ?? []);
       setChatRagHit(!!res.rag_hit);
+      setChatArtigos(res.external_sources ?? []);
     }
   };
 
@@ -142,6 +155,22 @@ export function ClinicalAIPanel({ caseId }: Props) {
             <TabsTrigger value="chat"><Send className="h-3.5 w-3.5 mr-1" />Chat</TabsTrigger>
           </TabsList>
 
+          {/* A cerca, dita em uma linha: o médico precisa saber que "pesquisar"
+              aqui não é pesquisar na internet. */}
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-primary/30 bg-primary/5 p-2.5">
+            <div className="flex items-center gap-2">
+              <Switch id="pesquisa-externa" checked={pesquisar} onCheckedChange={setPesquisar} />
+              <Label htmlFor="pesquisa-externa" className="text-xs font-medium flex items-center gap-1.5 cursor-pointer">
+                <Globe className="h-3.5 w-3.5 text-primary" /> Consultar a literatura
+              </Label>
+            </div>
+            <p className="text-[11px] text-muted-foreground min-w-0 flex-1">
+              Busca artigos indexados no PubMed (periódico, ano e desenho do estudo à vista) além da
+              base ValvePath. A consulta só alcança as fontes cadastradas — não é busca na internet
+              aberta.
+            </p>
+          </div>
+
           {(["summary", "suggest", "trends"] as const).map((m) => (
             <TabsContent key={m} value={m} className="mt-4 space-y-3">
               <Button onClick={() => runSimpleMode(m)} disabled={loading} size="sm">
@@ -160,6 +189,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
                     <ReactMarkdown>{results[m]}</ReactMarkdown>
                   </div>
                   <SourcesList sources={sourcesByMode[m] ?? []} />
+                  <ArtigosList artigos={artigosByMode[m] ?? []} pediu={pesquisar} />
                 </>
               ) : (
                 <p className="text-xs text-muted-foreground">
@@ -213,6 +243,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
                   </div>
                 )}
                 <SourcesList sources={chatSources} />
+                <ArtigosList artigos={chatArtigos} pediu={pesquisar} />
               </>
             )}
             <div className="flex gap-2">
@@ -270,6 +301,56 @@ function SourcesList({ sources }: { sources: Source[] }) {
                   <ExternalLink className="h-2.5 w-2.5" />
                 </a>
               )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * A camada externa, em lista própria.
+ *
+ * Separada das fontes da base de propósito: as duas não têm o mesmo peso, e
+ * juntá-las faria um resumo de série de casos parecer recomendação de
+ * diretriz. O desenho do estudo aparece porque é ele que deixa o médico pesar
+ * o achado sozinho.
+ */
+function ArtigosList({ artigos, pediu }: { artigos: Artigo[]; pediu: boolean }) {
+  if (!pediu) return null;
+  if (!artigos.length) {
+    return (
+      <p className="text-[11px] text-muted-foreground border border-dashed border-border rounded-lg p-2.5">
+        A consulta à literatura não encontrou artigo indexado para esta pergunta. A resposta acima
+        não foi reforçada por ela.
+      </p>
+    );
+  }
+  return (
+    <div className="border border-border rounded-lg p-3 bg-background">
+      <p className="text-[11px] font-semibold text-foreground flex items-center gap-1.5 mb-2">
+        <Globe className="h-3 w-3 text-primary" />
+        Literatura consultada ({artigos.length}) — camada externa, distinta da base ValvePath
+      </p>
+      <ul className="space-y-1.5">
+        {artigos.map((a) => (
+          <li key={a.pmid} className="text-[11px] flex items-start gap-2">
+            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold shrink-0 bg-primary/15 text-primary">
+              PubMed
+            </span>
+            <span className="flex-1">
+              <span className="font-medium text-foreground">{a.titulo}</span>
+              <span className="text-muted-foreground"> · {a.revista}, {a.ano}</span>
+              {a.tipos.length > 0 && (
+                <span className="ml-1.5 text-[9px] uppercase font-semibold text-muted-foreground">
+                  · {a.tipos.join(" · ")}
+                </span>
+              )}
+              <a href={a.url} target="_blank" rel="noopener noreferrer"
+                 className="inline-flex items-center gap-0.5 ml-1.5 text-primary hover:underline">
+                PMID {a.pmid} <ExternalLink className="h-2.5 w-2.5" />
+              </a>
             </span>
           </li>
         ))}

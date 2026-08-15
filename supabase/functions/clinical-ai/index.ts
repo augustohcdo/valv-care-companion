@@ -5,6 +5,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { logError } from "../_shared/logError.ts";
+import {
+  buscarLiteratura, blocoDePesquisa, termoDeBusca,
+} from "../_shared/pesquisaExterna.ts";
+import type { FonteConfiavel, ArtigoEncontrado } from "../_shared/pesquisaExterna.ts";
 
 // Máximo de chamadas de IA clínica por usuário por hora (controle de custo/abuso).
 const RATE_LIMIT_PER_HOUR = 30;
@@ -67,6 +71,13 @@ REGRAS ABSOLUTAS DE CITAÇÃO (RAG):
 - Se a base ValvePath incluir a Diretriz Brasileira de Valvopatias (SBC 2024), destaque-a como referência primária para o contexto brasileiro e mostre lado a lado quando divergir de ACC/AHA ou ESC (formato "ESC 2021: Classe I | SBC 2024: Classe IIa — motivo: X").
 - Se NENHUM trecho relevante for retornado, escreva explicitamente: "⚠️ Não encontrei essa recomendação na base carregada da ValvePath. A resposta abaixo baseia-se no conhecimento geral do modelo e deve ser verificada em fonte primária antes de qualquer decisão." — e só então responda.
 - NUNCA invente número de página, DOI, ou trecho literal que não esteja nas referências recuperadas.
+
+AS TRÊS CAMADAS DE FONTE — nunca as misture, e sempre diga de qual veio:
+1. **BASE ValvePath** (bloco "REFERÊNCIAS RECUPERADAS"): diretriz sintetizada e curada. Cite [Fonte: {organização} {ano}]. É a camada de maior peso para conduta.
+2. **LITERATURA EXTERNA** (bloco "LITERATURA RECUPERADA", vinda do PubMed): artigo indexado. Cite [Literatura: {periódico} {ano}, PMID {id}] e **nomeie o desenho do estudo** (metanálise, ensaio randomizado, coorte, série de casos) — sem isso o médico não consegue pesar o achado. Resumo de artigo **não é** recomendação de diretriz: se ele divergir da camada 1, aponte a divergência em vez de escolher sozinho.
+3. **CONHECIMENTO GERAL DO MODELO**: tudo o que não veio de 1 nem de 2. Diga isso explicitamente na frase, e nunca dê a essa camada aparência de citação.
+- Fonte de fabricante embasa **apenas** especificação técnica do próprio produto (modelo, tamanho, faixa de anel, área efetiva). Nunca indicação, comparação entre marcas ou desfecho clínico — é material de quem vende a prótese.
+- Se a pesquisa externa não devolveu nada, diga que a busca não achou literatura para a pergunta. Não preencha o vazio com a camada 3 sem avisar.
 
 BASE DE CONHECIMENTO DE REFERÊNCIA (títulos que a base ValvePath cataloga):
 - Diretriz Brasileira de Valvopatias — SBC 2024 (Arq Bras Cardiol) — FONTE PRIMÁRIA BR
@@ -143,6 +154,8 @@ interface ReqBody {
   caseId?: string;
   question?: string;
   history?: { role: "user" | "assistant"; content: string }[];
+  /** Liga a consulta à literatura externa (PubMed), além da base ValvePath. */
+  pesquisar?: boolean;
   rawText?: string; // for extract_echo
   /** Laudo em arquivo: foto ou PDF do documento, em base64 (sem o prefixo data:). */
   fileBase64?: string;
@@ -670,11 +683,45 @@ ${commonRules}`;
       }
     }
 
+    // ============================================================
+    // Pesquisa externa: literatura indexada, dentro da cerca de domínios.
+    //
+    // A base ValvePath é curada e pequena — e é isso que limita o médico
+    // quando ele pergunta sobre estudo recente. Aqui ele pede a busca
+    // explicitamente (`pesquisar: true`), e o que volta entra como **camada
+    // separada**, com periódico, ano e desenho do estudo à vista. Misturar as
+    // duas faria um resumo de série de casos chegar com o peso de uma
+    // recomendação Classe I.
+    //
+    // A orientação ao paciente fica de fora: ela não cita fonte nenhuma.
+    // ============================================================
+    let blocoExterno = "";
+    let literatura: ArtigoEncontrado[] = [];
+    if (body.pesquisar && mode !== "patient_discharge") {
+      const { data: fontes } = await supabase
+        .from("trusted_sources")
+        .select("domain, name, category, citable_for, never_for")
+        .eq("enabled", true);
+      const permitidas = (fontes ?? []) as FonteConfiavel[];
+      // Sem lista carregada não há cerca — e sem cerca não se pesquisa.
+      if (permitidas.some((f) => f.domain === "pubmed.ncbi.nlm.nih.gov")) {
+        literatura = await buscarLiteratura(
+          termoDeBusca({
+            valveType: caso.valve_type,
+            valveDisease: caso.valve_disease,
+            pergunta: mode === "chat" ? body.question : null,
+          }),
+          { max: 5 },
+        );
+        blocoExterno = blocoDePesquisa(literatura, permitidas);
+      }
+    }
+
     const messages: { role: "user" | "model"; content: string }[] = [];
     if (mode === "chat" && body.history?.length) {
       messages.push(...body.history.slice(-10).map((m) => ({ role: toGeminiRole(m.role), content: m.content })));
     }
-    messages.push({ role: "user", content: userPrompt + ragBlock });
+    messages.push({ role: "user", content: userPrompt + ragBlock + blocoExterno });
 
     const aiResp = await callGemini(GEMINI_API_KEY, {
       system: mode === "patient_discharge" ? SYSTEM_PROMPT_PACIENTE : SYSTEM_PROMPT,
@@ -708,7 +755,18 @@ ${commonRules}`;
     if (content.includes("[NOME_PACIENTE]")) {
       content = content.split("[NOME_PACIENTE]").join(caso.patient_name ?? "Paciente");
     }
-    return new Response(JSON.stringify({ content, sources: sourcesOut, rag_hit: sourcesOut.length > 0 }), {
+    return new Response(JSON.stringify({
+      content,
+      sources: sourcesOut,
+      rag_hit: sourcesOut.length > 0,
+      // Camada externa, separada de `sources` de propósito: a tela mostra as
+      // duas em listas distintas, porque elas não têm o mesmo peso.
+      external_sources: literatura.map((a) => ({
+        pmid: a.pmid, titulo: a.titulo, revista: a.revista,
+        ano: a.ano, tipos: a.tipos, url: a.url,
+      })),
+      pesquisa_externa: !!body.pesquisar,
+    }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

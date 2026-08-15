@@ -1926,6 +1926,42 @@ export type Database = {
           },
         ]
       }
+      trusted_sources: {
+        Row: {
+          category: string
+          citable_for: string
+          created_at: string
+          domain: string
+          enabled: boolean
+          id: string
+          name: string
+          never_for: string | null
+          notes: string | null
+        }
+        Insert: {
+          category: string
+          citable_for: string
+          created_at?: string
+          domain: string
+          enabled?: boolean
+          id?: string
+          name: string
+          never_for?: string | null
+          notes?: string | null
+        }
+        Update: {
+          category?: string
+          citable_for?: string
+          created_at?: string
+          domain?: string
+          enabled?: boolean
+          id?: string
+          name?: string
+          never_for?: string | null
+          notes?: string | null
+        }
+        Relationships: []
+      }
       user_consents: {
         Row: {
           consent_type: Database["public"]["Enums"]["consent_type"]
