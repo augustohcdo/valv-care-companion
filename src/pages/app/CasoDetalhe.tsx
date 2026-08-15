@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, Loader2, Save, Activity, Download } from "lucide-react";
+import { ArrowLeft, Trash2, Loader2, Save, Download } from "lucide-react";
 import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -18,8 +18,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   valveTypeLabels, valveDiseaseLabels, severityLabels, severityColors,
-  caseStatusLabels, nyhaLabels,
+  caseStatusLabels,
 } from "@/lib/clinicalLabels";
+import { CaseFindingsEditor } from "@/components/CaseFindingsEditor";
 import { CaseDocuments } from "@/components/CaseDocuments";
 import { CaseTimeline } from "@/components/CaseTimeline";
 import { CaseAppointments } from "@/components/CaseAppointments";
@@ -248,45 +249,12 @@ export default function CasoDetalhe() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          {/* Achados */}
-          <Card className="shadow-sm-soft">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Activity className="h-5 w-5 text-primary" /> Achados clínicos e ecocardiográficos
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
-              <Info label="Classe NYHA" value={caso.nyha ? nyhaLabels[caso.nyha] : "—"} />
-              <Info label="FE" value={caso.ejection_fraction ? `${caso.ejection_fraction}%` : "—"} />
-              <Info label="Gradiente médio" value={caso.mean_gradient ? `${caso.mean_gradient} mmHg` : "—"} />
-              <Info label="Gradiente máximo" value={caso.peak_gradient ? `${caso.peak_gradient} mmHg` : "—"} />
-              <Info label="Área valvar" value={caso.valve_area ? `${caso.valve_area} cm²` : "—"} />
-              <Info label="Regurgitação" value={caso.regurgitation_grade || "—"} />
-
-              {!!caso.symptoms?.length && (
-                <div className="sm:col-span-2">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1.5">Sintomas</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {caso.symptoms.map((s: string) => <Badge key={s} variant="secondary">{s}</Badge>)}
-                  </div>
-                </div>
-              )}
-              {!!caso.comorbidities?.length && (
-                <div className="sm:col-span-2">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1.5">Comorbidades</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {caso.comorbidities.map((s: string) => <Badge key={s} variant="outline">{s}</Badge>)}
-                  </div>
-                </div>
-              )}
-              {caso.proposed_management && (
-                <div className="sm:col-span-2 pt-2 border-t border-border">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Conduta proposta</p>
-                  <p className="text-foreground whitespace-pre-wrap">{caso.proposed_management}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Achados — leitura e edição no mesmo lugar */}
+          <CaseFindingsEditor
+            caso={caso}
+            readOnly={!isOwner}
+            onSaved={() => queryClient.invalidateQueries({ queryKey: caseDetailKey(id, doctor?.id) })}
+          />
 
           {/* Exames seriados com gráficos */}
           <CaseExams caseId={caso.id} readOnly={!isOwner} />
@@ -373,11 +341,3 @@ export default function CasoDetalhe() {
   );
 }
 
-function Info({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div>
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="text-foreground font-medium">{value || "—"}</p>
-    </div>
-  );
-}

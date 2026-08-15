@@ -10,6 +10,7 @@ const EVENTS = [
 
 let rows = [...EVENTS];
 const updateSpy = vi.fn();
+const insertSpy = vi.fn();
 
 
 /**
@@ -44,11 +45,16 @@ vi.mock("@/integrations/supabase/client", () => ({
       update: (values: any) => ({
         eq: (col: string, val: any) => {
           updateSpy(values, col, val);
-          rows = rows.filter((r) => r.id !== val);
+          // Só a remoção tira a linha da lista; a edição atualiza no lugar.
+          if (values.deleted_at) rows = rows.filter((r) => r.id !== val);
+          else rows = rows.map((r) => (r.id === val ? { ...r, ...values } : r));
           return escrita({ error: null });
         },
       }),
-      insert: () => Promise.resolve({ error: null }),
+      insert: (values: any) => {
+        insertSpy(values);
+        return escrita({ error: null });
+      },
     }),
   },
 }));
@@ -69,6 +75,7 @@ describe("CaseTimeline", () => {
   beforeEach(() => {
     rows = [...EVENTS];
     updateSpy.mockClear();
+    insertSpy.mockClear();
     vi.clearAllMocks();
     vi.spyOn(window, "confirm").mockReturnValue(true);
   });
@@ -100,6 +107,47 @@ describe("CaseTimeline", () => {
     expect(logAudit).toHaveBeenCalledWith("event_deleted", "case_events", expect.any(String), { case_id: "c1" });
 
     await waitFor(() => expect(screen.queryByText("Consulta de retorno")).not.toBeInTheDocument());
+  });
+
+  /**
+   * A linha do tempo só deixava criar e remover. Um evento com data ou título
+   * errado obrigava a apagar e recriar — e apagar registro de prontuário para
+   * corrigir digitação é a pior das duas saídas.
+   */
+  it("editar carrega o evento no formulário e salva por update, não por insert", async () => {
+    render(<CaseTimeline caseId="c1" />, { wrapper });
+    await waitFor(() => expect(screen.getByText("Consulta de retorno")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /Editar evento Consulta de retorno/i }));
+    expect(await screen.findByText("Editar evento clínico")).toBeInTheDocument();
+
+    const titulo = screen.getByDisplayValue("Consulta de retorno");
+    fireEvent.change(titulo, { target: { value: "Consulta de retorno (revisada)" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => expect(updateSpy).toHaveBeenCalled());
+    const [values, col, val] = updateSpy.mock.calls[0];
+    expect(values.title).toBe("Consulta de retorno (revisada)");
+    expect(values).not.toHaveProperty("deleted_at");
+    expect(col).toBe("id");
+    expect(val).toBe("e1");
+    expect(insertSpy).not.toHaveBeenCalled();
+    expect(logAudit).toHaveBeenCalledWith("event_updated", "case_events", "e1", { case_id: "c1" });
+  });
+
+  it("fechar a edição não deixa o evento carregado no formulário de criação", async () => {
+    render(<CaseTimeline caseId="c1" />, { wrapper });
+    await waitFor(() => expect(screen.getByText("Eco de controle")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /Editar evento Eco de controle/i }));
+    expect(await screen.findByDisplayValue("Eco de controle")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByText("Editar evento clínico")).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /Novo evento/i }));
+    expect(await screen.findByText("Registrar evento clínico")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Eco de controle")).not.toBeInTheDocument();
   });
 
   it("em readOnly não oferece criar nem remover", async () => {

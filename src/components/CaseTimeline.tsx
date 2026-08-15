@@ -13,6 +13,7 @@ import {
   Pill,
   StickyNote,
   Trash2,
+  Edit2,
   History,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,6 +68,7 @@ export const CaseTimeline = ({ caseId, readOnly = false }: Props) => {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [eventType, setEventType] = useState("observacao");
   const [eventDate, setEventDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -95,6 +97,20 @@ export const CaseTimeline = ({ caseId, readOnly = false }: Props) => {
     setEventDate(new Date().toISOString().slice(0, 10));
     setTitle("");
     setDescription("");
+    setEditingId(null);
+  };
+
+  /** Único caminho de fechamento: sem isto, cancelar uma edição deixaria o
+   *  evento carregado no formulário do próximo "Novo evento". */
+  const fechar = () => { setOpen(false); reset(); };
+
+  const startEdit = (e: { id: string; event_type: string; event_date: string; title: string; description: string | null }) => {
+    setEditingId(e.id);
+    setEventType(e.event_type);
+    setEventDate(e.event_date);
+    setTitle(e.title);
+    setDescription(e.description ?? "");
+    setOpen(true);
   };
 
   const submit = async () => {
@@ -104,22 +120,30 @@ export const CaseTimeline = ({ caseId, readOnly = false }: Props) => {
       return;
     }
     setSaving(true);
-    const { error } = await supabase.from("case_events").insert({
-      case_id: caseId,
-      created_by: user.id,
+    const campos = {
       event_type: eventType as any,
       event_date: eventDate,
       title: title.trim(),
       description: description.trim() || null,
-    });
+    };
+    // Na edição a escrita passa por `aplicar()`: uma recusa de RLS devolve 200
+    // com zero linhas, e sem isso "Evento atualizado" apareceria para quem não
+    // tem permissão nenhuma sobre o caso.
+    const ok = editingId
+      ? await aplicar(
+          supabase.from("case_events").update(campos).eq("id", editingId).select("id"),
+          { sucesso: "Evento atualizado", falha: "Não foi possível atualizar o evento" },
+        )
+      : await aplicar(
+          supabase.from("case_events")
+            .insert({ ...campos, case_id: caseId, created_by: user.id })
+            .select("id"),
+          { sucesso: "Evento registrado", falha: "Não foi possível registrar o evento" },
+        );
     setSaving(false);
-    if (error) {
-      toast.error("Erro ao registrar", { description: error.message });
-      return;
-    }
-    toast.success("Evento registrado");
-    reset();
-    setOpen(false);
+    if (!ok) return;
+    if (editingId) logAudit("event_updated", "case_events", editingId, { case_id: caseId });
+    fechar();
     load();
   };
 
@@ -142,7 +166,7 @@ export const CaseTimeline = ({ caseId, readOnly = false }: Props) => {
           <Badge variant="secondary" className="text-[10px] ml-1">{events.length}</Badge>
         </CardTitle>
         {!readOnly && (
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : fechar())}>
             <DialogTrigger asChild>
               <Button size="sm">
                 <Plus className="h-4 w-4" /> Novo evento
@@ -150,7 +174,7 @@ export const CaseTimeline = ({ caseId, readOnly = false }: Props) => {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Registrar evento clínico</DialogTitle>
+                <DialogTitle>{editingId ? "Editar evento clínico" : "Registrar evento clínico"}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
@@ -189,9 +213,9 @@ export const CaseTimeline = ({ caseId, readOnly = false }: Props) => {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button variant="ghost" onClick={fechar}>Cancelar</Button>
                 <Button onClick={submit} disabled={saving}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar"}
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingId ? "Salvar" : "Registrar"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -233,14 +257,26 @@ export const CaseTimeline = ({ caseId, readOnly = false }: Props) => {
                       )}
                     </div>
                     {!readOnly && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive"
-                        onClick={() => remove(e.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          aria-label={`Editar evento ${e.title}`}
+                          onClick={() => startEdit(e)}
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          aria-label={`Remover evento ${e.title}`}
+                          onClick={() => remove(e.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </li>
