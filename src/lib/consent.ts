@@ -87,6 +87,20 @@ export const CONSENT_CATALOG: ConsentDefinition[] = [
   },
 ];
 
+/**
+ * O que a pessoa lê quando o servidor recusa por falta de consentimento.
+ *
+ * Fica aqui, e não nas três telas, porque é o texto de uma recusa de
+ * conformidade: divergir entre elas seria dar três explicações diferentes para
+ * a mesma regra.
+ */
+export const AVISO_CONSENTIMENTO_IA = {
+  titulo: "Consentimento necessário",
+  descricao:
+    'Ative "Processamento por IA clínica" em Privacidade e segurança para usar a IA — ' +
+    "os dados do caso só vão ao provedor com esse consentimento.",
+} as const;
+
 export async function registerConsent(params: {
   type: ConsentType;
   granted: boolean;

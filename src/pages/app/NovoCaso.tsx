@@ -21,6 +21,7 @@ import {
   commonComorbidities,
 } from "@/lib/clinicalLabels";
 import { logAudit } from "@/lib/auditLog";
+import { hasActiveConsent, AVISO_CONSENTIMENTO_IA } from "@/lib/consent";
 
 const steps = [
   { n: 1, label: "Identificação" },
@@ -159,6 +160,14 @@ export default function NovoCaso() {
    */
   const extractEcho = async (arquivo?: File) => {
     if (!arquivo && !echoRaw.trim()) return;
+    // A leitura do laudo manda o documento inteiro ao provedor de IA — e era o
+    // único caminho da IA sem nenhuma checagem de consentimento, nem aqui nem
+    // no servidor. O servidor agora recusa; esta checagem existe para a recusa
+    // chegar como explicação, não como erro cru.
+    if (!(await hasActiveConsent("ai_processing"))) {
+      toast.error(AVISO_CONSENTIMENTO_IA.titulo, { description: AVISO_CONSENTIMENTO_IA.descricao });
+      return;
+    }
     setEchoExtracting(true);
     setRingSuggestions([]);
     try {
@@ -175,7 +184,9 @@ export default function NovoCaso() {
       }
       const { data, error } = await supabase.functions.invoke("clinical-ai", { body: corpo });
       if (error) {
-        toast.error("Falha na extração", { description: (error as any)?.message });
+        const status = (error as any)?.context?.status;
+        if (status === 403) toast.error(AVISO_CONSENTIMENTO_IA.titulo, { description: AVISO_CONSENTIMENTO_IA.descricao });
+        else toast.error("Falha na extração", { description: (error as any)?.message });
         return;
       }
       if (data?.error) { toast.error(data.error); return; }

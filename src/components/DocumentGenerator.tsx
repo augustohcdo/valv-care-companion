@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { hasActiveConsent } from "@/lib/consent";
+import { hasActiveConsent, AVISO_CONSENTIMENTO_IA } from "@/lib/consent";
 import { type ModoDocumento } from "@/lib/aiModes";
 import { toast } from "sonner";
 
@@ -73,7 +73,9 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
         body: { mode, caseId: caso.id },
       });
       if (error) {
-        toast.error(AI_MODES[mode].toastFail, { description: (error as any)?.message });
+        const status = (error as any)?.context?.status;
+        if (status === 403) toast.error(AVISO_CONSENTIMENTO_IA.titulo, { description: AVISO_CONSENTIMENTO_IA.descricao });
+        else toast.error(AI_MODES[mode].toastFail, { description: (error as any)?.message });
         setKind(null); return;
       }
       if (data?.error) { toast.error(data.error); setKind(null); return; }

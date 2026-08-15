@@ -184,6 +184,43 @@ Deno.serve(async (req) => {
     const userId = userRes.user.id;
 
     // ============================================================
+    // Consentimento de processamento por IA — a checagem que vale.
+    //
+    // Ela existia só no navegador: `ClinicalAIPanel` mostrava a parede de
+    // consentimento e `DocumentGenerator` chamava `hasActiveConsent` antes de
+    // invocar. A função aceitava qualquer requisição autenticada e mandava o
+    // caso para o Google. Medido: um médico descartável, criado **sem nenhum
+    // consentimento registrado**, rodou os dez modos sem ser barrado uma vez.
+    // E `extract_echo` — que envia o laudo inteiro, texto ou arquivo — não
+    // tinha nem a checagem do navegador.
+    //
+    // A Política de Privacidade publicada diz, duas vezes, que esse envio "só
+    // ocorre mediante o consentimento específico 'Processamento por IA
+    // clínica'". Enquanto a checagem viver no cliente, isso é uma afirmação
+    // sobre a interface, não sobre o sistema — mesma família do captcha que
+    // rodava só no navegador.
+    //
+    // Vem **antes** do rate limiting de propósito: recusa por falta de
+    // consentimento não deve consumir a cota horária de quem depois consentir.
+    // A leitura usa o cliente do próprio usuário, então a RLS garante que ele
+    // só enxergue o próprio consentimento — e ausência de linha é recusa.
+    // ============================================================
+    const { data: consentimento } = await supabase
+      .from("user_consents")
+      .select("granted, revoked_at")
+      .eq("user_id", userId)
+      .eq("consent_type", "ai_processing")
+      .maybeSingle();
+
+    if (!consentimento || consentimento.granted !== true || consentimento.revoked_at) {
+      return new Response(JSON.stringify({
+        error: "consent_required",
+        message: "O processamento por IA clínica exige o consentimento específico " +
+          "\"Processamento por IA clínica\". Ative-o em Privacidade e segurança.",
+      }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ============================================================
     // Rate limiting: evita abuso do nível gratuito da API Gemini.
     // Limita chamadas por usuário/hora usando o audit_logs existente.
     // ============================================================
