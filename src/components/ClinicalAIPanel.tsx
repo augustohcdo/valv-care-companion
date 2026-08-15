@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { type ModoPainel } from "@/lib/aiModes";
 import { hasActiveConsent, registerConsent } from "@/lib/consent";
 import { toast } from "sonner";
 
 type Source = { title: string; organization: string; year: number; scope: "br" | "international"; url: string | null; similarity: number; review_status: string };
-type Mode = "summary" | "suggest" | "trends" | "chat";
+/** Vem de `src/lib/aiModes.ts`, que é conferido contra a edge function. */
+type Mode = ModoPainel;
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
 interface Props {

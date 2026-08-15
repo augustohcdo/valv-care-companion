@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { hasActiveConsent } from "@/lib/consent";
+import { type ModoDocumento } from "@/lib/aiModes";
 import { toast } from "sonner";
 
 export const prosthesisKey = (prosthesisId?: string | null) =>
@@ -16,12 +17,11 @@ interface Props {
   riskScore?: { model: string; value: number | null } | null;
 }
 
-type DocKind =
-  | "evolucao" | "alta"
-  | "note_consultation" | "preop_summary" | "postop_note" | "discharge_summary";
+/** "evolucao" é montada aqui mesmo, sem IA; o resto vai para a edge function. */
+type DocKind = "evolucao" | ModoDocumento;
 
-const AI_MODES: Record<string, { label: string; toastFail: string }> = {
-  alta: { label: "Orientação de Alta (Paciente)", toastFail: "Falha ao gerar orientação" },
+const AI_MODES: Record<ModoDocumento, { label: string; toastFail: string }> = {
+  patient_discharge: { label: "Orientação de Alta (Paciente)", toastFail: "Falha ao gerar orientação" },
   note_consultation: { label: "Nota de Consulta", toastFail: "Falha ao gerar nota" },
   preop_summary: { label: "Resumo Pré-Operatório", toastFail: "Falha ao gerar resumo" },
   postop_note: { label: "Nota Pós-Operatória", toastFail: "Falha ao gerar nota" },
@@ -57,7 +57,7 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
     setKind("evolucao");
   };
 
-  const generateAi = async (mode: Exclude<DocKind, "evolucao">) => {
+  const generateAi = async (mode: ModoDocumento) => {
     const consented = await hasActiveConsent("ai_processing");
     if (!consented) {
       toast.error("Consentimento necessário", {
@@ -109,8 +109,8 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
           <Button variant="outline" onClick={generateEvolucao} className="justify-start">
             <Stethoscope className="h-4 w-4" /> Gerar Evolução Médica (Prontuário)
           </Button>
-          <Button variant="outline" onClick={() => generateAi("alta")} disabled={loading} className="justify-start">
-            {loading && kind === "alta" ? <Loader2 className="h-4 w-4 animate-spin" /> : <HeartHandshake className="h-4 w-4" />}
+          <Button variant="outline" onClick={() => generateAi("patient_discharge")} disabled={loading} className="justify-start">
+            {loading && kind === "patient_discharge" ? <Loader2 className="h-4 w-4 animate-spin" /> : <HeartHandshake className="h-4 w-4" />}
             Gerar Orientação de Alta (Paciente)
           </Button>
           <Button variant="outline" onClick={() => generateAi("note_consultation")} disabled={loading} className="justify-start">

@@ -100,6 +100,41 @@ LIMITES:
 - Público é médico: seja técnico, direto, cirúrgico. Português do Brasil.`;
 
 
+/**
+ * Instrução de sistema para o **paciente** — o único texto do sistema cujo
+ * leitor não é médico.
+ *
+ * O `SYSTEM_PROMPT` acima diz, com todas as letras, "Público é médico: seja
+ * técnico, direto, cirúrgico", e exige citação de diretriz com classe e nível
+ * de evidência mais o bloco "Limitações deste apoio". Aplicado à orientação de
+ * alta, ele produzia exatamente isso — verificado contra a função publicada:
+ * a orientação saía com "[Fonte: SBC 2024 (texto gerado por IA com base na
+ * diretriz oficial, aguardando revisão médica)]" no meio dos cuidados em casa,
+ * e um parágrafo final citando Heart Team e TAVI. Num papel que a pessoa leva
+ * para casa depois de uma cirurgia, "aguardando revisão médica" é a leitura
+ * mais errada possível — e a marcação existe para o médico, não para ela.
+ *
+ * Por isso este modo também **não recebe o bloco de RAG**: trecho de diretriz é
+ * prosa escrita para médico, e foram as regras de citação dele que vazaram. O
+ * conteúdo de uma orientação de alta sai do caso, não de uma citação.
+ */
+const SYSTEM_PROMPT_PACIENTE = `Você escreve para o PACIENTE, não para o médico.
+
+QUEM LÊ:
+- Uma pessoa que acabou de passar por um procedimento no coração, provavelmente cansada, com medo, e sem formação em saúde. Pode ser idosa. Pode ler junto com um familiar.
+
+COMO ESCREVER:
+- Português do Brasil simples e acolhedor. Frases curtas. Trate por "você".
+- Zero jargão. Nada de "Classe I", "NYHA", "Heart Team", "TAVI", "SAVR", "gradiente", "fração de ejeção".
+- Nunca cite diretriz, fonte, organização ou ano. Nunca escreva avisos técnicos sobre revisão de conteúdo ou origem do texto.
+- Não invente doses, nomes de remédio, datas de retorno ou prazos que não estejam no contexto: escreva "os remédios que seu médico receitou", "a data que a equipe marcou".
+- Não prometa cura nem garanta resultado.
+- Não termine com bloco de limitações nem com disclaimer técnico — a tela já traz o aviso de revisão para o médico.
+
+O QUE SEMPRE INCLUIR:
+- Orientação de procurar a equipe médica ou o pronto-socorro diante dos sinais de alerta.
+- Que estas orientações não substituem o que a equipe que cuidou dela disser.`;
+
 interface ReqBody {
   mode:
     | "summary" | "suggest" | "trends" | "chat"
@@ -570,7 +605,9 @@ ${commonRules}`;
     let ragBlock = "";
     let sourcesOut: Array<{ title: string; organization: string; year: number; scope: string; url: string | null; similarity: number; review_status: string }> = [];
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (SERVICE_ROLE) {
+    // A orientação de alta é para o paciente: trecho de diretriz e regra de
+    // citação são material do médico, e é deles que vinha o vazamento.
+    if (SERVICE_ROLE && mode !== "patient_discharge") {
       const embedding = await embedQuery(GEMINI_API_KEY, ragQuery);
       if (embedding) {
         const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
@@ -603,7 +640,7 @@ ${commonRules}`;
     messages.push({ role: "user", content: userPrompt + ragBlock });
 
     const aiResp = await callGemini(GEMINI_API_KEY, {
-      system: SYSTEM_PROMPT,
+      system: mode === "patient_discharge" ? SYSTEM_PROMPT_PACIENTE : SYSTEM_PROMPT,
       messages,
       max_tokens: mode === "summary" ? 2000 : 4000,
     });
