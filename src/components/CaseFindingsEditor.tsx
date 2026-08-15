@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Activity, Loader2, Pencil, Save, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Activity, FlaskConical, Loader2, Pencil, Save, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +16,10 @@ import {
   valveTypeLabels, valveDiseaseLabels, severityLabels, nyhaLabels,
   commonSymptoms, commonComorbidities,
 } from "@/lib/clinicalLabels";
-import { MEDIDAS, validarMedida, paraBanco, diferencas } from "@/lib/caseFields";
+import {
+  MEDIDAS, validarMedida, paraBanco, diferencas, doExameParaFormulario,
+} from "@/lib/caseFields";
+import { examTypeLabels } from "@/lib/clinicalLabels";
 import { logAudit } from "@/lib/auditLog";
 import { aplicar } from "@/lib/mutate";
 
@@ -143,6 +147,8 @@ export function validar(f: Formulario): string | null {
   return null;
 }
 
+export const ultimoExameKey = (caseId: string) => ["case-latest-exam", caseId] as const;
+
 interface Props {
   caso: CasoAchados;
   readOnly?: boolean;
@@ -153,6 +159,56 @@ export const CaseFindingsEditor = ({ caso, readOnly = false, onSaved }: Props) =
   const [editando, setEditando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [form, setForm] = useState<Formulario>(() => doCaso(caso));
+
+  /**
+   * O exame mais recente do caso, para o botão de preencher.
+   *
+   * Só é buscado em modo de edição: quem está lendo o caso não precisa da
+   * consulta, e ela não tem por que pesar em toda abertura de prontuário.
+   */
+  const { data: exame } = useQuery({
+    queryKey: ultimoExameKey(caso.id),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("case_exams")
+        .select("id, exam_type, exam_date, ejection_fraction, mean_gradient, peak_gradient, valve_area, regurgitation_grade")
+        .eq("case_id", caso.id)
+        .is("deleted_at", null)
+        .order("exam_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: editando && !readOnly,
+  });
+
+  const dataDoExame = exame
+    ? `${examTypeLabels[exame.exam_type] ?? "Exame"} de ${new Date(exame.exam_date + "T00:00:00").toLocaleDateString("pt-BR")}`
+    : null;
+
+  /**
+   * Traz as medidas do exame para o formulário — e para no formulário.
+   *
+   * Nunca automático e nunca silencioso: o médico vê os valores nos campos,
+   * sabe de qual exame vieram, e decide antes de salvar. É o mesmo princípio
+   * das sugestões de anel, que a IA devolve marcadas como revisão obrigatória.
+   */
+  const preencherComExame = () => {
+    if (!exame) return;
+    const vindos = doExameParaFormulario(exame);
+    const n = Object.keys(vindos).length;
+    if (n === 0) {
+      toast.info("Esse exame não tem nenhuma das medidas do caso", {
+        description: `${dataDoExame} foi registrado sem FE, gradientes, área valvar ou regurgitação.`,
+      });
+      return;
+    }
+    setForm((f) => ({ ...f, ...vindos }));
+    toast.success(`${n} medida(s) trazidas do exame`, {
+      description: `Origem: ${dataDoExame}. Revise antes de salvar.`,
+    });
+  };
 
   // O nome pseudonimizado não volta a ser editável: o titular pediu eliminação,
   // e um campo de texto aberto desfaria a pseudonimização com uma digitação.
@@ -308,6 +364,20 @@ export const CaseFindingsEditor = ({ caso, readOnly = false, onSaved }: Props) =
           </Secao>
 
           <Secao titulo="Medidas do ecocardiograma">
+            <div className="sm:col-span-2 flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <Button
+                type="button" variant="secondary" size="sm"
+                disabled={!exame}
+                onClick={preencherComExame}
+              >
+                <FlaskConical className="h-3.5 w-3.5" /> Preencher com o exame mais recente
+              </Button>
+              <p className="text-[11px] text-muted-foreground min-w-0">
+                {dataDoExame
+                  ? `${dataDoExame} — os valores entram no formulário para você revisar; nada é salvo antes de você confirmar.`
+                  : "Nenhum exame registrado neste caso ainda."}
+              </p>
+            </div>
             <div>
               <Label className="text-xs">FE (%)</Label>
               <Input

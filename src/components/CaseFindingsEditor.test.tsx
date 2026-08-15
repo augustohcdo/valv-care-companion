@@ -31,6 +31,8 @@ const CASO = {
 
 const updateSpy = vi.fn();
 let falhar = false;
+/** O exame mais recente do caso, ou `null` quando não há nenhum. */
+let ultimoExame: Record<string, unknown> | null = null;
 
 function escrita(afetadas: number) {
   const p: any = Promise.resolve({ error: null });
@@ -41,6 +43,16 @@ function escrita(afetadas: number) {
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: () => ({
+      select: () => {
+        const chain: any = {
+          eq: () => chain,
+          is: () => chain,
+          order: () => chain,
+          limit: () => chain,
+          maybeSingle: () => Promise.resolve({ data: ultimoExame, error: null }),
+        };
+        return chain;
+      },
       update: (values: any) => ({
         eq: (col: string, val: any) => {
           updateSpy(values, col, val);
@@ -127,6 +139,7 @@ describe("paraPayload", () => {
 describe("CaseFindingsEditor", () => {
   beforeEach(() => {
     falhar = false;
+    ultimoExame = null;
     updateSpy.mockClear();
     vi.clearAllMocks();
   });
@@ -193,6 +206,44 @@ describe("CaseFindingsEditor", () => {
       ),
     );
     expect(updateSpy).not.toHaveBeenCalled();
+  });
+
+  /**
+   * `case_exams` guarda exatamente as medidas que o caso exibe, e as duas telas
+   * conviviam sem se falarem — o médico digitava o mesmo número duas vezes.
+   */
+  it("preenche as medidas a partir do exame e não salva nada sozinho", async () => {
+    ultimoExame = {
+      id: "x1", exam_type: "eco", exam_date: "2026-08-01",
+      ejection_fraction: 42, mean_gradient: 48, peak_gradient: null,
+      valve_area: 0.8, regurgitation_grade: null,
+    };
+    render(<CaseFindingsEditor caso={CASO} />, { wrapper });
+    fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
+
+    const botao = await screen.findByRole("button", { name: /Preencher com o exame mais recente/i });
+    // A consulta do exame resolve depois da montagem; o botão nasce desabilitado.
+    await waitFor(() => expect(botao).toBeEnabled());
+    fireEvent.click(botao);
+
+    await waitFor(() => expect(screen.getByDisplayValue("42")).toBeInTheDocument());
+    expect(screen.getByDisplayValue("48")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("0.8")).toBeInTheDocument();
+    // O ponto da rodada: preencher é uma coisa, gravar é outra.
+    expect(updateSpy).not.toHaveBeenCalled();
+    expect(toast.success).toHaveBeenCalledWith(
+      "3 medida(s) trazidas do exame",
+      expect.objectContaining({ description: expect.stringContaining("01/08/2026") }),
+    );
+  });
+
+  it("sem exame no caso, o botão não fica clicável", async () => {
+    ultimoExame = null;
+    render(<CaseFindingsEditor caso={CASO} />, { wrapper });
+    fireEvent.click(screen.getByRole("button", { name: /Editar/i }));
+    const botao = await screen.findByRole("button", { name: /Preencher com o exame mais recente/i });
+    await waitFor(() => expect(botao).toBeDisabled());
+    expect(screen.getByText(/Nenhum exame registrado neste caso ainda/i)).toBeInTheDocument();
   });
 
   it("nome pseudonimizado não volta a ser editável", () => {

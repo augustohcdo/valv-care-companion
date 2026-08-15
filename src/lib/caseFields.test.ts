@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { MEDIDAS, MEDIDAS_DO_EXAME, validarMedida, paraBanco, diferencas } from "./caseFields";
+import {
+  MEDIDAS, MEDIDAS_DO_EXAME, validarMedida, paraBanco, diferencas,
+  doExameParaFormulario, medidasFaltantesNoCaso,
+} from "./caseFields";
 
 const campo = (k: string) => MEDIDAS.find((m) => m.key === k)!;
 
@@ -68,5 +71,57 @@ describe("diferencas", () => {
   it("enxerga preenchimento de campo que estava vazio", () => {
     const d = diferencas({ ejection_fraction: null }, { ejection_fraction: 42 });
     expect(d.ejection_fraction).toEqual({ de: null, para: 42 });
+  });
+});
+
+describe("doExameParaFormulario", () => {
+  it("traz as medidas do exame já como texto do formulário", () => {
+    const v = doExameParaFormulario({
+      ejection_fraction: 42, mean_gradient: 48, valve_area: 0.8,
+      regurgitation_grade: "2+/4+",
+    });
+    expect(v).toEqual({
+      ejection_fraction: "42", mean_gradient: "48", valve_area: "0.8",
+      regurgitation_grade: "2+/4+",
+    });
+  });
+
+  it("ignora medida ausente em vez de preencher com vazio", () => {
+    const v = doExameParaFormulario({ ejection_fraction: 55, mean_gradient: null });
+    expect(v).toEqual({ ejection_fraction: "55" });
+  });
+
+  it("gradiente zero é medida, não ausência", () => {
+    // `if (v)` descartaria o zero. Gradiente médio 0 mmHg existe em prótese
+    // funcionante; perder esse valor seria apagar um achado normal.
+    expect(doExameParaFormulario({ mean_gradient: 0 })).toEqual({ mean_gradient: "0" });
+  });
+
+  it("grau de regurgitação em branco não entra", () => {
+    expect(doExameParaFormulario({ regurgitation_grade: "   " })).toEqual({});
+  });
+});
+
+describe("medidasFaltantesNoCaso", () => {
+  it("oferece só o que o caso não tem", () => {
+    const faltam = medidasFaltantesNoCaso(
+      { ejection_fraction: 60, mean_gradient: null, valve_area: null },
+      { ejection_fraction: 42, mean_gradient: 48, valve_area: 0.8 },
+    );
+    // A FE do caso já está preenchida: sobrescrever o que o médico digitou,
+    // em silêncio, é justamente o que não se quer.
+    expect(faltam).toEqual({ mean_gradient: 48, valve_area: 0.8 });
+  });
+
+  it("não oferece nada quando o caso já está completo", () => {
+    expect(
+      medidasFaltantesNoCaso({ ejection_fraction: 60 }, { ejection_fraction: 42 }),
+    ).toEqual({});
+  });
+
+  it("devolve número para medida e texto para o grau de regurgitação", () => {
+    const faltam = medidasFaltantesNoCaso({}, { valve_area: 0.8, regurgitation_grade: "2+/4+" });
+    expect(faltam.valve_area).toBe(0.8);
+    expect(faltam.regurgitation_grade).toBe("2+/4+");
   });
 });

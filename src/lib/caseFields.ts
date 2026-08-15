@@ -80,6 +80,56 @@ export function paraBanco(campo: CampoMedida, texto: string): number | null {
   return Math.round(n * fator) / fator;
 }
 
+/** As medidas de um exame que interessam ao caso. `case_exams` tem mais. */
+export interface ExameMedidas {
+  ejection_fraction?: number | null;
+  mean_gradient?: number | null;
+  peak_gradient?: number | null;
+  valve_area?: number | null;
+  regurgitation_grade?: string | null;
+}
+
+/**
+ * O que o exame consegue trazer para o formulário do caso, já como texto.
+ *
+ * `case_exams` guarda exatamente as medidas que o caso exibe, e até aqui as
+ * duas conviviam sem se falarem: o médico digitava o mesmo número duas vezes.
+ * Quem decide continua sendo ele — isto só monta o preenchimento; nada é
+ * gravado sem o botão de salvar.
+ */
+export function doExameParaFormulario(exame: ExameMedidas): Record<string, string> {
+  const saida: Record<string, string> = {};
+  for (const campo of MEDIDAS_DO_EXAME) {
+    const v = exame[campo.doExame as keyof ExameMedidas];
+    // `typeof v === "number"` e não `v ?? `: FE zero não existe, mas gradiente
+    // zero existe, e um teste de veracidade descartaria justamente esse.
+    if (typeof v === "number" && Number.isFinite(v)) saida[campo.key] = String(v);
+  }
+  const grau = exame.regurgitation_grade?.trim();
+  if (grau) saida["regurgitation_grade"] = grau;
+  return saida;
+}
+
+/**
+ * As medidas que o exame tem e o caso **ainda não** — o que vale oferecer para
+ * levar adiante quando um exame novo é salvo.
+ *
+ * Campo já preenchido no caso não entra: sobrescrever em silêncio o que o
+ * médico digitou seria o oposto do que esta rodada existe para fazer.
+ */
+export function medidasFaltantesNoCaso(
+  caso: Record<string, unknown>,
+  exame: ExameMedidas,
+): Record<string, number | string> {
+  const doExame = doExameParaFormulario(exame);
+  const saida: Record<string, number | string> = {};
+  for (const [chave, texto] of Object.entries(doExame)) {
+    if (caso[chave] != null && caso[chave] !== "") continue;
+    saida[chave] = chave === "regurgitation_grade" ? texto : Number(texto);
+  }
+  return saida;
+}
+
 /**
  * O que mudou entre o que estava gravado e o que o médico digitou.
  *

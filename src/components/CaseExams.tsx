@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { examTypeLabels, examTypeColors } from "@/lib/clinicalLabels";
 import { logAudit } from "@/lib/auditLog";
 import { aplicar } from "@/lib/mutate";
+import { medidasFaltantesNoCaso, type ExameMedidas } from "@/lib/caseFields";
 import {
   LineChart,
   Line,
@@ -157,6 +158,51 @@ export const CaseExams = ({ caseId, readOnly = false }: Props) => {
     reset();
     setOpen(false);
     load();
+    void oferecerLevarAoCaso(payload);
+  };
+
+  /**
+   * O exame acabou de trazer uma medida que os achados do caso não têm.
+   *
+   * `case_exams` guarda exatamente os mesmos parâmetros que o caso exibe, e as
+   * duas telas conviviam sem se falarem — o médico digitava o número duas
+   * vezes, ou o caso ficava com o campo vazio para sempre. A oferta é uma
+   * linha, sem diálogo, e **só** para campo que o caso não tem: sobrescrever
+   * em silêncio o que ele digitou seria o oposto do que se quer aqui.
+   */
+  const oferecerLevarAoCaso = async (medidas: ExameMedidas) => {
+    const { data: caso } = await supabase
+      .from("clinical_cases")
+      .select("ejection_fraction, mean_gradient, peak_gradient, valve_area, regurgitation_grade")
+      .eq("id", caseId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (!caso) return;
+
+    const faltantes = medidasFaltantesNoCaso(caso, medidas);
+    const quantas = Object.keys(faltantes).length;
+    if (quantas === 0) return;
+
+    toast.success(`Os achados do caso estão sem ${quantas} dessas medidas`, {
+      description: "Quer levar os valores deste exame para os achados?",
+      duration: 12000,
+      action: {
+        label: "Levar ao caso",
+        onClick: () => { void levarAoCaso(faltantes); },
+      },
+    });
+  };
+
+  const levarAoCaso = async (campos: Record<string, number | string>) => {
+    const ok = await aplicar(
+      supabase.from("clinical_cases").update(campos as never).eq("id", caseId).select("id"),
+      { sucesso: "Achados do caso atualizados", falha: "Não foi possível levar os valores ao caso" },
+    );
+    if (!ok) return;
+    logAudit("case_findings_updated", "clinical_cases", caseId, { campos, origem: "exame" });
+    // Prefixo: a chave completa do caso inclui o id do médico, que não vive
+    // aqui — e invalidar pelo prefixo alcança a mesma entrada.
+    queryClient.invalidateQueries({ queryKey: ["case-detail"] });
   };
 
   const remove = async (id: string) => {
