@@ -13,8 +13,43 @@ import type { FonteConfiavel, ArtigoEncontrado } from "../_shared/pesquisaExtern
 // Máximo de chamadas de IA clínica por usuário por hora (controle de custo/abuso).
 const RATE_LIMIT_PER_HOUR = 30;
 
-const GEMINI_MODEL = "gemini-3.5-flash";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+/**
+ * A cadeia de modelos, em ordem de preferência.
+ *
+ * **Cada modelo tem cota própria no nível gratuito.** Isso não é detalhe: com
+ * um único modelo cravado no código, o dia em que a cota dele acaba a IA
+ * clínica inteira responde "limite de uso atingido" — enquanto outros cinco
+ * modelos da mesma chave atendem normalmente. Foi exatamente o que aconteceu
+ * aqui, medido na mesma chave e no mesmo minuto:
+ *
+ *   gemini-3.5-flash        429 RESOURCE_EXHAUSTED
+ *   gemini-3.6-flash        OK
+ *   gemini-flash-latest     OK
+ *   gemini-3.5-flash-lite   OK
+ *   gemini-flash-lite-latest OK
+ *
+ * A troca só acontece quando o modelo preferido recusa por cota (429) ou não
+ * existe mais (404). Erro de verdade — pedido inválido, falha do provedor —
+ * não vira tentativa em outro modelo: isso esconderia o defeito atrás de uma
+ * resposta que parece boa.
+ */
+const MODELOS = [
+  "gemini-3.5-flash",
+  "gemini-3.6-flash",
+  "gemini-flash-latest",
+  "gemini-3.5-flash-lite",
+  "gemini-flash-lite-latest",
+];
+
+/**
+ * Os modelos "lite" são reserva: mais rápidos e mais fracos. Quando a resposta
+ * vem de um deles, isso é dito ao médico — num apoio a decisão clínica, saber
+ * que a resposta saiu do banco de reservas é parte do que se pesa ao lê-la.
+ */
+const MODELOS_RESERVA = new Set(["gemini-3.5-flash-lite", "gemini-flash-lite-latest"]);
+
+const urlDoModelo = (m: string) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`;
 
 const EMBED_MODEL = "gemini-embedding-001";
 const EMBED_URL = `https://generativelanguage.googleapis.com/v1beta/models/${EMBED_MODEL}:embedContent`;
@@ -48,19 +83,51 @@ async function embedQuery(apiKey: string, text: string): Promise<number[] | null
 async function callGemini(
   apiKey: string,
   body: { system?: string; messages: { role: "user" | "model"; content: string }[]; max_tokens: number },
-): Promise<Response> {
-  return fetch(GEMINI_URL, {
-    method: "POST",
-    headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      ...(body.system ? { system_instruction: { parts: [{ text: body.system }] } } : {}),
-      generationConfig: {
-        maxOutputTokens: body.max_tokens,
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-      contents: body.messages.map((m) => ({ role: m.role, parts: [{ text: m.content }] })),
-    }),
+): Promise<{ resp: Response; modelo: string; reserva: boolean }> {
+  // `thinkingConfig: { thinkingBudget: 0 }` estava aqui como economia — e é
+  // justamente o que quebrava a cadeia. Medido, mesmo payload, mesma chave:
+  //
+  //                            sem thinking   budget 0   budget -1
+  //   gemini-3.6-flash              OK           400        OK
+  //   gemini-3.5-flash-lite         OK           400        OK
+  //   gemini-flash-lite-latest      OK           400        OK
+  //   gemini-flash-latest           OK           OK         503
+  //
+  // Os modelos novos não deixam desligar o raciocínio, e `-1` não é aceito por
+  // todos. Omitir o campo é a única forma que funciona na cadeia inteira — e
+  // uma cadeia de reserva que só funciona no primeiro elo não é reserva.
+  const payload = JSON.stringify({
+    ...(body.system ? { system_instruction: { parts: [{ text: body.system }] } } : {}),
+    generationConfig: { maxOutputTokens: body.max_tokens },
+    contents: body.messages.map((m) => ({ role: m.role, parts: [{ text: m.content }] })),
   });
+
+  let ultima: Response | null = null;
+  for (const modelo of MODELOS) {
+    const resp = await fetch(urlDoModelo(modelo), {
+      method: "POST",
+      headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
+      body: payload,
+    });
+    if (resp.ok) return { resp, modelo, reserva: MODELOS_RESERVA.has(modelo) };
+    // 429 = cota do modelo esgotada; 404 = modelo saiu do ar; 503 = o próprio
+    // Google diz "alta demanda, tente de novo". Nos três o problema é o modelo,
+    // não o pedido — tenta o próximo. Qualquer outro status é erro de verdade e
+    // não pode virar tentativa em outro modelo: isso esconderia o defeito atrás
+    // de uma resposta que parece boa.
+    if (resp.status !== 429 && resp.status !== 404 && resp.status !== 503) {
+      return { resp, modelo, reserva: MODELOS_RESERVA.has(modelo) };
+    }
+    console.warn(`modelo ${modelo} indisponível (${resp.status}); tentando o próximo`);
+    ultima = resp;
+  }
+  // Todos recusaram: devolve a última recusa para o chamador tratar como erro
+  // de verdade, com o status que o provedor deu.
+  return {
+    resp: ultima ?? new Response("sem modelo disponível", { status: 503 }),
+    modelo: MODELOS[MODELOS.length - 1],
+    reserva: true,
+  };
 }
 
 const SYSTEM_PROMPT = `Você é um assistente clínico de ALTA PRECISÃO especializado em valvopatias cardíacas, apoiando cardiologistas brasileiros. Não é um chatbot genérico: é um consultor sênior que raciocina como um Heart Team.
@@ -723,7 +790,7 @@ ${commonRules}`;
     }
     messages.push({ role: "user", content: userPrompt + ragBlock + blocoExterno });
 
-    const aiResp = await callGemini(GEMINI_API_KEY, {
+    const { resp: aiResp, modelo: modeloUsado, reserva } = await callGemini(GEMINI_API_KEY, {
       system: mode === "patient_discharge" ? SYSTEM_PROMPT_PACIENTE : SYSTEM_PROMPT,
       messages,
       max_tokens: mode === "summary" ? 2000 : 4000,
@@ -733,6 +800,8 @@ ${commonRules}`;
       const txt = await aiResp.text();
       console.error("Gemini error", aiResp.status, txt);
       if (aiResp.status === 429) {
+        // Chegar aqui significa que **todos** os modelos da cadeia recusaram
+        // por cota — não só o preferido.
         return new Response(JSON.stringify({ error: "Limite de uso atingido. Tente novamente em instantes." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -761,6 +830,9 @@ ${commonRules}`;
       rag_hit: sourcesOut.length > 0,
       // Camada externa, separada de `sources` de propósito: a tela mostra as
       // duas em listas distintas, porque elas não têm o mesmo peso.
+      modelo: modeloUsado,
+      // A tela avisa quando a resposta veio do banco de reservas.
+      modelo_reserva: reserva,
       external_sources: literatura.map((a) => ({
         pmid: a.pmid, titulo: a.titulo, revista: a.revista,
         ano: a.ano, tipos: a.tipos, url: a.url,

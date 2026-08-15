@@ -31,6 +31,8 @@ export function ClinicalAIPanel({ caseId }: Props) {
   const [ragHitByMode, setRagHitByMode] = useState<Record<string, boolean>>({});
   const [artigosByMode, setArtigosByMode] = useState<Record<string, Artigo[]>>({});
   const [chatArtigos, setChatArtigos] = useState<Artigo[]>([]);
+  /** Verdadeiro quando a última resposta saiu de um modelo de reserva. */
+  const [reserva, setReserva] = useState(false);
   // Desligado por padrão: a busca externa é mais lenta e o médico deve pedi-la.
   const [pesquisar, setPesquisar] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMsg[]>([]);
@@ -88,6 +90,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
       return data as {
         content: string; sources?: Source[]; rag_hit?: boolean;
         external_sources?: Artigo[];
+        modelo?: string; modelo_reserva?: boolean;
       };
     } catch (e) {
       console.error(e);
@@ -105,6 +108,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
       setSourcesByMode((prev) => ({ ...prev, [m]: res.sources ?? [] }));
       setRagHitByMode((prev) => ({ ...prev, [m]: !!res.rag_hit }));
       setArtigosByMode((prev) => ({ ...prev, [m]: res.external_sources ?? [] }));
+      setReserva(!!res.modelo_reserva);
     }
   };
 
@@ -120,6 +124,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
       setChatSources(res.sources ?? []);
       setChatRagHit(!!res.rag_hit);
       setChatArtigos(res.external_sources ?? []);
+      setReserva(!!res.modelo_reserva);
     }
   };
 
@@ -263,6 +268,17 @@ export function ClinicalAIPanel({ caseId }: Props) {
             <p className="text-[10px] text-muted-foreground">Ctrl/⌘ + Enter para enviar</p>
           </TabsContent>
         </Tabs>
+        )}
+
+        {reserva && (
+          <div className="mt-4 flex items-start gap-2 text-[11px] bg-secondary/60 border border-border rounded-lg p-2.5 text-muted-foreground">
+            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <p>
+              O modelo principal estava indisponível e esta resposta veio de um modelo de{" "}
+              <strong>reserva</strong>, mais rápido e menos capaz. O conteúdo continua ancorado nas
+              mesmas fontes — mas vale reler com mais atenção antes de usar.
+            </p>
+          </div>
         )}
 
         <div className="mt-4 flex items-start gap-2 text-[11px] bg-amber-500/10 border-2 border-amber-500/50 rounded-lg p-3 text-amber-900 dark:text-amber-100">
