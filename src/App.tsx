@@ -69,6 +69,7 @@ const AdminIntegracoes = lazy(() => import("./pages/app/AdminIntegracoes"));
 const AdminHome = lazy(() => import("./pages/app/AdminHome"));
 const AdminUsuarios = lazy(() => import("./pages/app/AdminUsuarios"));
 const AdminConteudo = lazy(() => import("./pages/app/AdminConteudo"));
+const AdminFontes = lazy(() => import("./pages/app/AdminFontes"));
 const AdminBiblioteca = lazy(() => import("./pages/app/AdminBiblioteca"));
 const AdminErrors = lazy(() => import("./pages/app/AdminErrors"));
 const AdminDPO = lazy(() => import("./pages/app/AdminDPO"));
@@ -147,6 +148,7 @@ const App = () => (
               <Route path="/app/admin" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminHome />)}</ProtectedRoute>} />
               <Route path="/app/admin/usuarios" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminUsuarios />)}</ProtectedRoute>} />
               <Route path="/app/admin/conteudo" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminConteudo />, "list")}</ProtectedRoute>} />
+              <Route path="/app/admin/fontes" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminFontes />, "list")}</ProtectedRoute>} />
               <Route path="/app/admin/biblioteca" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminBiblioteca />, "list")}</ProtectedRoute>} />
               <Route path="/app/admin/erros" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminErrors />)}</ProtectedRoute>} />
               <Route path="/app/admin/dpo" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminDPO />)}</ProtectedRoute>} />

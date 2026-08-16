@@ -40,6 +40,16 @@ export interface FonteConfiavel {
   category: "sociedade_medica" | "orgao_publico" | "literatura" | "fabricante";
   citable_for: string;
   never_for: string | null;
+  /**
+   * `automatica` = a IA busca sozinha nesta fonte. `referencia` = fonte aceita
+   * e citável, que o produto declara como base, mas que **não** é varrida.
+   *
+   * A distinção existe porque catorze das quinze fontes cadastradas são
+   * permissão sem consumo, e uma lista chamada "onde a IA pesquisa" que não é
+   * pesquisada é a mesma promessa vazia que esta base passou a sessão inteira
+   * eliminando.
+   */
+  consulta: "automatica" | "referencia";
 }
 
 export interface ArtigoEncontrado {
@@ -208,11 +218,26 @@ interface OpcoesBusca {
  * a IA clínica precisa continuar respondendo com a base própria, e uma pesquisa
  * que falhou é ausência de reforço, não motivo para derrubar a consulta.
  */
+export type MotivoSemLiteratura =
+  /** Nenhuma fonte marcada como `automatica` está ativa — a busca está desligada. */
+  | "sem_fonte_automatica"
+  /** A pergunta não produziu nenhum termo que a literatura entenda. */
+  | "sem_termo"
+  /** A busca rodou e não achou artigo com resumo. */
+  | "sem_resultado"
+  /** O serviço do NCBI não respondeu. */
+  | "servico_indisponivel";
+
+export interface ResultadoBusca {
+  artigos: ArtigoEncontrado[];
+  motivo: MotivoSemLiteratura | null;
+}
+
 export async function buscarLiteratura(
   termo: string,
   { max = 5, anos = 8 }: OpcoesBusca = {},
-): Promise<ArtigoEncontrado[]> {
-  if (!termo.trim()) return [];
+): Promise<ResultadoBusca> {
+  if (!termo.trim()) return { artigos: [], motivo: "sem_termo" };
   try {
     const filtro = `${termo} AND ("${new Date().getFullYear() - anos}"[PDAT] : "3000"[PDAT])`;
     const busca = await fetch(
@@ -220,9 +245,9 @@ export async function buscarLiteratura(
       `&retmax=${max}&term=${encodeURIComponent(filtro)}`,
       { headers: { "User-Agent": UA } },
     );
-    if (!busca.ok) return [];
+    if (!busca.ok) return { artigos: [], motivo: "servico_indisponivel" };
     const ids: string[] = (await busca.json())?.esearchresult?.idlist ?? [];
-    if (!ids.length) return [];
+    if (!ids.length) return { artigos: [], motivo: "sem_resultado" };
 
     const [resumoResp, textoResp] = await Promise.all([
       fetch(`${EUTILS}/esummary.fcgi?db=pubmed&retmode=json&id=${ids.join(",")}`,
@@ -230,13 +255,13 @@ export async function buscarLiteratura(
       fetch(`${EUTILS}/efetch.fcgi?db=pubmed&retmode=xml&rettype=abstract&id=${ids.join(",")}`,
             { headers: { "User-Agent": UA } }),
     ]);
-    if (!resumoResp.ok) return [];
+    if (!resumoResp.ok) return { artigos: [], motivo: "servico_indisponivel" };
 
     const meta = (await resumoResp.json())?.result ?? {};
     const xml = textoResp.ok ? await textoResp.text() : "";
     const porArtigo = xml.split("<PubmedArticle>").slice(1);
 
-    return ids.map((pmid, i) => {
+    const artigos = ids.map((pmid, i) => {
       const m = meta[pmid] ?? {};
       const bloco = porArtigo[i] ?? "";
       const resumo = limparTexto(
@@ -255,45 +280,27 @@ export async function buscarLiteratura(
     // Artigo sem resumo não sustenta afirmação nenhuma — só o título, que
     // convida a inventar o conteúdo. Fica de fora.
     }).filter((a) => a.titulo && a.resumo.length > 120);
+    return { artigos, motivo: artigos.length ? null : "sem_resultado" };
   } catch (e) {
     console.error("buscarLiteratura falhou", e);
-    return [];
+    return { artigos: [], motivo: "servico_indisponivel" };
   }
 }
 
-/**
- * Lê uma página de domínio permitido.
+/*
+ * `lerFonte` morava aqui: buscava uma página de domínio permitido para injetar
+ * o texto dela no prompt. Foi removida por não ter chamador **e** por o caminho
+ * que ela serviria estar medido como bloqueado na origem. Buscando uma URL real
+ * de cada fabricante do catálogo de próteses:
  *
- * A checagem de domínio vem **antes** do `fetch`, não depois: buscar para
- * depois descartar já teria feito a requisição a um endereço arbitrário — e
- * com credencial de servidor, isso é requisição forjada do lado do servidor,
- * não um detalhe de estilo.
+ *   404  Edwards · 404  Meril · 404  Corcym · 404  Abbott
+ *   200  Medtronic — 462 caracteres, casca de JavaScript sem conteúdo
+ *
+ * São sites que não existem para quem não roda script. Guardar a função seria
+ * guardar um recurso que não funciona, com aparência de que funciona — a mesma
+ * crítica que fizemos ao modo `patient_discharge` sem chamador. Ela volta
+ * quando houver um alvo que responda.
  */
-export async function lerFonte(
-  url: string,
-  fontes: FonteConfiavel[],
-  { maxChars = 6000 } = {},
-): Promise<{ texto: string; fonte: FonteConfiavel } | null> {
-  const fonte = permitida(url, fontes);
-  if (!fonte) return null;
-  if (!url.startsWith("https://")) return null;
-  try {
-    const r = await fetch(url, {
-      headers: { "User-Agent": UA, Accept: "text/html,application/xhtml+xml" },
-      redirect: "manual", // redirecionamento poderia sair da cerca sem avisar
-    });
-    if (!r.ok) return null;
-    const bruto = await r.text();
-    const corpo = bruto
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ");
-    const texto = limparTexto(corpo).slice(0, maxChars);
-    return texto.length > 200 ? { texto, fonte } : null;
-  } catch (e) {
-    console.error("lerFonte falhou", url, e);
-    return null;
-  }
-}
 
 /**
  * O bloco que entra no prompt, com o escopo de cada fonte declarado ao lado.

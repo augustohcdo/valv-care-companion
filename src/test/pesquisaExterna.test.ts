@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import { resolve, join } from "node:path";
 import {
   hostDe, permitida, limparTexto, termoDeBusca, blocoDePesquisa,
 } from "../../supabase/functions/_shared/pesquisaExterna";
@@ -18,16 +20,19 @@ const fontes: FonteConfiavel[] = [
     domain: "abccardiol.org", name: "Arquivos Brasileiros de Cardiologia",
     category: "sociedade_medica",
     citable_for: "Diretriz brasileira de valvopatias.", never_for: null,
+    consulta: "referencia",
   },
   {
     domain: "pubmed.ncbi.nlm.nih.gov", name: "PubMed", category: "literatura",
     citable_for: "Artigos indexados, com PMID, periódico e ano.",
     never_for: "Resumo não é recomendação de diretriz.",
+    consulta: "automatica",
   },
   {
     domain: "www.edwards.com", name: "Edwards Lifesciences", category: "fabricante",
     citable_for: "Especificação técnica do próprio produto.",
     never_for: "Nunca para indicação nem comparação entre marcas.",
+    consulta: "referencia",
   },
 ];
 
@@ -178,5 +183,92 @@ describe("blocoDePesquisa", () => {
 
   it("marca a literatura como camada distinta da base ValvePath", () => {
     expect(blocoDePesquisa([artigo()], fontes)).toContain("distinta da base ValvePath");
+  });
+});
+
+/**
+ * Guarda da cerca, lendo as migrations — sem credencial, roda no CI.
+ *
+ * Ela existe porque a lista de fontes tem duas formas de mentir, e as duas já
+ * apareceram: prometer busca onde não há caminho implementado, e cadastrar
+ * fabricante sem escrever o que ele não pode embasar.
+ */
+describe("cerca de fontes confiáveis (migrations)", () => {
+  const dir = resolve(__dirname, "../../supabase/migrations");
+  const sql = readdirSync(dir)
+    .filter((f) => f.endsWith(".sql") && f.includes("fonte"))
+    .map((f) => readFileSync(join(dir, f), "utf8"))
+    .join("\n");
+
+  it("as migrations de fontes foram encontradas", () => {
+    // Sem isto, renomear o arquivo faria a varredura ler string vazia e o teste
+    // passar sem conferir nada — o defeito da guarda do `revisar_trecho`.
+    expect(sql).toContain("trusted_sources");
+    expect(sql.length).toBeGreaterThan(1000);
+  });
+
+  /**
+   * As tuplas do `insert ... values`, que é onde as fontes de fato nascem. A
+   * definição do `check (... 'fabricante' ...)` também contém essas palavras, e
+   * varrer o arquivo inteiro leria a restrição em vez dos dados.
+   */
+  const tuplas = [...sql.matchAll(
+    /\('([^']+)',\s*'([^']+)',\s*'(sociedade_medica|orgao_publico|literatura|fabricante)',\s*'([^']*)',\s*(?:'([^']*)'|null)/g,
+  )].map((m) => ({
+    domain: m[1], nome: m[2], categoria: m[3], pode: m[4], naoPode: m[5] ?? "",
+  }));
+
+  it("as tuplas semeadas foram encontradas", () => {
+    expect(tuplas.length).toBeGreaterThanOrEqual(15);
+  });
+
+  /**
+   * Só o PubMed tem caminho de busca implementado (`buscarLiteratura`). Marcar
+   * outra fonte como `automatica` faria o painel do médico prometer uma busca
+   * que ninguém executa — e o sintoma seria "não encontrei artigo", que parece
+   * resultado, não defeito.
+   */
+  it("só o PubMed é promovido a busca automática", () => {
+    const promovidos = [...sql.matchAll(
+      /set consulta = 'automatica'[\s\S]{0,120}?where domain = '([^']+)'/g,
+    )].map((m) => m[1]);
+    expect(promovidos).toEqual(["pubmed.ncbi.nlm.nih.gov"]);
+  });
+
+  it("nenhuma fonte nasce automática direto no insert", () => {
+    // O default da coluna é 'referencia' de propósito: fonte nova não deve
+    // prometer busca antes de alguém implementar o caminho dela.
+    for (const t of tuplas) {
+      const linha = sql.slice(sql.indexOf(`'${t.domain}'`), sql.indexOf(`'${t.domain}'`) + 600);
+      if (t.domain !== "pubmed.ncbi.nlm.nih.gov") {
+        expect(linha, `${t.domain} semeado como automático`).not.toContain("'automatica'");
+      }
+    }
+  });
+
+  it("todo fabricante semeado declara o que NÃO pode embasar", () => {
+    // O fabricante vende a prótese sobre a qual informa. Sem o limite escrito,
+    // a página dele embasaria indicação.
+    const fabricantes = tuplas.filter((t) => t.categoria === "fabricante");
+    expect(fabricantes.length).toBeGreaterThanOrEqual(5);
+    for (const f of fabricantes) {
+      expect(f.naoPode, `${f.domain} sem never_for`).toMatch(/Nunca para indicação/);
+    }
+  });
+});
+
+describe("código morto da pesquisa externa", () => {
+  const modulo = readFileSync(
+    resolve(__dirname, "../../supabase/functions/_shared/pesquisaExterna.ts"), "utf8",
+  );
+
+  /**
+   * `lerFonte` lia a página de um domínio permitido e não tinha chamador. O
+   * caminho que ela serviria está medido como bloqueado: dos seis fabricantes
+   * do catálogo, quatro devolvem 404 e o único que responde entrega casca de
+   * JavaScript. Ela volta quando houver um alvo que responda — e com chamador.
+   */
+  it("não reintroduz leitura de página sem alvo que responda", () => {
+    expect(modulo).not.toMatch(/export (async )?function lerFonte/);
   });
 });

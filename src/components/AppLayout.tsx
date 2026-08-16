@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import {
   LayoutDashboard,
+  Globe,
   Users,
   FilePlus2,
   BookOpen,
@@ -79,6 +80,7 @@ const adminNav: NavItem[] = [
   { to: "/app/admin", label: "Administração", icon: ShieldCheck, exact: true },
   { to: "/app/admin/usuarios", label: "Usuários e papéis", icon: Users },
   { to: "/app/admin/conteudo", label: "Revisão de conteúdo", icon: BookOpenCheck },
+  { to: "/app/admin/fontes", label: "Fontes da IA", icon: Globe },
   { to: "/app/admin/biblioteca", label: "Biblioteca de referência", icon: BookOpen },
   { to: "/app/admin/erros", label: "Erros e tarefas", icon: ShieldAlert },
   { to: "/app/admin/dpo", label: "Pedidos LGPD", icon: ScrollText },

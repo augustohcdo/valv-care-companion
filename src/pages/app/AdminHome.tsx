@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   ShieldCheck, Stethoscope, HeartPulse, FolderOpen, Eye,
   ShieldAlert, ScrollText, Plug, Users, BookOpen,
-  BookOpenCheck, ChevronRight, Loader2,
+  BookOpenCheck, ChevronRight, Loader2, Globe,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,6 +32,12 @@ const ATALHOS = [
     label: "Revisão de conteúdo",
     descricao: "Trechos que alimentam a IA clínica, e quem os revisou.",
     icon: BookOpenCheck,
+  },
+  {
+    to: "/app/admin/fontes",
+    label: "Fontes da IA",
+    descricao: "Onde a IA pode pesquisar, e o que cada fonte pode embasar.",
+    icon: Globe,
   },
   {
     to: "/app/admin/biblioteca",

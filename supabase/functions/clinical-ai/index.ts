@@ -8,7 +8,10 @@ import { logError } from "../_shared/logError.ts";
 import {
   buscarLiteratura, blocoDePesquisa, termoDeBusca,
 } from "../_shared/pesquisaExterna.ts";
-import type { FonteConfiavel, ArtigoEncontrado } from "../_shared/pesquisaExterna.ts";
+import { permitida } from "../_shared/pesquisaExterna.ts";
+import type {
+  FonteConfiavel, ArtigoEncontrado, MotivoSemLiteratura,
+} from "../_shared/pesquisaExterna.ts";
 
 // Máximo de chamadas de IA clínica por usuário por hora (controle de custo/abuso).
 const RATE_LIMIT_PER_HOUR = 30;
@@ -764,15 +767,24 @@ ${commonRules}`;
     // ============================================================
     let blocoExterno = "";
     let literatura: ArtigoEncontrado[] = [];
+    let motivoPesquisa: MotivoSemLiteratura | null = null;
     if (body.pesquisar && mode !== "patient_discharge") {
       const { data: fontes } = await supabase
         .from("trusted_sources")
-        .select("domain, name, category, citable_for, never_for")
+        .select("domain, name, category, citable_for, never_for, consulta")
         .eq("enabled", true);
       const permitidas = (fontes ?? []) as FonteConfiavel[];
-      // Sem lista carregada não há cerca — e sem cerca não se pesquisa.
-      if (permitidas.some((f) => f.domain === "pubmed.ncbi.nlm.nih.gov")) {
-        literatura = await buscarLiteratura(
+
+      // Só as fontes marcadas como `automatica` têm caminho de busca. Sem
+      // nenhuma delas ativa, a busca está **desligada** — e isso precisa ser
+      // dito, não devolvido como lista vazia: "desligada" e "não encontrei
+      // nada" são estados diferentes, e confundi-los é o `ok: true, sent: 0`
+      // do digest, que escondeu por semanas que ninguém recebia o resumo.
+      const automaticas = permitidas.filter((f) => f.consulta === "automatica");
+      if (automaticas.length === 0) {
+        motivoPesquisa = "sem_fonte_automatica";
+      } else {
+        const resultado = await buscarLiteratura(
           termoDeBusca({
             valveType: caso.valve_type,
             valveDisease: caso.valve_disease,
@@ -780,6 +792,11 @@ ${commonRules}`;
           }),
           { max: 5 },
         );
+        // Último portão antes de o link virar clicável na tela do médico: a URL
+        // do artigo é conferida contra a cerca. É barato, e é o tipo de defesa
+        // que ninguém percebe faltando até faltar.
+        literatura = resultado.artigos.filter((a) => permitida(a.url, permitidas));
+        motivoPesquisa = literatura.length ? null : (resultado.motivo ?? "sem_resultado");
         blocoExterno = blocoDePesquisa(literatura, permitidas);
       }
     }
@@ -838,6 +855,9 @@ ${commonRules}`;
         ano: a.ano, tipos: a.tipos, url: a.url,
       })),
       pesquisa_externa: !!body.pesquisar,
+      // Por que não veio literatura. Sem isto, "busca desligada" e "busca sem
+      // resultado" chegam idênticas à tela.
+      pesquisa_motivo: motivoPesquisa,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

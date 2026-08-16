@@ -17,6 +17,8 @@ type Source = { title: string; organization: string; year: number; scope: "br" |
 type Mode = ModoPainel;
 /** Camada externa: artigo indexado, com o desenho do estudo à vista. */
 type Artigo = { pmid: string; titulo: string; revista: string; ano: string; tipos: string[]; url: string };
+type MotivoPesquisa =
+  | "sem_fonte_automatica" | "sem_termo" | "sem_resultado" | "servico_indisponivel";
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
 interface Props {
@@ -31,6 +33,8 @@ export function ClinicalAIPanel({ caseId }: Props) {
   const [ragHitByMode, setRagHitByMode] = useState<Record<string, boolean>>({});
   const [artigosByMode, setArtigosByMode] = useState<Record<string, Artigo[]>>({});
   const [chatArtigos, setChatArtigos] = useState<Artigo[]>([]);
+  const [motivoByMode, setMotivoByMode] = useState<Record<string, MotivoPesquisa | null>>({});
+  const [chatMotivo, setChatMotivo] = useState<MotivoPesquisa | null>(null);
   /** Verdadeiro quando a última resposta saiu de um modelo de reserva. */
   const [reserva, setReserva] = useState(false);
   // Desligado por padrão: a busca externa é mais lenta e o médico deve pedi-la.
@@ -91,6 +95,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
         content: string; sources?: Source[]; rag_hit?: boolean;
         external_sources?: Artigo[];
         modelo?: string; modelo_reserva?: boolean;
+        pesquisa_motivo?: MotivoPesquisa | null;
       };
     } catch (e) {
       console.error(e);
@@ -108,6 +113,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
       setSourcesByMode((prev) => ({ ...prev, [m]: res.sources ?? [] }));
       setRagHitByMode((prev) => ({ ...prev, [m]: !!res.rag_hit }));
       setArtigosByMode((prev) => ({ ...prev, [m]: res.external_sources ?? [] }));
+      setMotivoByMode((prev) => ({ ...prev, [m]: res.pesquisa_motivo ?? null }));
       setReserva(!!res.modelo_reserva);
     }
   };
@@ -124,6 +130,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
       setChatSources(res.sources ?? []);
       setChatRagHit(!!res.rag_hit);
       setChatArtigos(res.external_sources ?? []);
+      setChatMotivo(res.pesquisa_motivo ?? null);
       setReserva(!!res.modelo_reserva);
     }
   };
@@ -194,7 +201,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
                     <ReactMarkdown>{results[m]}</ReactMarkdown>
                   </div>
                   <SourcesList sources={sourcesByMode[m] ?? []} />
-                  <ArtigosList artigos={artigosByMode[m] ?? []} pediu={pesquisar} />
+                  <ArtigosList artigos={artigosByMode[m] ?? []} pediu={pesquisar} motivo={motivoByMode[m] ?? null} />
                 </>
               ) : (
                 <p className="text-xs text-muted-foreground">
@@ -248,7 +255,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
                   </div>
                 )}
                 <SourcesList sources={chatSources} />
-                <ArtigosList artigos={chatArtigos} pediu={pesquisar} />
+                <ArtigosList artigos={chatArtigos} pediu={pesquisar} motivo={chatMotivo} />
               </>
             )}
             <div className="flex gap-2">
@@ -333,13 +340,42 @@ function SourcesList({ sources }: { sources: Source[] }) {
  * diretriz. O desenho do estudo aparece porque é ele que deixa o médico pesar
  * o achado sozinho.
  */
-function ArtigosList({ artigos, pediu }: { artigos: Artigo[]; pediu: boolean }) {
+/**
+ * "A busca está desligada" e "a busca rodou e não achou" são estados
+ * diferentes, e por muito tempo chegaram idênticos aqui — como uma lista
+ * vazia. É o mesmo `ok: true, sent: 0` do resumo semanal, que escondeu por
+ * semanas que ninguém recebia nada.
+ */
+const MOTIVO_TEXTO: Record<MotivoPesquisa, string> = {
+  sem_fonte_automatica:
+    "A consulta à literatura está desligada: nenhuma fonte de busca automática está ativa " +
+    "na configuração. Isso é ajuste de administrador, não ausência de artigo.",
+  sem_termo:
+    "A pergunta não produziu nenhum termo que a literatura indexe. Nomeie a conduta, a " +
+    "sigla (TAVI, SAVR) ou o desfecho que interessa.",
+  sem_resultado:
+    "A consulta à literatura rodou e não encontrou artigo indexado com resumo para esta " +
+    "pergunta. A resposta acima não foi reforçada por ela.",
+  servico_indisponivel:
+    "A base de literatura (PubMed) não respondeu agora. A resposta acima veio sem esse " +
+    "reforço — vale repetir a consulta mais tarde.",
+};
+
+function ArtigosList({
+  artigos, pediu, motivo,
+}: { artigos: Artigo[]; pediu: boolean; motivo: MotivoPesquisa | null }) {
   if (!pediu) return null;
   if (!artigos.length) {
+    const desligada = motivo === "sem_fonte_automatica";
     return (
-      <p className="text-[11px] text-muted-foreground border border-dashed border-border rounded-lg p-2.5">
-        A consulta à literatura não encontrou artigo indexado para esta pergunta. A resposta acima
-        não foi reforçada por ela.
+      <p
+        className={`text-[11px] rounded-lg p-2.5 border ${
+          desligada
+            ? "border-warning/50 bg-warning/10 text-warning"
+            : "border-dashed border-border text-muted-foreground"
+        }`}
+      >
+        {MOTIVO_TEXTO[motivo ?? "sem_resultado"]}
       </p>
     );
   }

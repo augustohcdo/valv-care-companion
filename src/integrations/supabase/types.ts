@@ -1930,6 +1930,7 @@ export type Database = {
         Row: {
           category: string
           citable_for: string
+          consulta: string
           created_at: string
           domain: string
           enabled: boolean
@@ -1941,6 +1942,7 @@ export type Database = {
         Insert: {
           category: string
           citable_for: string
+          consulta?: string
           created_at?: string
           domain: string
           enabled?: boolean
@@ -1952,6 +1954,7 @@ export type Database = {
         Update: {
           category?: string
           citable_for?: string
+          consulta?: string
           created_at?: string
           domain?: string
           enabled?: boolean
