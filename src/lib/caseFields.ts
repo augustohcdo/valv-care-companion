@@ -130,6 +130,126 @@ export function medidasFaltantesNoCaso(
   return saida;
 }
 
+/** O grau de regurgitação é texto e não tem faixa — mas tem rótulo e origem. */
+const CAMPO_REGURGITACAO = {
+  key: "regurgitation_grade", label: "Regurgitação", unidade: "",
+} as const;
+
+export interface LacunaDoExame {
+  key: string;
+  label: string;
+  unidade: string;
+  valor: number | string;
+  /**
+   * Motivo pelo qual o valor é **suspeito**. Passa no `CHECK` do banco e quase
+   * certamente é erro de digitação — por isso vem desmarcado na tela, com o
+   * motivo à vista, em vez de entrar junto com os demais.
+   */
+  suspeita: string | null;
+}
+
+export interface DivergenciaDoExame {
+  key: string;
+  label: string;
+  unidade: string;
+  noCaso: number | string;
+  noExame: number | string;
+}
+
+export interface ComparacaoComExame {
+  /** Campo vazio no caso que o exame preenche. */
+  lacunas: LacunaDoExame[];
+  /** Os dois lados têm valor e eles diferem. Nunca sobrescrito sozinho. */
+  divergencias: DivergenciaDoExame[];
+  /** Fora da faixa do `CHECK`: nem chega a ser oferecido. */
+  recusados: { label: string; valor: number; motivo: string }[];
+}
+
+/**
+ * O valor é fisiologicamente plausível para este campo?
+ *
+ * Não é a mesma pergunta que "cabe na faixa do banco". O `CHECK` de FE aceita
+ * qualquer coisa de 0 a 100, então **0,45 passa** — e 0,45 é a fração escrita
+ * onde se esperava a porcentagem, um erro de digitação que entraria no
+ * prontuário com cara de medida. Estas regras não bloqueiam: elas marcam, para
+ * o médico decidir olhando.
+ */
+export function suspeitaDeErro(
+  key: string, valor: number, exame: ExameMedidas,
+): string | null {
+  if (key === "ejection_fraction" && valor > 0 && valor < 1) {
+    return "menor que 1: parece a fração (0,45) escrita onde se espera a porcentagem (45)";
+  }
+  if (key === "valve_area" && valor > 6) {
+    return "acima de 6 cm²: fora do que se mede em doença valvar";
+  }
+  // Gradiente médio nunca é maior que o máximo. Marca os dois, porque daqui não
+  // dá para saber qual dos dois foi digitado errado.
+  const { mean_gradient: medio, peak_gradient: maximo } = exame;
+  if (
+    (key === "mean_gradient" || key === "peak_gradient") &&
+    typeof medio === "number" && typeof maximo === "number" && medio > maximo
+  ) {
+    return `gradiente médio (${medio}) maior que o máximo (${maximo}) — impossível`;
+  }
+  return null;
+}
+
+/**
+ * Compara os achados do caso com um exame, campo a campo.
+ *
+ * Três respostas, e a separação entre elas é o ponto: **lacuna** é campo vazio
+ * que o exame preenche, e é o que o botão preenche; **divergência** é campo com
+ * valor nos dois lados e valores diferentes, que aparece e nunca é trocado
+ * sozinho — o valor do caso pode ter sido posto de propósito; **recusado** é o
+ * que o banco não aceitaria, e por isso não é sequer oferecido.
+ */
+export function compararComExame(
+  caso: Record<string, unknown>,
+  exame: ExameMedidas,
+): ComparacaoComExame {
+  const saida: ComparacaoComExame = { lacunas: [], divergencias: [], recusados: [] };
+
+  for (const campo of MEDIDAS_DO_EXAME) {
+    const bruto = exame[campo.doExame as keyof ExameMedidas];
+    // `typeof === "number"` e não veracidade: gradiente médio 0 existe em
+    // prótese funcionante, e um teste de veracidade descartaria justamente ele.
+    if (typeof bruto !== "number" || !Number.isFinite(bruto)) continue;
+
+    const recusa = validarMedida(campo, String(bruto));
+    if (recusa) {
+      saida.recusados.push({ label: campo.label, valor: bruto, motivo: recusa });
+      continue;
+    }
+
+    const noCaso = caso[campo.key];
+    if (noCaso == null || noCaso === "") {
+      saida.lacunas.push({
+        key: campo.key, label: campo.label, unidade: campo.unidade,
+        valor: bruto, suspeita: suspeitaDeErro(campo.key, bruto, exame),
+      });
+    } else if (Number(noCaso) !== bruto) {
+      saida.divergencias.push({
+        key: campo.key, label: campo.label, unidade: campo.unidade,
+        noCaso: Number(noCaso), noExame: bruto,
+      });
+    }
+  }
+
+  const grau = exame.regurgitation_grade?.trim();
+  if (grau) {
+    const noCaso = caso[CAMPO_REGURGITACAO.key];
+    const atual = typeof noCaso === "string" ? noCaso.trim() : "";
+    if (!atual) {
+      saida.lacunas.push({ ...CAMPO_REGURGITACAO, valor: grau, suspeita: null });
+    } else if (atual !== grau) {
+      saida.divergencias.push({ ...CAMPO_REGURGITACAO, noCaso: atual, noExame: grau });
+    }
+  }
+
+  return saida;
+}
+
 /**
  * O que mudou entre o que estava gravado e o que o médico digitou.
  *

@@ -21,6 +21,7 @@ import {
   caseStatusLabels,
 } from "@/lib/clinicalLabels";
 import { CaseFindingsEditor } from "@/components/CaseFindingsEditor";
+import { CaseExamGap } from "@/components/CaseExamGap";
 import { CaseDocuments } from "@/components/CaseDocuments";
 import { CaseTimeline } from "@/components/CaseTimeline";
 import { CaseAppointments } from "@/components/CaseAppointments";
@@ -249,6 +250,15 @@ export default function CasoDetalhe() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {/* O exame tem número que os achados não têm — detectado ao abrir,
+              não só no instante em que o exame é salvo. */}
+          <CaseExamGap
+            caseId={caso.id}
+            caso={caso}
+            readOnly={!isOwner}
+            onAplicado={() => queryClient.invalidateQueries({ queryKey: caseDetailKey(id, doctor?.id) })}
+          />
+
           {/* Achados — leitura e edição no mesmo lugar */}
           <CaseFindingsEditor
             caso={caso}
