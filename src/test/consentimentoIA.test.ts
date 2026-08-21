@@ -21,6 +21,8 @@ import { resolve, join } from "node:path";
  */
 
 const raiz = resolve(__dirname, "../..");
+const consentimento = readFileSync(resolve(raiz, "src/lib/consent.ts"), "utf8");
+const politica = readFileSync(resolve(raiz, "src/pages/public/Privacidade.tsx"), "utf8");
 const funcao = readFileSync(
   resolve(raiz, "supabase/functions/clinical-ai/index.ts"), "utf8",
 );
@@ -86,5 +88,56 @@ describe("consentimento de IA no cliente", () => {
     });
     expect(sem.map((f) => f.replace(raiz + "/", "")),
       "chamadores que mostrariam erro cru em vez do motivo").toEqual([]);
+  });
+});
+
+/**
+ * Guarda: o que o código envia e o que o consentimento promete não podem
+ * divergir.
+ *
+ * Divergiam. O texto dizia que os dados iam ao Google "— sem meu nome",
+ * enquanto `extract_echo` aceitava `fileBase64` e mandava o laudo inteiro, com
+ * nome, data de nascimento e número de registro impressos nele. O campo do caso
+ * sempre foi minimizado; o documento nunca esteve. Um consentimento que
+ * descreve metade do envio não é informado.
+ */
+describe("o consentimento descreve o envio de verdade", () => {
+  it("a função de fato aceita arquivo — é o que torna a guarda necessária", () => {
+    // Se este caminho for removido um dia, a exigência abaixo pode cair junto.
+    // Enquanto ele existir, o texto tem que falar dele.
+    expect(funcao).toContain("fileBase64");
+    expect(funcao).toContain("inlineData");
+  });
+
+  it("o texto do consentimento avisa que o arquivo anexado vai como está", () => {
+    const bloco = consentimento.slice(
+      consentimento.indexOf('type: "ai_processing"'),
+      consentimento.indexOf('type: "cookies_functional"'),
+    );
+    expect(bloco).toMatch(/laudo é anexado/);
+    expect(bloco).toMatch(/enviado como está/);
+  });
+
+  it("o texto não volta a prometer que o nome nunca é enviado", () => {
+    const bloco = consentimento.slice(
+      consentimento.indexOf('description:', consentimento.indexOf('type: "ai_processing"')),
+      consentimento.indexOf('required: false', consentimento.indexOf('type: "ai_processing"')),
+    );
+    expect(bloco).not.toMatch(/sem meu nome/);
+  });
+
+  it("a Política de Privacidade descreve os dois caminhos", () => {
+    expect(politica).toMatch(/anexa o laudo/);
+    expect(politica).toMatch(/enviado como está/);
+    // A frase antiga hedgeava com "sempre que tecnicamente possível", o que
+    // sugeria minimização onde não há nenhuma.
+    expect(politica).not.toMatch(/minimizado\/omitido nessas chamadas sempre que tecnicamente possível/);
+  });
+
+  it("o consentimento de IA anda em versão própria, por ter mudado de sentido", () => {
+    // Subir a versão global re-versionaria Termos e Política que não mudaram,
+    // e o registro diria que a pessoa aceitou uma revisão que nunca existiu.
+    expect(consentimento).toMatch(/version: "2\.3"/);
+    expect(consentimento).toContain("export function versaoDoConsentimento");
   });
 });

@@ -695,6 +695,14 @@ export default function NovoCaso() {
                     nem interpreta a imagem do exame — para isso não existe base comprovada, e um número estimado
                     de um traçado seria invenção com cara de medida.
                   </p>
+                  {/* Dito no ponto da ação, não só na política: nos demais modos
+                      o nome vai como marcador, mas um arquivo não tem como ser
+                      redigido antes do envio. */}
+                  <p className="text-[11px] text-warning mt-1.5 leading-relaxed">
+                    <strong>O arquivo anexado é enviado como está</strong> ao provedor de IA (Google Gemini),
+                    incluindo o que estiver impresso nele — nome, data de nascimento, número de registro. Se
+                    preferir, cole o texto do laudo já sem a identificação.
+                  </p>
                   {ringSuggestions.length > 0 && (
                     <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
                       <p className="text-xs font-semibold text-primary mb-2">

@@ -18,6 +18,15 @@ export interface ConsentDefinition {
   description: string;
   required: boolean;
   audience: "all" | "paciente" | "medico";
+  /**
+   * Versão do texto **deste** consentimento, quando ele andou sozinho.
+   *
+   * A versão global cobre a maioria, mas quando o texto de um consentimento
+   * muda de significado ele precisa andar por conta: subir a global
+   * re-versionaria Termos e Política que não mudaram, e o registro diria que a
+   * pessoa aceitou uma revisão que nunca existiu.
+   */
+  version?: string;
 }
 
 export const CONSENT_CATALOG: ConsentDefinition[] = [
@@ -64,10 +73,17 @@ export const CONSENT_CATALOG: ConsentDefinition[] = [
   {
     type: "ai_processing",
     title: "Processamento por IA clínica",
+    // O texto anterior dizia "— sem meu nome", e isso era falso para um dos
+    // dois caminhos: quando o médico anexa o laudo para leitura automática, o
+    // arquivo é enviado inteiro, e um laudo traz nome, data de nascimento e
+    // número de registro impressos. O campo do caso continua minimizado; o
+    // documento nunca esteve. Dizer as duas coisas separadas é a única forma
+    // de o consentimento ser informado.
     description:
-      "Permito que dados do meu caso (idade, sexo, sintomas, comorbidades, achados de exames e anotações clínicas — sem meu nome) sejam enviados ao Google (API Gemini) para o módulo de apoio à decisão clínica da plataforma. No nível gratuito atual dessa API, o conteúdo enviado pode ser usado pelo Google para aprimorar seus produtos.",
+      "Permito que dados do meu caso (idade, sexo, sintomas, comorbidades, achados de exames e anotações clínicas) sejam enviados ao Google (API Gemini) para o módulo de apoio à decisão clínica da plataforma. Nessas chamadas o nome do paciente é substituído por um marcador antes do envio. ATENÇÃO: quando um laudo é anexado para leitura automática, o arquivo é enviado como está — incluindo o que estiver impresso nele, como nome, data de nascimento e número de registro. No nível gratuito atual dessa API, o conteúdo enviado pode ser usado pelo Google para aprimorar seus produtos.",
     required: false,
     audience: "all",
+    version: "2.3",
   },
   {
     type: "cookies_functional",
@@ -101,6 +117,16 @@ export const AVISO_CONSENTIMENTO_IA = {
     "os dados do caso só vão ao provedor com esse consentimento.",
 } as const;
 
+/**
+ * A versão vigente do texto de um consentimento.
+ *
+ * Sem isto, o registro guardaria "2.2" ao lado de um texto que mudou — e o
+ * painel de privacidade mostra essa versão para o titular.
+ */
+export function versaoDoConsentimento(type: ConsentType): string {
+  return CONSENT_CATALOG.find((c) => c.type === type)?.version ?? CONSENT_VERSION;
+}
+
 export async function registerConsent(params: {
   type: ConsentType;
   granted: boolean;
@@ -113,7 +139,7 @@ export async function registerConsent(params: {
   const { data, error } = await supabase.rpc("register_consent", {
     _consent_type: params.type,
     _granted: params.granted,
-    _document_version: params.version ?? CONSENT_VERSION,
+    _document_version: params.version ?? versaoDoConsentimento(params.type),
     _source: params.source ?? "portal",
     _ip_address: undefined,
     _user_agent: userAgent,
