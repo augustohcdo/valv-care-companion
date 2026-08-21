@@ -390,6 +390,18 @@ Regras:
 - Se o campo não estiver claramente descrito no laudo, use null.
 - Nunca invente valores. Nunca converta unidades sem certeza.
 
+IDENTIFICAÇÃO DO PACIENTE — transcreva só o que estiver impresso:
+- patient_name: o nome do PACIENTE, exatamente como escrito. O laudo também
+  imprime o nome do médico solicitante e do médico executante, muitas vezes na
+  linha de cima ou de baixo. Se houver qualquer dúvida sobre qual é qual, use
+  null: trocar os dois renomearia o prontuário inteiro.
+- patient_birth_date e exam_date em AAAA-MM-DD. Converta a data escrita para
+  esse formato, mas nunca deduza uma data que não esteja no documento.
+- patient_age só se a idade estiver escrita. Não calcule a partir do
+  nascimento — quem faz essa conta é o sistema, que mostra a origem dela.
+- patient_sex como escrito ("Masculino", "F", "feminino"). Não deduza sexo a
+  partir do nome.
+
 REGRA QUE MANDA EM TODAS AS OUTRAS — você TRANSCREVE, não INTERPRETA:
 - Só reporte número que esteja ESCRITO no documento, em texto. Você está lendo
   um laudo, não avaliando um exame.
@@ -422,6 +434,24 @@ ${raw
                   mitral_annulus_mm: numOrNull,
                   aortic_annulus_mm: numOrNull,
                   tricuspid_annulus_mm: numOrNull,
+                  patient_name: {
+                    type: "STRING", nullable: true,
+                    description:
+                      "Nome do paciente como impresso no laudo. null se houver dúvida entre o paciente e o médico solicitante.",
+                  },
+                  patient_birth_date: {
+                    type: "STRING", nullable: true,
+                    description: "Data de nascimento em AAAA-MM-DD, se impressa.",
+                  },
+                  patient_sex: {
+                    type: "STRING", nullable: true,
+                    description: "Sexo como escrito no laudo. null se não estiver escrito.",
+                  },
+                  patient_age: numOrNull,
+                  exam_date: {
+                    type: "STRING", nullable: true,
+                    description: "Data do exame em AAAA-MM-DD, se impressa.",
+                  },
                   is_laudo: {
                     type: "BOOLEAN",
                     description:
@@ -431,6 +461,8 @@ ${raw
                 required: [
                   "lvef", "mean_gradient", "aortic_valve_area", "psap",
                   "mitral_annulus_mm", "aortic_annulus_mm", "tricuspid_annulus_mm",
+                  "patient_name", "patient_birth_date", "patient_sex",
+                  "patient_age", "exam_date",
                   "is_laudo",
                 ],
               },
@@ -467,6 +499,28 @@ ${raw
       // com a negativa explícita.
       const is_laudo = parsed.is_laudo === false ? false : true;
 
+      // A identificação sai daqui saneada, não como o modelo escreveu. Texto
+      // livre vindo de um modelo entra no prontuário como nome de paciente:
+      // corta o que for longo demais para ser nome, normaliza espaço, e recusa
+      // data que não esteja no formato do banco em vez de tentar consertá-la.
+      const texto = (v: any, max: number) => {
+        if (typeof v !== "string") return null;
+        const t = v.trim().replace(/\s+/g, " ");
+        return t && t.length <= max ? t : null;
+      };
+      const dataISO = (v: any) => {
+        const t = texto(v, 10);
+        return t && /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : null;
+      };
+      // Sem laudo escrito não há identificação a transcrever. Devolver nome
+      // "lido" de uma imagem de exame seria exatamente a invenção que a regra
+      // do prompt proíbe para os números.
+      const patient_name = is_laudo ? texto(parsed.patient_name, 120) : null;
+      const patient_birth_date = is_laudo ? dataISO(parsed.patient_birth_date) : null;
+      const patient_sex = is_laudo ? texto(parsed.patient_sex, 20) : null;
+      const patient_age = is_laudo ? clean(parsed.patient_age) : null;
+      const exam_date = is_laudo ? dataISO(parsed.exam_date) : null;
+
       // Sugestão de anéis compatíveis (nunca preenchimento automático — o médico revisa)
       const ringSuggestions: Array<{ id: string; manufacturer: string; model_name: string; size: number; annulus_range: string; reference_url: string | null; valve: string }> = [];
       const SERVICE_ROLE_EX = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -498,6 +552,7 @@ ${raw
         is_laudo,
         lvef, mean_gradient, aortic_valve_area, psap,
         mitral_annulus_mm, aortic_annulus_mm, tricuspid_annulus_mm,
+        patient_name, patient_birth_date, patient_sex, patient_age, exam_date,
         ring_suggestions: ringSuggestions,
       }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

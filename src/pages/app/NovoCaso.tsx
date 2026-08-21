@@ -22,6 +22,9 @@ import {
 } from "@/lib/clinicalLabels";
 import { logAudit } from "@/lib/auditLog";
 import { hasActiveConsent, AVISO_CONSENTIMENTO_IA } from "@/lib/consent";
+import { useAuth } from "@/hooks/useAuth";
+import { LaudoIdentificacao } from "@/components/LaudoIdentificacao";
+import type { IdentificacaoDoLaudo } from "@/lib/laudoIdentificacao";
 
 const steps = [
   { n: 1, label: "Identificação" },
@@ -138,6 +141,9 @@ type SaveStatus = "idle" | "saving" | "saved" | "error";
 export default function NovoCaso() {
   const navigate = useNavigate();
   const { data: doctor, isLoading: loadingDoctor } = useDoctor();
+  // Só para reconhecer o próprio nome no laudo: laudo emitido pelo próprio
+  // médico é comum, e é justamente aí que a troca com o nome do paciente passa.
+  const { profile } = useAuth();
   const doctorId = doctor?.id ?? null;
   const draftLoadedRef = useRef(false);
   const [step, setStep] = useState(1);
@@ -148,6 +154,7 @@ export default function NovoCaso() {
   const laudoInputRef = useRef<HTMLInputElement>(null);
   const [echoExtracting, setEchoExtracting] = useState(false);
   const [ringSuggestions, setRingSuggestions] = useState<Array<{ id: string; manufacturer: string; model_name: string; size: number; annulus_range: string; reference_url: string | null; valve: string }>>([]);
+  const [identificacao, setIdentificacao] = useState<IdentificacaoDoLaudo | null>(null);
 
   /**
    * Extrai os números do laudo — do texto colado ou do arquivo do laudo.
@@ -170,6 +177,7 @@ export default function NovoCaso() {
     }
     setEchoExtracting(true);
     setRingSuggestions([]);
+    setIdentificacao(null);
     try {
       let corpo: Record<string, unknown> = { mode: "extract_echo", rawText: echoRaw };
       if (arquivo) {
@@ -198,6 +206,18 @@ export default function NovoCaso() {
         });
         return;
       }
+      // A identificação **não** entra no formulário aqui: ela vai para o bloco
+      // de conferência. Nome de paciente é o campo que, errado, contamina o
+      // prontuário inteiro — e o laudo imprime o nome do médico solicitante a
+      // duas linhas de distância do dele.
+      setIdentificacao({
+        patient_name: typeof data.patient_name === "string" ? data.patient_name : null,
+        patient_age: typeof data.patient_age === "number" ? data.patient_age : null,
+        patient_sex: typeof data.patient_sex === "string" ? data.patient_sex : null,
+        patient_birth_date: typeof data.patient_birth_date === "string" ? data.patient_birth_date : null,
+        exam_date: typeof data.exam_date === "string" ? data.exam_date : null,
+      });
+
       const patch: Partial<FormState> = {};
       if (typeof data.lvef === "number") patch.ejection_fraction = String(data.lvef);
       if (typeof data.mean_gradient === "number") patch.mean_gradient = String(data.mean_gradient);
@@ -208,8 +228,17 @@ export default function NovoCaso() {
       if (Array.isArray(data.ring_suggestions) && data.ring_suggestions.length > 0) {
         setRingSuggestions(data.ring_suggestions);
       }
-      if (filled === 0 && (!data.ring_suggestions || data.ring_suggestions.length === 0)) {
+      // A identificação conta como reconhecimento: dizer "nenhum campo
+      // reconhecido" com o nome do paciente à vista no bloco de conferência
+      // seria o aviso contradizendo a tela.
+      const leuIdentificacao = Boolean(
+        data.patient_name || data.patient_sex || data.patient_age || data.patient_birth_date,
+      );
+      if (filled === 0 && !leuIdentificacao
+          && (!data.ring_suggestions || data.ring_suggestions.length === 0)) {
         toast.warning("Nenhum campo reconhecido — revise o laudo manualmente.");
+      } else if (filled === 0 && leuIdentificacao) {
+        toast.success("Identificação lida do laudo. Confira abaixo antes de preencher.");
       } else {
         toast.success(`Extraídos ${filled} campo(s). Revise antes de salvar.${psapMsg}`);
       }
@@ -703,6 +732,23 @@ export default function NovoCaso() {
                     incluindo o que estiver impresso nele — nome, data de nascimento, número de registro. Se
                     preferir, cole o texto do laudo já sem a identificação.
                   </p>
+                  {identificacao && (
+                    <LaudoIdentificacao
+                      identificacao={identificacao}
+                      nomeDoMedico={profile?.full_name}
+                      atual={{
+                        patient_name: form.patient_name,
+                        patient_age: form.patient_age,
+                        patient_sex: form.patient_sex,
+                      }}
+                      onAplicar={(valores) => {
+                        setForm((f) => ({ ...f, ...valores }));
+                        setIdentificacao(null);
+                        toast.success("Identificação preenchida. Revise antes de salvar.");
+                      }}
+                      onDispensar={() => setIdentificacao(null)}
+                    />
+                  )}
                   {ringSuggestions.length > 0 && (
                     <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
                       <p className="text-xs font-semibold text-primary mb-2">
