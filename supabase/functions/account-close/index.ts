@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
       user_metadata: { encerrada_em: new Date().toISOString() },
     });
     if (authErr) {
-      await logError(admin, {
+      await logError({
         source: "edge_function",
         context: "account-close",
         message: `dados encerrados mas auth não: ${authErr.message}`,
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
     return json({ ok: true, relatorio });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    await logError(admin, { source: "edge_function", context: "account-close", message });
+    await logError({ source: "edge_function", context: "account-close", message });
     return json({ error: "internal_error" }, 500);
   }
 });

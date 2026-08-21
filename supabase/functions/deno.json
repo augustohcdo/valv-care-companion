@@ -1,0 +1,4 @@
+{
+  "// nodeModulesDir": "As functions importam por especificador npm:. Sem isto o `deno check` não acha os pacotes e para antes de conferir qualquer coisa.",
+  "nodeModulesDir": "auto"
+}

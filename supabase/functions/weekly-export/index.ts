@@ -127,8 +127,11 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization") ?? "";
     if (authHeader.startsWith("Bearer ")) {
       const token = authHeader.replace("Bearer ", "");
-      const { data } = await supabase.auth.getClaims(token);
-      const uid = data?.claims?.sub;
+      // Mesma armadilha do `dpo-export`: `getClaims` não existe no SDK que este
+      // bundle resolve. O caminho do cron não passa por aqui, então o backup
+      // seguia rodando enquanto o disparo manual por admin quebrava.
+      const { data } = await supabase.auth.getUser(token);
+      const uid = data?.user?.id;
       if (uid) {
         const { data: role } = await supabase
           .from("user_roles")

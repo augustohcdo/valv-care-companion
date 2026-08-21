@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
     return json({ ok, stamp, copiados: Object.keys(conferidos).length, falhas });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    await logError(supabase, { source: "edge_function", context: JOB, message });
+    await logError({ source: "edge_function", context: JOB, message });
     await recordJobRun({ job: JOB, startedAt, ok: false, error: message, triggeredBy });
     await sendAlert({
       subject: "[ValvePath] cópia externa do backup falhou",

@@ -54,17 +54,34 @@ describe("cadeia de modelos", () => {
    * A inversão que importa: reintroduzir `thinkingBudget: 0` derruba três dos
    * cinco modelos da cadeia com 400, e o sintoma aparece como erro do
    * provedor, longe da causa.
+   *
+   * A varredura olha **todos** os `generationConfig` do arquivo, não um bloco
+   * fixo. A primeira versão ancorava numa string do corpo do `callGemini`; ao
+   * mover a montagem para `tentarNaCadeia`, ela perdeu o alvo — e só não passou
+   * a inspecionar o nada porque a asserção de âncora existia. E olhar só um
+   * bloco deixaria de fora justamente o `extract_echo`, que era onde o
+   * `thinkingConfig` tinha ficado para trás.
    */
-  it("não volta a mandar thinkingConfig, que os modelos novos recusam", () => {
-    // O recorte é o corpo do payload, não o arquivo inteiro: o comentário que
-    // explica a medição cita `thinkingBudget` pelo nome, e uma varredura solta
-    // acusaria o comentário em vez do código — foi assim que a guarda do
-    // `revisar_trecho` chegou a inspecionar o trecho errado.
-    const inicio = fonte.indexOf("const payload = JSON.stringify({");
-    const payload = fonte.slice(inicio, fonte.indexOf("});", inicio));
-    expect(inicio).toBeGreaterThan(0);
-    expect(payload).toContain("maxOutputTokens");
-    expect(payload).not.toContain("thinkingBudget");
+  it("nenhum generationConfig manda thinkingConfig", () => {
+    const blocos = [...fonte.matchAll(/generationConfig:\s*\{[^}]*\}/g)].map((m) => m[0]);
+    expect(blocos.length).toBeGreaterThanOrEqual(2);
+    for (const b of blocos) {
+      expect(b, `generationConfig com thinkingConfig: ${b}`).not.toContain("thinkingBudget");
+    }
+  });
+
+  /**
+   * Um caminho de rede só. `extract_echo` falava direto com um modelo fixo, e
+   * quando a cadeia substituiu a constante da URL aquele caminho passou a
+   * referenciar um nome que não existia mais — em produção, sem nada acusar.
+   */
+  it("só a cadeia monta URL de geração de texto", () => {
+    // O `embedContent` é outro endpoint, com modelo próprio, e continua tendo
+    // o fetch dele. O que não pode voltar é um segundo caminho de
+    // `generateContent` fora de `urlDoModelo`.
+    const geracao = [...fonte.matchAll(/:generateContent/g)].length;
+    expect(geracao, "há mais de um lugar montando URL de generateContent").toBe(1);
+    expect(fonte).toContain("tentarNaCadeia(GEMINI_API_KEY");
   });
 
   it("a resposta diz de qual modelo veio, e se foi reserva", () => {

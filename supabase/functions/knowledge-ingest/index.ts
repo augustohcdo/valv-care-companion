@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    await logError(admin, { source: "edge_function", context: "knowledge-ingest", message });
+    await logError({ source: "edge_function", context: "knowledge-ingest", message });
     return json({ error: "internal_error", detail: message }, 500);
   }
 });

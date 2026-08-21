@@ -11,7 +11,12 @@
  */
 export type EmailResult = {
   sent: boolean;
-  reason?: "not_configured" | "send_failed" | "sem_destinatario";
+  /**
+   * `nada_a_avisar` não é falha de envio: é o vigia dizendo que não havia o que
+   * mandar. Ficava fora da união e era atribuído mesmo assim — o `deno check`
+   * que passou a rodar no CI foi quem mostrou.
+   */
+  reason?: "not_configured" | "send_failed" | "sem_destinatario" | "nada_a_avisar";
   detail?: string;
 };
 

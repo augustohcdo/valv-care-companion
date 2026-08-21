@@ -27,6 +27,18 @@ jobs:
       - name: Type-check (strict, src/lib)
         run: npm run typecheck:strict
 
+      # As edge functions rodam em Deno e ficavam fora de toda checagem
+      # estática. O primeiro `deno check` da história deste repositório achou
+      # sete erros reais, entre eles dois `getClaims` que não existem no SDK
+      # resolvido — nos caminhos de autorização do export de LGPD e do backup.
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Type-check (edge functions)
+        run: npm run typecheck:functions
+
       - name: Lint
         run: npm run lint
 

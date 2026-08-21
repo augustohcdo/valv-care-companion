@@ -18,7 +18,8 @@
     "test": "vitest run",
     "smoke": "node scripts/smoke.mjs",
     "mobile": "node scripts/mobile.mjs",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck:functions": "cd supabase/functions && deno check --quiet */index.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

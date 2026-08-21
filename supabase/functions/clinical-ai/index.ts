@@ -83,28 +83,21 @@ async function embedQuery(apiKey: string, text: string): Promise<number[] | null
   } catch (e) { console.error("embed error", e); return null; }
 }
 
-async function callGemini(
+/**
+ * Percorre a cadeia de modelos com **qualquer** corpo de requisição.
+ *
+ * Ela nasceu servindo só o modo de conversa, e o `extract_echo` ficou de fora,
+ * falando direto com um modelo fixo. O preço apareceu rápido: quando a cadeia
+ * substituiu a constante da URL, aquele caminho passou a referenciar um nome
+ * que não existia mais — e nada acusou, porque `supabase/functions/` está fora
+ * do `tsc` e nenhum teste o exercitava. Um caminho de rede só, para os dois
+ * modos, é o que impede a próxima divergência.
+ */
+async function tentarNaCadeia(
   apiKey: string,
-  body: { system?: string; messages: { role: "user" | "model"; content: string }[]; max_tokens: number },
+  corpo: Record<string, unknown>,
 ): Promise<{ resp: Response; modelo: string; reserva: boolean }> {
-  // `thinkingConfig: { thinkingBudget: 0 }` estava aqui como economia — e é
-  // justamente o que quebrava a cadeia. Medido, mesmo payload, mesma chave:
-  //
-  //                            sem thinking   budget 0   budget -1
-  //   gemini-3.6-flash              OK           400        OK
-  //   gemini-3.5-flash-lite         OK           400        OK
-  //   gemini-flash-lite-latest      OK           400        OK
-  //   gemini-flash-latest           OK           OK         503
-  //
-  // Os modelos novos não deixam desligar o raciocínio, e `-1` não é aceito por
-  // todos. Omitir o campo é a única forma que funciona na cadeia inteira — e
-  // uma cadeia de reserva que só funciona no primeiro elo não é reserva.
-  const payload = JSON.stringify({
-    ...(body.system ? { system_instruction: { parts: [{ text: body.system }] } } : {}),
-    generationConfig: { maxOutputTokens: body.max_tokens },
-    contents: body.messages.map((m) => ({ role: m.role, parts: [{ text: m.content }] })),
-  });
-
+  const payload = JSON.stringify(corpo);
   let ultima: Response | null = null;
   for (const modelo of MODELOS) {
     const resp = await fetch(urlDoModelo(modelo), {
@@ -131,6 +124,29 @@ async function callGemini(
     modelo: MODELOS[MODELOS.length - 1],
     reserva: true,
   };
+}
+
+async function callGemini(
+  apiKey: string,
+  body: { system?: string; messages: { role: "user" | "model"; content: string }[]; max_tokens: number },
+): Promise<{ resp: Response; modelo: string; reserva: boolean }> {
+  // `thinkingConfig: { thinkingBudget: 0 }` estava aqui como economia — e é
+  // justamente o que quebrava a cadeia. Medido, mesmo payload, mesma chave:
+  //
+  //                            sem thinking   budget 0   budget -1
+  //   gemini-3.6-flash              OK           400        OK
+  //   gemini-3.5-flash-lite         OK           400        OK
+  //   gemini-flash-lite-latest      OK           400        OK
+  //   gemini-flash-latest           OK           OK         503
+  //
+  // Os modelos novos não deixam desligar o raciocínio, e `-1` não é aceito por
+  // todos. Omitir o campo é a única forma que funciona na cadeia inteira — e
+  // uma cadeia de reserva que só funciona no primeiro elo não é reserva.
+  return tentarNaCadeia(apiKey, {
+    ...(body.system ? { system_instruction: { parts: [{ text: body.system }] } } : {}),
+    generationConfig: { maxOutputTokens: body.max_tokens },
+    contents: body.messages.map((m) => ({ role: m.role, parts: [{ text: m.content }] })),
+  });
 }
 
 const SYSTEM_PROMPT = `Você é um assistente clínico de ALTA PRECISÃO especializado em valvopatias cardíacas, apoiando cardiologistas brasileiros. Não é um chatbot genérico: é um consultor sênior que raciocina como um Heart Team.
@@ -390,11 +406,8 @@ ${raw
   : "O laudo vem no arquivo anexado a esta mensagem."}`;
 
       const numOrNull = { type: "NUMBER", nullable: true };
-      const r = await fetch(GEMINI_URL, {
-        method: "POST",
-        headers: { "x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          generationConfig: { maxOutputTokens: 1024, thinkingConfig: { thinkingBudget: 0 } },
+      const { resp: r } = await tentarNaCadeia(GEMINI_API_KEY, {
+          generationConfig: { maxOutputTokens: 1024 },
           tools: [{
             functionDeclarations: [{
               name: "extract_echo_data",
@@ -430,7 +443,6 @@ ${raw
               ? [{ text: extractPrompt }, { inlineData: { mimeType: arquivoTipo, data: arquivo } }]
               : [{ text: extractPrompt }],
           }],
-        }),
       });
       if (!r.ok) {
         const status = r.status === 429 ? 429 : 500;

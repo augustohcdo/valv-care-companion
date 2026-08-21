@@ -39,9 +39,13 @@ Deno.serve(async (req) => {
     const userClient = createClient(SUPABASE_URL, ANON, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: claims } = await userClient.auth.getClaims(authHeader.replace("Bearer ", ""));
-    if (!claims?.claims?.sub) return json({ error: "unauthorized" }, 401);
-    const adminUserId = claims.claims.sub;
+    // `getClaims` não existe no SDK que este bundle resolve: `_shared/logError.ts`
+    // fixa `@2.45.0`, e o `npm:@2` daqui deduplica para ela. A chamada lançaria
+    // em tempo de execução, e nada acusava — `supabase/functions/` estava fora
+    // de toda checagem estática até esta rodada.
+    const { data: userData } = await userClient.auth.getUser(authHeader.replace("Bearer ", ""));
+    const adminUserId = userData?.user?.id;
+    if (!adminUserId) return json({ error: "unauthorized" }, 401);
 
     const admin = createClient(SUPABASE_URL, SERVICE, { auth: { persistSession: false } });
     const { data: isAdmin } = await admin.rpc("has_role", { _user_id: adminUserId, _role: "admin" });
