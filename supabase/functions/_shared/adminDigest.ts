@@ -21,6 +21,8 @@ export type Metricas = {
   medicos: number; medicos_7d: number; medicos_30d: number;
   pacientes: number; pacientes_7d: number; pacientes_30d: number;
   casos: number; casos_7d: number; casos_30d: number;
+  /** Fictícios, fora das contagens acima. Aparecem para não sumirem. */
+  casos_demo?: number; medicos_demo?: number;
   contas_confirmadas: number; contas_pendentes: number;
   views_7d: number; visitas_7d: number;
   views_30d: number; visitas_30d: number;
@@ -95,6 +97,12 @@ export function montarResumo(m: Metricas, tarefas: SaudeTarefa[]): Resumo {
     `• Casos clínicos: ${m.casos} (${cresc(m.casos_7d)} na semana, ${cresc(m.casos_30d)} em 30 dias)`,
     `• Contas com e-mail confirmado: ${m.contas_confirmadas}` +
       (m.contas_pendentes > 0 ? ` · ${m.contas_pendentes} aguardando confirmação` : ""),
+    // Os números acima já excluem a demonstração. Esta linha existe para o
+    // volume fictício não sumir do relatório — números que desaparecem são
+    // tão ruins quanto números inflados.
+    ...((m.casos_demo ?? 0) > 0 || (m.medicos_demo ?? 0) > 0
+      ? [`• Demonstração (fora das contagens acima): ${m.casos_demo ?? 0} caso(s), ${m.medicos_demo ?? 0} médico(s) fictício(s)`]
+      : []),
     "",
     "AUDIÊNCIA DO SITE",
     "",

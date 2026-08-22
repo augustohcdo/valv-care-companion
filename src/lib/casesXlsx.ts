@@ -50,6 +50,13 @@ export async function exportCasesToXlsx(cases: CaseRow[], filename = "casos-clin
   styleHeaderRow(summary.getRow(1));
 
   summary.addRow({ cat: "Total de casos", val: "", count: cases.length });
+  // Quem abre a planilha lê o Resumo antes de rolar a aba de casos. Se há caso
+  // fictício no meio, o agregado precisa dizer isso aqui também — senão a
+  // coluna da outra aba avisa tarde demais.
+  const demo = cases.filter((c) => c.is_demo).length;
+  if (demo > 0) {
+    summary.addRow({ cat: "Dos quais fictícios", val: "demonstração, não é dado real", count: demo });
+  }
   summary.addRow({});
 
   const sections: [string, ReturnType<typeof countBy>][] = [

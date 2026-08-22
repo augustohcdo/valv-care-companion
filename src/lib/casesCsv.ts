@@ -22,9 +22,14 @@ export interface CaseRow {
   clinical_notes: string | null;
   created_at: string;
   updated_at: string;
+  is_demo?: boolean | null;
 }
 
 export const COLUMNS: { header: string; get: (c: CaseRow) => string | number | null | undefined }[] = [
+  // Primeira coluna, de propósito: numa planilha com centenas de linhas, o
+  // aviso na última coluna some para a direita. `COLUMNS` é compartilhada com
+  // o export .xlsx (`casesXlsx.ts`), então este ponto cobre os dois.
+  { header: "Demonstração", get: (c) => (c.is_demo ? "SIM — dado fictício" : "") },
   { header: "ID", get: (c) => c.id },
   { header: "Paciente", get: (c) => c.patient_name },
   { header: "Idade", get: (c) => c.patient_age ?? "" },

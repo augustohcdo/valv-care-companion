@@ -436,6 +436,7 @@ export type Database = {
           doctor_id: string
           ejection_fraction: number | null
           id: string
+          is_demo: boolean
           mean_gradient: number | null
           nyha: Database["public"]["Enums"]["nyha_class"] | null
           patient_age: number | null
@@ -462,6 +463,7 @@ export type Database = {
           doctor_id: string
           ejection_fraction?: number | null
           id?: string
+          is_demo?: boolean
           mean_gradient?: number | null
           nyha?: Database["public"]["Enums"]["nyha_class"] | null
           patient_age?: number | null
@@ -488,6 +490,7 @@ export type Database = {
           doctor_id?: string
           ejection_fraction?: number | null
           id?: string
+          is_demo?: boolean
           mean_gradient?: number | null
           nyha?: Database["public"]["Enums"]["nyha_class"] | null
           patient_age?: number | null
@@ -755,6 +758,7 @@ export type Database = {
           crm_uf: string
           id: string
           institution: string | null
+          is_demo: boolean
           rqe: string | null
           specialty: string
           updated_at: string
@@ -769,6 +773,7 @@ export type Database = {
           crm_uf: string
           id?: string
           institution?: string | null
+          is_demo?: boolean
           rqe?: string | null
           specialty: string
           updated_at?: string
@@ -783,6 +788,7 @@ export type Database = {
           crm_uf?: string
           id?: string
           institution?: string | null
+          is_demo?: boolean
           rqe?: string | null
           specialty?: string
           updated_at?: string

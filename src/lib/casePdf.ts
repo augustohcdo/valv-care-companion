@@ -10,6 +10,7 @@ import {
   appointmentStatusLabels,
 } from "@/lib/clinicalLabels";
 import { calculateRisk, TOTAL_ENTRADAS } from "@/lib/riskScore";
+import { AVISO_DEMO, AVISO_DEMO_CURTO, ehDemo } from "@/lib/demo";
 
 interface ExportData {
   caso: any;
@@ -32,6 +33,7 @@ export function exportCasePDF({ caso, doctor, events = [], appointments = [], do
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const marginX = 15;
+  const demo = ehDemo(caso);
   let y = 15;
 
   const ensureSpace = (h: number) => {
@@ -47,8 +49,12 @@ export function exportCasePDF({ caso, doctor, events = [], appointments = [], do
     const current = doc.getCurrentPageInfo().pageNumber;
     doc.setFontSize(8);
     doc.setTextColor(...COLORS.muted);
+    // O aviso vai em TODA página, não só na primeira: é comum uma folha solta
+    // do meio do relatório circular sozinha, e é ela que precisa se explicar.
     doc.text(
-      "ValvePath — Relatório clínico • Documento informativo, não substitui prontuário oficial.",
+      demo
+        ? `ValvePath — ${AVISO_DEMO_CURTO}`
+        : "ValvePath — Relatório clínico • Documento informativo, não substitui prontuário oficial.",
       marginX, pageH - 10
     );
     doc.text(`Página ${current}/${total}`, pageW - marginX, pageH - 10, { align: "right" });
@@ -104,8 +110,22 @@ export function exportCasePDF({ caso, doctor, events = [], appointments = [], do
     `Emitido em ${new Date().toLocaleString("pt-BR")}`,
     pageW - marginX, 12, { align: "right" }
   );
-  doc.text("Documento informativo", pageW - marginX, 17, { align: "right" });
+  doc.text(
+    demo ? "DEMONSTRAÇÃO — dados fictícios" : "Documento informativo",
+    pageW - marginX, 17, { align: "right" },
+  );
   y = 30;
+
+  // Bloco próprio, acima do nome. Um PDF de prontuário que sai do sistema sem
+  // dizer que é fictício é o pior artefato que esta base poderia produzir.
+  if (demo) {
+    doc.setFillColor(255, 244, 214);
+    doc.rect(marginX, y - 4, pageW - marginX * 2, 14, "F");
+    doc.setFontSize(8);
+    doc.setTextColor(...COLORS.text);
+    doc.text(doc.splitTextToSize(AVISO_DEMO, pageW - marginX * 2 - 6), marginX + 3, y + 1);
+    y += 16;
+  }
 
   // ===== TÍTULO =====
   doc.setTextColor(...COLORS.text);
@@ -284,5 +304,8 @@ export function exportCasePDF({ caso, doctor, events = [], appointments = [], do
 
   addFooter();
 
-  doc.save(`valvepath-caso-${caso.patient_name.replace(/\s+/g, "-").toLowerCase()}.pdf`);
+  doc.save(
+    `valvepath-${demo ? "demonstracao-" : ""}caso-` +
+    `${caso.patient_name.replace(/\s+/g, "-").toLowerCase()}.pdf`,
+  );
 }

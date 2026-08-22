@@ -8,6 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { DemoBadge } from "@/components/DemoBadge";
+import { ehDemo } from "@/lib/demo";
 import {
   Select,
   SelectContent,
@@ -318,6 +320,7 @@ export default function ListaCasos() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-serif text-lg text-primary truncate group-hover:underline underline-offset-4">{c.patient_name}</h3>
                       {c.patient_age && <span className="text-xs text-muted-foreground">{c.patient_age} anos</span>}
+                      {ehDemo(c) && <DemoBadge />}
                       {pendingIds.has(c.id) && (
                         <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700 bg-amber-50">
                           <AlertTriangle className="h-3 w-3 mr-1" /> Ação pendente

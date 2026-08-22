@@ -21,6 +21,8 @@ import {
   valveTypeLabels, valveDiseaseLabels, severityLabels, severityColors,
   caseStatusLabels,
 } from "@/lib/clinicalLabels";
+import { DemoBanner } from "@/components/DemoBadge";
+import { ehDemo } from "@/lib/demo";
 import { CaseFindingsEditor } from "@/components/CaseFindingsEditor";
 import { CaseExamGap } from "@/components/CaseExamGap";
 import { CaseDocuments } from "@/components/CaseDocuments";
@@ -252,6 +254,10 @@ export default function CasoDetalhe() {
           {caso.patient_age && <Badge variant="outline">{caso.patient_age} anos</Badge>}
         </div>
       </PageHeader>
+
+      {/* Antes de qualquer número: quem abre um prontuário precisa saber, já
+          na primeira linha, que este paciente não existe. */}
+      {ehDemo(caso) && <div className="mb-6"><DemoBanner /></div>}
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
