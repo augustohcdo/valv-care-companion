@@ -13,6 +13,8 @@
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit",
     "typecheck:strict": "tsc -p tsconfig.strict.json --noEmit",
     "types:generate": "node scripts/generate-supabase-types.mjs",
+    "demo:seed": "node scripts/demo-seed.mjs --aplicar",
+    "demo:limpar": "node scripts/demo-seed.mjs --limpar",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

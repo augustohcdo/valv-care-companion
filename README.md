@@ -41,6 +41,8 @@ Scripts disponíveis:
 | `test` | Roda os testes uma vez (Vitest) |
 | `test:watch` | Testes em modo watch |
 | `types:generate` | Regenera os tipos do Supabase a partir do schema (ver abaixo) |
+| `demo:seed` | Popula a base fictícia de demonstração (ver abaixo) |
+| `demo:limpar` | Remove a base fictícia, sem tocar em dado real |
 
 ## Recuperação
 
@@ -100,6 +102,38 @@ SUPABASE_ACCESS_TOKEN=sbp_xxx npm run types:generate
 ```
 
 O token é um [Personal Access Token](https://supabase.com/dashboard/account/tokens) da Management API — não confundir com a anon key nem com a service role key. Como ele tem poder praticamente total sobre o projeto, não deve ser commitado nem guardado como secret de CI. Esquecer esse passo faz o `npm run typecheck` falhar com erros do tipo `'<coluna>' does not exist in type ...`.
+
+## Base de demonstração
+
+Para apresentar o produto com as telas cheias — painéis, gráficos, relatórios e
+discussão de Heart Team — existe uma base fictícia de 12 casos, com exames
+seriados, linha do tempo, compromissos e três médicos fictícios assinando as
+decisões.
+
+```bash
+SUPABASE_ACCESS_TOKEN=sbp_xxx npm run demo:seed -- --medico email@do.medico
+SUPABASE_ACCESS_TOKEN=sbp_xxx npm run demo:limpar
+```
+
+O conteúdo está em `scripts/demo-data.mjs`; quem insere é `scripts/demo-seed.mjs`.
+É script e não migration de propósito: uma migration levaria paciente inventado
+para dentro de toda restauração de desastre.
+
+Três coisas valem saber antes de usar:
+
+- **Nada disso conta como uso real.** Os casos e os médicos fictícios ficam com
+  `is_demo = true` e são excluídos de `admin_site_metrics()` e do resumo semanal
+  do administrador, que passam a mostrá-los em linha própria.
+- **A marca acompanha o caso para fora do sistema.** Selo na lista, faixa no
+  topo do caso, aviso no cabeçalho e no rodapé de toda página do PDF, e primeira
+  coluna do CSV e do `.xlsx`.
+- **As contas fictícias nascem banidas** e não conseguem sessão por caminho
+  nenhum — o link mágico responde `user_banned`. Elas existem só para a
+  discussão ter autoria distinta.
+
+`--aplicar` limpa antes de inserir, então rodar duas vezes não duplica, e
+`--limpar` devolve o banco exatamente ao estado anterior (inclusive apagando os
+laudos que o seed enviou ao bucket).
 
 ## Deploy (Vercel)
 

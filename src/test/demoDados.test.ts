@@ -1,6 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
+import {
+  valveTypeLabels, valveDiseaseLabels, severityLabels, nyhaLabels, caseStatusLabels,
+  examTypeLabels, eventTypeLabels, appointmentTypeLabels, appointmentStatusLabels,
+  commonSymptoms, commonComorbidities,
+} from "@/lib/clinicalLabels";
 
 /**
  * Guarda: dado de demonstração não pode virar número real, nem sair do sistema
@@ -106,5 +111,124 @@ describe("o caso fictício se identifica onde quer que apareça", () => {
     for (const arquivo of ["src/lib/casePdf.ts", "src/components/DemoBadge.tsx"]) {
       expect(ler(arquivo), `${arquivo} não usa o texto compartilhado`).toMatch(/from "@\/lib\/demo"/);
     }
+  });
+});
+
+/**
+ * Guarda: a base fictícia só usa vocabulário que o app entende.
+ *
+ * Um enum errado aqui não falha no CI nem no build — falha na hora de inserir,
+ * ou pior, insere e a tela mostra o código cru no lugar do rótulo. Foi assim
+ * que um `'grave'` inválido (a coluna aceita `importante`) chegou ao digest
+ * semanal e ao PDF mensal antes de alguém notar.
+ */
+describe("a base fictícia fala a língua do app", () => {
+  // `scripts/` fica fora do `src/`, então o import é dinâmico e o tipo é
+  // declarado aqui — é dado de seed, não código de produção.
+  type Caso = Record<string, unknown> & {
+    exames: { tipo: string }[]; eventos: { tipo: string }[];
+    compromissos: { tipo: string; status: string }[];
+    comentarios: { autor: string | null; body: string }[];
+    colaboradores?: string[];
+  };
+
+  let CASOS: Caso[] = [];
+  let MEDICOS: { chave: string; email: string; crm: string }[] = [];
+
+  beforeAll(async () => {
+    const mod = await import("../../scripts/demo-data.mjs");
+    CASOS = mod.CASOS as Caso[];
+    MEDICOS = mod.MEDICOS as typeof MEDICOS;
+  });
+
+  it("há base para conferir — sem isso a varredura passaria vazia", () => {
+    expect(CASOS.length).toBeGreaterThanOrEqual(10);
+    expect(MEDICOS.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("todo enum bate com os rótulos do app", () => {
+    const erros: string[] = [];
+    const conferir = (valor: unknown, mapa: Record<string, string>, onde: string) => {
+      if (valor == null || valor === "") return;
+      if (!(String(valor) in mapa)) erros.push(`${onde}: "${valor}"`);
+    };
+    for (const c of CASOS) {
+      conferir(c.valve_type, valveTypeLabels, "valve_type");
+      conferir(c.valve_disease, valveDiseaseLabels, "valve_disease");
+      conferir(c.severity, severityLabels, "severity");
+      conferir(c.nyha, nyhaLabels, "nyha");
+      conferir(c.status, caseStatusLabels, "status");
+      for (const e of c.exames) conferir(e.tipo, examTypeLabels, "exam_type");
+      for (const e of c.eventos) conferir(e.tipo, eventTypeLabels, "event_type");
+      for (const a of c.compromissos) {
+        conferir(a.tipo, appointmentTypeLabels, "appointment_type");
+        conferir(a.status, appointmentStatusLabels, "appointment_status");
+      }
+    }
+    expect(erros, "valores que o app não sabe rotular").toEqual([]);
+  });
+
+  it("sintomas e comorbidades saem das listas oferecidas na tela", () => {
+    const fora: string[] = [];
+    for (const c of CASOS) {
+      for (const s of (c.symptoms as string[]) ?? []) {
+        if (!commonSymptoms.includes(s)) fora.push(`sintoma "${s}"`);
+      }
+      for (const m of (c.comorbidities as string[]) ?? []) {
+        if (!commonComorbidities.includes(m)) fora.push(`comorbidade "${m}"`);
+      }
+    }
+    expect(fora, "texto livre onde a tela oferece lista fechada").toEqual([]);
+  });
+
+  it("as medidas cabem nas faixas dos CHECK do banco", () => {
+    // O banco recusaria, mas com erro cru no meio do seed. Aqui a recusa vem
+    // com o nome do caso.
+    const fora: string[] = [];
+    const faixa = (v: unknown, min: number, max: number, onde: string) => {
+      if (typeof v === "number" && (v < min || v > max)) fora.push(onde);
+    };
+    for (const c of CASOS) {
+      faixa(c.patient_age, 0, 120, `${c.patient_name}: idade`);
+      faixa(c.ejection_fraction, 0, 100, `${c.patient_name}: FE`);
+      faixa(c.mean_gradient, 0, 200, `${c.patient_name}: gradiente médio`);
+      faixa(c.peak_gradient, 0, 250, `${c.patient_name}: gradiente máximo`);
+      faixa(c.valve_area, 0, 10, `${c.patient_name}: área valvar`);
+    }
+    expect(fora).toEqual([]);
+  });
+
+  it("gradiente médio nunca é maior que o máximo", () => {
+    // A mesma implausibilidade que `suspeitaDeErro` marca na tela. A base de
+    // demonstração não pode conter justamente o erro que o produto detecta.
+    const impossiveis = CASOS.filter((c) =>
+      typeof c.mean_gradient === "number" && typeof c.peak_gradient === "number"
+      && c.mean_gradient > c.peak_gradient).map((c) => c.patient_name);
+    expect(impossiveis).toEqual([]);
+  });
+
+  it("nada aqui pode passar por dado real", () => {
+    const texto = readFileSync(resolve(raiz, "scripts/demo-data.mjs"), "utf8");
+    // CPF, telefone com DDD e e-mail de domínio que existe — três formas de o
+    // fictício virar plausível demais.
+    expect(texto, "algo com cara de CPF").not.toMatch(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/);
+    expect(texto, "algo com cara de telefone").not.toMatch(/\(\d{2}\)\s?9?\d{4}-\d{4}/);
+    for (const m of MEDICOS) {
+      expect(m.email, `${m.email} usa domínio que pode existir`).toMatch(/\.invalid$/);
+    }
+  });
+
+  it("todo caso é marcado ao ser inserido, e a discussão tem decisão de Heart Team", () => {
+    const seed = readFileSync(resolve(raiz, "scripts/demo-seed.mjs"), "utf8");
+    // A marca é aplicada no insert, não no dado — conferir o script é o que
+    // garante que nenhum caso entre sem ela.
+    const insercao = seed.slice(seed.indexOf('inserir("clinical_cases"'), seed.indexOf("case_exams"));
+    expect(insercao, "caso inserido sem is_demo").toContain("is_demo: true");
+    expect(seed.slice(seed.indexOf('inserir("doctors"'), seed.indexOf("porChave[m.chave]")))
+      .toContain("is_demo: true");
+    expect(seed, "conta fictícia sem bloqueio de acesso").toContain("ban_duration");
+
+    const decisoes = CASOS.filter((c) => c.comentarios.some((m) => "heart_team" in m));
+    expect(decisoes.length, "nenhuma decisão de Heart Team na base").toBeGreaterThanOrEqual(4);
   });
 });
