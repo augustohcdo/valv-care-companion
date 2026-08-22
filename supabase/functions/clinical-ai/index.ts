@@ -246,6 +246,16 @@ interface ReqBody {
   /** Laudo em arquivo: foto ou PDF do documento, em base64 (sem o prefixo data:). */
   fileBase64?: string;
   fileMimeType?: string;
+  /**
+   * Laudo que **já está** anexado ao caso (`case_documents.id`).
+   *
+   * O caminho do arquivo em base64 serve ao cadastro, onde o documento ainda
+   * está no computador do médico. Num caso já criado o arquivo mora no bucket,
+   * e trazê-lo até o navegador só para devolvê-lo em base64 gastaria a banda
+   * do médico duas vezes. Aqui a função busca o arquivo — depois de a RLS
+   * confirmar que quem pediu enxerga aquele documento.
+   */
+  documentId?: string;
 }
 
 // O frontend manda "assistant" (convenção comum); a API do Gemini espera "model".
@@ -353,11 +363,54 @@ Deno.serve(async (req) => {
     // ==========================================================
     if (mode === "extract_echo") {
       const raw = (body.rawText ?? "").trim();
-      const arquivo = body.fileBase64?.trim();
-      const arquivoTipo = (body.fileMimeType ?? "").trim();
+      let arquivo = body.fileBase64?.trim();
+      let arquivoTipo = (body.fileMimeType ?? "").trim();
+
+      // Laudo já anexado ao caso: a autorização é a **mesma** que a tela usa,
+      // porque a busca do registro passa pelo cliente com o JWT do médico. Só
+      // depois de a RLS devolver a linha é que o service_role toca no bucket —
+      // se ela devolver vazio, o download nunca acontece.
+      if (!raw && !arquivo && body.documentId) {
+        const { data: doc } = await supabase
+          .from("case_documents")
+          .select("storage_path, mime_type, file_name, file_size")
+          .eq("id", body.documentId)
+          .is("deleted_at", null)
+          .maybeSingle();
+        if (!doc) {
+          return new Response(JSON.stringify({ error: "documento não encontrado" }), {
+            status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const SERVICE_ROLE_DOC = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        if (!SERVICE_ROLE_DOC) {
+          return new Response(JSON.stringify({ error: "servidor sem chave de leitura" }), {
+            status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const adminDoc = createClient(SUPABASE_URL, SERVICE_ROLE_DOC);
+        const { data: blob, error: baixaErr } = await adminDoc.storage
+          .from("medical-documents").download(doc.storage_path);
+        if (baixaErr || !blob) {
+          return new Response(JSON.stringify({ error: "não foi possível abrir o arquivo" }), {
+            status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        // `btoa` em string montada byte a byte: `String.fromCharCode(...bytes)`
+        // com um PDF de alguns MB estoura a pilha de argumentos.
+        let bin = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) {
+          bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        }
+        arquivo = btoa(bin);
+        // O tipo do bucket vence o que o navegador declarou no upload: para
+        // `.dcm` o `mime_type` gravado chega vazio, e é o `blob.type` que sabe.
+        arquivoTipo = (blob.type || doc.mime_type || "").trim();
+      }
 
       if (!raw && !arquivo) {
-        return new Response(JSON.stringify({ error: "rawText ou fileBase64 obrigatório" }), {
+        return new Response(JSON.stringify({ error: "rawText, fileBase64 ou documentId obrigatório" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }

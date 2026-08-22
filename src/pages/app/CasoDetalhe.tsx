@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Trash2, Loader2, Save, Download } from "lucide-react";
 import { useDoctor } from "@/hooks/useDoctor";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -50,6 +51,10 @@ export default function CasoDetalhe() {
   const auditedRef = useRef<string | null>(null);
 
   const { data: doctor, isLoading: loadingDoctor } = useDoctor();
+  // Só para a leitura do laudo reconhecer o próprio nome do médico onde ele
+  // aparecer impresso — laudo emitido por quem está usando o sistema é comum,
+  // e é aí que a troca com o nome do paciente passa despercebida.
+  const { profile } = useAuth();
 
   // O papel do usuário entra na mesma query porque depende do caso e do
   // médico ao mesmo tempo — e porque o id do médico já faz parte da chave,
@@ -285,7 +290,12 @@ export default function CasoDetalhe() {
           <CaseAppointments caseId={caso.id} readOnly={!isOwner} />
 
           {/* Documentos */}
-          <CaseDocuments caseId={caso.id} />
+          <CaseDocuments
+            caseId={caso.id}
+            caso={caso}
+            nomeDoMedico={profile?.full_name}
+            onAplicado={() => queryClient.invalidateQueries({ queryKey: caseDetailKey(id, doctor?.id) })}
+          />
 
           {/* Gerador de documentos (evolução + orientação de alta) */}
           {isOwner && <DocumentGenerator caso={caso} />}

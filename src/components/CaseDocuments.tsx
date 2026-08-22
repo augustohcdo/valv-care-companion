@@ -11,15 +11,26 @@ import { Badge } from "@/components/ui/badge";
 import { documentTypeLabels, formatBytes } from "@/lib/clinicalLabels";
 import { logAudit } from "@/lib/auditLog";
 import { checarUpload, ACCEPT_DOCUMENTOS } from "@/lib/upload";
+import { CaseLaudoReader, podeLerLaudo } from "@/components/CaseLaudoReader";
 
 interface Props {
   caseId: string;
   readOnly?: boolean;
+  /**
+   * O caso, para a leitura do laudo saber o que já está preenchido.
+   *
+   * Sem ele o botão de ler laudo não aparece — não porque falte permissão, mas
+   * porque comparar o laudo com nada seria oferecer substituir o que o médico
+   * já digitou sem nem saber que ele digitou.
+   */
+  caso?: Record<string, unknown>;
+  nomeDoMedico?: string | null;
+  onAplicado?: () => void;
 }
 
 export const caseDocumentsKey = (caseId: string) => ["case-documents", caseId] as const;
 
-export const CaseDocuments = ({ caseId, readOnly = false }: Props) => {
+export const CaseDocuments = ({ caseId, readOnly = false, caso, nomeDoMedico, onAplicado }: Props) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -195,6 +206,17 @@ export const CaseDocuments = ({ caseId, readOnly = false }: Props) => {
                     </span>
                   </div>
                 </div>
+                {/* Só onde há laudo escrito a transcrever: DICOM e Word não
+                    são formato de documento legível para a leitura. */}
+                {!readOnly && caso && podeLerLaudo(d) && (
+                  <CaseLaudoReader
+                    caseId={caseId}
+                    caso={caso}
+                    documento={d}
+                    nomeDoMedico={nomeDoMedico}
+                    onAplicado={onAplicado}
+                  />
+                )}
                 <Button variant="ghost" size="icon" onClick={() => downloadDoc(d)}>
                   <Download className="h-4 w-4" />
                 </Button>
@@ -209,7 +231,9 @@ export const CaseDocuments = ({ caseId, readOnly = false }: Props) => {
         )}
 
         <p className="text-xs text-muted-foreground">
-          Anexos são organizacionais. ValvePath não interpreta imagens nem realiza diagnóstico automático.
+          Anexos são organizacionais. ValvePath não interpreta imagens nem realiza diagnóstico
+          automático — a leitura de laudo transcreve o texto impresso, e o que ela lê você confere
+          antes de entrar no prontuário.
         </p>
       </CardContent>
     </Card>

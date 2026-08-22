@@ -103,3 +103,51 @@ describe("a identificação passa pela conferência do médico", () => {
     expect(novoCaso).toMatch(/nomeDoMedico=\{profile\?\.full_name\}/);
   });
 });
+
+/**
+ * Guarda: o laudo já anexado é buscado pelo servidor — e a autorização é a
+ * mesma da tela.
+ *
+ * O `documentId` existe para o arquivo não trafegar duas vezes pela banda do
+ * médico. O risco que ele cria é claro: um id de documento de outro caso
+ * viraria um download com service_role, que ignora RLS. Por isso a linha é
+ * resolvida pelo cliente com o JWT de quem pediu **antes** de o service_role
+ * tocar no bucket — se a RLS não devolver a linha, o download nunca acontece.
+ */
+describe("laudo anexado ao caso: quem autoriza é a RLS", () => {
+  const bloco = blocoExtracao();
+
+  it("a linha do documento é buscada pelo cliente do usuário, não pelo admin", () => {
+    const trecho = bloco.slice(bloco.indexOf("body.documentId"));
+    // `supabase` é o cliente criado com o Authorization do chamador; `admin*`
+    // são os de service_role. A consulta tem que sair do primeiro.
+    expect(trecho).toMatch(/await supabase\s*\n?\s*\.from\("case_documents"\)/);
+    expect(trecho).toContain('.is("deleted_at", null)');
+  });
+
+  it("o download com service_role só acontece depois da linha existir", () => {
+    const trecho = bloco.slice(bloco.indexOf("body.documentId"));
+    const consulta = trecho.indexOf('.from("case_documents")');
+    const recusa = trecho.indexOf("documento não encontrado");
+    const download = trecho.indexOf('.from("medical-documents").download');
+    expect(consulta).toBeGreaterThan(-1);
+    expect(recusa).toBeGreaterThan(consulta);
+    expect(download, "download antes da checagem de autorização").toBeGreaterThan(recusa);
+  });
+
+  it("a tela manda só o id — o arquivo não passa pelo navegador", () => {
+    const leitor = readFileSync(resolve(raiz, "src/components/CaseLaudoReader.tsx"), "utf8");
+    expect(leitor).toContain("documentId: documento.id");
+    expect(leitor).not.toContain("fileBase64");
+    expect(leitor).not.toContain("readAsDataURL");
+  });
+
+  it("a leitura do laudo anexado também exige consentimento de IA", () => {
+    // Mesmo caminho, mesmo envio: o documento inteiro vai ao provedor.
+    const leitor = readFileSync(resolve(raiz, "src/components/CaseLaudoReader.tsx"), "utf8");
+    const consentimento = leitor.indexOf('hasActiveConsent("ai_processing")');
+    const chamada = leitor.indexOf('invoke("clinical-ai"');
+    expect(consentimento).toBeGreaterThan(0);
+    expect(consentimento).toBeLessThan(chamada);
+  });
+});
