@@ -34,3 +34,6 @@ verify_jwt = false
 
 [functions.offsite-copy]
 verify_jwt = false
+
+[functions.access-request]
+verify_jwt = false

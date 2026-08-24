@@ -39,6 +39,7 @@ const AvisoMedico = lazy(() => import("./pages/public/AvisoMedico"));
 const CookiesPage = lazy(() => import("./pages/public/Cookies"));
 const DPOPage = lazy(() => import("./pages/public/DPO"));
 const Contato = lazy(() => import("./pages/public/Contato"));
+const AcessoProfissional = lazy(() => import("./pages/public/AcessoProfissional"));
 const Parceiros = lazy(() => import("./pages/public/Parceiros"));
 
 // App (autenticado): lazy — corta drasticamente o bundle inicial
@@ -68,6 +69,7 @@ const HospitalPortal = lazy(() => import("./pages/app/HospitalPortal"));
 const AdminIntegracoes = lazy(() => import("./pages/app/AdminIntegracoes"));
 const AdminHome = lazy(() => import("./pages/app/AdminHome"));
 const AdminUsuarios = lazy(() => import("./pages/app/AdminUsuarios"));
+const AdminAcessos = lazy(() => import("./pages/app/AdminAcessos"));
 const AdminConteudo = lazy(() => import("./pages/app/AdminConteudo"));
 const AdminFontes = lazy(() => import("./pages/app/AdminFontes"));
 const AdminBiblioteca = lazy(() => import("./pages/app/AdminBiblioteca"));
@@ -147,6 +149,7 @@ const App = () => (
               <Route path="/app/admin/integracoes" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminIntegracoes />)}</ProtectedRoute>} />
               <Route path="/app/admin" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminHome />)}</ProtectedRoute>} />
               <Route path="/app/admin/usuarios" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminUsuarios />)}</ProtectedRoute>} />
+              <Route path="/app/admin/acessos" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminAcessos />, "list")}</ProtectedRoute>} />
               <Route path="/app/admin/conteudo" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminConteudo />, "list")}</ProtectedRoute>} />
               <Route path="/app/admin/fontes" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminFontes />, "list")}</ProtectedRoute>} />
               <Route path="/app/admin/biblioteca" element={<ProtectedRoute requireAdmin>{withSuspense(<AdminBiblioteca />, "list")}</ProtectedRoute>} />
@@ -171,6 +174,7 @@ const App = () => (
               <Route path="/cookies" element={withSuspense(<CookiesPage />)} />
               <Route path="/dpo" element={withSuspense(<DPOPage />, "form")} />
               <Route path="/contato" element={withSuspense(<Contato />, "form")} />
+              <Route path="/acesso-profissional" element={withSuspense(<AcessoProfissional />, "form")} />
               <Route path="/parceiros" element={withSuspense(<Parceiros />)} />
               <Route path="/aviso-medico" element={withSuspense(<AvisoMedico />)} />
 

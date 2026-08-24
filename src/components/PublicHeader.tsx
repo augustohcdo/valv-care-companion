@@ -70,7 +70,7 @@ export const PublicHeader = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button asChild variant="hero" size="sm">
-                <Link to="/auth/cadastro">Criar conta</Link>
+                <Link to="/auth/cadastro">Criar conta de paciente</Link>
               </Button>
             </>
           )}
@@ -113,7 +113,7 @@ export const PublicHeader = () => {
                 Login paciente
               </a>
               <Button asChild variant="hero" className="mt-2 min-h-[44px]">
-                <a href="/auth/cadastro" onClick={go("/auth/cadastro", () => setOpen(false))}>Criar conta</a>
+                <a href="/auth/cadastro" onClick={go("/auth/cadastro", () => setOpen(false))}>Criar conta de paciente</a>
               </Button>
             </div>
           </div>

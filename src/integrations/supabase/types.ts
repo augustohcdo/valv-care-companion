@@ -14,6 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_requests: {
+        Row: {
+          cidade: string | null
+          consent_diretorio: boolean
+          created_at: string
+          crm: string | null
+          crm_conferido_em: string | null
+          crm_conferido_por: string | null
+          crm_uf: string | null
+          decidido_em: string | null
+          decidido_por: string | null
+          email: string
+          especialidade: string | null
+          id: string
+          instituicao: string | null
+          mensagem: string | null
+          motivo_recusa: string | null
+          nome: string
+          rqe: string | null
+          status: string
+          telefone: string | null
+          tipo: string
+          uf: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          cidade?: string | null
+          consent_diretorio?: boolean
+          created_at?: string
+          crm?: string | null
+          crm_conferido_em?: string | null
+          crm_conferido_por?: string | null
+          crm_uf?: string | null
+          decidido_em?: string | null
+          decidido_por?: string | null
+          email: string
+          especialidade?: string | null
+          id?: string
+          instituicao?: string | null
+          mensagem?: string | null
+          motivo_recusa?: string | null
+          nome: string
+          rqe?: string | null
+          status?: string
+          telefone?: string | null
+          tipo?: string
+          uf?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          cidade?: string | null
+          consent_diretorio?: boolean
+          created_at?: string
+          crm?: string | null
+          crm_conferido_em?: string | null
+          crm_conferido_por?: string | null
+          crm_uf?: string | null
+          decidido_em?: string | null
+          decidido_por?: string | null
+          email?: string
+          especialidade?: string | null
+          id?: string
+          instituicao?: string | null
+          mensagem?: string | null
+          motivo_recusa?: string | null
+          nome?: string
+          rqe?: string | null
+          status?: string
+          telefone?: string | null
+          tipo?: string
+          uf?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           appointment_type: Database["public"]["Enums"]["appointment_type"]

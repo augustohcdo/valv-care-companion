@@ -24,7 +24,7 @@ import {
   BookOpenCheck,
   ScrollText,
   Plug,
-  type LucideIcon,
+  type LucideIcon, UserPlus,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -78,6 +78,7 @@ const patientNav: NavItem[] = [
  */
 const adminNav: NavItem[] = [
   { to: "/app/admin", label: "Administração", icon: ShieldCheck, exact: true },
+  { to: "/app/admin/acessos", label: "Solicitações de acesso", icon: UserPlus },
   { to: "/app/admin/usuarios", label: "Usuários e papéis", icon: Users },
   { to: "/app/admin/conteudo", label: "Revisão de conteúdo", icon: BookOpenCheck },
   { to: "/app/admin/fontes", label: "Fontes da IA", icon: Globe },
@@ -89,6 +90,7 @@ const adminNav: NavItem[] = [
 
 // Prefetch da chunk da rota ao passar o mouse no link
 const routeLoader: Record<string, () => Promise<unknown>> = {
+  "/app/admin/acessos": () => import("@/pages/app/AdminAcessos"),
   "/app/medico": () => import("@/pages/app/MedicoHome"),
   "/app/medico/pacientes": () => import("@/pages/app/MedicoPacientes"),
   "/app/medico/casos": () => import("@/pages/app/ListaCasos"),

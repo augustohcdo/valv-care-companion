@@ -7,9 +7,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import {
-  doctorSignupSchema,
   patientSignupSchema,
-  DoctorSignupInput,
   PatientSignupInput,
   UF_LIST,
 } from "@/lib/validators";
@@ -24,7 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Logo } from "@/components/Logo";
 
-type Step = "choose" | "medico" | "paciente" | "confirmar";
+type Step = "choose" | "paciente" | "confirmar";
 
 /** Scroll to first validation error field, focus it, and announce via live region.
  *  `submitCount` ensures the effect re-fires even when the same errors persist.
@@ -110,7 +108,7 @@ function useScrollToError(errors: Record<string, any>, fieldOrder: string[], sub
  * `if (session)` e nunca era sequer tentada. Quem grava é o gatilho
  * `handle_new_user`, no mesmo instante da criação da conta.
  */
-function consentimentosDoCadastro(audience: "medico" | "paciente"): ConsentType[] {
+function consentimentosDoCadastro(audience: "paciente"): ConsentType[] {
   const tipos: ConsentType[] = ["terms_of_use", "privacy_policy", "medical_disclaimer"];
   // O paciente também já consente, no cadastro, com compartilhamento com o médico vinculado
   if (audience === "paciente") tipos.push("data_sharing_doctor");
@@ -171,13 +169,7 @@ export default function Cadastro() {
           </p>
         </div>
 
-        {step === "choose" && <ChooseAccount onPick={(t) => setStep(t)} />}
-        {step === "medico" && (
-          <DoctorForm
-            onBack={() => setStep("choose")}
-            onAguardandoConfirmacao={(e) => { setEmailPendente(e); setStep("confirmar"); }}
-          />
-        )}
+        {step === "choose" && <ChooseAccount onPick={() => setStep("paciente")} />}
         {step === "paciente" && (
           <PatientForm
             onBack={() => setStep("choose")}
@@ -199,7 +191,7 @@ export default function Cadastro() {
   );
 }
 
-function ChooseAccount({ onPick }: { onPick: (t: "medico" | "paciente") => void }) {
+function ChooseAccount({ onPick }: { onPick: () => void }) {
   return (
     <div className="space-y-4">
       <p className="text-center text-xs uppercase tracking-wider text-muted-foreground/80 font-medium">
@@ -207,11 +199,11 @@ function ChooseAccount({ onPick }: { onPick: (t: "medico" | "paciente") => void 
       </p>
       <div className="grid sm:grid-cols-2 gap-4">
         <Button
-          type="button"
+          asChild
           variant="ghost"
-          onClick={() => onPick("medico")}
           className="h-auto w-full items-stretch justify-start text-left rounded-2xl border border-border/70 bg-card p-6 font-normal hover:bg-card hover:border-primary hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group relative overflow-hidden"
         >
+          <Link to="/acesso-profissional">
           <span
             aria-hidden
             className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/0 group-hover:from-primary/10 group-hover:to-primary/[0.03] transition-all duration-500"
@@ -225,15 +217,16 @@ function ChooseAccount({ onPick }: { onPick: (t: "medico" | "paciente") => void 
               Organize casos, ganhe tempo e decida com uma fonte confiável.
             </p>
             <p className="text-xs text-muted-foreground mt-2">
-              Cadastro com CRM · Casos clínicos · Biblioteca revisada
+              Acesso por solicitação · O responsável confere seu CRM e libera
             </p>
           </div>
+          </Link>
         </Button>
 
         <Button
           type="button"
           variant="ghost"
-          onClick={() => onPick("paciente")}
+          onClick={() => onPick()}
           className="h-auto w-full items-stretch justify-start text-left rounded-2xl border border-border/70 bg-card p-6 font-normal hover:bg-card hover:border-accent hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group relative overflow-hidden"
         >
           <span
@@ -298,189 +291,13 @@ function StepProgress({ current, total, label }: { current: number; total: numbe
   );
 }
 
-function DoctorForm({ onBack, onAguardandoConfirmacao }: { onBack: () => void; onAguardandoConfirmacao: (email: string) => void }) {
-  const navigate = useNavigate();
-  const [submitting, setSubmitting] = useState(false);
-  const ufTriggerRef = useRef<HTMLButtonElement>(null);
-
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors, submitCount },
-  } = useForm<DoctorSignupInput>({
-    resolver: zodResolver(doctorSignupSchema),
-    defaultValues: { account_type: "medico", terms: false as never, lgpd: false as never },
-  });
-
-  const doctorFieldOrder = ["full_name", "email", "phone", "crm", "crm_uf", "specialty", "institution", "password", "terms", "lgpd"];
-  useScrollToError(errors, doctorFieldOrder, submitCount);
-
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [captchaReset, setCaptchaReset] = useState(0);
-  const handleCaptcha = useCallback((t: string | null) => setCaptchaToken(t), []);
-  /** O servidor de auth consome o token mesmo quando o cadastro é recusado. */
-  const renewCaptcha = () => {
-    setCaptchaToken(null);
-    setCaptchaReset((n) => n + 1);
-  };
-
-  const onSubmit = async (values: DoctorSignupInput) => {
-    if (!captchaToken) {
-      toast.error("Verificação de segurança", {
-        description: "Complete a verificação anti-robô antes de continuar.",
-      });
-      return;
-    }
-    setSubmitting(true);
-
-    // Senha vazada é recusada antes de criar a conta. A verificação é por
-    // k-anonimato: só os 5 primeiros caracteres do hash saem do navegador.
-    // Se a base pública estiver fora do ar, o cadastro segue — ver o comentário
-    // em `bloquearSeSenhaVazada`.
-    if (await bloquearSeSenhaVazada(values.password)) {
-      setSubmitting(false);
-      return;
-    }
-
-    // O token não é validado aqui: ele é de uso único e quem precisa da prova é
-    // o servidor de auth. Ver o comentário em TurnstileWidget.
-    // 1) Verifica CRM duplicado antes do signup
-    const { data: existing } = await supabase
-      .from("doctors")
-      .select("id")
-      .eq("crm", values.crm)
-      .eq("crm_uf", values.crm_uf)
-      .maybeSingle();
-    if (existing) {
-      setSubmitting(false);
-      toast.error("CRM já cadastrado", {
-        description: "Esse CRM/UF já possui uma conta. Faça login ou recupere a senha.",
-      });
-      return;
-    }
-
-    // 2) Signup — pass all data via metadata so the DB trigger creates profile + role + doctor
-    const { data: signupData, error: signupError } = await supabase.auth.signUp({
-      email: values.email,
-      password: values.password,
-      options: {
-        captchaToken,
-        emailRedirectTo: `${window.location.origin}/app/medico`,
-        data: {
-          full_name: values.full_name,
-          account_type: "medico",
-          crm: values.crm,
-          crm_uf: values.crm_uf,
-          specialty: values.specialty,
-          institution: values.institution || null,
-          phone: values.phone || null,
-          consents: consentimentosDoCadastro("medico"),
-          consent_version: CONSENT_VERSION,
-        },
-      },
-    });
-    if (signupError || !signupData.user) {
-      setSubmitting(false);
-      renewCaptcha();
-      toast.error("Não foi possível criar a conta", { description: signupError?.message });
-      return;
-    }
-
-    setSubmitting(false);
-
-    // Sem sessão = o Supabase exige confirmação de e-mail. Antes o código
-    // seguia para /app/medico, uma rota protegida, e o médico era expulso para
-    // o login sem ninguém explicar por quê.
-    if (!signupData.session) {
-      onAguardandoConfirmacao(values.email);
-      return;
-    }
-
-    toast.success("Conta criada com sucesso");
-    navigate("/app/medico", { replace: true });
-  };
-
-  const crmUf = watch("crm_uf");
-
-  return (
-    <Card className="shadow-md-soft border-border/70">
-      <CardHeader>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={onBack}
-          disabled={submitting}
-          className="h-auto w-fit p-0 gap-1 text-xs font-normal text-muted-foreground hover:bg-transparent hover:text-primary mb-2"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Mudar tipo de conta
-        </Button>
-        <CardTitle className="text-xl flex items-center gap-2">
-          <Stethoscope className="h-5 w-5 text-primary" /> Cadastro médico
-        </CardTitle>
-        <CardDescription>
-          O CRM informado será exibido em seu perfil profissional. A verificação manual
-          pode levar até 48h após a criação da conta.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <StepProgress current={2} total={2} label="Dados profissionais" />
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Field label="Nome completo" error={errors.full_name?.message}>
-            <Input {...register("full_name")} autoComplete="name" />
-          </Field>
-
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="E-mail profissional" error={errors.email?.message}>
-              <Input type="email" {...register("email")} autoComplete="email" />
-            </Field>
-            <Field label="Telefone (opcional)" error={errors.phone?.message}>
-              <Input {...register("phone")} autoComplete="tel" placeholder="(11) 99999-9999" />
-            </Field>
-          </div>
-
-          <div className="grid sm:grid-cols-3 gap-4">
-            <div className="sm:col-span-2">
-              <Field label="CRM" error={errors.crm?.message}>
-                <Input {...register("crm")} placeholder="000000" />
-              </Field>
-            </div>
-            <Field label="UF" error={errors.crm_uf?.message} dataField="crm_uf">
-              <Select value={crmUf} onValueChange={(v) => setValue("crm_uf", v as DoctorSignupInput["crm_uf"], { shouldValidate: true })}>
-                <SelectTrigger ref={ufTriggerRef}><SelectValue placeholder="UF" /></SelectTrigger>
-                <SelectContent className="max-h-60">
-                  {UF_LIST.map((uf) => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-
-          <Field label="Especialidade" error={errors.specialty?.message}>
-            <Input {...register("specialty")} placeholder="Cardiologia, Cirurgia Cardiovascular..." />
-          </Field>
-
-          <Field label="Instituição (opcional)" error={errors.institution?.message}>
-            <Input {...register("institution")} placeholder="Hospital, clínica ou instituto" />
-          </Field>
-
-          <Field label="Senha" error={errors.password?.message} hint="Mínimo 8 caracteres, com maiúscula, minúscula e número.">
-            <Input type="password" {...register("password")} autoComplete="new-password" />
-          </Field>
-
-          <ConsentBlock register={register} errors={errors} />
-
-          <TurnstileWidget onToken={handleCaptcha} action="signup" resetSignal={captchaReset} />
-
-          <Button type="submit" variant="hero" className="w-full h-11" disabled={submitting}>
-            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            Criar conta médica
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
-  );
-}
+// O formulário de cadastro de médico foi removido daqui.
+//
+// Médico e clínica não criam conta: solicitam acesso em `/acesso-profissional`,
+// e a conta é criada pela edge function `access-decide` quando o responsável
+// aprova — depois de conferir o CRM. Antes, qualquer pessoa criava conta de
+// médico e digitava um CRM que ninguém olhava, num sistema que organiza
+// prontuário e sugere conduta.
 
 function PatientForm({ onBack, onAguardandoConfirmacao }: { onBack: () => void; onAguardandoConfirmacao: (email: string) => void }) {
   const navigate = useNavigate();

@@ -210,9 +210,18 @@ export default function Login() {
         </Card>
 
         <p className="text-center text-sm text-muted-foreground mt-6">
-          Ainda não tem conta?{" "}
+          É paciente e ainda não tem conta?{" "}
           <Link to="/auth/cadastro" className="text-primary font-medium hover:underline">
             Criar conta
+          </Link>
+        </p>
+        {/* O médico não cria conta: solicita, e o responsável libera depois de
+            conferir o registro. Dizer isso aqui evita a busca por um botão que
+            não existe mais. */}
+        <p className="text-center text-sm text-muted-foreground mt-2">
+          É médico ou clínica?{" "}
+          <Link to="/acesso-profissional" className="text-primary font-medium hover:underline">
+            Solicitar acesso profissional
           </Link>
         </p>
       </div>

@@ -18,6 +18,7 @@ const JOB = "weekly-export";
 // sem dado clínico ou de usuário, recriáveis por migration; copiá-los para um
 // arquivo num bucket só ampliaria a exposição.
 const TABLES = [
+  "access_requests",
   "clinical_cases",
   "case_events",
   "case_exams",

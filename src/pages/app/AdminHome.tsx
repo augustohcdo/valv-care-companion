@@ -4,6 +4,7 @@ import {
   ShieldCheck, Stethoscope, HeartPulse, FolderOpen, Eye,
   ShieldAlert, ScrollText, Plug, Users, BookOpen,
   BookOpenCheck, ChevronRight, Loader2, Globe,
+  UserPlus,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +22,12 @@ type SiteMetrics = {
 export const adminHomeMetricsKey = () => ["site-metrics"] as const;
 
 const ATALHOS = [
+  {
+    to: "/app/admin/acessos",
+    label: "Solicitações de acesso",
+    descricao: "Médicos e clínicas aguardando liberação. A conta só existe depois da aprovação.",
+    icon: UserPlus,
+  },
   {
     to: "/app/admin/usuarios",
     label: "Usuários e papéis",

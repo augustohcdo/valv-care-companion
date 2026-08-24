@@ -46,12 +46,12 @@ const Index = () => {
         actions={
           <>
             <Button asChild variant="accent" size="lg" className="min-h-[48px] w-full sm:w-auto">
-              <Link to="/auth/cadastro?type=medico">
+              <Link to="/acesso-profissional">
                 <Stethoscope className="h-4 w-4" /> Sou médico
               </Link>
             </Button>
             <Button asChild variant="accent" size="lg" className="min-h-[48px] w-full sm:w-auto">
-              <Link to="/auth/cadastro?type=paciente">
+              <Link to="/auth/cadastro">
                 <Users className="h-4 w-4" /> Sou paciente
               </Link>
             </Button>
@@ -176,7 +176,7 @@ const Index = () => {
               </ul>
               <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-3">
                 <Button asChild variant="hero" className="min-h-[48px]">
-                  <Link to="/auth/cadastro?type=medico">Cadastrar como médico</Link>
+                  <Link to="/acesso-profissional">Solicitar acesso profissional</Link>
                 </Button>
                 <Button asChild variant="outline" className="min-h-[48px]">
                   <Link to="/medicos">Conhecer plataforma médica</Link>
@@ -242,7 +242,7 @@ const Index = () => {
                   <Link to="/aprender">Explorar conteúdo</Link>
                 </Button>
                 <Button asChild variant="outline" className="min-h-[48px]">
-                  <Link to="/auth/cadastro?type=paciente">Criar conta de paciente</Link>
+                  <Link to="/auth/cadastro">Criar conta de paciente</Link>
                 </Button>
               </div>
             </ScrollReveal>
@@ -335,11 +335,16 @@ const Index = () => {
                 Comece agora a resolver a jornada valvar com segurança.
               </h2>
               <p className="mt-4 text-primary-foreground/85 max-w-xl mx-auto">
-                Cadastro gratuito para médicos e pacientes nesta versão de demonstração.
+                Paciente cria conta na hora. Médico e clínica solicitam acesso, e a
+                liberação é feita pelo responsável depois de conferir o registro
+                profissional.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row flex-wrap justify-center gap-3">
                 <Button asChild variant="accent" size="lg" className="min-h-[48px]">
-                  <Link to="/auth/cadastro">Criar conta agora</Link>
+                  <Link to="/auth/cadastro">Criar conta de paciente</Link>
+                </Button>
+                <Button asChild variant="accent" size="lg" className="min-h-[48px]">
+                  <Link to="/acesso-profissional">Solicitar acesso profissional</Link>
                 </Button>
                 <Button asChild variant="outline" size="lg" className="min-h-[48px] bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-background hover:text-primary">
                   <Link to="/aprender">Explorar sem cadastro</Link>

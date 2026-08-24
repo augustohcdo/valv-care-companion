@@ -37,14 +37,15 @@ describe("Cadastro – screen reader announcements on rapid submit", () => {
     document.querySelectorAll('[aria-live="assertive"]').forEach((el) => el.remove());
   });
 
-  it("announces only one error message after a single submit on doctor form", async () => {
+  it("announces only one error message after a single submit on the patient form", async () => {
     renderCadastro();
 
-    // Pick doctor account
-    fireEvent.click(screen.getByText("Sou médico"));
+    // O cadastro de médico virou solicitação de acesso; sobra o de paciente.
+    // O comportamento protegido aqui — um anúncio por envio — não mudou.
+    fireEvent.click(screen.getByText("Sou paciente"));
 
     // Submit empty form
-    const submitBtn = screen.getByRole("button", { name: /criar conta médica/i });
+    const submitBtn = screen.getByRole("button", { name: /criar minha conta/i });
 
     await act(async () => {
       fireEvent.click(submitBtn);
@@ -69,9 +70,9 @@ describe("Cadastro – screen reader announcements on rapid submit", () => {
   it("does not double-announce on rapid repeated submits", async () => {
     renderCadastro();
 
-    fireEvent.click(screen.getByText("Sou médico"));
+    fireEvent.click(screen.getByText("Sou paciente"));
 
-    const submitBtn = screen.getByRole("button", { name: /criar conta médica/i });
+    const submitBtn = screen.getByRole("button", { name: /criar minha conta/i });
 
     // Rapid triple submit
     await act(async () => {
@@ -109,9 +110,9 @@ describe("Cadastro – screen reader announcements on rapid submit", () => {
   it("announces only the first field error, not all errors", async () => {
     renderCadastro();
 
-    fireEvent.click(screen.getByText("Sou médico"));
+    fireEvent.click(screen.getByText("Sou paciente"));
 
-    const submitBtn = screen.getByRole("button", { name: /criar conta médica/i });
+    const submitBtn = screen.getByRole("button", { name: /criar minha conta/i });
 
     await act(async () => {
       fireEvent.click(submitBtn);
