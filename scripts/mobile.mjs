@@ -50,6 +50,10 @@ const PAGINAS = [
   "/aprender/estenose-aortica",
   "/referencias",
   "/auth/login",
+  "/auth/cadastro",
+  // Formulário longo com selects lado a lado — a página com maior risco de
+  // transbordar no celular entre as públicas.
+  "/acesso-profissional",
   "/dpo",
 ];
 
@@ -95,6 +99,8 @@ function medir() {
 const navegador = await chromium.launch();
 const contexto = await navegador.newContext({ ...IPHONE });
 let falhou = false;
+let medidas = 0;
+const naoMedidas = [];
 
 console.log(`Medindo ${PAGINAS.length} páginas em ${IPHONE.viewport.width}px — ${BASE}\n`);
 
@@ -111,6 +117,7 @@ for (const caminho of PAGINAS) {
     const r = await pagina.evaluate(medir);
     const transborda = r.scrollWidth > r.largura + 1;
 
+    medidas++;
     if (!transborda) {
       console.log(`✓ ${caminho} — ${r.largura}px, sem transbordo`);
     } else {
@@ -121,8 +128,12 @@ for (const caminho of PAGINAS) {
       }
     }
   } catch (e) {
-    falhou = true;
-    console.log(`✗ ${caminho} — ${e instanceof Error ? e.message : String(e)}`);
+    // Não conseguir abrir a página não é o mesmo que medir e achar transbordo.
+    // Confundir os dois faz o resumo afirmar "há conteúdo mais largo que a
+    // tela" quando na verdade nada foi medido — que é exatamente o tipo de
+    // relatório que este projeto passou a sessão inteira eliminando.
+    naoMedidas.push({ caminho, motivo: e instanceof Error ? e.message.split("\n")[0] : String(e) });
+    console.log(`? ${caminho} — não deu para medir: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}`);
   } finally {
     await pagina.close();
   }
@@ -134,4 +145,14 @@ if (falhou) {
   console.error("\nHá conteúdo mais largo que a tela. No celular isso aparece como texto cortado.");
   process.exit(1);
 }
-console.log("\n✓ nenhuma página transborda a largura da tela.");
+if (naoMedidas.length) {
+  console.error(
+    `\n${naoMedidas.length} de ${naoMedidas.length + medidas} página(s) não puderam ser medidas — ` +
+    "o navegador não alcançou o alvo. Isto NÃO é um resultado de layout: nada foi conferido nelas.",
+  );
+  console.error(`Primeiro motivo: ${naoMedidas[0].motivo}`);
+  // Código 2, distinto do 1 (transbordo real), para quem automatizar saber a
+  // diferença entre "está errado" e "não deu para olhar".
+  process.exit(2);
+}
+console.log(`\n✓ ${medidas} página(s) medidas, nenhuma transborda a largura da tela.`);
