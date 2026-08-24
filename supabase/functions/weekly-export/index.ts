@@ -19,6 +19,7 @@ const JOB = "weekly-export";
 // arquivo num bucket só ampliaria a exposição.
 const TABLES = [
   "access_requests",
+  "patient_link_requests",
   "clinical_cases",
   "case_events",
   "case_exams",

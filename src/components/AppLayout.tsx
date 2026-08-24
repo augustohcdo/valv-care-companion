@@ -65,6 +65,7 @@ const patientNav: NavItem[] = [
   { to: "/app/paciente/diario", label: "Diário", icon: Activity },
   { to: "/app/paciente/medicacoes", label: "Medicações", icon: Pill },
   { to: "/app/paciente/medico", label: "Meu médico", icon: Stethoscope },
+  { to: "/app/paciente/encontrar", label: "Encontrar profissional", icon: UserPlus },
   { to: "/app/paciente/documentos", label: "Documentos", icon: FileText },
   { to: "/app/paciente/integracoes", label: "Integrações", icon: Hospital },
   { to: "/app/paciente/aprender", label: "Aprender", icon: BookOpen },
@@ -91,6 +92,7 @@ const adminNav: NavItem[] = [
 // Prefetch da chunk da rota ao passar o mouse no link
 const routeLoader: Record<string, () => Promise<unknown>> = {
   "/app/admin/acessos": () => import("@/pages/app/AdminAcessos"),
+  "/app/paciente/encontrar": () => import("@/pages/app/PacienteEncontrar"),
   "/app/medico": () => import("@/pages/app/MedicoHome"),
   "/app/medico/pacientes": () => import("@/pages/app/MedicoPacientes"),
   "/app/medico/casos": () => import("@/pages/app/ListaCasos"),

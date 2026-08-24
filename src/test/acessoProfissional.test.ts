@@ -157,3 +157,127 @@ describe("aprovar cria a conta, não muda um status", () => {
     expect(antesDaAcao).toContain('json({ error: "forbidden" }, 403)');
   });
 });
+
+/**
+ * Guarda: a vitrine não vaza, não classifica, e o vínculo não é unilateral.
+ *
+ * Três direções perigosas, cada uma com história:
+ *
+ * 1. **A cerca do diretório.** Ele é `security definer` porque precisa ler
+ *    `profiles.full_name`, que a RLS não abre. Uma função assim sem filtro
+ *    publica todo mundo — inclusive médico não verificado e os de demonstração.
+ * 2. **Ranking.** A Resolução CFM nº 2.336/2023 veda "melhor médico",
+ *    "destaque da especialidade" e títulos com foco promocional. Uma estrela
+ *    acrescentada por bom gosto de produto vira infração ética.
+ * 3. **O vínculo unilateral.** A policy de UPDATE de `patients` é sobre a linha
+ *    inteira; era ela que deixava o paciente escrever `linked_doctor_id`
+ *    sozinho. Revogar coluna de um GRANT de tabela é no-op no Postgres — foi
+ *    medido —, então o que vale é o revoke da tabela com o grant de volta só
+ *    das colunas do perfil.
+ */
+describe("o diretório de profissionais", () => {
+  function migrationDoDiretorio(): string {
+    const dir = resolve(raiz, "supabase/migrations");
+    const arquivos = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
+    const comFuncao = arquivos.filter((f) =>
+      /function public\.diretorio_medicos/i.test(readFileSync(resolve(dir, f), "utf8")));
+    expect(comFuncao.length, "nenhuma migration define diretorio_medicos").toBeGreaterThan(0);
+    return readFileSync(resolve(dir, comFuncao[comFuncao.length - 1]), "utf8");
+  }
+
+  it("só publica médico verificado, no diretório e não de demonstração", () => {
+    const sql = migrationDoDiretorio();
+    const corpo = sql.slice(sql.indexOf("function public.diretorio_medicos"), sql.indexOf("revoke all on function public.diretorio_medicos"));
+    // As três em separado: esquecer uma publica um conjunto diferente de gente.
+    expect(corpo, "publica médico não verificado").toMatch(/\bd\.verified\b/);
+    expect(corpo, "publica quem saiu do diretório").toMatch(/\bd\.no_diretorio\b/);
+    expect(corpo, "publica médico de demonstração").toMatch(/not d\.is_demo/);
+  });
+
+  it("não é executável por visitante anônimo", () => {
+    const sql = migrationDoDiretorio();
+    expect(sql).toMatch(/revoke all on function public\.diretorio_medicos[^;]*from public, anon/);
+    expect(sql).toMatch(/grant execute on function public\.diretorio_medicos[^;]*to authenticated/);
+  });
+
+  it("a ordem não é mérito nem alfabeto", () => {
+    const sql = migrationDoDiretorio();
+    const corpo = sql.slice(sql.indexOf("function public.diretorio_medicos"));
+    expect(corpo.slice(0, 2500)).toMatch(/order by d\.id/);
+    expect(corpo.slice(0, 2500)).not.toMatch(/order by[^;]*full_name/);
+  });
+
+  it("nenhuma tela da vitrine classifica profissionais", () => {
+    // O vocabulário de ranking vira teste porque a regra é externa: quem
+    // acrescentar uma estrela depois não vai reler a resolução do CFM.
+    const proibido = /\b(melhor médico|melhores médicos|top \d|ranking|nota do médico|avaliação do médico|estrelas|mais recomendado)\b/i;
+    // Os comentários saem antes: o cabeçalho de `PacienteEncontrar` explica
+    // justamente que **não** é ranking, e a guarda acusava a palavra na frase
+    // que a proíbe. O que importa é o que chega à tela.
+    const semComentarios = (t: string) =>
+      t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    for (const arquivo of [
+      "src/pages/app/PacienteEncontrar.tsx",
+      "src/pages/app/PacienteMedico.tsx",
+      "src/components/DoctorLinkRequests.tsx",
+    ]) {
+      const achado = semComentarios(ler(arquivo)).match(proibido);
+      expect(achado?.[0] ?? null, `${arquivo} usa vocabulário de ranking`).toBeNull();
+    }
+  });
+});
+
+describe("o vínculo depende do médico", () => {
+  function migrationDoVinculo(): string {
+    const dir = resolve(raiz, "supabase/migrations");
+    const arquivos = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
+    const com = arquivos.filter((f) =>
+      /revoke update on public\.patients/i.test(readFileSync(resolve(dir, f), "utf8")));
+    expect(com.length, "nenhuma migration revoga o update de patients").toBeGreaterThan(0);
+    return readFileSync(resolve(dir, com[com.length - 1]), "utf8");
+  }
+
+  it("o cliente não escreve mais linked_doctor_id", () => {
+    const sql = migrationDoVinculo();
+    expect(sql).toMatch(/revoke update on public\.patients from authenticated, anon/);
+    // O grant de volta não pode devolver as colunas do vínculo.
+    const grant = sql.slice(sql.indexOf("grant update ("), sql.indexOf("on public.patients to authenticated"));
+    expect(grant, "o grant devolveu a coluna do vínculo").not.toMatch(/linked_doctor_id|linked_at/);
+  });
+
+  it("e a tela também não — manda pedido", () => {
+    const tela = ler("src/pages/app/PacienteMedico.tsx");
+    expect(tela).not.toMatch(/update\(\{\s*linked_doctor_id/);
+    expect(tela).toContain("patient_link_requests");
+    expect(tela).toContain("desvincular_medico");
+  });
+
+  it("só o médico destinatário responde ao pedido", () => {
+    const sql = migrationDoVinculo();
+    const corpo = sql.slice(sql.indexOf("function public.responder_vinculo"));
+    expect(corpo.slice(0, 2000)).toMatch(/apenas o médico destinatário pode responder/);
+  });
+});
+
+describe("o consentimento do diretório é revogável", () => {
+  it("existe a chave no perfil do médico", () => {
+    const perfil = ler("src/pages/app/MedicoPerfil.tsx");
+    expect(perfil).toContain("no_diretorio");
+    expect(perfil).toContain("aceita_novos_pacientes");
+  });
+
+  it("Termos e Política descrevem o diretório", () => {
+    // Foi a condição posta para o médico aparecer por padrão: tem que estar
+    // escrito onde ele lê e aceita.
+    for (const arquivo of ["src/pages/public/Termos.tsx", "src/pages/public/Privacidade.tsx"]) {
+      const texto = ler(arquivo);
+      expect(texto, `${arquivo} não fala do diretório`).toMatch(/diretório/i);
+      expect(texto, `${arquivo} não diz que dá para sair`).toMatch(/retirad[oa]|revogável|sair do diretório/i);
+    }
+  });
+
+  it("a anuência entra na trilha de consentimento", () => {
+    expect(ler("src/lib/consent.ts")).toContain("directory_listing");
+    expect(ler("supabase/functions/access-decide/index.ts")).toContain("directory_listing");
+  });
+});

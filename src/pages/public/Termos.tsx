@@ -9,13 +9,26 @@ const Termos = () => (
       // 2.1 corrige a seção de disponibilidade e backups: a versão 2.0
       // descrevia backup diário de infraestrutura com retenção de 14 dias, que
       // era a realidade do provedor anterior e não a de hoje.
-      effectiveDate: "08 de agosto de 2026",
-      version: "2.1",
+      // 2.2: o acesso profissional deixou de ser autocadastro e passou a ser
+      // solicitação com aprovação, e o diretório de profissionais entrou no
+      // documento — as duas coisas mudam o que o profissional aceita.
+      effectiveDate: "24 de agosto de 2026",
+      version: "2.2",
       contact: { dpoEmail: "valvepath@gmail.com", supportEmail: "valvepath@gmail.com" },
       sections: [
         {
           heading: "Aceitação destes Termos",
           body: "Ao criar uma conta ou utilizar a plataforma ValvePath (a 'Plataforma'), você declara que leu, compreendeu e concorda integralmente com estes Termos e Condições de Uso, com a Política de Privacidade, com o Aviso Médico e com a Política de Cookies. Caso não concorde com qualquer disposição, não utilize a Plataforma. Estes Termos são regidos pela legislação da República Federativa do Brasil, em especial pela Lei nº 12.965/2014 (Marco Civil da Internet), pela Lei nº 13.709/2018 (Lei Geral de Proteção de Dados Pessoais — LGPD), pela Lei nº 13.787/2018 (digitalização e uso de prontuário eletrônico), pela Lei nº 8.078/1990 (Código de Defesa do Consumidor) e pelas resoluções aplicáveis do Conselho Federal de Medicina (CFM) e da Anvisa.",
+        },
+        {
+          heading: "Acesso profissional e diretório",
+          body: [
+            "O acesso de médicos, clínicas e hospitais não é aberto: o profissional solicita acesso informando seus dados e o responsável pelo ValvePath aprova ou recusa individualmente, depois de conferir o registro no Conselho Regional de Medicina. Recomenda-se contato prévio com o representante do ValvePath.",
+            "A aprovação cria a conta e envia ao profissional um link para que ele defina a própria senha. O ValvePath nunca envia senha por e-mail.",
+            "O selo de verificado só é atribuído quando o registro foi de fato conferido, com identificação de quem conferiu e quando. Sem ele, o profissional usa a plataforma normalmente, mas não pode aprovar conteúdo clínico como revisado.",
+            "Ao solicitar acesso, o profissional consente, em aceite próprio e destacado, em aparecer no diretório consultado por pacientes com conta, com nome, CRM/UF, RQE, especialidade, cidade, instituição e biografia. O diretório não classifica, pontua nem ordena profissionais por mérito, em observância à Resolução CFM nº 2.336/2023. Esse consentimento pode ser retirado a qualquer momento na página de perfil.",
+            "O vínculo com um paciente depende de aceite do profissional. Um pedido enviado por um paciente não dá acesso a nenhum dado clínico dele antes do aceite.",
+          ],
         },
         {
           heading: "Definições",

@@ -829,6 +829,7 @@ export type Database = {
       }
       doctors: {
         Row: {
+          aceita_novos_pacientes: boolean
           bio: string | null
           city: string | null
           created_at: string
@@ -837,6 +838,7 @@ export type Database = {
           id: string
           institution: string | null
           is_demo: boolean
+          no_diretorio: boolean
           rqe: string | null
           specialty: string
           updated_at: string
@@ -844,6 +846,7 @@ export type Database = {
           verified: boolean
         }
         Insert: {
+          aceita_novos_pacientes?: boolean
           bio?: string | null
           city?: string | null
           created_at?: string
@@ -852,6 +855,7 @@ export type Database = {
           id?: string
           institution?: string | null
           is_demo?: boolean
+          no_diretorio?: boolean
           rqe?: string | null
           specialty: string
           updated_at?: string
@@ -859,6 +863,7 @@ export type Database = {
           verified?: boolean
         }
         Update: {
+          aceita_novos_pacientes?: boolean
           bio?: string | null
           city?: string | null
           created_at?: string
@@ -867,6 +872,7 @@ export type Database = {
           id?: string
           institution?: string | null
           is_demo?: boolean
+          no_diretorio?: boolean
           rqe?: string | null
           specialty?: string
           updated_at?: string
@@ -1651,6 +1657,58 @@ export type Database = {
           },
         ]
       }
+      patient_link_requests: {
+        Row: {
+          created_at: string
+          decidido_em: string | null
+          doctor_id: string
+          id: string
+          mensagem: string | null
+          patient_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          decidido_em?: string | null
+          doctor_id: string
+          id?: string
+          mensagem?: string | null
+          patient_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          decidido_em?: string | null
+          doctor_id?: string
+          id?: string
+          mensagem?: string | null
+          patient_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_link_requests_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_link_requests_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_link_requests_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patients: {
         Row: {
           city: string | null
@@ -2326,6 +2384,22 @@ export type Database = {
         }
         Returns: string
       }
+      desvincular_medico: { Args: never; Returns: Json }
+      diretorio_medicos: {
+        Args: { _busca?: string; _especialidade?: string; _uf?: string }
+        Returns: {
+          aceita_novos_pacientes: boolean
+          bio: string
+          cidade: string
+          crm: string
+          crm_uf: string
+          doctor_id: string
+          especialidade: string
+          instituicao: string
+          nome: string
+          rqe: string
+        }[]
+      }
       doctor_weekly_digest: { Args: { _doctor_user_id: string }; Returns: Json }
       documentos_sem_arquivo: {
         Args: never
@@ -2453,6 +2527,10 @@ export type Database = {
         }
         Returns: string
       }
+      responder_vinculo: {
+        Args: { _aceitar: boolean; _request_id: string }
+        Returns: Json
+      }
       revisar_trecho: {
         Args: { _aprovar: boolean; _chunk_id: string; _notas?: string }
         Returns: undefined
@@ -2544,6 +2622,7 @@ export type Database = {
         | "cookies_functional"
         | "cookies_analytics"
         | "integracao_hospitalar"
+        | "directory_listing"
       document_type:
         | "ecocardiograma"
         | "ressonancia"
@@ -2830,6 +2909,7 @@ export const Constants = {
         "cookies_functional",
         "cookies_analytics",
         "integracao_hospitalar",
+        "directory_listing",
       ],
       document_type: [
         "ecocardiograma",

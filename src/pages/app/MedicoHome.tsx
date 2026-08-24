@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useDoctor } from "@/hooks/useDoctor";
+import { DoctorLinkRequests } from "@/components/DoctorLinkRequests";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,10 @@ export default function MedicoHome() {
 
   return (
     <div className="space-y-8 max-w-6xl animate-fade-in">
+      {/* Pedidos de vínculo antes de tudo: é o único item da tela em que
+          alguém está esperando resposta. Some sozinho quando não há nenhum. */}
+      <DoctorLinkRequests doctorId={doctor?.id} />
+
       {/* Hero de boas-vindas */}
       <div
         className="relative overflow-hidden rounded-3xl p-6 sm:p-8 lg:p-10 text-primary-foreground shadow-xl ring-1 ring-primary-foreground/10"

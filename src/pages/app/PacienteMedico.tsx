@@ -98,31 +98,29 @@ const PacienteMedico = () => {
     }
     setSearching(true);
     setResults([]);
-    const { data: docs } = await supabase
-      .from("doctors")
-      .select("*")
-      .eq("crm_uf", uf)
-      .ilike("crm", `%${crm.trim()}%`)
-      .limit(10);
-
-    if (!docs || docs.length === 0) {
-      setSearching(false);
+    // Pelo diretório, e não por `doctors` + `profiles`: a policy de `profiles`
+    // só deixa ler a própria linha, então a busca antiga devolvia todo médico
+    // como "Médico(a)". O RPC resolve o nome e já aplica a cerca — verificado,
+    // no diretório e não de demonstração.
+    const { data: docs, error } = await supabase.rpc("diretorio_medicos", {
+      _uf: uf, _busca: undefined, _especialidade: undefined,
+    });
+    setSearching(false);
+    if (error) {
+      toast.error("Não foi possível buscar", { description: error.message });
+      return;
+    }
+    const alvo = crm.trim();
+    const achados = (docs ?? []).filter((d) => (d.crm ?? "").includes(alvo));
+    if (achados.length === 0) {
       toast.info("Nenhum médico encontrado com este CRM/UF");
       return;
     }
-
-    const userIds = docs.map((d) => d.user_id);
-    const { data: profs } = await supabase
-      .from("profiles")
-      .select("user_id, full_name")
-      .in("user_id", userIds);
-
-    const merged = docs.map((d) => ({
-      ...(d as any),
-      full_name: profs?.find((p) => p.user_id === d.user_id)?.full_name || "Médico(a)",
-    }));
-    setResults(merged);
-    setSearching(false);
+    setResults(achados.map((d) => ({
+      id: d.doctor_id, crm: d.crm, crm_uf: d.crm_uf, specialty: d.especialidade,
+      institution: d.instituicao, city: d.cidade, bio: d.bio, rqe: d.rqe,
+      full_name: d.nome, aceita_novos_pacientes: d.aceita_novos_pacientes,
+    })) as never);
   };
 
   const link = async (doctor: Doctor) => {
@@ -131,17 +129,27 @@ const PacienteMedico = () => {
       return;
     }
     setLinking(true);
+    // Pedido, não vínculo: quem aceita é o médico. Antes o paciente escrevia
+    // `linked_doctor_id` sozinho — com um diretório aberto, isso deixaria
+    // qualquer pessoa se pendurar em qualquer profissional. A permissão de
+    // escrita naquela coluna foi revogada; aqui só entra o pedido.
     const { error } = await supabase
-      .from("patients")
-      .update({ linked_doctor_id: doctor.id, linked_at: new Date().toISOString() })
-      .eq("id", patientId);
+      .from("patient_link_requests")
+      .insert({ patient_id: patientId, doctor_id: doctor.id });
     setLinking(false);
     if (error) {
-      toast.error("Não foi possível vincular", { description: error.message });
+      toast.error(
+        error.code === "23505"
+          ? "Você já tem um pedido pendente com este médico"
+          : "Não foi possível enviar o pedido",
+        { description: error.code === "23505" ? undefined : error.message },
+      );
       return;
     }
-    toast.success("Vínculo criado com sucesso");
-    logAudit("doctor_patient_linked", "patients", patientId, { doctor_id: doctor.id });
+    toast.success("Pedido enviado", {
+      description: "O médico precisa aceitar para o vínculo começar.",
+    });
+    logAudit("patient_link_requested", "patient_link_requests", patientId, { doctor_id: doctor.id });
     setResults([]);
     setCrm("");
     loadCurrent();
@@ -149,17 +157,15 @@ const PacienteMedico = () => {
 
   const unlink = async () => {
     if (!patientId) return;
-    const previousDoctorId = currentDoctor?.id ?? null;
-    const { error } = await supabase
-      .from("patients")
-      .update({ linked_doctor_id: null, linked_at: null })
-      .eq("id", patientId);
+    // Desvincular continua sendo direito do paciente — mas passa pela função,
+    // porque a coluna deixou de ser escrita pelo cliente. A própria função
+    // registra a trilha.
+    const { error } = await supabase.rpc("desvincular_medico");
     if (error) {
-      toast.error("Erro ao desvincular");
+      toast.error("Erro ao desvincular", { description: error.message });
       return;
     }
     toast.success("Vínculo encerrado");
-    logAudit("doctor_patient_unlinked", "patients", patientId, { doctor_id: previousDoctorId });
     loadCurrent();
   };
 

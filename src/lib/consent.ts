@@ -7,6 +7,7 @@ export type ConsentType =
   | "data_sharing_doctor"
   | "email_communications"
   | "ai_processing"
+  | "directory_listing"
   | "cookies_functional"
   | "cookies_analytics";
 
@@ -84,6 +85,19 @@ export const CONSENT_CATALOG: ConsentDefinition[] = [
     required: false,
     audience: "all",
     version: "2.3",
+  },
+  {
+    type: "directory_listing",
+    title: "Aparecer no diretório de profissionais",
+    description:
+      "Autorizo que meu nome, CRM/UF, RQE, especialidade, cidade, instituição e a " +
+      "biografia que eu escrever fiquem visíveis para pacientes com conta no ValvePath, " +
+      "que poderão me enviar pedido de vínculo — vínculo que só começa se eu aceitar. " +
+      "Não há nota, estrela, ranking ou ordem de preferência entre profissionais. " +
+      "Posso sair do diretório a qualquer momento, pela minha página de perfil.",
+    required: false,
+    audience: "medico",
+    version: "1.0",
   },
   {
     type: "cookies_functional",

@@ -59,6 +59,7 @@ const BibliotecaDetalhe = lazy(() => import("./pages/app/BibliotecaDetalhe"));
 const MedicoPerfil = lazy(() => import("./pages/app/MedicoPerfil"));
 const PacientePerfil = lazy(() => import("./pages/app/PacientePerfil"));
 const PacienteMedico = lazy(() => import("./pages/app/PacienteMedico"));
+const PacienteEncontrar = lazy(() => import("./pages/app/PacienteEncontrar"));
 const PacienteDocumentos = lazy(() => import("./pages/app/PacienteDocumentos"));
 const PacienteAprender = lazy(() => import("./pages/app/PacienteAprender"));
 const PacienteAprenderDetalhe = lazy(() => import("./pages/app/PacienteAprenderDetalhe"));
@@ -137,6 +138,7 @@ const App = () => (
               <Route path="/app/paciente" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteHome />)}</ProtectedRoute>} />
               <Route path="/app/paciente/jornada" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteJornada />, "detail")}</ProtectedRoute>} />
               <Route path="/app/paciente/medico" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteMedico />)}</ProtectedRoute>} />
+              <Route path="/app/paciente/encontrar" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteEncontrar />, "list")}</ProtectedRoute>} />
               <Route path="/app/paciente/documentos" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteDocumentos />, "list")}</ProtectedRoute>} />
               <Route path="/app/paciente/diario" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteDiario />, "form")}</ProtectedRoute>} />
               <Route path="/app/paciente/medicacoes" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteMedicacoes />, "list")}</ProtectedRoute>} />

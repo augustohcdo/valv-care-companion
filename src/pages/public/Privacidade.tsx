@@ -60,6 +60,16 @@ const Privacidade = () => (
           ],
         },
         {
+          heading: "Diretório de profissionais",
+          body: [
+            "Médicos e clínicas não criam conta sozinhos: solicitam acesso e a liberação é feita individualmente pelo responsável pelo ValvePath, depois da conferência do registro no Conselho Regional de Medicina.",
+            "Ao solicitar acesso, o profissional aceita, em consentimento próprio e destacado, aparecer no diretório que os pacientes com conta consultam. Ficam visíveis: nome, número e UF do CRM, RQE quando informado, especialidade, cidade, instituição e a biografia que o próprio profissional escrever. Não são exibidos telefone, e-mail, endereço nem qualquer dado de pacientes.",
+            "O diretório é uma lista com filtros, não uma classificação: não há nota, estrela, ranking, selo de destaque ou ordem de preferência entre profissionais — em linha com a Resolução CFM nº 2.336/2023, que veda publicidade médica com foco promocional ou comparativo.",
+            "O consentimento é revogável a qualquer momento pelo próprio profissional, na página de perfil dele, sem custo e sem justificativa (Art. 8º, §5º, LGPD). Sair do diretório não encerra os vínculos já existentes com pacientes.",
+            "O paciente que encontra um profissional envia um pedido de vínculo, e o vínculo só passa a existir se o profissional aceitar. Nenhum dado clínico do paciente é compartilhado antes do aceite.",
+          ],
+        },
+        {
           heading: "Transferência internacional",
           body: "Quando dados forem processados fora do Brasil — incluindo pelo Google (Gemini API, sediado nos Estados Unidos), utilizado no módulo de apoio à decisão clínica por IA, além de subprocessadores de nuvem — garantimos que o destino oferece grau de proteção adequado, conforme Art. 33 e seguintes da LGPD, mediante cláusulas contratuais padrão, certificações ou outros mecanismos reconhecidos pela ANPD.",
         },

@@ -138,6 +138,17 @@ Deno.serve(async (req) => {
       { user_id: userId, role: "medico" }, { onConflict: "user_id,role" },
     );
 
+    // A anuência do diretório entra na trilha de consentimento, e não só na
+    // fila: é lá que um pedido de LGPD ("mostre tudo que vocês têm sobre mim")
+    // vai procurar. A data que vale é a do pedido, não a da aprovação.
+    if (pedido.consent_diretorio) {
+      await admin.from("user_consents").upsert({
+        user_id: userId, consent_type: "directory_listing", granted: true,
+        document_version: "1.0", source: "access_request",
+        granted_at: pedido.created_at,
+      }, { onConflict: "user_id,consent_type" });
+    }
+
     const { data: link } = await admin.auth.admin.generateLink({
       type: "recovery",
       email: pedido.email,
