@@ -14,7 +14,9 @@ const JOB = "weekly-export";
 // elas a trilha de auditoria e a de papéis. `src/test/backupCoverage.test.ts`
 // compara esta lista com o schema real e quebra o CI quando alguma escapa.
 //
-// Fora daqui, de propósito: `internal_secrets` — segredos de cron e URL base,
+// Fora daqui, de propósito: `cnes_profissionais` — recorte de base pública do
+// DATASUS, reimportável em um comando, e de pessoas que nunca pediram para
+// estar aqui; e `internal_secrets` — segredos de cron e URL base,
 // sem dado clínico ou de usuário, recriáveis por migration; copiá-los para um
 // arquivo num bucket só ampliaria a exposição.
 const TABLES = [

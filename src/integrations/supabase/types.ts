@@ -618,6 +618,39 @@ export type Database = {
           },
         ]
       }
+      cnes_profissionais: {
+        Row: {
+          atualizado_em: string
+          cbos: string[]
+          co_profissional: string
+          competencia: string
+          crm: string | null
+          crm_uf: string | null
+          especialidades: string[]
+          nome: string
+        }
+        Insert: {
+          atualizado_em?: string
+          cbos?: string[]
+          co_profissional: string
+          competencia: string
+          crm?: string | null
+          crm_uf?: string | null
+          especialidades?: string[]
+          nome: string
+        }
+        Update: {
+          atualizado_em?: string
+          cbos?: string[]
+          co_profissional?: string
+          competencia?: string
+          crm?: string | null
+          crm_uf?: string | null
+          especialidades?: string[]
+          nome?: string
+        }
+        Relationships: []
+      }
       consent_audit_log: {
         Row: {
           action: Database["public"]["Enums"]["consent_action"]
@@ -2371,6 +2404,17 @@ export type Database = {
           patient_name: string
           severity: Database["public"]["Enums"]["severity_level"]
           status: Database["public"]["Enums"]["case_status"]
+        }[]
+      }
+      cnes_conferir: {
+        Args: { _crm: string; _crm_uf: string; _nome?: string }
+        Returns: {
+          co_profissional: string
+          competencia: string
+          crm: string
+          crm_uf: string
+          especialidades: string[]
+          nome: string
         }[]
       }
       create_notification: {

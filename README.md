@@ -43,6 +43,7 @@ Scripts disponíveis:
 | `types:generate` | Regenera os tipos do Supabase a partir do schema (ver abaixo) |
 | `demo:seed` | Popula a base fictícia de demonstração (ver abaixo) |
 | `demo:limpar` | Remove a base fictícia, sem tocar em dado real |
+| `cnes:import` | Importa o recorte cardiovascular da base pública CNES (ver abaixo) |
 
 ## Recuperação
 
@@ -102,6 +103,30 @@ SUPABASE_ACCESS_TOKEN=sbp_xxx npm run types:generate
 ```
 
 O token é um [Personal Access Token](https://supabase.com/dashboard/account/tokens) da Management API — não confundir com a anon key nem com a service role key. Como ele tem poder praticamente total sobre o projeto, não deve ser commitado nem guardado como secret de CI. Esquecer esse passo faz o `npm run typecheck` falhar com erros do tipo `'<coluna>' does not exist in type ...`.
+
+## Base pública CNES (conferência de CRM)
+
+Não existe API aberta de CRM — medido: o portal do CFM é protegido por reCAPTCHA
+e a API de dados abertos do SUS tem 87 rotas, nenhuma de profissionais. O que
+existe é a base CNES do DATASUS, um ZIP mensal público.
+
+```bash
+SUPABASE_ACCESS_TOKEN=sbp_xxx npm run cnes:import -- --competencia 202606
+SUPABASE_ACCESS_TOKEN=sbp_xxx node scripts/cnes-import.mjs --limpar
+```
+
+Traz **36.042 profissionais** da família cardiovascular (cardiologista,
+cirurgião cardiovascular, radiologista intervencionista, cirurgião vascular e
+torácico), com nome, número e UF do registro. É script local, não edge function:
+o ZIP tem ~730 MB e os dois CSV somam ~1,8 GB, muito além do limite de uma
+function — a leitura é em fluxo, via `unzip -p`.
+
+**O que ela é e o que não é.** O número de registro no CNES é declarado pelo
+estabelecimento ao cadastrar o profissional, **não validado pelo conselho**. Ele
+aparece na tela de aprovação para corroborar; a conferência que vale continua
+sendo a do portal do CFM, feita por uma pessoa, e registrada com quem conferiu e
+quando. A tabela é de leitura restrita a administrador, fica fora do backup
+(reimportável em um comando) e nada dela é exibido a pacientes.
 
 ## Base de demonstração
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  BadgeCheck, ExternalLink, Loader2, Mail, ShieldQuestion, Check, X, Clock,
+  BadgeCheck, ExternalLink, Loader2, Mail, ShieldQuestion, Check, X, Clock, Database,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -241,6 +241,8 @@ function PedidoCard({
           </p>
         )}
 
+        {!somenteLeitura && <PainelCnes crm={p.crm} crmUf={p.crm_uf} nome={p.nome} />}
+
         {somenteLeitura ? (
           <p className="text-xs text-muted-foreground">
             Decidido em {data(p.decidido_em)}
@@ -283,6 +285,75 @@ function PedidoCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * O que a base pública diz sobre este nome/CRM.
+ *
+ * **Não é validação do CFM** — o número de registro no CNES é declarado pelo
+ * estabelecimento ao cadastrar o profissional, não conferido pelo conselho. Por
+ * isso o painel corrobora e nunca decide: quem decide é quem abre o portal e
+ * marca "conferi".
+ */
+function PainelCnes({ crm, crmUf, nome }: { crm: string | null; crmUf: string | null; nome: string }) {
+  const { data: achados = [], isLoading } = useQuery({
+    queryKey: ["cnes-conferir", crm, crmUf, nome],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("cnes_conferir", {
+        _crm: crm ?? "", _crm_uf: crmUf ?? "", _nome: nome,
+      });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const porCrm = achados.filter((a) => crm && a.crm === crm);
+  const soPorNome = achados.filter((a) => !crm || a.crm !== crm);
+
+  return (
+    <div className="rounded-lg border border-border bg-secondary/30 p-3 space-y-2">
+      <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+        <Database className="h-3.5 w-3.5" /> Base pública CNES (DATASUS)
+      </p>
+      {isLoading ? (
+        <p className="text-xs text-muted-foreground">Consultando...</p>
+      ) : achados.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Nada encontrado para este CRM ou nome. Isso <strong>não</strong> significa que o
+          registro não existe — a base cobre profissionais vinculados a estabelecimentos
+          de saúde, e não substitui o portal do CFM.
+        </p>
+      ) : (
+        <>
+          {porCrm.map((a) => (
+            <p key={a.co_profissional} className="text-xs">
+              <span className="font-medium text-foreground">{a.nome}</span>{" "}
+              <span className="text-muted-foreground">
+                · CRM {a.crm}/{a.crm_uf} · {(a.especialidades ?? []).join(", ")}
+              </span>
+            </p>
+          ))}
+          {soPorNome.length > 0 && (
+            <div className="pt-1 border-t border-border/60">
+              <p className="text-[11px] text-muted-foreground mb-1">
+                Outros com nome parecido (CRM diferente do informado):
+              </p>
+              {soPorNome.slice(0, 4).map((a) => (
+                <p key={a.co_profissional} className="text-[11px] text-muted-foreground">
+                  {a.nome} · CRM {a.crm}/{a.crm_uf}
+                </p>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        O número de registro no CNES é <strong>declarado pelo estabelecimento</strong>, não
+        validado pelo conselho. Serve para corroborar; a conferência que vale é a do portal
+        do CFM.
+      </p>
+    </div>
   );
 }
 

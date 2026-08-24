@@ -281,3 +281,66 @@ describe("o consentimento do diretório é revogável", () => {
     expect(ler("supabase/functions/access-decide/index.ts")).toContain("directory_listing");
   });
 });
+
+/**
+ * Guarda: a base pública corrobora, e nunca vira mais que isso.
+ *
+ * O `NU_REGISTRO` do CNES é **declarado pelo estabelecimento** ao cadastrar o
+ * profissional — não é validado pelo conselho. Tratá-lo como verificação seria
+ * fabricar autoridade: o selo de verificado é o que autoriza um médico a
+ * aprovar conteúdo clínico, e ele tem que continuar dependendo de alguém abrir
+ * o portal do CFM.
+ *
+ * E são dados de 36 mil pessoas que nunca pediram para estar aqui. A tabela é
+ * de leitura restrita a administrador, e nada dela chega ao paciente.
+ */
+describe("a base CNES", () => {
+  function migrationCnes(): string {
+    const dir = resolve(raiz, "supabase/migrations");
+    const arquivos = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
+    const com = arquivos.filter((f) =>
+      /create table if not exists public\.cnes_profissionais/i.test(readFileSync(resolve(dir, f), "utf8")));
+    expect(com.length, "nenhuma migration cria cnes_profissionais").toBeGreaterThan(0);
+    return readFileSync(resolve(dir, com[com.length - 1]), "utf8");
+  }
+
+  it("é lida só por administrador, e nunca por anônimo", () => {
+    const sql = migrationCnes();
+    expect(sql).toMatch(/alter table public\.cnes_profissionais enable row level security/i);
+    const policies = sql.match(/create policy[\s\S]*?on public\.cnes_profissionais[\s\S]*?;/gi) ?? [];
+    expect(policies.length, "nenhuma policy declarada").toBeGreaterThan(0);
+    for (const pol of policies) {
+      expect(pol, "policy sem exigência de admin").toMatch(/has_role\(auth\.uid\(\), 'admin'/);
+      expect(pol, "policy de escrita na base pública").not.toMatch(/for (insert|update|delete)/i);
+    }
+    expect(sql).toMatch(/revoke all on function public\.cnes_conferir[^;]*from public, anon/);
+  });
+
+  it("nenhuma tela de paciente consulta a base", () => {
+    // Ela existe para a análise da solicitação. Vazar para a vitrine
+    // publicaria profissionais que nunca pediram para aparecer.
+    for (const arquivo of ["src/pages/app/PacienteEncontrar.tsx", "src/pages/app/PacienteMedico.tsx"]) {
+      expect(ler(arquivo), `${arquivo} consulta o CNES`).not.toMatch(/cnes_/i);
+    }
+  });
+
+  it("a tela de aprovação diz que não é validação do CFM", () => {
+    const tela = ler("src/pages/app/AdminAcessos.tsx");
+    expect(tela).toMatch(/declarado pelo estabelecimento/i);
+    expect(tela).toMatch(/portal do CFM/i);
+  });
+
+  it("o selo de verificado não vem do CNES", () => {
+    // Nada em `access-decide` pode ligar `verified` a partir da base pública.
+    const funcao = ler("supabase/functions/access-decide/index.ts");
+    expect(funcao).not.toMatch(/cnes/i);
+    expect(funcao).toMatch(/verified: !!pedido\.crm_conferido_em/);
+  });
+
+  it("o importador recusa arquivo vazio em vez de importar zero", () => {
+    // Nome errado dentro do ZIP devolveria zero linhas e uma importação de
+    // sucesso sem nenhum dado — o formato de defeito desta sessão inteira.
+    const script = ler("scripts/cnes-import.mjs");
+    expect(script).toMatch(/não devolveu linha nenhuma/);
+  });
+});

@@ -35,6 +35,11 @@ const NAO_COPIADAS: Record<string, string> = {
   // por migration. Copiá-los para um arquivo num bucket amplia a exposição sem
   // nenhum ganho de recuperação.
   internal_secrets: "segredo operacional recriável; copiar só aumenta exposição",
+  cnes_profissionais:
+    "recorte de base pública do DATASUS, reimportável em um comando "
+    + "(`node scripts/cnes-import.mjs`). São dados de terceiros que nunca "
+    + "pediram para estar aqui — duplicá-los no backup amplia exposição sem "
+    + "ganho de recuperação.",
 };
 
 /** Nomes de tabela do bloco `Tables` dos tipos gerados. */
