@@ -2224,6 +2224,42 @@ export type Database = {
         }
         Relationships: []
       }
+      workspace_files: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          file_bytes: number | null
+          id: string
+          mime_type: string | null
+          origem: string
+          storage_path: string
+          titulo: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          file_bytes?: number | null
+          id?: string
+          mime_type?: string | null
+          origem?: string
+          storage_path: string
+          titulo: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          file_bytes?: number | null
+          id?: string
+          mime_type?: string | null
+          origem?: string
+          storage_path?: string
+          titulo?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       active_data_access_grants: {

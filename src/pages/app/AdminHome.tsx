@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   ShieldCheck, Stethoscope, HeartPulse, FolderOpen, Eye,
   ShieldAlert, ScrollText, Plug, Users, BookOpen,
-  BookOpenCheck, ChevronRight, Loader2, Globe,
+  BookOpenCheck, ChevronRight, Loader2, Globe, FolderLock,
   UserPlus,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,6 +51,12 @@ const ATALHOS = [
     label: "Biblioteca de referência",
     descricao: "As obras que originam a base clínica, para conferir na fonte.",
     icon: BookOpen,
+  },
+  {
+    to: "/app/admin/arquivos",
+    label: "Arquivos de trabalho",
+    descricao: "Documentos e notas guardados em bucket privado — só administrador lê.",
+    icon: FolderLock,
   },
   {
     to: "/app/admin/erros",

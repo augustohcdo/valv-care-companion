@@ -72,6 +72,11 @@ const TABLES = [
   // backup de propósito — é material de origem, que o dono tem em mãos —, mas
   // a ficha entra: é ela que diz de onde veio cada citação.
   "reference_works",
+  // O índice dos arquivos de trabalho. Os arquivos em si ficam fora, e vale
+  // dizer por quê sem enfeite: o backup mora no mesmo projeto Supabase, então
+  // copiá-los para cá não protegeria contra a perda que importa — a do projeto.
+  // A cópia externa de verdade continua esperando a credencial da Backblaze B2.
+  "workspace_files",
 ];
 
 // O que não é tabela de `public`. Fica numa lista à parte porque vem de RPC —
