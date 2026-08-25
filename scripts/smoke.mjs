@@ -118,7 +118,7 @@ if (rotas.length === 0) {
 // 404 é o app (a rota catch-all), não a Vercel.
 const inexistente = "/__smoke_rota_inexistente";
 
-console.log(`Sondando ${rotas.length + 1} rotas em ${BASE}\n`);
+console.log(`Sondando ${rotas.length + 1} rotas em ${BASE} (uma delas inexistente, para provar o catch-all)\n`);
 const resultados = await emLotes([...rotas, inexistente], 6, sondar);
 resultados.push(await sondarAssetInexistente());
 const quebradas = resultados.filter((r) => !r.ok);
@@ -131,4 +131,10 @@ if (quebradas.length > 0) {
   process.exit(1);
 }
 
-console.log(`✓ as ${resultados.length} rotas devolvem o shell do app.`);
+// `resultados` tem uma sonda a mais que rotas: a de asset inexistente, que
+// confere se o rewrite de SPA está engolindo `/assets/*` — chamá-la de rota
+// fazia o resumo contar 53 onde o cabeçalho anunciou 52.
+console.log(
+  `✓ as ${resultados.length - 1} rotas devolvem o shell do app, ` +
+  "e o asset inexistente não é engolido pelo rewrite.",
+);
