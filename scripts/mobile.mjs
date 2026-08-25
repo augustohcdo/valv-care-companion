@@ -52,8 +52,9 @@ const PAGINAS = [
   "/auth/login",
   "/auth/cadastro",
   // Formulário longo com selects lado a lado — a página com maior risco de
-  // transbordar no celular entre as públicas.
-  "/acesso-profissional",
+  // transbordar no celular entre as públicas. `/acesso-profissional` agora
+  // redireciona para cá, então medir as duas mediria a mesma tela.
+  "/medicos",
   "/dpo",
 ];
 
@@ -89,10 +90,16 @@ function medir() {
     });
   }
 
+  const raiz = document.getElementById("root");
+
   return {
     largura,
     scrollWidth: document.documentElement.scrollWidth,
     culpados: culpados.sort((a, b) => b.profundidade - a.profundidade).slice(0, 12),
+    // Prova de que havia o que medir. Uma página em branco nunca transborda,
+    // então sem isto o script aprova justamente o pior estado possível.
+    elementos: raiz ? raiz.querySelectorAll("*").length : 0,
+    texto: (document.body.innerText || "").trim().length,
   };
 }
 
@@ -115,6 +122,20 @@ for (const caminho of PAGINAS) {
     await pagina.evaluate(() => window.scrollTo(0, 0));
 
     const r = await pagina.evaluate(medir);
+
+    // Página que não renderizou não é página sem transbordo — é página que não
+    // foi medida. Aconteceu de verdade: um build local sem
+    // `VITE_SUPABASE_URL` quebrava o app no boot, o `#root` ficava vazio, e
+    // este script aprovava as oito páginas em branco uma por uma.
+    if (r.elementos < 10 || r.texto < 50) {
+      const motivo =
+        `a página não renderizou (${r.elementos} elementos, ${r.texto} caracteres) — ` +
+        "veja o console do navegador; num build local costuma ser variável de ambiente faltando";
+      naoMedidas.push({ caminho, motivo });
+      console.log(`? ${caminho} — não deu para medir: ${motivo}`);
+      continue;
+    }
+
     const transborda = r.scrollWidth > r.largura + 1;
 
     medidas++;

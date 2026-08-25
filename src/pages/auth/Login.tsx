@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Mail, Lock, ShieldAlert } from "lucide-react";
+import { Loader2, Mail, Lock, ShieldAlert, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -216,14 +216,21 @@ export default function Login() {
           </Link>
         </p>
         {/* O médico não cria conta: solicita, e o responsável libera depois de
-            conferir o registro. Dizer isso aqui evita a busca por um botão que
-            não existe mais. */}
-        <p className="text-center text-sm text-muted-foreground mt-2">
-          É médico ou clínica?{" "}
-          <Link to="/acesso-profissional" className="text-primary font-medium hover:underline">
-            Solicitar acesso profissional
-          </Link>
-        </p>
+            conferir o registro. Em caixa própria porque quem chega aqui já
+            tentou entrar sem ter conta — texto solto embaixo de outro texto
+            passa batido. */}
+        <div className="mt-4 rounded-lg border border-border bg-secondary/40 p-4 text-center">
+          <p className="text-sm font-medium text-foreground">É médico ou clínica?</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            O acesso profissional não é aberto: você solicita, conferimos o registro
+            no portal do CFM e liberamos.
+          </p>
+          <Button asChild variant="outline" size="sm" className="mt-3 gap-1.5">
+            <Link to="/medicos#solicitar">
+              <Stethoscope className="h-4 w-4" /> Solicitar acesso profissional
+            </Link>
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -46,7 +46,7 @@ const Index = () => {
         actions={
           <>
             <Button asChild variant="accent" size="lg" className="min-h-[48px] w-full sm:w-auto">
-              <Link to="/acesso-profissional">
+              <Link to="/medicos#solicitar">
                 <Stethoscope className="h-4 w-4" /> Sou médico
               </Link>
             </Button>
@@ -176,10 +176,14 @@ const Index = () => {
               </ul>
               <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-3">
                 <Button asChild variant="hero" className="min-h-[48px]">
-                  <Link to="/acesso-profissional">Solicitar acesso profissional</Link>
+                  <Link to="/medicos#solicitar">Solicitar acesso profissional</Link>
                 </Button>
+                {/* A CTA secundária levava a /medicos, que agora é a mesma
+                    página da primária — dois botões para o mesmo destino. Aqui
+                    ela vira o outro caminho de verdade: falar antes com o
+                    representante, que é como o acesso costuma começar. */}
                 <Button asChild variant="outline" className="min-h-[48px]">
-                  <Link to="/medicos">Conhecer plataforma médica</Link>
+                  <Link to="/contato">Falar com o representante</Link>
                 </Button>
               </div>
             </ScrollReveal>
@@ -309,9 +313,12 @@ const Index = () => {
 
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { num: "01", title: "Médico cria sua conta", desc: "Cadastro com CRM, especialidade e instituição. O CRM se torna sua chave de conexão." },
-              { num: "02", title: "Paciente se vincula pelo CRM", desc: "Ao criar conta, o paciente informa o CRM do médico. O sistema cria um vínculo seguro, sujeito a aprovação." },
-              { num: "03", title: "Acompanhamento conjunto", desc: "Sintomas, exames, anexos e jornada compartilhados — sempre sob consentimento do paciente." },
+              // O fluxo real, e não o antigo: o médico não se cadastra sozinho,
+              // e o vínculo depende do aceite dele — as duas coisas mudaram e o
+              // texto tinha ficado para trás.
+              { num: "01", title: "Médico solicita acesso", desc: "Ele envia nome, CRM e UF. Conferimos o registro no portal do CFM e liberamos a conta — não há autocadastro." },
+              { num: "02", title: "Paciente pede o vínculo", desc: "O paciente encontra o médico pelo CRM ou pelo diretório e envia um pedido. O vínculo só existe depois que o médico aceita." },
+              { num: "03", title: "Acompanhamento conjunto", desc: "Sintomas, exames, anexos e jornada compartilhados — sempre sob consentimento do paciente, revogável a qualquer momento." },
             ].map((step, i) => (
               <ScrollReveal key={i} delay={i * 0.1}>
                 <Card className="p-7 h-full card-elevated">
@@ -344,7 +351,7 @@ const Index = () => {
                   <Link to="/auth/cadastro">Criar conta de paciente</Link>
                 </Button>
                 <Button asChild variant="accent" size="lg" className="min-h-[48px]">
-                  <Link to="/acesso-profissional">Solicitar acesso profissional</Link>
+                  <Link to="/medicos#solicitar">Solicitar acesso profissional</Link>
                 </Button>
                 <Button asChild variant="outline" size="lg" className="min-h-[48px] bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-background hover:text-primary">
                   <Link to="/aprender">Explorar sem cadastro</Link>

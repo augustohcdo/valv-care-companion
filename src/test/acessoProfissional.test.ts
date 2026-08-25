@@ -54,8 +54,12 @@ describe("o autocadastro de médico não existe mais", () => {
   });
 
   it("a tela de cadastro aponta para a solicitação, e a de entrada também", () => {
-    expect(ler("src/pages/auth/Cadastro.tsx")).toContain("/acesso-profissional");
-    expect(ler("src/pages/auth/Login.tsx")).toContain("/acesso-profissional");
+    // Vale qualquer uma das duas formas: `/medicos#solicitar` (a página) ou
+    // `/acesso-profissional` (o redirecionamento que a antecede). O que se
+    // exige é que a saída exista — não o formato da URL.
+    const paraSolicitacao = /\/medicos#solicitar|\/acesso-profissional/;
+    expect(ler("src/pages/auth/Cadastro.tsx")).toMatch(paraSolicitacao);
+    expect(ler("src/pages/auth/Login.tsx")).toMatch(paraSolicitacao);
   });
 
   it("a rota da solicitação existe e é pública", () => {
@@ -65,6 +69,99 @@ describe("o autocadastro de médico não existe mais", () => {
     // tem conta conseguiria pedir uma.
     const bloco = app.slice(app.indexOf("{/* Público com layout */}"));
     expect(bloco).toContain('path="/acesso-profissional"');
+  });
+});
+
+/**
+ * Guarda: o caminho do médico é visível, e as telas não descrevem um produto
+ * que não existe.
+ *
+ * O fluxo de solicitação estava no ar e funcionando — e mesmo assim o médico
+ * não chegava nele. `/medicos`, o **primeiro item do menu**, respondia "esta
+ * área será liberada na próxima fase" e "cadastre-se para acessar", as duas
+ * falsas; a home ainda ensinava "médico cria sua conta"; e as seis entradas
+ * reais estavam todas abaixo da dobra ou dentro de outra tela.
+ *
+ * É o mesmo defeito que esta sessão inteira persegue, só que virado para fora:
+ * uma tela afirmando um estado que não é o real. O que regride primeiro numa
+ * refatoração de layout é justamente o botão do cabeçalho — por isso ele é
+ * teste, e não convenção.
+ */
+describe("o médico encontra o caminho", () => {
+  /**
+   * O que chega à tela, sem os comentários que explicam o código — mesmo
+   * recorte da guarda de ranking. `//` só conta em início de linha, senão o
+   * corte comeria a metade de qualquer `https://`.
+   */
+  const semComentarios = (t: string) =>
+    t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  it("nenhuma tela promete a área médica para depois", () => {
+    // As duas frases exatas que `/medicos` servia. Se voltarem, alguém
+    // ressuscitou o "em breve" para uma área publicada.
+    const proibido = /próxima fase|Cadastre-se para acessar/i;
+    const vazando = arquivosDe("src").filter((f) => proibido.test(semComentarios(ler(f))));
+    expect(vazando, "telas que dizem que a área médica ainda vem").toEqual([]);
+  });
+
+  it("a página do 'em breve' não existe mais, e ninguém a importa", () => {
+    // Componente órfão que descreve um estado inexistente é a próxima
+    // armadilha — foi assim com `turnstile-verify` e com `lerFonte`.
+    expect(() => ler("src/pages/ComingSoon.tsx")).toThrow();
+    const importando = arquivosDe("src").filter((f) => /ComingSoon/.test(ler(f)));
+    expect(importando, "arquivos que ainda citam ComingSoon").toEqual([]);
+  });
+
+  it("o cabeçalho público leva ao acesso profissional em toda página", () => {
+    const header = semComentarios(ler("src/components/PublicHeader.tsx"));
+    expect(header, "o cabeçalho não oferece caminho profissional").toContain("/medicos#solicitar");
+    // No desktop e no drawer: some no celular é o mesmo que não existir para
+    // quem navega pelo telefone.
+    const ocorrencias = header.match(/\/medicos#solicitar/g) ?? [];
+    expect(ocorrencias.length, "o caminho profissional só existe num dos menus").toBeGreaterThanOrEqual(2);
+  });
+
+  it("o menu 'Entrar' não ramifica para o mesmo lugar", () => {
+    // Duas opções que levam à mesma tela ensinam a desconfiar do menu.
+    const header = semComentarios(ler("src/components/PublicHeader.tsx"));
+    expect(header).not.toContain("/auth/login?type=medico");
+    expect(header).not.toContain("/auth/login?type=paciente");
+  });
+
+  it("os passos da home descrevem o fluxo real, não o autocadastro", () => {
+    const home = semComentarios(ler("src/pages/Index.tsx"));
+    const passos = home.slice(home.indexOf("Como funciona"), home.indexOf("Como funciona") + 2000);
+    expect(passos, "a home ainda ensina o médico a criar conta").not.toMatch(/médico cria sua conta/i);
+    expect(passos, "a home não menciona a solicitação").toMatch(/solicita/i);
+    // O vínculo passou a depender do aceite do médico nesta sessão; o texto
+    // dizia "sujeito a aprovação" sem dizer de quem.
+    expect(passos, "a home não diz que o médico aceita o vínculo").toMatch(/médico aceita/i);
+  });
+
+  it("recolher campos não afrouxou o que o formulário exige", () => {
+    // O essencial ficou à vista justamente porque é o que o servidor cobra
+    // (`validar`, em access-request). Um `required` perdido no meio da
+    // reorganização devolveria a validação só para o servidor — erro depois
+    // do envio, em vez de antes.
+    const form = ler("src/components/SolicitarAcessoForm.tsx");
+    for (const campo of ["nome", "email", "crm"]) {
+      const linha = new RegExp(`required[^\\n]*form\\.${campo}|form\\.${campo}[^\\n]*required`);
+      expect(form, `o campo ${campo} deixou de ser obrigatório`).toMatch(linha);
+    }
+    expect(form, "a UF do CRM sumiu do formulário").toContain("crm_uf");
+    // E o envio continua travado sem captcha e sem a anuência do diretório.
+    expect(form).toMatch(/disabled=\{[^}]*!captchaToken[^}]*!consentDiretorio/);
+  });
+
+  it("as duas rotas continuam existindo", () => {
+    // `/acesso-profissional` foi publicada em rodapé, login e e-mails; apagá-la
+    // quebraria links que já estão fora daqui. Ela vira redirecionamento.
+    const app = ler("src/App.tsx");
+    expect(app).toContain('path="/medicos"');
+    expect(app).toContain('path="/acesso-profissional"');
+    const bloco = app.slice(app.indexOf('path="/acesso-profissional"'));
+    expect(bloco.slice(0, 200), "o redirecionamento não aponta para a solicitação")
+      .toContain('to="/medicos#solicitar"');
   });
 });
 
@@ -90,7 +187,7 @@ describe("a porta pública da solicitação", () => {
     // É a condição combinada: o médico aparece na vitrine, e a anuência é
     // colhida no ato do pedido — não presumida depois.
     expect(funcao).toContain("consent_diretorio !== true");
-    expect(ler("src/pages/public/AcessoProfissional.tsx")).toContain("consentDiretorio");
+    expect(ler("src/components/SolicitarAcessoForm.tsx")).toContain("consentDiretorio");
   });
 
   it("a function está declarada como pública no config", () => {

@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -17,7 +17,6 @@ import { PageSkeleton } from "@/components/PageSkeleton";
 
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import ComingSoon from "./pages/ComingSoon";
 
 // Auth: lazy — não fazem parte do payload inicial da landing pública
 const Login = lazy(() => import("./pages/auth/Login"));
@@ -39,7 +38,7 @@ const AvisoMedico = lazy(() => import("./pages/public/AvisoMedico"));
 const CookiesPage = lazy(() => import("./pages/public/Cookies"));
 const DPOPage = lazy(() => import("./pages/public/DPO"));
 const Contato = lazy(() => import("./pages/public/Contato"));
-const AcessoProfissional = lazy(() => import("./pages/public/AcessoProfissional"));
+const Medicos = lazy(() => import("./pages/public/Medicos"));
 const Parceiros = lazy(() => import("./pages/public/Parceiros"));
 
 // App (autenticado): lazy — corta drasticamente o bundle inicial
@@ -176,26 +175,17 @@ const App = () => (
               <Route path="/cookies" element={withSuspense(<CookiesPage />)} />
               <Route path="/dpo" element={withSuspense(<DPOPage />, "form")} />
               <Route path="/contato" element={withSuspense(<Contato />, "form")} />
-              <Route path="/acesso-profissional" element={withSuspense(<AcessoProfissional />, "form")} />
               <Route path="/parceiros" element={withSuspense(<Parceiros />)} />
               <Route path="/aviso-medico" element={withSuspense(<AvisoMedico />)} />
 
-              <Route
-                path="/medicos"
-                element={
-                  <ComingSoon
-                    eyebrow="Para médicos"
-                    title="Plataforma médica ValvePath"
-                    description="Cadastre-se para acessar casos clínicos, dashboards e biblioteca."
-                    features={[
-                      "Cadastro médico com CRM e UF",
-                      "Wizard 'Novo caso em 3 minutos'",
-                      "Vínculo médico-paciente por CRM",
-                      "Dashboards e biblioteca clínica",
-                    ]}
-                  />
-                }
-              />
+              {/* A página do médico: entender a plataforma e pedir acesso no
+                  mesmo lugar. Antes esta rota — o primeiro item do menu —
+                  mostrava um "em breve" para uma área que já estava no ar. */}
+              <Route path="/medicos" element={withSuspense(<Medicos />, "form")} />
+              {/* Continua existindo porque já foi publicada em rodapé, login e
+                  e-mails; duas páginas quase iguais divergiriam, então esta
+                  aponta para a única. */}
+              <Route path="/acesso-profissional" element={<Navigate to="/medicos#solicitar" replace />} />
 
               <Route path="*" element={<NotFound />} />
             </Route>

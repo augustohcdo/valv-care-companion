@@ -1,14 +1,8 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, ChevronDown, LayoutDashboard } from "lucide-react";
+import { Menu, X, LayoutDashboard, Stethoscope } from "lucide-react";
 import { Logo } from "./Logo";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { useDebouncedNav } from "@/hooks/useDebouncedNav";
 
@@ -54,23 +48,25 @@ export const PublicHeader = () => {
             </Button>
           ) : (
             <>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1">
-                    Entrar <ChevronDown className="h-3.5 w-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem asChild>
-                    <Link to="/auth/login?type=medico">Sou médico</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/auth/login?type=paciente">Sou paciente</Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {/* Um botão só: as duas opções do menu antigo ("Sou médico" /
+                  "Sou paciente") levavam à mesma tela de login. Ramo decorativo
+                  ensina a pessoa a desconfiar do menu. */}
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/auth/login">Entrar</Link>
+              </Button>
+              {/* O caminho do médico em toda página: antes existia só abaixo da
+                  dobra da home, no rodapé e dentro do login. */}
+              <Button asChild variant="outline" size="sm" className="gap-1.5">
+                <Link to="/medicos#solicitar">
+                  <Stethoscope className="h-4 w-4" /> Acesso profissional
+                </Link>
+              </Button>
               <Button asChild variant="hero" size="sm">
-                <Link to="/auth/cadastro">Criar conta de paciente</Link>
+                {/* Um filho só: o botão é flex com `gap`, então rótulo partido
+                    em dois nós ganha o espaço do gap além do espaço do texto. */}
+                <Link to="/auth/cadastro">
+                  <span>Criar conta<span className="hidden lg:inline"> de paciente</span></span>
+                </Link>
               </Button>
             </>
           )}
@@ -106,12 +102,14 @@ export const PublicHeader = () => {
                 </a>
               ))}
               <div className="border-t border-border my-2" />
-              <a href="/auth/login?type=medico" onClick={go("/auth/login?type=medico", () => setOpen(false))} className="px-3 py-3 text-sm font-medium rounded-md text-foreground hover:bg-secondary active:bg-secondary/80 min-h-[44px] flex items-center select-none">
-                Login médico
+              <a href="/auth/login" onClick={go("/auth/login", () => setOpen(false))} className="px-3 py-3 text-sm font-medium rounded-md text-foreground hover:bg-secondary active:bg-secondary/80 min-h-[44px] flex items-center select-none">
+                Entrar
               </a>
-              <a href="/auth/login?type=paciente" onClick={go("/auth/login?type=paciente", () => setOpen(false))} className="px-3 py-3 text-sm font-medium rounded-md text-foreground hover:bg-secondary active:bg-secondary/80 min-h-[44px] flex items-center select-none">
-                Login paciente
-              </a>
+              <Button asChild variant="outline" className="mt-2 min-h-[44px] gap-1.5">
+                <a href="/medicos#solicitar" onClick={go("/medicos#solicitar", () => setOpen(false))}>
+                  <Stethoscope className="h-4 w-4" /> Acesso profissional
+                </a>
+              </Button>
               <Button asChild variant="hero" className="mt-2 min-h-[44px]">
                 <a href="/auth/cadastro" onClick={go("/auth/cadastro", () => setOpen(false))}>Criar conta de paciente</a>
               </Button>

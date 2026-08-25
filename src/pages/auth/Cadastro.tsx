@@ -203,7 +203,7 @@ function ChooseAccount({ onPick }: { onPick: () => void }) {
           variant="ghost"
           className="h-auto w-full items-stretch justify-start text-left rounded-2xl border border-border/70 bg-card p-6 font-normal hover:bg-card hover:border-primary hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group relative overflow-hidden"
         >
-          <Link to="/acesso-profissional">
+          <Link to="/medicos#solicitar">
           <span
             aria-hidden
             className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/0 group-hover:from-primary/10 group-hover:to-primary/[0.03] transition-all duration-500"
