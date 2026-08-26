@@ -15,9 +15,18 @@
  * Qualquer provedor S3-compatível serve (Backblaze B2, Cloudflare R2, MinIO):
  * o que muda é o endpoint e a região, que são variáveis de ambiente.
  *
- * **Nasce inerte.** Sem as variáveis configuradas, `configurado()` devolve
- * `false` e nada é enviado — mesma disciplina de `sendAlert.ts`: uma peça
- * pronta e desligada é honesta; uma peça que finge ter enviado, não.
+ * **Nasce inerte.** Sem as variáveis configuradas, `configurado()` — que vive
+ * em `offsiteConfig.ts` — devolve `false` e nada é enviado: mesma disciplina de
+ * `sendAlert.ts`. Uma peça pronta e desligada é honesta; uma que finge ter
+ * enviado, não.
+ *
+ * A leitura do ambiente mora **noutro arquivo** de propósito. Era a única parte
+ * daqui que dependia do `Deno` global, e enquanto estava neste módulo ele não
+ * podia ser importado pelos testes do app — o `tsc` do app não conhece `Deno`.
+ * O efeito prático disso era feio: a conferência de integridade, num código com
+ * **zero execuções registradas**, estava coberta só por varredura de texto.
+ * Transporte de um lado, ambiente do outro, e o transporte passa a ser
+ * exercitado de verdade a cada CI.
  */
 import { AwsClient } from "npm:aws4fetch@1.0.20";
 
@@ -27,25 +36,6 @@ export interface Config {
   bucket: string;
   keyId: string;
   secret: string;
-}
-
-/**
- * Lê a configuração do ambiente. Devolve `null` quando falta qualquer peça —
- * meia configuração é pior que nenhuma: enviaria para o lugar errado ou falharia
- * no meio, deixando o backup pela metade.
- */
-export function lerConfig(): Config | null {
-  const endpoint = Deno.env.get("OFFSITE_ENDPOINT");
-  const region = Deno.env.get("OFFSITE_REGION");
-  const bucket = Deno.env.get("OFFSITE_BUCKET");
-  const keyId = Deno.env.get("OFFSITE_KEY_ID");
-  const secret = Deno.env.get("OFFSITE_SECRET");
-  if (!endpoint || !region || !bucket || !keyId || !secret) return null;
-  return { endpoint: endpoint.replace(/\/+$/, ""), region, bucket, keyId, secret };
-}
-
-export function configurado(): boolean {
-  return lerConfig() !== null;
 }
 
 function cliente(cfg: Config): AwsClient {

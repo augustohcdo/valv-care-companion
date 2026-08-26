@@ -14,7 +14,8 @@ import { buildCorsHeaders } from "../_shared/cors.ts";
 import { logError } from "../_shared/logError.ts";
 import { recordJobRun, quemDisparou } from "../_shared/jobRun.ts";
 import { sendAlert } from "../_shared/sendAlert.ts";
-import { lerConfig, copiarEConferir, enviarObjeto } from "../_shared/offsite.ts";
+import { copiarEConferir, enviarObjeto } from "../_shared/offsite.ts";
+import { lerConfig } from "../_shared/offsiteConfig.ts";
 
 const JOB = "offsite-copy";
 const BUCKET = "clinical-exports";

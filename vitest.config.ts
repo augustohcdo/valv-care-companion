@@ -22,6 +22,7 @@ export default defineConfig({
       // alias deixa o vitest testar o arquivo que de fato é publicado, em vez
       // de uma cópia que divergiria com o tempo.
       "npm:zod@3": "zod",
+      "npm:aws4fetch@1.0.20": "aws4fetch",
     },
   },
 });
