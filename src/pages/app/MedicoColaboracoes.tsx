@@ -40,16 +40,33 @@ export default function MedicoColaboracoes() {
       const { data: owners } = docIds.length
         ? await supabase.from("doctors").select("id, user_id, crm, crm_uf").in("id", docIds)
         : { data: [] as any[] };
-      const userIds = (owners || []).map((d: any) => d.user_id);
-      const { data: profs } = userIds.length
-        ? await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)
-        : { data: [] as any[] };
+      // Um RPC por caso, e não uma leitura de `profiles`: a consulta antiga
+      // voltava vazia pela policy e o médico via os casos compartilhados com
+      // ele sem saber de quem eram. São poucos itens por tela.
+      const nomeDoDono = new Map<string, string | null>();
+      await Promise.all(
+        (collabs || []).map(async (c) => {
+          const { data: participantes } = await supabase
+            .rpc("participantes_do_caso", { _case_id: c.case_id });
+          const cs = cases?.find((x: any) => x.id === c.case_id);
+          const owner = cs ? owners?.find((o: any) => o.id === cs.doctor_id) : null;
+          if (owner) {
+            nomeDoDono.set(
+              c.case_id,
+              (participantes ?? []).find((x) => x.user_id === owner.user_id)?.full_name ?? null,
+            );
+          }
+        }),
+      );
 
       return (collabs || []).map((c) => {
         const cs = cases?.find((x: any) => x.id === c.case_id);
         const owner = cs ? owners?.find((o: any) => o.id === cs.doctor_id) : null;
-        const ownerProfile = owner ? profs?.find((p: any) => p.user_id === owner.user_id) : null;
-        return { ...c, caso: cs, owner: owner ? { ...owner, full_name: ownerProfile?.full_name } : null };
+        return {
+          ...c,
+          caso: cs,
+          owner: owner ? { ...owner, full_name: nomeDoDono.get(c.case_id) ?? null } : null,
+        };
       });
     },
     enabled: !!doctor?.id,
@@ -145,7 +162,7 @@ function CollabCard({ item, onAccept, onReject }: { item: any; onAccept?: () => 
               {valveTypeLabels[c.valve_type]} — {valveDiseaseLabels[c.valve_disease]}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Convite de Dr(a). {item.owner?.full_name} (CRM {item.owner?.crm}/{item.owner?.crm_uf})
+              Convite de {item.owner?.full_name ? `Dr(a). ${item.owner.full_name} ` : ""}(CRM {item.owner?.crm}/{item.owner?.crm_uf})
             </p>
             {item.message && (
               <p className="text-xs text-muted-foreground italic mt-2 p-2 bg-secondary/40 rounded border-l-2 border-primary/40">

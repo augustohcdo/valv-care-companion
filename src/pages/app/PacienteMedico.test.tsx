@@ -11,9 +11,22 @@ const DOCTOR = {
 
 let patientRow: any = { id: "p1", user_id: "u1", linked_doctor_id: "d1", deleted_at: null };
 let doctorRow: any = DOCTOR;
+/**
+ * O que `meus_medicos` devolve. O mock antigo simulava um `maybeSingle` em
+ * `profiles` que na RLS real volta vazio para outra pessoa — o teste passava
+ * enquanto o paciente lia "Dr(a). Médico(a)" no cartão do próprio médico.
+ */
+let meusMedicos: unknown[] = [{
+  doctor_id: "d1", user_id: "du1", full_name: "Ana Souza",
+  crm: "123456", crm_uf: "SP", specialty: "Cardiologia", institution: null,
+}];
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
+    rpc: (nome: string) =>
+      Promise.resolve(
+        nome === "meus_medicos" ? { data: meusMedicos, error: null } : { data: [], error: null },
+      ),
     from: (table: string) => ({
       select: () => {
         const chain: any = {
@@ -54,10 +67,14 @@ describe("PacienteMedico", () => {
   beforeEach(() => {
     patientRow = { id: "p1", user_id: "u1", linked_doctor_id: "d1", deleted_at: null };
     doctorRow = DOCTOR;
+    meusMedicos = [{
+      doctor_id: "d1", user_id: "du1", full_name: "Ana Souza",
+      crm: "123456", crm_uf: "SP", specialty: "Cardiologia", institution: null,
+    }];
     vi.clearAllMocks();
   });
 
-  it("mostra o médico vinculado com nome resolvido do perfil", async () => {
+  it("mostra o médico vinculado com o nome resolvido pelo RPC", async () => {
     render(<PacienteMedico />, { wrapper });
     await waitFor(() => expect(screen.getByText(/Ana Souza/)).toBeInTheDocument());
     expect(screen.getByText("Vínculo ativo")).toBeInTheDocument();

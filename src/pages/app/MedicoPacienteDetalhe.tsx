@@ -36,8 +36,12 @@ export default function MedicoPacienteDetalhe() {
         .from("patients").select("*").is("deleted_at", null).eq("id", id!).eq("linked_doctor_id", doctor!.id).maybeSingle();
       if (!pat) return null;
 
-      const { data: prof } = await supabase
-        .from("profiles").select("*").eq("user_id", pat.user_id).maybeSingle();
+      // Pelo RPC: ler `profiles` do paciente volta vazio pela policy
+      // (`auth.uid() = user_id`), e o prontuário inteiro exibia "Paciente" no
+      // lugar do nome — inclusive no título e no rastro de navegação.
+      const { data: meus } = await supabase.rpc("meus_pacientes");
+      const meu = (meus ?? []).find((m) => m.patient_id === pat.id);
+      const prof = meu ? { full_name: meu.full_name, phone: meu.phone, birth_date: meu.birth_date } : null;
       const { data: cs } = await supabase
         .from("clinical_cases").select("*").is("deleted_at", null).eq("patient_id", pat.id).eq("doctor_id", doctor!.id).neq("status", "draft" as any).order("created_at", { ascending: false });
 
@@ -111,12 +115,12 @@ export default function MedicoPacienteDetalhe() {
     <div className="max-w-5xl space-y-6">
       <PageHeader
         eyebrow="Paciente"
-        title={profile?.full_name || "Paciente"}
+        title={profile?.full_name ?? "Paciente sem nome cadastrado"}
         description="Acompanhamento clínico, diário de sintomas, medicações e casos."
         breadcrumbs={[
           { label: "Início", to: "/app/medico" },
           { label: "Pacientes", to: "/app/medico/pacientes" },
-          { label: profile?.full_name || "Paciente" },
+          { label: profile?.full_name ?? "Paciente sem nome cadastrado" },
         ]}
         actions={
           <div className="flex gap-2">
@@ -136,7 +140,7 @@ export default function MedicoPacienteDetalhe() {
         <CardContent className="p-5">
           <div className="flex items-start gap-4 flex-wrap">
             <div className="h-14 w-14 rounded-full bg-gradient-hero text-primary-foreground grid place-items-center font-semibold shrink-0 text-lg">
-              {(profile?.full_name || "P").split(" ").slice(0, 2).map((n: string) => n[0]).join("")}
+              {(profile?.full_name ?? "?").split(" ").slice(0, 2).map((n: string) => n[0]).join("")}
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-serif text-xl text-primary">{profile?.full_name}</h3>

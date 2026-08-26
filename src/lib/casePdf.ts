@@ -149,9 +149,13 @@ export function exportCasePDF({ caso, doctor, events = [], appointments = [], do
   if (caso.patient_sex) kv("Sexo", caso.patient_sex);
 
   if (doctor) {
+    // Sem nome resolvido, o CRM sozinho ainda identifica o profissional sem
+    // ambiguidade — melhor que "Dr(a). null" num documento clínico.
     kv(
       "Médico responsável",
-      `Dr(a). ${doctor.full_name} — CRM ${doctor.crm}/${doctor.crm_uf} — ${doctor.specialty}`
+      doctor.full_name
+        ? `Dr(a). ${doctor.full_name} — CRM ${doctor.crm}/${doctor.crm_uf} — ${doctor.specialty}`
+        : `CRM ${doctor.crm}/${doctor.crm_uf} — ${doctor.specialty}`
     );
   }
 

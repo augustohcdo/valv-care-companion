@@ -41,19 +41,26 @@ export const CaseDiscussion = ({ caseId, canComment }: Props) => {
         .order("created_at", { ascending: true });
       if (error) throw error;
 
-      const userIds = [...new Set((comments ?? []).map((c) => c.author_id))];
-      const { data: profs } = userIds.length
-        ? await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)
-        : { data: [] as any[] };
-      const { data: docs } = userIds.length
-        ? await supabase.from("doctors").select("user_id, crm, crm_uf, specialty").in("user_id", userIds)
-        : { data: [] as any[] };
-      const authors: Record<string, any> = {};
-      userIds.forEach((uid) => {
-        const p = profs?.find((x: any) => x.user_id === uid);
-        const d = docs?.find((x: any) => x.user_id === uid);
-        authors[uid] = { full_name: p?.full_name || "Médico", ...d };
-      });
+      // Os nomes vêm por RPC, e não de `profiles` direto: as policies de
+      // `profiles` são `auth.uid() = user_id` e `has_role(admin)`, então a
+      // consulta antiga voltava **vazia** para todo colega e a tela caía num
+      // texto de reserva — toda opinião do caso aparecia assinada por
+      // "Dr(a). Médico". Numa discussão clínica isso é registro que não dá
+      // para auditar: não se sabe quem recomendou o quê.
+      //
+      // `participantes_do_caso` é `security definer` e carrega a própria cerca,
+      // que espelha a policy de SELECT de `case_comments` (médico do caso).
+      const { data: participantes, error: erroNomes } = await supabase
+        .rpc("participantes_do_caso", { _case_id: caseId });
+      if (erroNomes) throw erroNomes;
+
+      const authors: Record<string, { full_name: string | null; crm?: string | null; crm_uf?: string | null; specialty?: string | null }> = {};
+      for (const p of participantes ?? []) {
+        authors[p.user_id] = {
+          full_name: p.full_name,
+          crm: p.crm, crm_uf: p.crm_uf, specialty: p.specialty,
+        };
+      }
 
       return { items: comments ?? [], authors };
     },
@@ -144,9 +151,13 @@ export const CaseDiscussion = ({ caseId, canComment }: Props) => {
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {/* Sem nome resolvido, a tela diz isso — não inventa
+                            um. "Dr(a). Médico" parecia o nome de alguém. */}
                         <p className="text-sm font-semibold text-foreground inline-flex items-center gap-1">
                           <Stethoscope className="h-3 w-3 text-primary" />
-                          Dr(a). {author?.full_name}
+                          {author?.full_name
+                            ? `Dr(a). ${author.full_name}`
+                            : <span className="italic text-muted-foreground font-normal">autor não identificado</span>}
                         </p>
                         {author?.crm && (
                           <span className="text-[10px] text-muted-foreground">

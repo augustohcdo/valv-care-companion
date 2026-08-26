@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -2550,7 +2550,39 @@ export type Database = {
           topic: string
         }[]
       }
+      meus_medicos: {
+        Args: never
+        Returns: {
+          crm: string
+          crm_uf: string
+          doctor_id: string
+          full_name: string
+          institution: string
+          specialty: string
+          user_id: string
+        }[]
+      }
+      meus_pacientes: {
+        Args: never
+        Returns: {
+          birth_date: string
+          full_name: string
+          patient_id: string
+          phone: string
+          user_id: string
+        }[]
+      }
       normalize_path: { Args: { _path: string }; Returns: string }
+      participantes_do_caso: {
+        Args: { _case_id: string }
+        Returns: {
+          crm: string
+          crm_uf: string
+          full_name: string
+          specialty: string
+          user_id: string
+        }[]
+      }
       posso_revisar_conteudo: {
         Args: never
         Returns: {

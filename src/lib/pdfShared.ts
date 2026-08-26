@@ -73,7 +73,14 @@ export function addCoverPage(doc: jsPDF, input: CoverPageInput) {
   let infoY = pageH - 40;
   doc.setFontSize(10);
   if (input.doctor) {
-    doc.text(`Dr(a). ${input.doctor.full_name} — CRM ${input.doctor.crm}/${input.doctor.crm_uf}`, mx, infoY);
+    // Sem nome, o CRM sozinho já identifica sem ambiguidade — melhor que
+    // "Dr(a). null" num documento clínico.
+    doc.text(
+      input.doctor.full_name
+        ? `Dr(a). ${input.doctor.full_name} — CRM ${input.doctor.crm}/${input.doctor.crm_uf}`
+        : `CRM ${input.doctor.crm}/${input.doctor.crm_uf}`,
+      mx, infoY,
+    );
     infoY += 6;
     if (input.doctor.specialty) {
       doc.setTextColor(...PDF_COLORS.white);

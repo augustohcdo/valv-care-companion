@@ -76,12 +76,12 @@ const PacienteMedico = () => {
         .maybeSingle();
       if (error) throw error;
       if (!doc) return null;
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("user_id", doc.user_id)
-        .maybeSingle();
-      return { ...(doc as any), full_name: prof?.full_name || "Médico(a)" };
+      // Pelo RPC, e não por `profiles`: a policy só deixa ler a própria linha,
+      // então isto voltava vazio e o paciente lia "Dr(a). Médico(a)" no cartão
+      // do próprio médico assistente.
+      const { data: meus } = await supabase.rpc("meus_medicos");
+      const meu = (meus ?? []).find((m) => m.doctor_id === doc.id);
+      return { ...(doc as any), full_name: meu?.full_name ?? null };
     },
     enabled: !!patient?.linked_doctor_id,
   });
@@ -190,7 +190,7 @@ const PacienteMedico = () => {
                 {currentDoctor.full_name.split(" ").slice(0, 2).map((p) => p[0]).join("")}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-base font-semibold text-foreground">Dr(a). {currentDoctor.full_name}</p>
+                <p className="text-base font-semibold text-foreground">{currentDoctor.full_name ? `Dr(a). ${currentDoctor.full_name}` : "Médico vinculado"}</p>
                 <p className="text-sm text-muted-foreground">{currentDoctor.specialty}</p>
                 <div className="flex flex-wrap gap-2 mt-2">
                   <Badge variant="secondary" className="text-xs">CRM {currentDoctor.crm}/{currentDoctor.crm_uf}</Badge>

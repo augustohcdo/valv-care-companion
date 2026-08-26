@@ -11,6 +11,14 @@ let doctorRow: any = DOCTOR;
 let patientRow: any = PATIENT;
 // registra os filtros aplicados na consulta de patients
 let patientFilters: [string, unknown][] = [];
+/**
+ * O que `meus_pacientes` devolve. O mock antigo simulava um `maybeSingle` em
+ * `profiles` que na RLS real volta **vazio** para outra pessoa — o teste ficava
+ * verde enquanto o prontuário inteiro exibia "Paciente" no lugar do nome.
+ */
+let meusPacientes: unknown[] = [
+  { patient_id: "p1", user_id: "pu1", full_name: "Ana Souza", phone: null, birth_date: null },
+];
 
 const navigateSpy = vi.fn();
 vi.mock("react-router-dom", async () => {
@@ -20,6 +28,10 @@ vi.mock("react-router-dom", async () => {
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
+    rpc: (nome: string) =>
+      Promise.resolve(
+        nome === "meus_pacientes" ? { data: meusPacientes, error: null } : { data: [], error: null },
+      ),
     from: (table: string) => ({
       select: () => {
         const chain: any = {
@@ -63,6 +75,9 @@ function wrapper({ children }: { children: ReactNode }) {
 describe("MedicoPacienteDetalhe", () => {
   beforeEach(() => {
     doctorRow = DOCTOR;
+    meusPacientes = [
+      { patient_id: "p1", user_id: "pu1", full_name: "Ana Souza", phone: null, birth_date: null },
+    ];
     patientRow = PATIENT;
     patientFilters = [];
     navigateSpy.mockClear();

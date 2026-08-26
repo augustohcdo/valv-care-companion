@@ -40,15 +40,16 @@ export default function PacienteJornada() {
           ? await supabase.from("doctors").select("id, user_id, crm, crm_uf, specialty").in("id", docIds)
           : { data: [] as any[] };
 
-        const userIds = (docs || []).map((d: any) => d.user_id);
-        const { data: profs } = userIds.length
-          ? await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)
-          : { data: [] as any[] };
+        // Pelo RPC: `profiles` de outra pessoa volta vazio pela policy, e a
+        // jornada mostrava os médicos do próprio paciente sem nome.
+        const { data: meus } = await supabase.rpc("meus_medicos");
+        const nomePorMedico = new Map<string, string | null>(
+          (meus ?? []).map((m) => [m.doctor_id, m.full_name]),
+        );
 
         const map: Record<string, any> = {};
         (docs || []).forEach((d: any) => {
-          const p = profs?.find((x: any) => x.user_id === d.user_id);
-          map[d.id] = { ...d, full_name: p?.full_name };
+          map[d.id] = { ...d, full_name: nomePorMedico.get(d.id) ?? null };
         });
 
         setCases(cs || []);
@@ -95,7 +96,7 @@ export default function PacienteJornada() {
                       </div>
                       {doc && (
                         <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                          <Stethoscope className="h-3 w-3" /> Dr(a). {doc.full_name} — CRM {doc.crm}/{doc.crm_uf}
+                          <Stethoscope className="h-3 w-3" /> {doc.full_name ? `Dr(a). ${doc.full_name}` : "Médico responsável"} — CRM {doc.crm}/{doc.crm_uf}
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground mt-0.5">

@@ -64,15 +64,25 @@ export const CaseCollaborators = ({ caseId, isOwner }: Props) => {
       const { data: docs } = docIds.length
         ? await supabase.from("doctors").select("id, user_id, crm, crm_uf, specialty").in("id", docIds)
         : { data: [] as any[] };
-      const userIds = (docs ?? []).map((d: any) => d.user_id);
-      const { data: profs } = userIds.length
-        ? await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds)
-        : { data: [] as any[] };
+
+      // O nome vem por RPC. A consulta anterior lia `profiles` direto e voltava
+      // vazia para todo colega — as policies de `profiles` são `auth.uid() =
+      // user_id` e `has_role(admin)` —, então todo colaborador aparecia como
+      // "Dr(a). —". `participantes_do_caso` carrega a própria cerca, que
+      // espelha a policy de SELECT de `case_comments`.
+      const { data: participantes, error: erroNomes } = await supabase
+        .rpc("participantes_do_caso", { _case_id: caseId });
+      if (erroNomes) throw erroNomes;
+      const nomePorUsuario = new Map<string, string | null>(
+        (participantes ?? []).map((p) => [p.user_id, p.full_name]),
+      );
 
       return (collabs ?? []).map((c) => {
         const d = docs?.find((x: any) => x.id === c.doctor_id);
-        const p = d ? profs?.find((x: any) => x.user_id === d.user_id) : null;
-        return { ...c, doctor: d ? { ...d, full_name: p?.full_name } : null };
+        return {
+          ...c,
+          doctor: d ? { ...d, full_name: nomePorUsuario.get(d.user_id) ?? null } : null,
+        };
       });
     },
   });
@@ -233,7 +243,11 @@ export const CaseCollaborators = ({ caseId, isOwner }: Props) => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium text-foreground">
-                        Dr(a). {c.doctor?.full_name || "—"}
+                        {/* Sem nome resolvido, dizer isso — e não um travessão,
+                            que parecia um colaborador sem nome cadastrado. */}
+                        {c.doctor?.full_name
+                          ? `Dr(a). ${c.doctor.full_name}`
+                          : <span className="italic text-muted-foreground font-normal">colega não identificado</span>}
                       </p>
                       <Badge variant="outline" className={`text-[10px] ${statusColors[c.status]}`}>
                         {statusLabels[c.status]}

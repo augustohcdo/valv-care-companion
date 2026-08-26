@@ -7,15 +7,20 @@ const COMMENTS = [
   { id: "cm1", case_id: "c1", author_id: "u1", body: "Gradiente em progressão.", is_heart_team_decision: false, created_at: "2026-07-30T10:00:00Z", deleted_at: null },
   { id: "cm2", case_id: "c1", author_id: "u2", body: "Indicação de TAVI.", is_heart_team_decision: true, created_at: "2026-07-31T10:00:00Z", deleted_at: null },
 ];
-const PROFILES = [
-  { user_id: "u1", full_name: "Ana Souza" },
-  { user_id: "u2", full_name: "Bruno Lima" },
-];
-const DOCTORS = [
-  { user_id: "u2", crm: "654321", crm_uf: "RJ", specialty: "Cardiologia" },
+/**
+ * O que o RPC `participantes_do_caso` devolve. Antes este teste simulava duas
+ * consultas — `profiles` e `doctors` — e passava; mas `profiles` de outra
+ * pessoa **sempre volta vazio** na RLS real, então o teste verde escondia uma
+ * tela que exibia "Dr(a). Médico" em produção. O mock agora tem a forma do que
+ * o banco de verdade responde.
+ */
+const PARTICIPANTES = [
+  { user_id: "u1", full_name: "Ana Souza", crm: null, crm_uf: null, specialty: null },
+  { user_id: "u2", full_name: "Bruno Lima", crm: "654321", crm_uf: "RJ", specialty: "Cardiologia" },
 ];
 
 let comments = [...COMMENTS];
+let participantes: unknown[] = [...PARTICIPANTES];
 const updateSpy = vi.fn();
 
 
@@ -36,16 +41,18 @@ function escrita(resultado: { error: { message: string } | null }, afetadas = 1)
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    from: (table: string) => ({
+    rpc: (nome: string) =>
+      Promise.resolve(
+        nome === "participantes_do_caso"
+          ? { data: participantes, error: null }
+          : { data: null, error: null },
+      ),
+    from: (_table: string) => ({
       select: () => {
         const chain: any = {
           eq: () => chain,
           is: () => chain,
-          in: () =>
-            Promise.resolve({
-              data: table === "profiles" ? PROFILES : table === "doctors" ? DOCTORS : [],
-              error: null,
-            }),
+          in: () => Promise.resolve({ data: [], error: null }),
           order: () => Promise.resolve({ data: comments, error: null }),
         };
         return chain;
@@ -82,6 +89,7 @@ const renderComp = (props = {}) =>
 describe("CaseDiscussion", () => {
   beforeEach(() => {
     comments = [...COMMENTS];
+    participantes = [...PARTICIPANTES];
     updateSpy.mockClear();
     vi.clearAllMocks();
     vi.spyOn(window, "confirm").mockReturnValue(true);
@@ -96,12 +104,21 @@ describe("CaseDiscussion", () => {
   // Nome e CRM vêm de duas consultas separadas (profiles e doctors) e são
   // casados por author_id dentro da query — trocar essa junção misturaria a
   // autoria de opiniões clínicas entre médicos.
-  it("resolve o autor de cada comentário a partir do perfil e do registro médico", async () => {
+  it("resolve o autor de cada comentário pelo RPC do caso", async () => {
     renderComp();
     await waitFor(() => expect(screen.getByText(/Ana Souza/)).toBeInTheDocument());
     expect(screen.getByText(/Bruno Lima/)).toBeInTheDocument();
     // só o u2 tem registro de médico
     expect(screen.getByText("CRM 654321/RJ")).toBeInTheDocument();
+  });
+
+  it("sem nome resolvido, diz que não identificou — não inventa um", async () => {
+    // O defeito que motivou a rodada: a tela caía em `|| "Médico"` e toda
+    // opinião do caso ficava assinada por alguém chamado "Médico".
+    participantes = [];
+    renderComp();
+    await waitFor(() => expect(screen.getAllByText("autor não identificado").length).toBe(2));
+    expect(screen.queryByText(/Dr\(a\)\. Médico$/)).toBeNull();
   });
 
   it("destaca a decisão de Heart Team", async () => {

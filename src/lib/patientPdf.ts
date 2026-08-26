@@ -71,7 +71,14 @@ export function exportPatientPDF(data: PatientPdfData) {
   doc.setFontSize(9); doc.setFont("helvetica", "normal");
   doc.text("Prontuário consolidado do paciente", mx, 17);
   doc.text(`Emitido em ${new Date().toLocaleString("pt-BR")}`, pageW - mx, 12, { align: "right" });
-  if (doctor) doc.text(`Dr(a). ${doctor.full_name} — CRM ${doctor.crm}/${doctor.crm_uf}`, pageW - mx, 17, { align: "right" });
+  if (doctor) {
+    doc.text(
+      doctor.full_name
+        ? `Dr(a). ${doctor.full_name} — CRM ${doctor.crm}/${doctor.crm_uf}`
+        : `CRM ${doctor.crm}/${doctor.crm_uf}`,
+      pageW - mx, 17, { align: "right" },
+    );
+  }
   y = 30;
 
   // IDENTIFICAÇÃO

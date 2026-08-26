@@ -15,13 +15,19 @@ const DOCTORS = [
   { id: "d2", user_id: "u1", crm: "222222", crm_uf: "RJ", specialty: "Cirurgia cardíaca" },
   { id: "d3", user_id: "u8", crm: "333333", crm_uf: "MG", specialty: "Cardiologia" },
 ];
-const PROFILES = [
-  { user_id: "u9", full_name: "Ana Souza" },
-  { user_id: "u1", full_name: "Bruno Lima" },
-  { user_id: "u8", full_name: "Carla Dias" },
+/**
+ * O que o RPC `participantes_do_caso` devolve. O mock anterior simulava uma
+ * consulta a `profiles` que na RLS real **sempre volta vazia** para outra
+ * pessoa — o teste ficava verde enquanto a tela mostrava "Dr(a). —".
+ */
+const PARTICIPANTES = [
+  { user_id: "u9", full_name: "Ana Souza", crm: "111111", crm_uf: "SP", specialty: "Cardiologia" },
+  { user_id: "u1", full_name: "Bruno Lima", crm: "222222", crm_uf: "RJ", specialty: "Cirurgia cardíaca" },
+  { user_id: "u8", full_name: "Carla Dias", crm: "333333", crm_uf: "MG", specialty: "Cardiologia" },
 ];
 
 let collabs = [...COLLABS];
+let participantes: unknown[] = [...PARTICIPANTES];
 const updateSpy = vi.fn();
 
 
@@ -42,16 +48,19 @@ function escrita(resultado: { error: { message: string } | null }, afetadas = 1)
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
+    rpc: (nome: string) =>
+      Promise.resolve(
+        nome === "participantes_do_caso"
+          ? { data: participantes, error: null }
+          : { data: null, error: null },
+      ),
     from: (table: string) => ({
       select: () => {
         const chain: any = {
           eq: () => chain,
           is: () => chain,
           in: () =>
-            Promise.resolve({
-              data: table === "doctors" ? DOCTORS : table === "profiles" ? PROFILES : [],
-              error: null,
-            }),
+            Promise.resolve({ data: table === "doctors" ? DOCTORS : [], error: null }),
           order: () => Promise.resolve({ data: collabs, error: null }),
           maybeSingle: () => Promise.resolve({ data: null, error: null }),
         };
@@ -90,6 +99,7 @@ const renderComp = (props = {}) =>
 describe("CaseCollaborators", () => {
   beforeEach(() => {
     collabs = [...COLLABS];
+    participantes = [...PARTICIPANTES];
     updateSpy.mockClear();
     vi.clearAllMocks();
     vi.spyOn(window, "confirm").mockReturnValue(true);
@@ -112,6 +122,12 @@ describe("CaseCollaborators", () => {
 
   // Aceitar/Recusar só pode aparecer no convite pendente do próprio usuário —
   // caso contrário um médico responderia pelo convite de outro.
+  it("sem nome resolvido, diz que não identificou — não mostra um travessão", async () => {
+    participantes = [];
+    render(<CaseCollaborators caseId="c1" isOwner />, { wrapper });
+    await waitFor(() => expect(screen.getAllByText("colega não identificado").length).toBeGreaterThan(0));
+  });
+
   it("oferece Aceitar/Recusar apenas no convite pendente do próprio usuário", async () => {
     renderComp();
     await waitFor(() => expect(screen.getByText(/Ana Souza/)).toBeInTheDocument());

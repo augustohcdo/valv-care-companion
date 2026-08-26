@@ -25,15 +25,16 @@ export default function MedicoPacientes() {
         supabase.from("clinical_cases").select("id, patient_id").is("deleted_at", null).eq("doctor_id", doctor!.id).neq("status", "draft" as any),
       ]);
 
-      const userIds = (patients || []).map((p) => p.user_id);
-      const { data: profiles } = userIds.length
-        ? await supabase.from("profiles").select("user_id, full_name, phone").in("user_id", userIds)
-        : { data: [] as any[] };
+      // Pelo RPC: ler `profiles` de outra pessoa volta vazio pela policy, e a
+      // lista mostraria **todos os pacientes chamados "Paciente"** — o médico
+      // não distinguiria um do outro.
+      const { data: meus } = await supabase.rpc("meus_pacientes");
+      const porPaciente = new Map((meus ?? []).map((m) => [m.patient_id, m]));
 
       return (patients || []).map((p) => {
-        const prof = profiles?.find((x: any) => x.user_id === p.user_id);
+        const m = porPaciente.get(p.id);
         const caseCount = (cases || []).filter((c) => c.patient_id === p.id).length;
-        return { ...p, full_name: prof?.full_name || "Paciente", phone: prof?.phone, caseCount };
+        return { ...p, full_name: m?.full_name ?? null, phone: m?.phone ?? null, caseCount };
       });
     },
     enabled: !!doctor?.id,
@@ -74,10 +75,12 @@ export default function MedicoPacientes() {
               <CardContent className="p-5">
                 <div className="flex items-start gap-3">
                   <div className="h-11 w-11 rounded-full bg-gradient-hero text-primary-foreground grid place-items-center font-semibold shrink-0">
-                    {p.full_name.split(" ").slice(0, 2).map((n: string) => n[0]).join("")}
+                    {(p.full_name ?? "?").split(" ").slice(0, 2).map((n: string) => n[0]).join("")}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-serif text-base text-primary truncate">{p.full_name}</h3>
+                    <h3 className="font-serif text-base text-primary truncate">
+                      {p.full_name ?? <span className="italic text-muted-foreground">nome não disponível</span>}
+                    </h3>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                       {p.city && <><MapPin className="h-3 w-3" /> {p.city}{p.uf ? `/${p.uf}` : ""}</>}
                     </div>

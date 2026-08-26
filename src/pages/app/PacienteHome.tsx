@@ -35,13 +35,12 @@ export default function PacienteHome() {
           .maybeSingle();
         if (cancelled) return;
         if (doc) {
-          const { data: docProfile } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("user_id", doc.user_id)
-            .maybeSingle();
+          // Pelo RPC: ler `profiles` de outra pessoa volta vazio pela policy,
+          // e o cartão exibia o médico do paciente sem nome.
+          const { data: meus } = await supabase.rpc("meus_medicos");
           if (cancelled) return;
-          setLinkedDoctor({ ...doc, full_name: docProfile?.full_name });
+          const meu = (meus ?? []).find((m) => m.doctor_id === doc.id);
+          setLinkedDoctor({ ...doc, full_name: meu?.full_name ?? null });
         }
       }
     })();

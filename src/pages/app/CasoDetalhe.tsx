@@ -170,10 +170,14 @@ export default function CasoDetalhe() {
 
     let doctorInfo: any = undefined;
     if (doctor) {
-      const { data: prof } = await supabase
-        .from("profiles").select("full_name").eq("user_id", doctor.user_id).maybeSingle();
+      // Pelo RPC: ler `profiles` de outro médico volta vazio pela policy, e o
+      // PDF de um caso exportado por um colaborador saía com "Dr(a). —" no
+      // lugar do autor. Documento clínico sem autor identificado.
+      const { data: participantes } = await supabase
+        .rpc("participantes_do_caso", { _case_id: caso.id });
+      const dono = (participantes ?? []).find((x) => x.user_id === doctor.user_id);
       doctorInfo = {
-        full_name: prof?.full_name || "—",
+        full_name: dono?.full_name ?? null,
         crm: doctor.crm,
         crm_uf: doctor.crm_uf,
         specialty: doctor.specialty,
