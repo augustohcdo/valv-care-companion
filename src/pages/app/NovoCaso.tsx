@@ -20,6 +20,7 @@ import {
   commonSymptoms,
   commonComorbidities,
 } from "@/lib/clinicalLabels";
+import { traduzirFalhaIA } from "@/lib/aiErros";
 import { logAudit } from "@/lib/auditLog";
 import { hasActiveConsent, AVISO_CONSENTIMENTO_IA } from "@/lib/consent";
 import { useAuth } from "@/hooks/useAuth";
@@ -192,9 +193,14 @@ export default function NovoCaso() {
       }
       const { data, error } = await supabase.functions.invoke("clinical-ai", { body: corpo });
       if (error) {
-        const status = (error as any)?.context?.status;
-        if (status === 403) toast.error(AVISO_CONSENTIMENTO_IA.titulo, { description: AVISO_CONSENTIMENTO_IA.descricao });
-        else toast.error("Falha na extração", { description: (error as any)?.message });
+        // Quarta tela que chama a IA, e também só conhecia o 403 — no wizard,
+        // bater no limite de uso aparecia como "falha na extração".
+        const falha = traduzirFalhaIA(
+          (error as any)?.context?.status,
+          "Falha na extração",
+          (error as any)?.message,
+        );
+        toast.error(falha.titulo, { description: falha.descricao });
         return;
       }
       if (data?.error) { toast.error(data.error); return; }

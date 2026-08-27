@@ -957,12 +957,32 @@ ${commonRules}`;
       });
     }
     let content = candidate.content?.parts?.find((b: any) => typeof b.text === "string")?.text ?? "";
+
+    // **Resposta vazia não é resposta.** O `?? ""` acima devolvia 200 com
+    // conteúdo em branco sempre que o candidato viesse sem parte de texto — e a
+    // tela faz `setText(data.content ?? "")`, então o médico via uma caixa
+    // vazia com cara de documento gerado. Sucesso relatado sobre trabalho não
+    // feito é o defeito que este projeto passou a sessão inteira removendo;
+    // aqui ele estava no lugar mais caro, que é um documento clínico.
+    if (!content.trim()) {
+      console.error("Gemini devolveu candidato sem texto", JSON.stringify(data).slice(0, 500));
+      return new Response(
+        JSON.stringify({ error: "A IA respondeu sem conteúdo. Tente novamente." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Reinsere o nome real do paciente (nunca enviado à IA) nos modos de documento clínico.
     if (content.includes("[NOME_PACIENTE]")) {
       content = content.split("[NOME_PACIENTE]").join(caso.patient_name ?? "Paciente");
     }
     return new Response(JSON.stringify({
       content,
+      // `MAX_TOKENS` era aceito junto com `STOP`, sem distinção. Um sumário de
+      // alta cortado no meio de uma posologia chega à tela com a mesma cara de
+      // um documento inteiro — e é pior que não ter documento, porque parece
+      // completo. Quem recebe precisa saber.
+      truncado: candidate.finishReason === "MAX_TOKENS",
       sources: sourcesOut,
       rag_hit: sourcesOut.length > 0,
       // Camada externa, separada de `sources` de propósito: a tela mostra as

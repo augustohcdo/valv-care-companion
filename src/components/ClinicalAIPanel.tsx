@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { type ModoPainel } from "@/lib/aiModes";
-import { hasActiveConsent, registerConsent, AVISO_CONSENTIMENTO_IA } from "@/lib/consent";
+import { traduzirFalhaIA } from "@/lib/aiErros";
+import { hasActiveConsent, registerConsent } from "@/lib/consent";
 import { toast } from "sonner";
 
 type Source = { title: string; organization: string; year: number; scope: "br" | "international"; url: string | null; similarity: number; review_status: string };
@@ -74,17 +75,16 @@ export function ClinicalAIPanel({ caseId }: Props) {
         body: { mode: targetMode, caseId, question, history, pesquisar },
       });
       if (error) {
-        const status = (error as any)?.context?.status;
-        if (status === 429) toast.error("Limite de uso da IA atingido. Aguarde um instante.");
-        else if (status === 402) toast.error("Créditos de IA esgotados.");
-        else if (status === 403) {
-          // O servidor passou a exigir o consentimento, e ele pode ter sido
-          // revogado noutra aba desde que esta tela carregou. Trazer a parede
-          // de volta é mais útil que um erro genérico.
-          setAiConsent(false);
-          toast.error(AVISO_CONSENTIMENTO_IA.titulo, { description: AVISO_CONSENTIMENTO_IA.descricao });
-        }
-        else toast.error("Erro ao consultar IA clínica");
+        const falha = traduzirFalhaIA(
+          (error as any)?.context?.status,
+          "Erro ao consultar IA clínica",
+          (error as Error)?.message,
+        );
+        // O servidor pode ter passado a exigir o consentimento — ele pode ter
+        // sido revogado noutra aba desde que esta tela carregou. Trazer a
+        // parede de volta é mais útil que um erro genérico.
+        if (falha.consentimento) setAiConsent(false);
+        toast.error(falha.titulo, { description: falha.descricao });
         return null;
       }
       if (data?.error) {

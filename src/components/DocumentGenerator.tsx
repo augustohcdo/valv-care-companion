@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Copy, Loader2, Sparkles, Stethoscope, HeartHandshake, ClipboardList, Scissors, Activity, LogOut } from "lucide-react";
+import { FileText, Copy, Loader2, Sparkles, Stethoscope, HeartHandshake, ClipboardList, Scissors, Activity, LogOut, AlertTriangle } from "lucide-react";
+import { traduzirFalhaIA } from "@/lib/aiErros";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { hasActiveConsent, AVISO_CONSENTIMENTO_IA } from "@/lib/consent";
+import { hasActiveConsent } from "@/lib/consent";
 import { type ModoDocumento } from "@/lib/aiModes";
 import { toast } from "sonner";
 
@@ -41,6 +42,8 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
     enabled: !!caso?.prosthesis_id,
   });
   const [text, setText] = useState("");
+  /** O modelo parou por limite de tamanho: o texto abaixo está cortado. */
+  const [truncado, setTruncado] = useState(false);
   const [kind, setKind] = useState<DocKind | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -68,18 +71,34 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
     setLoading(true);
     setKind(mode);
     setText("");
+    setTruncado(false);
     try {
       const { data, error } = await supabase.functions.invoke("clinical-ai", {
         body: { mode, caseId: caso.id },
       });
       if (error) {
-        const status = (error as any)?.context?.status;
-        if (status === 403) toast.error(AVISO_CONSENTIMENTO_IA.titulo, { description: AVISO_CONSENTIMENTO_IA.descricao });
-        else toast.error(AI_MODES[mode].toastFail, { description: (error as any)?.message });
+        // Antes desta tela só conhecer o 403, bater no limite de uso por hora
+        // devolvia "não foi possível gerar o documento" — sem dizer que basta
+        // esperar. `traduzirFalhaIA` é a mesma tradução das outras telas.
+        const falha = traduzirFalhaIA(
+          (error as any)?.context?.status,
+          AI_MODES[mode].toastFail,
+          (error as any)?.message,
+        );
+        toast.error(falha.titulo, { description: falha.descricao });
         setKind(null); return;
       }
       if (data?.error) { toast.error(data.error); setKind(null); return; }
       setText(data.content ?? "");
+      setTruncado(!!data?.truncado);
+      if (data?.truncado) {
+        // Documento cortado tem a mesma cara de documento inteiro. Avisar duas
+        // vezes — no aviso e na própria tela — porque quem assina precisa saber
+        // antes de ler, e de novo enquanto revisa.
+        toast.warning("O documento ficou incompleto", {
+          description: "O modelo atingiu o limite de tamanho e parou no meio. Revise o final antes de usar.",
+        });
+      }
     } catch (e: any) {
       toast.error("Erro de comunicação", { description: e?.message });
       setKind(null);
@@ -135,6 +154,18 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
 
         {kind && (
           <div className="space-y-2">
+            {truncado && (
+              /* Fica acima do texto de propósito: quem vai assinar precisa
+                 saber que o documento está cortado antes de começar a ler. */
+              <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2">
+                <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                <p className="text-xs text-foreground">
+                  <strong>Documento incompleto.</strong> O modelo atingiu o limite de tamanho e
+                  parou no meio — o final está faltando. Gere de novo ou complete manualmente
+                  antes de anexar ao prontuário.
+                </p>
+              </div>
+            )}
             <Textarea
               value={text}
               onChange={(e) => setText(e.target.value)}

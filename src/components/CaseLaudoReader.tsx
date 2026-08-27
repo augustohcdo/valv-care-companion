@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowRight, Loader2, ScanText } from "lucide-react";
+import { traduzirFalhaIA } from "@/lib/aiErros";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -90,12 +91,14 @@ export function CaseLaudoReader({
         body: { mode: MODO_EXTRACAO, documentId: documento.id },
       });
       if (error) {
-        const status = (error as { context?: { status?: number } })?.context?.status;
-        if (status === 403) {
-          toast.error(AVISO_CONSENTIMENTO_IA.titulo, { description: AVISO_CONSENTIMENTO_IA.descricao });
-        } else {
-          toast.error("Falha na leitura do laudo", { description: (error as Error)?.message });
-        }
+        // Mesma tradução das outras telas: aqui também o limite de uso por hora
+        // aparecia como "falha na leitura do laudo", sem dizer que é passageiro.
+        const falha = traduzirFalhaIA(
+          (error as { context?: { status?: number } })?.context?.status,
+          "Falha na leitura do laudo",
+          (error as Error)?.message,
+        );
+        toast.error(falha.titulo, { description: falha.descricao });
         setAberto(false);
         return;
       }

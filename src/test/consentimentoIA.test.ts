@@ -82,12 +82,27 @@ describe("consentimento de IA no cliente", () => {
   });
 
   it("todo chamador traduz a recusa 403 em explicação", () => {
+    // A checagem mudou de forma, não de intenção. Antes cada tela testava
+    // `status === 403` e citava `AVISO_CONSENTIMENTO_IA` por conta própria — e
+    // era justamente por isso que elas divergiam no resto: só uma conhecia o
+    // 429. Agora a tradução é uma só (`src/lib/aiErros.ts`), e usá-la garante
+    // o 403 **e** os outros status de uma vez. Exigir a forma antiga aqui
+    // empurraria o código de volta para a duplicação.
     const sem = chamadores.filter((f) => {
       const t = readFileSync(f, "utf8");
-      return !(t.includes("status === 403") && t.includes("AVISO_CONSENTIMENTO_IA"));
+      return !t.includes("traduzirFalhaIA");
     });
     expect(sem.map((f) => f.replace(raiz + "/", "")),
       "chamadores que mostrariam erro cru em vez do motivo").toEqual([]);
+  });
+
+  it("a tradução compartilhada explica o 403 pelo consentimento", () => {
+    // O elo que a mudança acima poderia soltar: se `aiErros` parasse de citar
+    // o aviso, todas as telas passariam a mostrar erro genérico de uma vez.
+    const mapa = readFileSync(resolve(raiz, "src/lib/aiErros.ts"), "utf8");
+    const bloco = mapa.slice(mapa.indexOf("case 403:"), mapa.indexOf("case 422:"));
+    expect(bloco).toContain("AVISO_CONSENTIMENTO_IA");
+    expect(bloco, "a tela não é avisada para trazer a parede de volta").toMatch(/consentimento: true/);
   });
 });
 
