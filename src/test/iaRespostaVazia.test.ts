@@ -66,6 +66,21 @@ describe("documento cortado é sinalizado", () => {
   });
 });
 
+describe("o limite de tamanho não pode voltar a cortar documento", () => {
+  it("o teto de saída dá espaço para um documento inteiro", () => {
+    // Medido: com 2000/4000, **seis dos nove** modos voltavam com
+    // `finishReason: MAX_TOKENS`, e um sumário de alta terminava sem ponto no
+    // meio do histórico do paciente. Com 4000/8192, os mesmos seis fecham.
+    // O número exato pode mudar; o que não pode é encolher a ponto de cortar.
+    const fonte = ler(FUNCAO);
+    const linha = fonte.match(/max_tokens:\s*mode === "summary" \? (\d+) : (\d+)/);
+    expect(linha, "a linha do limite de tokens mudou de forma").not.toBeNull();
+    const [, resumo, documento] = linha!;
+    expect(Number(resumo), "o limite do resumo voltou a cortar").toBeGreaterThanOrEqual(4000);
+    expect(Number(documento), "o limite dos documentos voltou a cortar").toBeGreaterThanOrEqual(8192);
+  });
+});
+
 describe("a tradução de erro da IA é uma só", () => {
   const TELAS = [
     "src/components/ClinicalAIPanel.tsx",

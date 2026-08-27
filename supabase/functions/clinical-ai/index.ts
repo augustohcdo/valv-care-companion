@@ -930,7 +930,16 @@ ${commonRules}`;
     const { resp: aiResp, modelo: modeloUsado, reserva } = await callGemini(GEMINI_API_KEY, {
       system: mode === "patient_discharge" ? SYSTEM_PROMPT_PACIENTE : SYSTEM_PROMPT,
       messages,
-      max_tokens: mode === "summary" ? 2000 : 4000,
+      // **Medido, não estimado.** Com 2000/4000, seis dos nove modos voltavam com
+      // `finishReason: MAX_TOKENS` — um sumário de alta terminava em "Consulta
+      // de retorno realizada no Ambulatório de Valvopatias", sem ponto final,
+      // no meio do histórico. Documento clínico cortado que chega com cara de
+      // completo é pior que documento nenhum.
+      //
+      // 8192 é o teto de saída dos modelos Flash desta cadeia. O `summary` é
+      // curto por instrução de prompt, não por falta de espaço — dobrar o
+      // limite dele só tira a guilhotina, sem alongar a resposta.
+      max_tokens: mode === "summary" ? 4000 : 8192,
     });
 
     if (!aiResp.ok) {
