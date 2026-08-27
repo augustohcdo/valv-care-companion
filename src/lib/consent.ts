@@ -20,6 +20,16 @@ export interface ConsentDefinition {
   required: boolean;
   audience: "all" | "paciente" | "medico";
   /**
+   * A frase que precisa ficar em evidência onde quer que o consentimento
+   * apareça — na prática, a revogação.
+   *
+   * É **dado**, e não negrito escolhido por quem renderiza, porque o mesmo
+   * consentimento é exibido no formulário de solicitação e no painel de
+   * privacidade. Deixar a ênfase a cargo de cada tela é como as duas cópias
+   * deste texto começaram a divergir.
+   */
+  destaque?: string;
+  /**
    * Versão do texto **deste** consentimento, quando ele andou sozinho.
    *
    * A versão global cobre a maioria, mas quando o texto de um consentimento
@@ -88,15 +98,30 @@ export const CONSENT_CATALOG: ConsentDefinition[] = [
   },
   {
     type: "directory_listing",
-    title: "Aparecer no diretório de profissionais",
+    // Este é o texto que o médico lê ao consentir **e** o que fica registrado.
+    // O formulário de solicitação renderiza daqui; antes ele tinha uma cópia
+    // manual com outras palavras, e o profissional lia uma coisa enquanto o
+    // sistema guardava outra.
+    //
+    // Cada elemento abaixo está aqui por uma razão externa, e nenhum pode sair:
+    // o que é publicado, para quem, o vínculo só com aceite do médico, a
+    // ausência de classificação (Resolução CFM nº 2.336/2023 veda "melhor
+    // médico" e afins) e a revogação (LGPD art. 8º §5º — consentimento sem
+    // revogação não é consentimento).
+    title: "Autorizo a publicação do meu perfil no diretório de profissionais.",
     description:
-      "Autorizo que meu nome, CRM/UF, RQE, especialidade, cidade, instituição e a " +
-      "biografia que eu escrever fiquem visíveis para pacientes com conta no ValvePath, " +
-      "que poderão me enviar pedido de vínculo — vínculo que só começa se eu aceitar. " +
-      "Não há nota, estrela, ranking ou ordem de preferência entre profissionais. " +
-      "Posso sair do diretório a qualquer momento, pela minha página de perfil.",
+      "Ficam visíveis a pacientes com conta: nome, CRM/UF, RQE, especialidade, " +
+      "cidade, instituição e a descrição profissional cadastrada. O paciente pode " +
+      "enviar pedido de vínculo, que só se efetiva mediante aceite do profissional. " +
+      "O diretório não exibe nota, estrela, ranking ou ordem de preferência entre " +
+      "profissionais.",
+    destaque: "A autorização pode ser retirada a qualquer momento, na página de perfil.",
     required: false,
     audience: "medico",
+    // Continua "1.0": nenhum consentimento deste tipo foi registrado ainda
+    // (conferido no banco), então não há revisão que alguém tenha aceitado.
+    // **Se um médico já estivesse no diretório, mudar o texto exigiria subir a
+    // versão** — senão o registro afirmaria um aceite que não houve.
     version: "1.0",
   },
   {

@@ -176,6 +176,10 @@ export function PrivacyPreferencesPanel() {
                       </div>
                       <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                         {def.description}
+                        {/* A mesma ênfase que o texto tem onde ele é aceito.
+                            É nesta tela que a revogação acontece — escondê-la
+                            justamente aqui seria o pior lugar. */}
+                        {def.destaque && <> <strong>{def.destaque}</strong></>}
                       </p>
                       {state && (
                         <p className="text-[11px] text-muted-foreground mt-2">

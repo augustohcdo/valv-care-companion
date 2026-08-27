@@ -356,6 +356,74 @@ describe("o vínculo depende do médico", () => {
   });
 });
 
+/**
+ * Guarda: o consentimento do diretório tem **um** texto, e ele é profissional.
+ *
+ * Duas coisas, e a primeira é estrutural. O texto vivia em dois lugares —
+ * `SolicitarAcessoForm.tsx`, que é o que o médico lê ao aceitar, e
+ * `consent.ts`, que é o que fica **registrado** e o que ele relê no painel onde
+ * revoga. As duas redações diziam a mesma coisa com palavras diferentes: quem
+ * consentisse leria uma e o sistema guardaria outra.
+ *
+ * É a terceira vez que esta base é mordida por texto copiado: os nomes de modo
+ * da IA (por isso `aiModes.ts` existe), a lista de tabelas do backup, e o
+ * tratamento de erro que só uma tela em quatro tinha. Aqui a fonte é uma só.
+ *
+ * A segunda é de redação, e foi pedida: o corpo estava em primeira pessoa
+ * ("meu nome", "que eu escrever", "se eu aceitar", "Posso sair", "minha página
+ * de perfil") — cinco construções em três frases, num documento que um
+ * profissional assina.
+ */
+describe("o texto do consentimento do diretório", () => {
+  const catalogo = ler("src/lib/consent.ts");
+  const formulario = ler("src/components/SolicitarAcessoForm.tsx");
+
+  /** O bloco da definição de `directory_listing`, sem os comentários. */
+  function definicao(): string {
+    const i = catalogo.indexOf('type: "directory_listing"');
+    expect(i, "a definição do diretório sumiu do catálogo").toBeGreaterThan(0);
+    const bloco = catalogo.slice(i, catalogo.indexOf("},", i));
+    return bloco.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  }
+
+  it("o formulário não guarda cópia própria do texto", () => {
+    // Se voltar a ter, as duas redações voltam a divergir em silêncio.
+    expect(formulario, "o formulário não lê o catálogo").toContain("CONSENT_CATALOG");
+    expect(formulario, "o formulário não renderiza a definição").toMatch(/CONSENTIMENTO\.description/);
+    for (const frase of ["poderão ver meu nome", "Posso sair do diretório", "só se concretiza"]) {
+      expect(formulario, `o formulário voltou a ter texto próprio: "${frase}"`).not.toContain(frase);
+    }
+  });
+
+  it("mantém os cinco elementos que a lei e o CFM exigem", () => {
+    // Um teste por elemento, para a falha dizer qual caiu.
+    const d = definicao();
+    expect(d, "não diz o que é publicado").toMatch(/CRM\/UF.*RQE.*especialidade/s);
+    expect(d, "não diz para quem").toMatch(/pacientes com conta/i);
+    expect(d, "não diz que o vínculo depende do aceite").toMatch(/aceite do profissional|só se efetiva/i);
+    // Resolução CFM nº 2.336/2023 veda "melhor médico" e classificações.
+    expect(d, "não nega classificação entre profissionais").toMatch(/não exibe nota|ranking/i);
+    // LGPD art. 8º §5º: consentimento sem revogação não é consentimento.
+    expect(d, "não diz que pode ser retirado, e onde").toMatch(/retirada a qualquer momento[\s\S]{0,60}perfil/);
+  });
+
+  it("o corpo não volta à primeira pessoa", () => {
+    // O título continua sendo declaração ("Autorizo..."), que é o registro
+    // correto; o que não pode voltar é o corpo narrado em "eu".
+    const d = definicao();
+    const corpo = d.slice(d.indexOf("description:"));
+    const primeiraPessoa = corpo.match(/\b(meu|minha|eu|Posso|meus|minhas)\b/i);
+    expect(primeiraPessoa?.[0] ?? null, "o corpo do consentimento voltou à primeira pessoa").toBeNull();
+  });
+
+  it("a revogação fica em evidência nas duas telas onde o texto aparece", () => {
+    expect(definicao(), "a frase da revogação não é dado").toMatch(/destaque:/);
+    expect(formulario, "o formulário não destaca a revogação").toMatch(/CONSENTIMENTO\.destaque/);
+    expect(ler("src/components/PrivacyPreferencesPanel.tsx"),
+      "o painel onde se revoga não destaca a revogação").toMatch(/def\.destaque/);
+  });
+});
+
 describe("o consentimento do diretório é revogável", () => {
   it("existe a chave no perfil do médico", () => {
     const perfil = ler("src/pages/app/MedicoPerfil.tsx");

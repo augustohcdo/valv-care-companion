@@ -16,6 +16,7 @@ import {
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { CONTACT } from "@/lib/contact";
 import { UF_LIST } from "@/lib/validators";
+import { CONSENT_CATALOG } from "@/lib/consent";
 
 /**
  * O formulário de solicitação de acesso profissional.
@@ -34,6 +35,17 @@ import { UF_LIST } from "@/lib/validators";
  * aceite é escondê-lo, e a Resolução CFM nº 2.336/2023 exige anuência
  * consciente para o profissional aparecer publicamente.
  */
+
+/**
+ * A definição do consentimento do diretório, buscada uma vez. Se o tipo sumir
+ * do catálogo isto quebra alto, e não silenciosamente com a caixa em branco —
+ * uma caixa de consentimento vazia seria aceite sem texto.
+ */
+const CONSENTIMENTO = (() => {
+  const achado = CONSENT_CATALOG.find((c) => c.type === "directory_listing");
+  if (!achado) throw new Error("consentimento 'directory_listing' sumiu do catálogo");
+  return achado;
+})();
 
 export const ESPECIALIDADES = [
   "Cardiologia clínica",
@@ -228,16 +240,15 @@ export function SolicitarAcessoForm() {
             <Checkbox id="diretorio" checked={consentDiretorio}
               onCheckedChange={(v) => setConsentDiretorio(v === true)} className="mt-0.5" />
             <label htmlFor="diretorio" className="text-sm leading-relaxed cursor-pointer">
-              <span className="font-medium text-foreground">
-                Concordo em aparecer no diretório de profissionais.
-              </span>
+              {/* O texto vem do catálogo, não de uma cópia aqui. Antes havia
+                  duas redações do mesmo consentimento — esta e a de
+                  `consent.ts` —, e era a de lá que ficava registrada: o médico
+                  lia uma coisa e o sistema guardava outra. */}
+              <span className="font-medium text-foreground">{CONSENTIMENTO.title}</span>
               <span className="block text-muted-foreground mt-1">
-                Pacientes com conta poderão ver meu nome, CRM/UF, RQE, especialidade,
-                cidade, instituição e a descrição que eu escrever, e poderão me enviar
-                pedido de vínculo — que só se concretiza se eu aceitar. Não há nota,
-                estrela nem classificação entre profissionais.{" "}
-                <strong>Posso sair do diretório quando quiser</strong>, pela minha página
-                de perfil. Detalhes nos{" "}
+                {CONSENTIMENTO.description}{" "}
+                {CONSENTIMENTO.destaque && <strong>{CONSENTIMENTO.destaque}</strong>}{" "}
+                Detalhes nos{" "}
                 <Link to="/termos" target="_blank" className="text-primary underline">Termos de Uso</Link>{" "}
                 e na{" "}
                 <Link to="/privacidade" target="_blank" className="text-primary underline">Política de Privacidade</Link>.
