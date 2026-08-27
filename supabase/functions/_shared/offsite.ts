@@ -56,16 +56,43 @@ export async function sha256(bytes: Uint8Array): Promise<string> {
   return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/**
+ * O mesmo digest do `sha256`, em base64 — que é como o S3 espera o cabeçalho
+ * `x-amz-checksum-sha256`.
+ */
+async function checksumBase64(bytes: Uint8Array): Promise<string> {
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes as BufferSource));
+  let bin = "";
+  for (const b of hash) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
 export async function enviarObjeto(
   cfg: Config,
   caminho: string,
   bytes: Uint8Array,
   contentType = "application/octet-stream",
 ): Promise<void> {
+  // **O checksum não é opcional.** Assim que o bucket ganha uma política de
+  // retenção (Object Lock), o S3 passa a recusar PUT sem `Content-MD5` ou
+  // `x-amz-checksum-*`: "Content-MD5 OR x-amz-checksum- HTTP header is required
+  // for Put Object requests with Object Lock parameters".
+  //
+  // Foi medido do jeito ruim: ligar a retenção quebrou a cópia inteira, e sem
+  // isto o backup semanal falharia toda segunda até alguém olhar. Mandar sempre
+  // — e não só quando há retenção — porque o código não sabe (nem deveria
+  // precisar saber) como o bucket do outro lado está configurado.
+  //
+  // Vai o SHA-256, que já é calculado para a conferência de integridade: o
+  // provedor passa a recusar o objeto se ele chegar corrompido, o que fecha a
+  // mesma porta um passo antes da releitura.
   const r = await cliente(cfg).fetch(urlDe(cfg, caminho), {
     method: "PUT",
     body: bytes as BodyInit,
-    headers: { "Content-Type": contentType },
+    headers: {
+      "Content-Type": contentType,
+      "x-amz-checksum-sha256": await checksumBase64(bytes),
+    },
   });
   if (!r.ok) {
     // O corpo do erro do provedor entra na mensagem; o segredo, nunca. Um log de

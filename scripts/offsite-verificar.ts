@@ -104,6 +104,15 @@ if (lancou) ok("um byte trocado na volta faz a conferência lançar — ela não
 else nok("PERIGO: byte trocado na volta passou como cópia íntegra");
 
 // -------------------------------------------------------------- 4. faxina
+//
+// Com versionamento ligado, um DELETE sem versão **não apaga**: coloca uma marca
+// de exclusão e a versão anterior continua lá. E se o bucket tiver retenção
+// (Object Lock), a versão fica intocável até o prazo vencer — nem o dono da
+// conta apaga, em modo compliance.
+//
+// Ou seja: dizer "apagou" aqui seria mentira. O objeto some da listagem comum e
+// ocupa alguns kB até o prazo passar. Isso é aceitável para um arquivo de teste
+// de 5 kB, mas quem lê o relatório precisa saber o que de fato aconteceu.
 for (const c of [caminho, caminhoCanario]) {
   try {
     const { AwsClient } = await import("npm:aws4fetch@1.0.20");
@@ -111,11 +120,15 @@ for (const c of [caminho, caminhoCanario]) {
       accessKeyId: cfg.keyId, secretAccessKey: cfg.secret, service: "s3", region: cfg.region,
     });
     const r = await aws.fetch(`${cfg.endpoint}/${cfg.bucket}/${c}`, { method: "DELETE" });
-    // 204 apagou; 403 é chave só de leitura e escrita, que é o esperado em
-    // produção — não é falha do ensaio, e o arquivo é minúsculo.
-    if (r.status === 204 || r.status === 200) ok(`apagou ${c}`);
-    else console.log(`· ${c} não pôde ser apagado (${r.status}) — a chave provavelmente não tem delete, o que é correto`);
-  } catch { console.log(`· não deu para apagar ${c}`); }
+    if (r.status === 204 || r.status === 200) {
+      console.log(`· ${c} — marcado como excluído (a versão fica retida se o bucket tiver Object Lock)`);
+    } else {
+      // 403 é chave sem permissão de exclusão, o que é o desejável em produção.
+      console.log(`· ${c} — não pôde ser excluído (${r.status}); se a chave não tem delete, está correto`);
+    }
+  } catch {
+    console.log(`· não deu para excluir ${c}`);
+  }
 }
 
 console.log(falhas === 0

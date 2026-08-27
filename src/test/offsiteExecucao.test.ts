@@ -53,6 +53,15 @@ function provedorFalso(transformar?: (b: Uint8Array) => Uint8Array) {
 
     if (metodo === "PUT") {
       if (!assinada) return new Response("requisição sem assinatura", { status: 403 });
+      // O S3 recusa PUT sem checksum quando o bucket tem Object Lock — foi
+      // assim que a cópia real quebrou ao ligar a retenção. O duplo passa a
+      // cobrar o mesmo, senão o teste ficaria verde com o defeito de volta.
+      if (!req.headers.get("x-amz-checksum-sha256") && !req.headers.get("content-md5")) {
+        return new Response(
+          "<Error><Code>InvalidRequest</Code><Message>Content-MD5 OR x-amz-checksum- HTTP header is required for Put Object requests with Object Lock parameters</Message></Error>",
+          { status: 400 },
+        );
+      }
       objetos.set(caminho, new Uint8Array(await req.arrayBuffer()));
       return new Response(null, { status: 200 });
     }
@@ -85,6 +94,25 @@ describe("copiarEConferir, executada", () => {
     // com ele mesmo e passaria sempre.
     expect(chamadas).toContain("PUT /backup/exports/x.ndjson");
     expect(chamadas).toContain("GET /backup/exports/x.ndjson");
+  });
+
+  it("manda o checksum do conteúdo, e o valor confere", async () => {
+    // Presença não basta: um checksum constante ou de outro conteúdo passaria
+    // pelo provedor falso e seria recusado pelo real.
+    let enviado: string | null = null;
+    vi.stubGlobal("fetch", async (entrada: RequestInfo | URL, init?: RequestInit) => {
+      const req = entrada instanceof Request && !init ? entrada : new Request(String(entrada), init);
+      if (req.method === "PUT") enviado = req.headers.get("x-amz-checksum-sha256");
+      return new Response(req.method === "GET" ? (conteudo as BodyInit) : null, { status: 200 });
+    });
+    const { copiarEConferir } = await import("../../supabase/functions/_shared/offsite.ts");
+    await copiarEConferir(cfg, "exports/x.ndjson", conteudo);
+
+    const esperado = Buffer.from(
+      await crypto.subtle.digest("SHA-256", conteudo as BufferSource),
+    ).toString("base64");
+    expect(enviado, "o PUT foi sem checksum — o S3 com Object Lock recusaria").not.toBeNull();
+    expect(enviado, "o checksum não corresponde ao conteúdo enviado").toBe(esperado);
   });
 
   it("um byte trocado na volta faz lançar", async () => {
