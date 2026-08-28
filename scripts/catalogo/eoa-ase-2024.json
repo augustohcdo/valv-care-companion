@@ -1,0 +1,42 @@
+{
+  "_fonte": {
+    "citacao": "Zoghbi WA, Jone P-N, Chamsi-Pasha MA, et al. Guidelines for the Evaluation of Prosthetic Valve Function With Cardiovascular Imaging: A Report From the American Society of Echocardiography. J Am Soc Echocardiogr 2024;37(1):2-63.",
+    "url": "https://www.asecho.org/wp-content/uploads/2024/01/PIIS0894731723005333.pdf",
+    "_nota": "Valores lidos À MÃO do texto extraído do PDF, tabela por tabela. O parser por regex errava (ver Freestyle 19 mm, que só reporta gradiente e não EOA), então cada linha abaixo foi decodificada e conferida individualmente."
+  },
+  "_formato": "[tamanho, EOA, dp_EOA, gradiente_medio, dp_gradiente]  — null onde a tabela não reporta",
+
+  "aortica_tabela_A4": {
+    "Abbott|Epic": [[21,1.0,0.3,19.1,8.2],[23,1.4,0.5,13.9,6.0],[25,1.5,0.5,12.1,5.1],[27,1.6,0.4,11.4,4.1]],
+    "Abbott|Trifecta GT": [[19,1.41,0.24,10.7,4.6],[21,1.63,0.29,8.1,3.5],[23,1.81,0.30,7.2,2.8],[25,2.02,0.32,6.2,2.7],[27,2.20,0.20,4.8,2.0],[29,2.35,0.22,4.7,1.6]],
+    "_Trifecta_nota": "A tabela nomeia 'Abbott Trifecta'. O catálogo traz 'Trifecta GT', que é a mesma bioprótese com a tecnologia de deslizamento no implante. O rótulo da fonte diz o nome exato da entrada.",
+    "Edwards|Perimount": [[19,1.3,0.2,19.5,5.5],[21,1.3,0.3,13.8,4.0],[23,1.6,0.3,11.5,3.9],[25,1.6,0.4,10.7,3.8],[27,2.0,0.4,4.8,2.2]],
+    "_Perimount_nota": "Entrada 'Baxter Perimount, stented bovine pericardial'. Substitui os valores da EACVI 2016 que estavam gravados: a ASE 2024 é mais recente e traz gradiente junto.",
+    "Edwards|Inspiris Resilia": [[19,1.1,0.2,17.6,7.8],[21,1.3,0.3,12.6,4.7],[23,1.6,0.4,10.1,3.8],[25,1.8,0.5,9.6,5.2],[27,2.2,0.6,8.2,3.5]],
+    "Edwards|Intuity Elite": [[19,1.1,0.1,13.9,3.9],[21,1.3,0.1,11.6,3.6],[23,1.7,0.2,10.4,3.5],[25,1.9,0.2,9.1,3.2],[27,2.2,0.2,8.3,3.7]],
+    "_Intuity_nota": "A tabela nomeia 'Edwards Intuity'; o catálogo traz 'Intuity Elite', a geração atual da mesma válvula de implante rápido.",
+    "Medtronic|Avalus": [[19,1.11,0.25,17.1,5.0],[21,1.25,0.25,14.5,4.3],[23,1.47,0.32,12.1,3.8],[25,1.57,0.31,11.7,4.0],[27,1.77,0.41,10.3,4.2]],
+    "Medtronic|Freestyle": [[21,1.4,0.3,9.1,5.1],[23,1.7,0.5,8.1,4.6],[25,2.1,0.5,5.3,3.1],[27,2.5,0.1,4.6,3.1]],
+    "_Freestyle_nota": "O tamanho 19 aparece na tabela com gradiente (13,0±3,9) e SEM EOA. Fica sem valor — foi justamente esta linha que mostrou que a heurística 'último par = EOA' era insegura.",
+    "Medtronic|Hancock II": [[21,1.3,0.4,14.8,4.1],[23,1.3,0.4,16.6,8.5],[25,1.6,0.4,10.8,2.8],[29,1.6,0.2,8.2,1.7]],
+    "_HancockII_nota": "A tabela não traz o 27 mm; essa linha mantém o valor da EACVI 2016.",
+    "Abbott|St. Jude Regent": [[19,1.6,0.4,11.0,4.9],[21,2.0,0.7,8.0,4.8],[23,2.3,0.9,6.9,3.5],[25,2.5,0.8,5.6,3.2],[27,3.6,0.5,3.5,1.7]],
+    "Corcym|Perceval Plus": [[21,1.3,0.3,10.1,4.2],[23,1.5,0.4,9.4,5.5],[25,1.5,0.4,8.5,4.6],[27,1.6,0.4,9.7,4.7]],
+    "_Perceval_nota": "A tabela nomeia 'Sorin Perceval Sutureless' com tamanhos S(21), M(23), L(25), XL(27) — a correspondência com o catálogo é exata. Sorin é a antecessora da Corcym."
+  },
+
+  "mitral_tabela_A5": {
+    "Medtronic|Hancock II": [[25,1.42,0.29,8.3,1.71],[27,1.62,0.47,6.1,1.33],[29,1.83,0.68,6.7,2.20],[31,1.70,0.41,6.0,1.58],[33,2.71,0.77,5.5,1.64]],
+    "_ambiguidade": "Abbott Epic mitral e Edwards Mitris trazem só DOIS pares por linha, e as colunas da A5 são gradiente de pico, gradiente médio, velocidade de pico, THP e EOA. Com dois pares não dá para saber se o segundo é velocidade de pico (m/s) ou EOA (cm²) — as duas grandezas caem na mesma faixa numérica em posição mitral. Ficam SEM valor: preencher seria adivinhar qual coluna é."
+  },
+
+  "tavi_tabelas_A1_A2": {
+    "Edwards|Sapien 3": [[20,1.22,0.22,16.23,5.01],[23,1.45,0.26,12.79,4.65],[26,1.74,0.35,10.59,3.88],[29,1.89,0.37,9.28,3.16]],
+    "Edwards|Sapien 3 Ultra": [[20,1.22,0.22,16.23,5.01],[23,1.45,0.26,12.79,4.65],[26,1.74,0.35,10.59,3.88]],
+    "Edwards|Sapien 3 Ultra RESILIA": [[20,1.22,0.22,16.23,5.01],[23,1.45,0.26,12.79,4.65],[26,1.74,0.35,10.59,3.88],[29,1.89,0.37,9.28,3.16]],
+    "_Sapien_nota": "A Tabela A1 traz a iteração 'SAPIEN 3'. Ultra e Ultra RESILIA são a mesma armação e o mesmo folheto com saia externa e pericárdio RESILIA; o rótulo da fonte diz 'SAPIEN 3' para o médico ver a entrada exata que foi medida.",
+    "Medtronic|Evolut PRO+": [[23,1.09,0.26,14.97,7.15],[26,1.69,0.40,7.53,2.65],[29,1.97,0.54,7.85,3.08],[34,2.60,0.75,6.30,3.23]],
+    "Medtronic|Evolut FX": [[23,1.09,0.26,14.97,7.15],[26,1.69,0.40,7.53,2.65],[29,1.97,0.54,7.85,3.08],[34,2.60,0.75,6.30,3.23]],
+    "_Evolut_nota": "A Tabela A2 traz 'Evolut R (30 dias)'. PRO+ e FX são gerações seguintes da mesma plataforma autoexpansível supra-anular."
+  }
+}

@@ -15,6 +15,7 @@ import {
   type PosicaoValvar, type GrauPPM,
 } from "@/lib/mismatch";
 import { useCatalogoProteses } from "@/hooks/useCatalogoProteses";
+import { RecomendadorProtese } from "./RecomendadorProtese";
 
 /**
  * Gradiente transprotético e risco de *mismatch*.
@@ -174,18 +175,35 @@ export function CalculadoraMismatch({ inicial }: { inicial?: PreenchimentoMismat
             somavam 434px numa tela de 390 e cortavam a página inteira. Os
             rótulos encurtam no celular e voltam completos a partir de `sm`. */}
         <TabsList className="flex-wrap h-auto">
+          {/* O espaço antes do travessão vai como `\u00a0`: o espaço comum no
+              início do `<span>` é colapsado pelo HTML e a aba saía escrita
+              "Antes de operar— projeção". Visto numa foto da página. */}
           <TabsTrigger value="antes">
-            Antes de operar<span className="hidden sm:inline"> — projeção</span>
+            Antes de operar<span className="hidden sm:inline">{"\u00a0— projeção"}</span>
           </TabsTrigger>
           <TabsTrigger value="depois">
-            Depois<span className="hidden sm:inline"> — medidas do eco</span>
+            Depois<span className="hidden sm:inline">{"\u00a0— medidas do eco"}</span>
           </TabsTrigger>
         </TabsList>
 
         {/* ------------------------------- PROJEÇÃO ------------------------------- */}
-        <TabsContent value="antes" className="mt-4 grid gap-6 lg:grid-cols-[1fr_360px] items-start">
+        <TabsContent value="antes" className="mt-4 space-y-6">
+          {/* O recomendador vem primeiro: a pergunta de quem está escolhendo a
+              prótese é "o que serve neste paciente", não "esta aqui serve?". */}
+          <section>
+            <h3 className="font-display font-semibold text-lg text-foreground mb-1">
+              O que evita mismatch neste paciente
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Por fabricante, o menor tamanho de cada modelo cuja EOA de referência publicada,
+              indexada por esta superfície corporal, fica acima do limiar de mismatch.
+            </p>
+            <RecomendadorProtese catalogo={catalogo} bsa={bsa} imc={imc} posicao={posicao} />
+          </section>
+
+          <div className="grid gap-6 lg:grid-cols-[1fr_360px] items-start border-t border-border pt-6">
           <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-base">Prótese considerada</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-base">Conferir uma prótese específica</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <Select value={proteseId} onValueChange={setProteseId}>
                 <SelectTrigger className="h-10">
@@ -241,6 +259,7 @@ export function CalculadoraMismatch({ inicial }: { inicial?: PreenchimentoMismat
               </p>
             </div>
             <CitacaoDaFonte fonte={FONTE_LIMITE_PROJECAO} />
+          </div>
           </div>
         </TabsContent>
 

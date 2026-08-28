@@ -168,10 +168,19 @@ describe("o que as ferramentas não podem afirmar", () => {
     }
   });
 
-  it("o desenho é anunciado como esquema, não como foto do produto", () => {
-    const fonte = ler("src/components/ferramentas/CatalogoProteses.tsx");
-    expect(fonte).toMatch(/esquema/i);
-    expect(fonte).toMatch(/não é a foto do produto/i);
+  it("a tela distingue foto oficial de desenho esquemático", () => {
+    // Esta guarda mudou junto com a realidade. Antes, nenhum cartão tinha foto e
+    // ela cobrava a frase "não é a foto do produto". Agora 17 famílias têm a
+    // imagem oficial do fabricante e as outras seguem com o esquema — o que
+    // importa passou a ser **o médico saber qual das duas está vendo**, porque
+    // um esquema tomado por foto vira geometria que ninguém desenhou.
+    const cartao = ler("src/components/ferramentas/CatalogoProteses.tsx");
+    expect(cartao, "o cartão não rotula a foto oficial").toMatch(/foto do fabricante/i);
+    expect(cartao, "o cartão não rotula o esquema").toMatch(/NOME_DA_FAMILIA/);
+    expect(cartao, "a nota não explica a diferença").toMatch(/esquema da família construtiva/i);
+    // E o esquema continua dizendo que não é a geometria do modelo.
+    expect(ler("src/components/ferramentas/EsquemaProtese.tsx"))
+      .toMatch(/não\*{0,2} a geometria do modelo/i);
   });
 });
 

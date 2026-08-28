@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Stethoscope, LockOpen } from "lucide-react";
 import { PainelDeFerramentas } from "@/components/ferramentas/PainelDeFerramentas";
 import { TrustBadges } from "@/components/TrustBadges";
+import { CoberturaDoCatalogo } from "@/components/ferramentas/CoberturaDoCatalogo";
 
 /**
  * As ferramentas livres — o caminho do médico que ainda não quer conta.
@@ -37,6 +38,10 @@ const Ferramentas = () => {
             </Link>
           </Button>
         </div>
+      </section>
+
+      <section className="container-vp pt-6">
+        <CoberturaDoCatalogo />
       </section>
 
       <section className="container-vp py-8">

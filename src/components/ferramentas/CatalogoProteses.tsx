@@ -186,12 +186,15 @@ export function CatalogoProteses() {
         <CitacaoDaFonte fonte={FONTE_EACVI_PROTESES} />
         <div className="rounded-lg border border-border bg-secondary/30 p-3">
           <p className="text-xs text-foreground/80 leading-relaxed">
-            <strong>Sobre as ilustrações e os dados.</strong> O desenho de cada cartão é um
-            esquema da família construtiva feito aqui — não é a foto do produto nem a geometria do
-            modelo. A foto oficial está na página do fabricante, para onde cada cartão aponta.
-            Tamanhos, faixas de anel e descrições vêm do material público do fabricante; a EOA de
-            referência, quando existe, vem da publicação citada ao lado, e onde não existe o campo
-            fica vazio em vez de estimado.
+            <strong>Sobre as imagens e os dados.</strong> Onde há foto, ela é a imagem oficial do
+            produto, colhida na própria página do fabricante — e é para lá que o cartão aponta. Cada
+            uma foi conferida uma a uma: quatro candidatas do rastreio foram recusadas por serem
+            outro produto (a foto da Magna Ease casando com a Perimount, a da Ultra RESILIA casando
+            com as outras Sapien, e a da Epic Max casando com a Epic). Onde não há foto conferida,
+            o cartão mostra um esquema da família construtiva feito aqui, que não é a geometria do
+            modelo. Tamanhos, faixas de anel e descrições vêm do material público do fabricante; a
+            EOA de referência, quando existe, vem da publicação citada ao lado, e onde não existe o
+            campo fica vazio em vez de estimado.
           </p>
           <p className="text-xs text-muted-foreground mt-2">
             Catálogo neutro, para registro e consulta. A presença de um modelo aqui não é
@@ -213,16 +216,23 @@ function CartaoFamilia({ familia: f }: { familia: Familia }) {
   return (
     <Card className="overflow-hidden">
       <CardContent className="pt-6 flex gap-4">
-        <div className="shrink-0 w-20">
-          {f.imagem ? (
-            <img src={f.imagem} alt={`${f.fabricante} ${f.modelo}`} className="w-20 h-20 object-contain rounded-lg bg-secondary/40" />
-          ) : (
-            <div className="w-20 h-20 rounded-lg bg-secondary/40 text-primary p-2">
-              <EsquemaProtese tipo={f.tipo} fabricante={f.fabricante} modelo={f.modelo} className="w-full h-full" />
-            </div>
-          )}
+        <div className="shrink-0 w-24">
+          <div className="w-24 h-24 rounded-xl bg-secondary/40 ring-1 ring-border overflow-hidden grid place-items-center text-primary">
+            {f.imagem ? (
+              <img
+                src={f.imagem}
+                alt={`${f.fabricante} ${f.modelo}`}
+                className="w-full h-full object-contain p-1"
+                loading="lazy"
+              />
+            ) : (
+              <EsquemaProtese tipo={f.tipo} fabricante={f.fabricante} modelo={f.modelo} className="w-16 h-16" />
+            )}
+          </div>
           <p className="mt-1.5 text-[10px] leading-tight text-center text-muted-foreground">
-            {NOME_DA_FAMILIA[familiaDe(f.tipo, f.fabricante, f.modelo)]}
+            {f.imagem
+              ? "foto do fabricante"
+              : NOME_DA_FAMILIA[familiaDe(f.tipo, f.fabricante, f.modelo)]}
           </p>
         </div>
 
