@@ -93,6 +93,13 @@ export function CalculadoraMismatch({ inicial }: { inicial?: PreenchimentoMismat
     [catalogo, posicao],
   );
   const protese = useMemo(() => catalogo.find((p) => p.id === proteseId), [catalogo, proteseId]);
+  // Contado do que chegou, e não escrito à mão. A frase já esteve fixa em
+  // "29 de 246" e envelheceu na primeira vez que o catálogo cresceu — uma
+  // tela afirmando cobertura que ela não mediu.
+  const comEoaPublicada = useMemo(
+    () => catalogo.filter((p) => p.effective_orifice_area != null).length,
+    [catalogo],
+  );
 
   const projetado = useMemo(() => {
     if (!protese?.effective_orifice_area || !bsa) return null;
@@ -224,9 +231,10 @@ export function CalculadoraMismatch({ inicial }: { inicial?: PreenchimentoMismat
                   <Info className="h-4 w-4 text-warning shrink-0 mt-0.5" />
                   <p className="text-xs text-foreground/85 leading-relaxed">
                     <strong>Não há EOA de referência publicada</strong> para este modelo neste
-                    tamanho. Das 246 linhas do catálogo, 29 têm valor citável — o resto ficou nulo
-                    de propósito: preencher por interpolação ou por "modelo parecido" seria inventar
-                    hemodinâmica. Use a aba <strong>Depois</strong> com a EOA medida no eco.
+                    tamanho. {comEoaPublicada} das {catalogo.length} linhas do catálogo têm valor
+                    citável — o resto ficou nulo de propósito: preencher por interpolação ou por
+                    "modelo parecido" seria inventar hemodinâmica. Use a aba <strong>Depois</strong>{" "}
+                    com a EOA medida no eco.
                   </p>
                 </div>
               )}

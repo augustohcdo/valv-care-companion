@@ -22,7 +22,8 @@
     "smoke": "node scripts/smoke.mjs",
     "mobile": "node scripts/mobile.mjs",
     "test:watch": "vitest",
-    "typecheck:functions": "cd supabase/functions && deno check --quiet */index.ts"
+    "typecheck:functions": "cd supabase/functions && deno check --quiet */index.ts",
+    "ferramentas:verificar": "node scripts/ferramentas-verificar.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
