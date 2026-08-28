@@ -32,10 +32,18 @@
  * caso passou a ser 22 mm.
  *
  * Uso:
- *   node scripts/ferramentas-verificar.mjs                          # produção
- *   node scripts/ferramentas-verificar.mjs http://127.0.0.1:4173    # preview
+ *   npm run build && npx vite preview --port 4173 --host 127.0.0.1
+ *   node scripts/ferramentas-verificar.mjs http://127.0.0.1:4173
  *
  * Precisa de `VITE_SUPABASE_PUBLISHABLE_KEY` no ambiente para a parte 3.
+ *
+ * **Contra produção, das partes 1 e 2, só fora deste contêiner.** Aqui o
+ * Chromium recebe `ERR_CONNECTION_RESET` até no HTML de valvepath.com.br — o
+ * egresso deste ambiente não o alcança. A parte 3 funciona de qualquer lugar,
+ * porque fala com o RPC de produção por `fetch` do Node, que passa pelo proxy.
+ * Quem quiser medir a tela publicada roda isto de uma máquina com internet;
+ * daqui, o que cobre produção é `npm run smoke` (as 61 rotas) e a leitura dos
+ * chunks que ela serve.
  */
 import { execSync } from "node:child_process";
 
