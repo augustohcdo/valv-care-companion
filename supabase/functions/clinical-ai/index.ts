@@ -13,8 +13,26 @@ import type {
   FonteConfiavel, ArtigoEncontrado, MotivoSemLiteratura,
 } from "../_shared/pesquisaExterna.ts";
 
-// Máximo de chamadas de IA clínica por usuário por hora (controle de custo/abuso).
-const RATE_LIMIT_PER_HOUR = 30;
+/**
+ * Trava de rajada — **e não cota de uso**.
+ *
+ * Até esta rodada havia um teto de 30 chamadas por hora por médico. Medido em
+ * `audit_logs` antes de removê-lo: o uso clínico real ficava entre 1 e 7
+ * chamadas por dia, e o único dia que passou de 30 numa hora foi um dia de
+ * teste meu. Ou seja, a parede nunca protegeu contra médico nenhum — ela só
+ * aparecia no meio de uma discussão de Heart Team com vários casos abertos, que
+ * é exatamente quando a ferramenta importa.
+ *
+ * O que sobra é a defesa contra o que de fato faz estrago: um laço de repetição
+ * enlouquecido no navegador queimando a cota da chave Gemini em segundos, para
+ * todos os médicos ao mesmo tempo. Nenhuma pessoa digitando chega a 20 chamadas
+ * num minuto.
+ *
+ * **Não transforme isto de volta em cota por hora ou por dia.** Se o custo
+ * precisar de teto algum dia, ele é decisão de produto e vem com aviso ao
+ * médico antes de bater — não com um 429 no meio do raciocínio dele.
+ */
+const RAJADA_POR_MINUTO = 20;
 
 /**
  * A cadeia de modelos, em ordem de preferência.
@@ -190,6 +208,10 @@ FORMATO:
 - Aponte discordâncias BR x internacional quando existirem.
 - Liste dados faltantes que mudariam a conduta.
 - Termine com bloco "Limitações deste apoio".
+- Markdown simples, SEM LaTeX e sem notação matemática: nada de $...$, \\%,
+  \\rightarrow, \\times, \\pm, \\text{}. Escreva "60% → 58%", não
+  "$60\\% \\rightarrow 58\\%$". A tela do médico renderiza markdown puro e
+  mostraria a marcação crua.
 
 LIMITES:
 - NÃO é diagnóstico nem prescrição. Apoio à decisão. O julgamento final é do médico assistente e do Heart Team.
@@ -330,26 +352,29 @@ Deno.serve(async (req) => {
     }
 
     // ============================================================
-    // Rate limiting: evita abuso do nível gratuito da API Gemini.
-    // Limita chamadas por usuário/hora usando o audit_logs existente.
+    // Trava de rajada (ver `RAJADA_POR_MINUTO`): não há mais limite de uso.
+    // A janela é de um minuto, e só pega automação descontrolada.
     // ============================================================
     const SERVICE_ROLE_RL = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (SERVICE_ROLE_RL) {
       const admin = createClient(SUPABASE_URL, SERVICE_ROLE_RL);
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const umMinutoAtras = new Date(Date.now() - 60 * 1000).toISOString();
       const { count } = await admin
         .from("audit_logs")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
         .eq("action", "clinical_ai_call")
-        .gte("timestamp", oneHourAgo);
-      if ((count ?? 0) >= RATE_LIMIT_PER_HOUR) {
+        .gte("timestamp", umMinutoAtras);
+      if ((count ?? 0) >= RAJADA_POR_MINUTO) {
         return new Response(
-          JSON.stringify({ error: "Limite de uso da IA clínica atingido. Tente novamente mais tarde." }),
+          JSON.stringify({
+            error: "Muitas chamadas em poucos segundos. Aguarde um instante e tente de novo.",
+          }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
-      // Registra a chamada antes de processá-la (contabiliza mesmo se falhar depois).
+      // O registro continua: é auditoria, e é como o uso fica visível. O que
+      // saiu foi a parede, não o rastro.
       await admin.from("audit_logs").insert({
         user_id: userId, action: "clinical_ai_call", target_table: "clinical_ai",
       });

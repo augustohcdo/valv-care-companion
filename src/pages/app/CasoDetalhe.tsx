@@ -38,6 +38,7 @@ import { CaseDiscussion } from "@/components/CaseDiscussion";
 import { ClinicalAIPanel } from "@/components/ClinicalAIPanel";
 import { CaseExternalData } from "@/components/CaseExternalData";
 import { DocumentGenerator } from "@/components/DocumentGenerator";
+import { riscoParaDocumento } from "@/lib/riscoDoCaso";
 import { logAudit } from "@/lib/auditLog";
 
 export const caseDetailKey = (caseId?: string, doctorId?: string) =>
@@ -308,7 +309,10 @@ export default function CasoDetalhe() {
           />
 
           {/* Gerador de documentos (evolução + orientação de alta) */}
-          {isOwner && <DocumentGenerator caso={caso} />}
+          {/* O escore vai junto: sem ele o documento gerado escrevia "escore de
+              risco pendente de registro" enquanto o card logo abaixo, na mesma
+              tela, mostrava o escore calculado. */}
+          {isOwner && <DocumentGenerator caso={caso} riskScore={riscoParaDocumento(caso)} />}
 
           {/* Dados externos (FHIR de hospitais parceiros) */}
           <CaseExternalData caseId={caso.id} patientUserId={patientUserId} />

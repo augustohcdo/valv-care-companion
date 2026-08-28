@@ -33,9 +33,14 @@ export interface FalhaIA {
 export function traduzirFalhaIA(status: number | undefined, fallback: string, detalhe?: string): FalhaIA {
   switch (status) {
     case 429:
+      // Não existe mais limite de uso por hora nem por dia: o 429 só aparece
+      // quando muitas chamadas saem em poucos segundos, que é automação
+      // repetindo, não médico trabalhando. O texto tem que dizer o que é —
+      // manter "30 chamadas por hora" depois de remover o limite criaria, num
+      // lugar novo, exatamente o defeito que esta sessão persegue.
       return {
-        titulo: "Limite de uso da IA atingido",
-        descricao: "São 30 chamadas por hora, por médico. Tente de novo em alguns minutos — nada foi perdido.",
+        titulo: "Muitas chamadas em poucos segundos",
+        descricao: "Aguarde alguns segundos e tente de novo — nada foi perdido. Não há limite de uso por hora ou por dia.",
         temporario: true,
       };
     case 402:

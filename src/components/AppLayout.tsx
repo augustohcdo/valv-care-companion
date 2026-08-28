@@ -26,6 +26,7 @@ import {
   ScrollText,
   Plug,
   type LucideIcon, UserPlus,
+  Calculator,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -57,6 +58,7 @@ const doctorNav: NavItem[] = [
   { to: "/app/medico/colaboracoes", label: "Colaborações", icon: UsersRound },
   { to: "/app/medico/relatorios", label: "Relatórios", icon: BarChart3 },
   { to: "/app/medico/biblioteca", label: "Biblioteca", icon: BookOpen },
+  { to: "/app/medico/ferramentas", label: "Ferramentas", icon: Calculator },
   { to: "/app/medico/perfil", label: "Perfil", icon: User },
 ];
 
@@ -103,6 +105,7 @@ const routeLoader: Record<string, () => Promise<unknown>> = {
   "/app/medico/colaboracoes": () => import("@/pages/app/MedicoColaboracoes"),
   "/app/medico/relatorios": () => import("@/pages/app/MedicoRelatorios"),
   "/app/medico/biblioteca": () => import("@/pages/app/Biblioteca"),
+  "/app/medico/ferramentas": () => import("@/pages/app/MedicoFerramentas"),
   "/app/medico/perfil": () => import("@/pages/app/MedicoPerfil"),
   "/app/paciente": () => import("@/pages/app/PacienteHome"),
   "/app/paciente/jornada": () => import("@/pages/app/PacienteJornada"),

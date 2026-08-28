@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { limparNotacaoMatematica } from "@/lib/textoDaIA";
 import { Sparkles, Loader2, FileText, Stethoscope, TrendingUp, Send, AlertTriangle, BookOpen, ExternalLink, ShieldAlert, Globe } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -109,7 +110,10 @@ export function ClinicalAIPanel({ caseId }: Props) {
   const runSimpleMode = async (m: Mode) => {
     const res = await callAI(m);
     if (res?.content) {
-      setResults((prev) => ({ ...prev, [m]: res.content }));
+      // A limpeza acontece aqui, na entrada, e não na renderização: o mesmo
+      // texto vai para a tela, para o `ReactMarkdown` e para o que o médico
+      // copia. Limpar só no `<ReactMarkdown>` deixaria a cópia suja.
+      setResults((prev) => ({ ...prev, [m]: limparNotacaoMatematica(res.content) }));
       setSourcesByMode((prev) => ({ ...prev, [m]: res.sources ?? [] }));
       setRagHitByMode((prev) => ({ ...prev, [m]: !!res.rag_hit }));
       setArtigosByMode((prev) => ({ ...prev, [m]: res.external_sources ?? [] }));
@@ -126,7 +130,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
     setChatInput("");
     const res = await callAI("chat", q, chatHistory);
     if (res?.content) {
-      setChatHistory([...newHistory, { role: "assistant", content: res.content }]);
+      setChatHistory([...newHistory, { role: "assistant", content: limparNotacaoMatematica(res.content) }]);
       setChatSources(res.sources ?? []);
       setChatRagHit(!!res.rag_hit);
       setChatArtigos(res.external_sources ?? []);

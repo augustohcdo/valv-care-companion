@@ -31,3 +31,6 @@ bun.lockb
 bun.lock
 yarn.lock
 pnpm-lock.yaml
+
+# Sobras da CLI do Supabase (versão baixada e o ref do projeto vinculado).
+supabase/.temp/

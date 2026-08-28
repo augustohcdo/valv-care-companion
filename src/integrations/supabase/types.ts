@@ -1847,6 +1847,9 @@ export type Database = {
           description: string | null
           display_order: number
           effective_orifice_area: number | null
+          eoa_reference_sd: number | null
+          eoa_source_label: string | null
+          eoa_source_url: string | null
           id: string
           image_url: string | null
           manufacturer: string
@@ -1865,6 +1868,9 @@ export type Database = {
           description?: string | null
           display_order?: number
           effective_orifice_area?: number | null
+          eoa_reference_sd?: number | null
+          eoa_source_label?: string | null
+          eoa_source_url?: string | null
           id?: string
           image_url?: string | null
           manufacturer: string
@@ -1883,6 +1889,9 @@ export type Database = {
           description?: string | null
           display_order?: number
           effective_orifice_area?: number | null
+          eoa_reference_sd?: number | null
+          eoa_source_label?: string | null
+          eoa_source_url?: string | null
           id?: string
           image_url?: string | null
           manufacturer?: string
@@ -2440,6 +2449,27 @@ export type Database = {
           patient_name: string
           severity: Database["public"]["Enums"]["severity_level"]
           status: Database["public"]["Enums"]["case_status"]
+        }[]
+      }
+      catalogo_proteses: {
+        Args: never
+        Returns: {
+          annulus_max_mm: number
+          annulus_min_mm: number
+          description: string
+          display_order: number
+          effective_orifice_area: number
+          eoa_reference_sd: number
+          eoa_source_label: string
+          eoa_source_url: string
+          id: string
+          image_url: string
+          manufacturer: string
+          model_name: string
+          reference_url: string
+          size: number
+          type: string
+          valve_position: string
         }[]
       }
       cnes_conferir: {

@@ -15,6 +15,9 @@ export const PublicHeader = () => {
 
   const navLinks = [
     { label: "Para médicos", href: "/medicos" },
+    // Entrou nesta rodada: as calculadoras e o catálogo são abertos, e o
+    // caminho até eles não pode depender de rolar a página do médico.
+    { label: "Ferramentas", href: "/ferramentas" },
     { label: "Para pacientes", href: "/aprender" },
     { label: "Segurança", href: "/seguranca" },
     { label: "Base científica", href: "/referencias" },
@@ -25,7 +28,16 @@ export const PublicHeader = () => {
       <div className="container-vp flex h-16 items-center justify-between">
         <Logo />
 
-        <nav className="hidden md:flex items-center gap-1">
+        {/* A barra completa só a partir de `xl` (1280px), e não de `md`.
+            Medido no navegador, com o cabeçalho renderizado de verdade:
+
+              768px  → transbordava 131px  (já transbordava ANTES desta rodada)
+              1024px → transbordava  87px  (isto foi meu: o link "Ferramentas")
+              1280px → cabe, com 99px de folga
+
+            Cinco links mais três botões não cabem numa barra de tablet. De
+            768 a 1279 quem atende é a gaveta, que já tem tudo. */}
+        <nav className="hidden xl:flex items-center gap-1">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -39,7 +51,7 @@ export const PublicHeader = () => {
           ))}
         </nav>
 
-        <div className="hidden md:flex items-center gap-2">
+        <div className="hidden xl:flex items-center gap-2">
           {user ? (
             <Button asChild variant="hero" size="sm" className="gap-2">
               <Link to={dashboardPath}>
@@ -65,7 +77,7 @@ export const PublicHeader = () => {
                 {/* Um filho só: o botão é flex com `gap`, então rótulo partido
                     em dois nós ganha o espaço do gap além do espaço do texto. */}
                 <Link to="/auth/cadastro">
-                  <span>Criar conta<span className="hidden lg:inline"> de paciente</span></span>
+                  <span>Criar conta<span className="hidden 2xl:inline"> de paciente</span></span>
                 </Link>
               </Button>
             </>
@@ -73,7 +85,7 @@ export const PublicHeader = () => {
         </div>
 
         <button
-          className="md:hidden p-2 -mr-2 text-foreground min-h-[44px] min-w-[44px] flex items-center justify-center"
+          className="xl:hidden p-2 -mr-2 text-foreground min-h-[44px] min-w-[44px] flex items-center justify-center"
           onClick={() => setOpen(!open)}
           aria-label="Menu"
         >
@@ -85,11 +97,11 @@ export const PublicHeader = () => {
         <>
           {/* Backdrop */}
           <div
-            className="md:hidden fixed inset-0 z-40 bg-foreground/40 backdrop-blur-sm animate-fade-in"
+            className="xl:hidden fixed inset-0 z-40 bg-foreground/40 backdrop-blur-sm animate-fade-in"
             onClick={() => setOpen(false)}
           />
           {/* Drawer */}
-          <div className="md:hidden fixed inset-x-0 top-16 z-50 bg-background border-b border-border shadow-lg-soft animate-fade-in max-h-[70vh] overflow-y-auto">
+          <div className="xl:hidden fixed inset-x-0 top-16 z-50 bg-background border-b border-border shadow-lg-soft animate-fade-in max-h-[70vh] overflow-y-auto">
             <div className="container-vp py-4 flex flex-col gap-1">
               {navLinks.map((link) => (
                 <a

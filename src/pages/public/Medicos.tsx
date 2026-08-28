@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import {
   Stethoscope, ShieldCheck, BookOpen, CheckCircle2, ArrowRight, Mail,
-  ClipboardCheck, FileHeart, BarChart3, Users, MessageSquare,
+  ClipboardCheck, FileHeart, BarChart3, Users, MessageSquare, Calculator,
 } from "lucide-react";
 import { Hero } from "@/components/Hero";
 import { ScrollReveal } from "@/components/ScrollReveal";
@@ -116,6 +116,43 @@ export default function Medicos() {
               </ScrollReveal>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ------------------------------------------ ferramentas livres, sem cadastro */}
+      {/* Fica ACIMA do formulário de propósito: o médico que chega desconfiado
+          consegue usar alguma coisa antes de decidir pedir acesso. */}
+      <section className="pb-20 sm:pb-24">
+        <div className="container-vp">
+          <ScrollReveal>
+            <Card className="p-6 sm:p-8 card-elevated border-accent/30">
+              <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+                <div className="h-12 w-12 rounded-xl bg-accent/10 text-accent grid place-items-center shrink-0">
+                  <Calculator className="h-6 w-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="inline-block text-xs font-semibold uppercase tracking-wider text-accent mb-2">
+                    Sem cadastro
+                  </span>
+                  <h2 className="font-display font-semibold text-2xl sm:text-3xl text-foreground tracking-tight">
+                    Ferramentas abertas, para usar agora.
+                  </h2>
+                  <p className="text-sm text-muted-foreground leading-relaxed mt-2 max-w-2xl">
+                    Calculadora de <strong>EuroSCORE II</strong>, avaliação de{" "}
+                    <strong>gradiente e risco de mismatch</strong> prótese-paciente e o{" "}
+                    <strong>catálogo de próteses</strong> com tamanhos, faixa de anel e a fonte de
+                    cada dado. Não precisa de conta, não precisa identificar o paciente, e nada do
+                    que for digitado sai do seu navegador.
+                  </p>
+                </div>
+                <Button asChild size="lg" variant="hero" className="shrink-0 gap-2">
+                  <Link to="/ferramentas">
+                    Abrir as ferramentas <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </Card>
+          </ScrollReveal>
         </div>
       </section>
 

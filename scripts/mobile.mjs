@@ -55,6 +55,12 @@ const PAGINAS = [
   // transbordar no celular entre as públicas. `/acesso-profissional` agora
   // redireciona para cá, então medir as duas mediria a mesma tela.
   "/medicos",
+  // As ferramentas livres: três abas de formulário denso, tabela de limiares e
+  // cartões de catálogo lado a lado. É a página nova com mais risco de
+  // transbordar, e a única que um médico pode abrir no celular no corredor.
+  "/ferramentas",
+  "/ferramentas/mismatch",
+  "/ferramentas/proteses",
   "/dpo",
 ];
 

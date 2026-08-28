@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Copy, Loader2, Sparkles, Stethoscope, HeartHandshake, ClipboardList, Scissors, Activity, LogOut, AlertTriangle } from "lucide-react";
 import { traduzirFalhaIA } from "@/lib/aiErros";
+import { limparNotacaoMatematica } from "@/lib/textoDaIA";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +16,18 @@ export const prosthesisKey = (prosthesisId?: string | null) =>
 
 interface Props {
   caso: any;
-  riskScore?: { model: string; value: number | null } | null;
+  /**
+   * O escore calculado na mesma tela.
+   *
+   * `value` é **pontuação de 0 a 100**, não percentual de mortalidade — e a
+   * frase gerada diz isso. A versão anterior escrevia "risco {model} de
+   * {value}%" no texto que vai para o prontuário, o que transformaria uma
+   * estimativa educacional em um percentual de óbito. Não chegou a acontecer em
+   * produção só porque `CasoDetalhe` nunca passou esta propriedade — o
+   * documento sempre caía em "escore de risco pendente de registro", mesmo com
+   * o escore calculado e visível logo abaixo, na mesma tela.
+   */
+  riskScore?: { model: string; value: number | null; categoria?: string; conclusiva?: boolean } | null;
 }
 
 /** "evolucao" é montada aqui mesmo, sem IA; o resto vai para a edge function. */
@@ -48,9 +60,15 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
   const [loading, setLoading] = useState(false);
 
   const generateEvolucao = () => {
-    const risco = riskScore?.value != null
-      ? `Avaliação pré-operatória revelou risco ${riskScore.model} de ${riskScore.value}%.`
-      : `Avaliação pré-operatória em curso; escore de risco pendente de registro.`;
+    const risco = riskScore?.value == null
+      ? `Avaliação pré-operatória em curso; escore de risco pendente de registro.`
+      : riskScore.conclusiva === false
+        ? `Escore de risco ${riskScore.model}: ${riskScore.value} de 100 pontos, com dados ` +
+          `incompletos — a categoria ainda não é conclusiva. Estimativa educacional; não ` +
+          `corresponde a percentual de mortalidade.`
+        : `Escore de risco ${riskScore.model}: ${riskScore.value} de 100 pontos` +
+          `${riskScore.categoria ? ` (categoria ${riskScore.categoria})` : ""}. ` +
+          `Estimativa educacional; não corresponde a percentual de mortalidade.`;
     const prot = prosthesis
       ? `Implantada prótese ${prosthesis.model_name}${prosthesis.size ? ` tamanho ${prosthesis.size}mm` : ""} (${prosthesis.manufacturer}).`
       : `Prótese planejada ainda não registrada no catálogo do caso.`;
@@ -89,7 +107,7 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
         setKind(null); return;
       }
       if (data?.error) { toast.error(data.error); setKind(null); return; }
-      setText(data.content ?? "");
+      setText(limparNotacaoMatematica(data.content ?? ""));
       setTruncado(!!data?.truncado);
       if (data?.truncado) {
         // Documento cortado tem a mesma cara de documento inteiro. Avisar duas

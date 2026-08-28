@@ -24,6 +24,7 @@ import { traduzirFalhaIA } from "@/lib/aiErros";
 import { logAudit } from "@/lib/auditLog";
 import { hasActiveConsent, AVISO_CONSENTIMENTO_IA } from "@/lib/consent";
 import { useAuth } from "@/hooks/useAuth";
+import { useCatalogoProteses } from "@/hooks/useCatalogoProteses";
 import { LaudoIdentificacao } from "@/components/LaudoIdentificacao";
 import type { IdentificacaoDoLaudo } from "@/lib/laudoIdentificacao";
 
@@ -150,7 +151,9 @@ export default function NovoCaso() {
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
-  const [prostheses, setProstheses] = useState<Array<{ id: string; manufacturer: string; model_name: string; type: string; size: number | null; effective_orifice_area: number | null }>>([]);
+  // O catálogo vem do mesmo lugar que as ferramentas livres usam
+  // (`catalogo_proteses`), para as duas telas não divergirem.
+  const { data: prostheses = [] } = useCatalogoProteses();
   const [echoRaw, setEchoRaw] = useState("");
   const laudoInputRef = useRef<HTMLInputElement>(null);
   const [echoExtracting, setEchoExtracting] = useState(false);
@@ -254,18 +257,6 @@ export default function NovoCaso() {
       setEchoExtracting(false);
     }
   };
-
-  useEffect(() => {
-    supabase
-      .from("prosthesis_catalog")
-      .select("id, manufacturer, model_name, type, size, effective_orifice_area")
-      .eq("active", true)
-      .order("display_order", { ascending: true })
-      .order("manufacturer", { ascending: true })
-      .order("model_name", { ascending: true })
-      .order("size", { ascending: true })
-      .then(({ data }) => setProstheses((data as any[]) ?? []));
-  }, []);
 
   // Autosave state
   const draftIdRef = useRef<string | null>(null);

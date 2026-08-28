@@ -1,26 +1,19 @@
 import { useMemo } from "react";
-import { Activity, AlertTriangle, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Activity, AlertTriangle, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { calculateRisk, TOTAL_ENTRADAS } from "@/lib/riskScore";
+import { TOTAL_ENTRADAS } from "@/lib/riskScore";
+import { riscoDoCaso } from "@/lib/riscoDoCaso";
 
 interface Props {
   caso: any;
 }
 
 export const RiskScoreCard = ({ caso }: Props) => {
-  const result = useMemo(
-    () =>
-      calculateRisk({
-        age: caso.patient_age,
-        sex: caso.patient_sex,
-        nyha: caso.nyha,
-        ejection_fraction: caso.ejection_fraction,
-        severity: caso.severity,
-        comorbidities: caso.comorbidities,
-      }),
-    [caso]
-  );
+  // O mapeamento vive em `riscoDoCaso` porque o gerador de documentos precisa
+  // exatamente do mesmo número — antes ele não recebia nenhum.
+  const result = useMemo(() => riscoDoCaso(caso), [caso]);
 
   // Anel neutro quando a categoria não é conclusiva.
   //
@@ -118,17 +111,20 @@ export const RiskScoreCard = ({ caso }: Props) => {
           <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-[11px] text-foreground/80 leading-relaxed">
-              Estimativa <strong>educacional</strong>, baseada em variáveis clínicas comuns. Não
-              substitui calculadoras validadas (STS, EuroSCORE II) nem julgamento do Heart Team.
+              Estimativa <strong>educacional</strong>, baseada em variáveis clínicas comuns. São
+              pontos de 0 a 100, e <strong>não</strong> percentual de mortalidade. Não substitui
+              um escore validado nem o julgamento do Heart Team.
             </p>
-            <a
-              href="https://www.mdcalc.com/calc/10179/european-system-cardiac-operative-risk-evaluation-euroscore-ii"
-              target="_blank"
-              rel="noopener noreferrer"
+            {/* Este link mandava o médico para o MDCalc — para fora do produto,
+                no momento em que ele mais precisava dele. O EuroSCORE II é
+                modelo publicado (Nashef 2012) e agora roda aqui dentro, já
+                preenchido com o que o caso registra. */}
+            <Link
+              to={`/app/medico/ferramentas/euroscore-ii?caso=${caso.id}`}
               className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
             >
-              Abrir calculadora EuroSCORE II (MDCalc) <ExternalLink className="h-3 w-3" />
-            </a>
+              Calcular o EuroSCORE II com este caso <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
         </div>
       </CardContent>

@@ -39,6 +39,7 @@ const CookiesPage = lazy(() => import("./pages/public/Cookies"));
 const DPOPage = lazy(() => import("./pages/public/DPO"));
 const Contato = lazy(() => import("./pages/public/Contato"));
 const Medicos = lazy(() => import("./pages/public/Medicos"));
+const Ferramentas = lazy(() => import("./pages/public/Ferramentas"));
 const Parceiros = lazy(() => import("./pages/public/Parceiros"));
 
 // App (autenticado): lazy — corta drasticamente o bundle inicial
@@ -56,6 +57,7 @@ const PacienteJornada = lazy(() => import("./pages/app/PacienteJornada"));
 const Biblioteca = lazy(() => import("./pages/app/Biblioteca"));
 const BibliotecaDetalhe = lazy(() => import("./pages/app/BibliotecaDetalhe"));
 const MedicoPerfil = lazy(() => import("./pages/app/MedicoPerfil"));
+const MedicoFerramentas = lazy(() => import("./pages/app/MedicoFerramentas"));
 const PacientePerfil = lazy(() => import("./pages/app/PacientePerfil"));
 const PacienteMedico = lazy(() => import("./pages/app/PacienteMedico"));
 const PacienteEncontrar = lazy(() => import("./pages/app/PacienteEncontrar"));
@@ -134,6 +136,10 @@ const App = () => (
               <Route path="/app/medico/biblioteca" element={<ProtectedRoute requiredType="medico">{withSuspense(<Biblioteca />, "list")}</ProtectedRoute>} />
               <Route path="/app/medico/biblioteca/:slug" element={<ProtectedRoute requiredType="medico">{withSuspense(<BibliotecaDetalhe />, "detail")}</ProtectedRoute>} />
               <Route path="/app/medico/perfil" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoPerfil />, "form")}</ProtectedRoute>} />
+              <Route path="/app/medico/ferramentas" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoFerramentas />, "form")}</ProtectedRoute>} />
+              <Route path="/app/medico/ferramentas/euroscore-ii" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoFerramentas />, "form")}</ProtectedRoute>} />
+              <Route path="/app/medico/ferramentas/mismatch" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoFerramentas />, "form")}</ProtectedRoute>} />
+              <Route path="/app/medico/ferramentas/proteses" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoFerramentas />, "form")}</ProtectedRoute>} />
 
               <Route path="/app/paciente" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteHome />)}</ProtectedRoute>} />
               <Route path="/app/paciente/jornada" element={<ProtectedRoute requiredType="paciente">{withSuspense(<PacienteJornada />, "detail")}</ProtectedRoute>} />
@@ -188,6 +194,15 @@ const App = () => (
                   e-mails; duas páginas quase iguais divergiriam, então esta
                   aponta para a única. */}
               <Route path="/acesso-profissional" element={<Navigate to="/medicos#solicitar" replace />} />
+
+              {/* Ferramentas livres: o médico que ainda não quer conta entra
+                  por aqui. As três abas são rotas próprias — e não só estado do
+                  componente — porque o `smoke` só sonda caminho concreto, e
+                  porque um médico manda `/ferramentas/mismatch` para um colega. */}
+              <Route path="/ferramentas" element={withSuspense(<Ferramentas />, "form")} />
+              <Route path="/ferramentas/euroscore-ii" element={withSuspense(<Ferramentas />, "form")} />
+              <Route path="/ferramentas/mismatch" element={withSuspense(<Ferramentas />, "form")} />
+              <Route path="/ferramentas/proteses" element={withSuspense(<Ferramentas />, "form")} />
 
               <Route path="*" element={<NotFound />} />
             </Route>
