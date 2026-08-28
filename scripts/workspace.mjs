@@ -24,9 +24,26 @@ import { resolve, dirname, basename, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+/**
+ * Duas formas de autenticar, e a segunda existe por um motivo medido.
+ *
+ * O caminho normal é o token da Management API, que busca a `service_role` do
+ * projeto a cada execução — assim a chave forte não vive em arquivo nenhum. Só
+ * que isso deixava a ferramenta com **um único ponto de falha**: no dia em que
+ * o token parou de responder (401 em toda a Management API), não dava para
+ * gravar nem ler o que já estava guardado no bucket.
+ *
+ * Por isso a `SUPABASE_SERVICE_ROLE_KEY` direta é aceita como alternativa. Ela
+ * continua fora do repositório e fora do commit — é variável de ambiente, e o
+ * script nunca a escreve em lugar nenhum.
+ */
 const TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
-if (!TOKEN) {
-  console.error("Falta SUPABASE_ACCESS_TOKEN no ambiente.");
+const CHAVE_DIRETA = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!TOKEN && !CHAVE_DIRETA) {
+  console.error(
+    "Falta credencial: defina SUPABASE_ACCESS_TOKEN (preferido) ou, se ele " +
+    "estiver indisponível, SUPABASE_SERVICE_ROLE_KEY.",
+  );
   process.exit(1);
 }
 const REF = readFileSync(resolve(raiz, "supabase/config.toml"), "utf8")
@@ -61,6 +78,10 @@ const flag = (n) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : u
 
 let SERVICE_ROLE;
 async function chaves() {
+  if (!TOKEN) {
+    SERVICE_ROLE = CHAVE_DIRETA;
+    return;
+  }
   const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/api-keys?reveal=true`, {
     headers: { Authorization: `Bearer ${TOKEN}` },
   });
