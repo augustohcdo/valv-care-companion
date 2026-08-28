@@ -111,11 +111,13 @@ export const BUSCA_DE_FONTES: BuscaDeFonte[] = [
     familia: "Abbott|Navitor",
     resultado: "sem_dado_por_tamanho",
     nota:
-      "A avaliação do sistema Navitor descreve 'gradiente baixo e EOA grande' sem publicar nenhum " +
-      "valor — nem geral, nem por tamanho.",
+      "O ensaio VANTAGE, de 2025, publica EOA de 1,8 cm² em 12 meses — mas somando os quatro " +
+      "tamanhos (23, 25, 27 e 29 mm) numa medida só, e o texto completo não está livre no PMC. Um " +
+      "valor único para toda a família não serve para projetar mismatch: a diferença entre o 23 e o " +
+      "29 mm é justamente o que a ferramenta precisa saber.",
     referencia: {
-      citacao: "Aoun J, et al. A Comprehensive Evaluation of the NAVITOR Transcatheter Aortic Valve Replacement System. Heart Int 2024;18(1):26-29.",
-      url: "https://pubmed.ncbi.nlm.nih.gov/39006462/",
+      citacao: "Worthley SG, Giordano A, Corcione N, et al. 30-Day and 1-Year Outcomes of Navitor Transcatheter Aortic Valve in Low- or Intermediate-Risk Patients (VANTAGE). JACC Cardiovasc Interv 2025;18(20):2517-2527.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/40892604/",
     },
   },
   {
@@ -201,7 +203,13 @@ export const BUSCA_DE_FONTES: BuscaDeFonte[] = [
       "Com valor apenas em 23 mm e 25 mm, de estudo próprio (Mayr 2021, n = 17 e n = 27). Sem valor " +
       "em 19, 21, 27 e 29 mm: a ASE 2024 não tem entrada 'Magna' nem 'Magna Ease' — conferido " +
       "varrendo os 62 rótulos da Tabela A4 —, e a Magna Ease é geração posterior à Perimount, então " +
-      "emprestar o valor da Perimount seria inventar procedência.",
+      "emprestar o valor da Perimount seria inventar procedência. Existe medida de EOA da Magna Ease " +
+      "21 mm em duplicador de pulso, citada ao lado, mas é bancada: não se mistura com valor clínico " +
+      "no mesmo campo, e cobriria um tamanho só.",
+    referencia: {
+      citacao: "Sadat N, Scharfschwerdt M, Schaller T, et al. Functional performance of 8 small surgical aortic valve bioprostheses: an in vitro study. Eur J Cardiothorac Surg 2022;62(4):ezac426.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/35993864/",
+    },
   },
 ];
 
