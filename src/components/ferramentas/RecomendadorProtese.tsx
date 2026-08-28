@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, ExternalLink, Ruler } from "lucide-react";
+import { AlertTriangle, ExternalLink, Ruler, ShieldAlert } from "lucide-react";
 import { EsquemaProtese } from "./EsquemaProtese";
 import {
   recomendarProteses, menoresPorModelo,
@@ -51,6 +51,15 @@ export function RecomendadorProtese({ catalogo, bsa, imc, posicao }: Props) {
 
   const comOpcao = r.fabricantes.filter((f) => f.adequadas.length > 0);
   const semOpcao = r.fabricantes.filter((f) => f.adequadas.length === 0 && f.insuficientes.length > 0);
+  // Uma linha por modelo, não por tamanho: seis tamanhos da mesma prótese
+  // retirada viram seis avisos iguais.
+  const desaconselhadas = [
+    ...new Map(
+      r.fabricantes
+        .flatMap((f) => f.desaconselhadas)
+        .map((o) => [`${o.fabricante}|${o.modelo}`, o]),
+    ).values(),
+  ];
   const semDado = r.fabricantes
     .filter((f) => f.semEoaPublicada > 0)
     .map((f) => ({
@@ -119,6 +128,40 @@ export function RecomendadorProtese({ catalogo, bsa, imc, posicao }: Props) {
       <div className="grid gap-4 lg:grid-cols-2">
         {comOpcao.map((f) => <CartaoFabricante key={f.fabricante} f={f} />)}
       </div>
+
+      {/* Alerta regulatório vem em bloco próprio e em vermelho, não numa nota de
+          rodapé: a conta pode dizer que a prótese serve e ela ter sido recolhida
+          por falhar cedo. Foi o caso da Trifecta GT. */}
+      {desaconselhadas.length > 0 && (
+        <div className="rounded-xl border-2 border-destructive/50 bg-destructive/10 p-4">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                Não indicar para novo implante — alerta do fabricante ou da autoridade sanitária
+              </p>
+              <ul className="mt-2 space-y-3">
+                {desaconselhadas.map((o) => (
+                  <li key={o.id} className="text-xs">
+                    <span className="font-medium text-foreground">
+                      {o.fabricante} {o.modelo} — {tam(o.tamanho)} mm
+                    </span>
+                    <p className="text-muted-foreground leading-relaxed mt-0.5">{o.alerta!.nota}</p>
+                    <a href={o.alerta!.url} target="_blank" rel="noopener noreferrer"
+                       className="inline-flex items-center gap-1 text-primary hover:underline mt-0.5">
+                      comunicado de {o.alerta!.data} <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Continuam no catálogo de propósito: quem já tem uma implantada precisa das medidas
+                para planejar valve-in-valve e para ler o ecocardiograma de seguimento.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {semOpcao.length > 0 && (
         <div className="rounded-xl border border-border bg-secondary/30 p-4">

@@ -4,12 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ExternalLink, Search } from "lucide-react";
+import { ExternalLink, Search, ShieldAlert } from "lucide-react";
 import { EsquemaProtese, familiaDe, NOME_DA_FAMILIA } from "./EsquemaProtese";
 import { CitacaoDaFonte } from "./CitacaoDaFonte";
 import { FONTE_EACVI_PROTESES } from "@/lib/fontes";
 import { useCatalogoProteses, type ProteseDoCatalogo } from "@/hooks/useCatalogoProteses";
-import { buscaDaFamilia, TEXTO_DO_RESULTADO, BUSCA_FEITA_EM } from "@/data/buscaDeFontes";
+import { buscaDaFamilia, TEXTO_DO_RESULTADO, BUSCA_FEITA_EM, VARREDURA_DE_ALERTAS } from "@/data/buscaDeFontes";
 
 /**
  * O catálogo de próteses.
@@ -44,6 +44,12 @@ const ROTULO_POSICAO: Record<string, string> = {
 
 const TODOS = "__todos__";
 
+const ROTULO_ALERTA: Record<string, string> = {
+  retirada_do_mercado: "Retirada do mercado — não indicar para novo implante",
+  alerta_de_seguranca: "Alerta de segurança",
+  descontinuada: "Descontinuada pelo fabricante",
+};
+
 interface Familia {
   chave: string;
   fabricante: string;
@@ -53,6 +59,7 @@ interface Familia {
   descricao: string | null;
   referencia: string | null;
   imagem: string | null;
+  alerta: { tipo: string; nota: string; url: string; data: string | null } | null;
   linhas: ProteseDoCatalogo[];
 }
 
@@ -67,6 +74,9 @@ function agrupar(linhas: ProteseDoCatalogo[]): Familia[] {
         posicao: l.valve_position,
         // A descrição da menor medida é a do modelo; as demais repetem o tamanho.
         descricao: l.description, referencia: l.reference_url, imagem: l.image_url,
+        alerta: l.advisory
+          ? { tipo: l.advisory, nota: l.advisory_note ?? "", url: l.advisory_url ?? "", data: l.advisory_date }
+          : null,
         linhas: [],
       };
       mapa.set(chave, f);
@@ -201,6 +211,13 @@ export function CatalogoProteses() {
             Catálogo neutro, para registro e consulta. A presença de um modelo aqui não é
             recomendação, e não há classificação de preferência entre fabricantes.
           </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            <strong className="text-foreground">Alertas regulatórios:</strong> conferidos em{" "}
+            {VARREDURA_DE_ALERTAS.feitaEm} contra {VARREDURA_DE_ALERTAS.fontes.length} fontes.{" "}
+            {VARREDURA_DE_ALERTAS.comAlerta.length} modelo(s) com alerta que impede nova indicação;{" "}
+            {VARREDURA_DE_ALERTAS.semAlerta.length} conferidos e sem alerta. "Sem alerta" também é
+            uma afirmação, e por isso tem data.
+          </p>
         </div>
       </div>
     </div>
@@ -245,6 +262,20 @@ function CartaoFamilia({ familia: f }: { familia: Familia }) {
             <Badge variant="secondary" className="text-[11px]">{ROTULO_TIPO[f.tipo] ?? f.tipo}</Badge>
             <Badge variant="outline" className="text-[11px]">posição {ROTULO_POSICAO[f.posicao] ?? f.posicao}</Badge>
           </div>
+
+          {f.alerta && (
+            <div className="mt-2 rounded-lg border-2 border-destructive/50 bg-destructive/10 p-2.5">
+              <p className="text-[11px] font-semibold text-destructive flex items-center gap-1.5">
+                <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                {ROTULO_ALERTA[f.alerta.tipo] ?? "Alerta do fabricante"}
+              </p>
+              <p className="text-[11px] text-foreground/85 leading-relaxed mt-1">{f.alerta.nota}</p>
+              <a href={f.alerta.url} target="_blank" rel="noopener noreferrer"
+                 className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline mt-1">
+                comunicado de {f.alerta.data} <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          )}
 
           {f.descricao && (
             <p className="text-xs text-muted-foreground mt-2 leading-relaxed line-clamp-3">{f.descricao}</p>

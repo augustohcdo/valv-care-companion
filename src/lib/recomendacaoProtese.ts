@@ -49,6 +49,8 @@ export interface OpcaoProtese {
   anelMax: number | null;
   imagem: string | null;
   paginaDoFabricante: string | null;
+  /** Alerta regulatório, quando existe. Prótese com alerta nunca é indicada. */
+  alerta: { tipo: string; nota: string; url: string; data: string | null } | null;
 }
 
 export interface RecomendacaoDoFabricante {
@@ -57,6 +59,16 @@ export interface RecomendacaoDoFabricante {
   adequadas: OpcaoProtese[];
   /** As que produziriam *mismatch*, para o médico ver onde está a fronteira. */
   insuficientes: OpcaoProtese[];
+  /**
+   * As que **não devem ser indicadas** por alerta regulatório, independentemente
+   * da conta de mismatch.
+   *
+   * Ficam numa lista própria, e nunca em `adequadas`: o cálculo pode dizer que
+   * a prótese serve, e a prótese ter sido retirada do mercado por falhar cedo.
+   * Foi exatamente o caso da Trifecta GT — a EOA dela é excelente, e a Abbott a
+   * recolheu em 2023 por deterioração estrutural precoce.
+   */
+  desaconselhadas: OpcaoProtese[];
   /** Quantos tamanhos deste fabricante ficaram de fora por não terem EOA publicada. */
   semEoaPublicada: number;
 }
@@ -67,6 +79,8 @@ export interface Recomendacao {
   semEoaPublicada: number;
   /** Total avaliado. */
   avaliadas: number;
+  /** Quantas ficaram de fora por alerta regulatório. */
+  desaconselhadas: number;
   limiares: { grave: number; moderado: number };
   faixaDeObesidade: boolean;
 }
@@ -100,7 +114,7 @@ export function recomendarProteses(
   const garantir = (nome: string) => {
     let f = porFabricante.get(nome);
     if (!f) {
-      f = { fabricante: nome, adequadas: [], insuficientes: [], semEoaPublicada: 0 };
+      f = { fabricante: nome, adequadas: [], insuficientes: [], desaconselhadas: [], semEoaPublicada: 0 };
       porFabricante.set(nome, f);
     }
     return f;
@@ -138,8 +152,16 @@ export function recomendarProteses(
       anelMax: p.annulus_max_mm,
       imagem: p.image_url,
       paginaDoFabricante: p.reference_url,
+      alerta: p.advisory
+        ? { tipo: p.advisory, nota: p.advisory_note ?? "", url: p.advisory_url ?? "", data: p.advisory_date }
+        : null,
     };
-    (r.grau === "ausente" ? f.adequadas : f.insuficientes).push(opcao);
+
+    // O alerta vem ANTES da conta. Uma prótese retirada do mercado não entra em
+    // "adequadas" nem que a EOA indexada seja ótima.
+    if (opcao.alerta) f.desaconselhadas.push(opcao);
+    else if (r.grau === "ausente") f.adequadas.push(opcao);
+    else f.insuficientes.push(opcao);
   }
 
   // Menor tamanho primeiro: numa lista de opções que já evitam mismatch, a
@@ -149,6 +171,7 @@ export function recomendarProteses(
     a.tamanho - b.tamanho || a.modelo.localeCompare(b.modelo, "pt-BR");
   for (const f of porFabricante.values()) {
     f.adequadas.sort(porTamanho);
+    f.desaconselhadas.sort(porTamanho);
     // Nas insuficientes, a maior primeiro: é a que chega mais perto de servir.
     f.insuficientes.sort((a, b) => b.ieoa - a.ieoa);
   }
@@ -159,6 +182,7 @@ export function recomendarProteses(
     ),
     semEoaPublicada,
     avaliadas,
+    desaconselhadas: [...porFabricante.values()].reduce((n, f) => n + f.desaconselhadas.length, 0),
     limiares,
     faixaDeObesidade,
   };

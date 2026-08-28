@@ -193,3 +193,43 @@ export const TEXTO_DO_RESULTADO: Record<ResultadoDaBusca, string> = {
   amostra_pequena:
     "Há valor publicado, mas com amostra pequena demais para servir de referência.",
 };
+
+
+/**
+ * A varredura por alerta regulatório — e o que ela achou.
+ *
+ * Nasceu de um susto: o catálogo listava a **Abbott Trifecta GT** com EOA
+ * excelente, e o recomendador a indicava ativamente. A Abbott retirou a família
+ * Trifecta do mercado dos EUA em 31/07/2023 por deterioração estrutural
+ * precoce. A ferramenta estava sugerindo a um cirurgião uma válvula recolhida
+ * por falhar cedo.
+ *
+ * Descobrir isso por acaso — a página de produtos da Abbott simplesmente não
+ * cita mais a Trifecta — deixou claro que "nenhum alerta" também precisa ser
+ * uma afirmação com data, e não um silêncio.
+ */
+export const VARREDURA_DE_ALERTAS = {
+  feitaEm: "2026-08-28",
+  /** O que foi consultado. */
+  fontes: [
+    "carta ao cliente da Abbott sobre a família Trifecta (31/07/2023)",
+    "comunicado FDA/Abbott sobre deterioração estrutural precoce (27/02/2023)",
+    "busca por recolhimentos Classe I de válvulas cardíacas entre 2023 e 2025",
+  ],
+  /** Modelos com alerta que impede nova indicação. */
+  comAlerta: ["Abbott|Trifecta GT"],
+  /**
+   * O que foi conferido e **não** tem alerta que impeça indicação. Os
+   * recolhimentos Classe 2 encontrados (sistema de entrega da Sapien 3,
+   * embalagem da Perceval) são de acessório ou lote, não da prótese, e não
+   * mudam a indicação.
+   */
+  semAlerta: [
+    "Edwards|Perimount", "Edwards|Magna Ease", "Edwards|Inspiris Resilia",
+    "Edwards|Intuity Elite", "Edwards|Konect Resilia", "Edwards|Mitris Resilia",
+    "Edwards|Sapien 3", "Abbott|Epic", "Abbott|Portico", "Abbott|Navitor",
+    "Abbott|St. Jude Regent", "Abbott|St. Jude Masters HP", "Medtronic|Avalus",
+    "Medtronic|Freestyle", "Medtronic|Hancock II", "Medtronic|Open Pivot",
+    "Medtronic|Evolut FX", "Medtronic|Evolut PRO+", "Corcym|Perceval Plus",
+  ],
+} as const;

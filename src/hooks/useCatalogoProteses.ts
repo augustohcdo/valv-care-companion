@@ -38,6 +38,17 @@ export interface ProteseDoCatalogo {
   reference_url: string | null;
   image_url: string | null;
   display_order: number | null;
+  /**
+   * Situação regulatória que o médico precisa saber **antes** de escolher.
+   *
+   * Não é `active = false` de propósito: a prótese retirada continua no
+   * catálogo porque quem já a tem implantada precisa das medidas dela — para
+   * planejar valve-in-valve e para ler o eco de seguimento.
+   */
+  advisory: "retirada_do_mercado" | "alerta_de_seguranca" | "descontinuada" | null;
+  advisory_note: string | null;
+  advisory_url: string | null;
+  advisory_date: string | null;
 }
 
 export const catalogoProtesesKey = ["catalogo-proteses"] as const;

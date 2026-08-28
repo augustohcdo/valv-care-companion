@@ -100,4 +100,22 @@ describe("catálogo de próteses", () => {
     expect(texto, "não mostra a data da busca").toMatch(/busca de \d{4}-\d{2}-\d{2}/);
     expect(screen.getByText(/ver o estudo mais próximo/), "não aponta o estudo achado").toBeTruthy();
   });
+
+  it("prótese retirada do mercado mostra o alerta no cartão, com a fonte", () => {
+    mockUseCatalogo.mockReturnValue({
+      data: [linha({
+        manufacturer: "Abbott", model_name: "Trifecta GT",
+        advisory: "retirada_do_mercado",
+        advisory_note: "Retirada do mercado dos EUA por deterioração estrutural precoce.",
+        advisory_url: "https://www.cardiovascular.abbott/exemplo.pdf",
+        advisory_date: "2023-07-31",
+      })],
+      isLoading: false, error: null,
+    });
+    render(<CatalogoProteses />);
+    const texto = document.body.textContent ?? "";
+    expect(texto).toMatch(/Retirada do mercado — não indicar para novo implante/);
+    expect(texto).toMatch(/deterioração estrutural precoce/);
+    expect(texto, "alerta sem data é boato").toMatch(/comunicado de 2023-07-31/);
+  });
 });

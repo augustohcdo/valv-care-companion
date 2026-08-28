@@ -19,7 +19,8 @@ const linha = (over: Partial<ProteseDoCatalogo>): ProteseDoCatalogo => ({
   eoa_source_label: "ASE 2024 — Tabela A4", eoa_source_url: "https://pubmed.ncbi.nlm.nih.gov/38182282/",
   mean_gradient_ref: 12.6, mean_gradient_ref_sd: 4.7,
   annulus_min_mm: 20, annulus_max_mm: 22, description: null, reference_url: null,
-  image_url: null, display_order: 1, ...over,
+  image_url: null, display_order: 1,
+  advisory: null, advisory_note: null, advisory_url: null, advisory_date: null, ...over,
 });
 
 /** 170 cm / 70 kg → 1,8097 m². Limiar aórtico de mismatch: iEOA > 0,85. */
@@ -133,6 +134,55 @@ describe("recomendador de prótese", () => {
       ["Inspiris Resilia", 23],
       ["Perimount", 21],
     ]);
+  });
+
+  describe("alerta regulatório", () => {
+    /**
+     * O caso real: a Trifecta GT tem EOA excelente (1,41 a 2,35 cm²) e a conta
+     * de mismatch a aprova em quase todo paciente. A Abbott a retirou do
+     * mercado em 31/07/2023 por deterioração estrutural precoce. O recomendador
+     * a indicava — medido, antes desta correção.
+     */
+    const comAlerta = () => linha({
+      manufacturer: "Abbott", model_name: "Trifecta GT", size: 19,
+      effective_orifice_area: 2.2,
+      advisory: "retirada_do_mercado",
+      advisory_note: "Retirada do mercado dos EUA em 31/07/2023 por deterioração estrutural precoce.",
+      advisory_url: "https://www.cardiovascular.abbott/exemplo.pdf",
+      advisory_date: "2023-07-31",
+    });
+
+    it("prótese com alerta NUNCA entra em adequadas, mesmo com EOA ótima", () => {
+      const r = recomendarProteses([comAlerta()], BSA, "aortica", 24);
+      const f = r.fabricantes[0]!;
+      expect(f.adequadas, "recomendou uma prótese retirada do mercado").toHaveLength(0);
+      expect(f.insuficientes, "escondeu na lista errada").toHaveLength(0);
+      expect(f.desaconselhadas).toHaveLength(1);
+      expect(r.desaconselhadas).toBe(1);
+    });
+
+    it("o alerta viaja com a opção — motivo, link e data", () => {
+      const o = recomendarProteses([comAlerta()], BSA, "aortica", 24).fabricantes[0]!.desaconselhadas[0]!;
+      expect(o.alerta!.tipo).toBe("retirada_do_mercado");
+      expect(o.alerta!.nota).toMatch(/deterioração estrutural precoce/);
+      expect(o.alerta!.url).toMatch(/^https:/);
+      expect(o.alerta!.data).toBe("2023-07-31");
+    });
+
+    it("sem alerta, nada muda: a prótese continua sendo indicada", () => {
+      const r = recomendarProteses([linha({ effective_orifice_area: 2.2 })], BSA, "aortica", 24);
+      expect(r.fabricantes[0]!.adequadas).toHaveLength(1);
+      expect(r.desaconselhadas).toBe(0);
+    });
+
+    it("a prótese com alerta continua no catálogo — não é escondida", () => {
+      // Quem já tem uma implantada precisa das medidas para valve-in-valve e
+      // para ler o eco de seguimento. Sumir com ela tiraria a informação de
+      // quem mais precisa dela.
+      const r = recomendarProteses([comAlerta()], BSA, "aortica", 24);
+      expect(r.avaliadas, "a prótese sumiu da avaliação").toBe(1);
+      expect(r.fabricantes).toHaveLength(1);
+    });
   });
 
   it("superfície corporal impossível não produz recomendação", () => {

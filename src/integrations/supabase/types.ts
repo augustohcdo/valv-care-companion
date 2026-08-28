@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -1841,6 +1841,10 @@ export type Database = {
       prosthesis_catalog: {
         Row: {
           active: boolean
+          advisory: Database["public"]["Enums"]["prosthesis_advisory"] | null
+          advisory_date: string | null
+          advisory_note: string | null
+          advisory_url: string | null
           annulus_max_mm: number | null
           annulus_min_mm: number | null
           created_at: string
@@ -1864,6 +1868,10 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          advisory?: Database["public"]["Enums"]["prosthesis_advisory"] | null
+          advisory_date?: string | null
+          advisory_note?: string | null
+          advisory_url?: string | null
           annulus_max_mm?: number | null
           annulus_min_mm?: number | null
           created_at?: string
@@ -1887,6 +1895,10 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          advisory?: Database["public"]["Enums"]["prosthesis_advisory"] | null
+          advisory_date?: string | null
+          advisory_note?: string | null
+          advisory_url?: string | null
           annulus_max_mm?: number | null
           annulus_min_mm?: number | null
           created_at?: string
@@ -2460,6 +2472,10 @@ export type Database = {
       catalogo_proteses: {
         Args: never
         Returns: {
+          advisory: string
+          advisory_date: string
+          advisory_note: string
+          advisory_url: string
           annulus_max_mm: number
           annulus_min_mm: number
           description: string
@@ -2841,6 +2857,10 @@ export type Database = {
         | "document_shared"
         | "system"
       nyha_class: "I" | "II" | "III" | "IV"
+      prosthesis_advisory:
+        | "retirada_do_mercado"
+        | "alerta_de_seguranca"
+        | "descontinuada"
       prosthesis_type:
         | "biologica_aortica"
         | "biologica_mitral"
@@ -3136,6 +3156,11 @@ export const Constants = {
         "system",
       ],
       nyha_class: ["I", "II", "III", "IV"],
+      prosthesis_advisory: [
+        "retirada_do_mercado",
+        "alerta_de_seguranca",
+        "descontinuada",
+      ],
       prosthesis_type: [
         "biologica_aortica",
         "biologica_mitral",
