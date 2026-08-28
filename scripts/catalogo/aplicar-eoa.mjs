@@ -83,19 +83,19 @@ for (const linha of todas) {
   if (!v) { semCorrespondencia++; continue; }
   naoEncontrados.delete(chave);
 
-  // A descrição perde a frase antiga do gradiente antes de ganhar a nova, para
-  // não empilhar a cada execução.
+  // O gradiente foi para coluna própria (migration 20260828020000). Enquanto ela
+  // não existia, ele morava numa frase dentro da descrição — esta linha limpa
+  // essa sobra, e é por isso que ela continua aqui.
   const limpa = (linha.description || "").split(MARCA)[0].trim();
-  const frase = v.grad != null
-    ? ` ${MARCA} ${pt(v.grad)} ± ${pt(v.dpGrad)} mmHg (ASE 2024).`
-    : "";
 
   const corpo = {
     effective_orifice_area: v.eoa,
     eoa_reference_sd: v.dp,
     eoa_source_label: v.rotulo,
     eoa_source_url: PMID,
-    description: (limpa + frase).trim(),
+    mean_gradient_ref: v.grad,
+    mean_gradient_ref_sd: v.dpGrad,
+    description: limpa,
   };
 
   if (seco) {

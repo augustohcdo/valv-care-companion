@@ -17,6 +17,7 @@ const linha = (over: Partial<ProteseDoCatalogo>): ProteseDoCatalogo => ({
   manufacturer: "Edwards", model_name: "Perimount", type: "biologica_aortica",
   valve_position: "aortica", size: 21, effective_orifice_area: 1.3, eoa_reference_sd: 0.3,
   eoa_source_label: "ASE 2024 — Tabela A4", eoa_source_url: "https://pubmed.ncbi.nlm.nih.gov/38182282/",
+  mean_gradient_ref: 12.6, mean_gradient_ref_sd: 4.7,
   annulus_min_mm: 20, annulus_max_mm: 22, description: null, reference_url: null,
   image_url: null, display_order: 1, ...over,
 });

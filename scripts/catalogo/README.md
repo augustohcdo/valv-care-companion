@@ -108,11 +108,22 @@ página viva sob o domínio do fabricante, e essa página fica gravada como
 
 Mostrar a válvula errada a um cirurgião é pior do que não mostrar nenhuma.
 
-## O gradiente está em `description`, por ora
+## O gradiente de referência
 
-Não há coluna para ele: o token da Management API caiu no meio da rodada e a
-`service_role` não executa DDL. A migration
-`20260828020000_catalogo_gradiente_de_referencia.sql` cria
-`mean_gradient_ref` e espera o token. Enquanto isso o script grava a frase
-`Gradiente médio de referência: X ± Y mmHg (ASE 2024).` no fim da descrição, e a
-remove antes de reescrever para não empilhar.
+Tem coluna própria: `mean_gradient_ref` e `mean_gradient_ref_sd`, criadas pela
+migration `20260828020000`. **80 dos 87 tamanhos com EOA também têm gradiente.**
+
+Ele passou um tempo dentro de `description`, numa frase demarcada, porque o
+token da Management API expirou no meio da rodada e a `service_role` não executa
+DDL. Com o token novo, a coluna entrou e os scripts passaram a limpar a sobra —
+por isso eles ainda cortam a frase antes de gravar.
+
+Duas coisas que a aplicação ensinou, e que estão viradas em guarda:
+
+- **`CREATE OR REPLACE` não muda tipo de retorno.** A migration muda, e o
+  Postgres recusa com "cannot change return type of existing function". Precisa
+  de `DROP FUNCTION` antes. Quando falhou, a transação inteira reverteu —
+  inclusive as colunas —, que é o comportamento certo.
+- **A restrição `prosthesis_catalog_eoa_com_fonte` só entrou agora**, junto: ela
+  ficou de fora quando o token caiu. Conferida barrando de verdade uma tentativa
+  de apagar a fonte de uma linha que tem EOA.

@@ -226,6 +226,10 @@ function LinhaOpcao({ o }: { o: OpcaoProtese }) {
         <p className="text-[11px] text-muted-foreground mt-1 tabular-nums">
           EOA de referência {duas(o.eoa)}{o.eoaDesvio ? ` ± ${duas(o.eoaDesvio)}` : ""} cm²
           {" · "}indexada <strong className="text-foreground">{duas(o.ieoa)}</strong> cm²/m²
+          {o.gradiente != null && (
+            <> · gradiente esperado {duas(o.gradiente)}
+              {o.gradienteDesvio != null ? ` ± ${duas(o.gradienteDesvio)}` : ""} mmHg</>
+          )}
           {o.anelMin != null && o.anelMax != null && (
             <> · anel {tam(o.anelMin)}–{tam(o.anelMax)} mm</>
           )}

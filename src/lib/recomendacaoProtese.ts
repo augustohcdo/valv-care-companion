@@ -37,6 +37,9 @@ export interface OpcaoProtese {
   /** EOA de referência publicada, em cm². */
   eoa: number;
   eoaDesvio: number | null;
+  /** Gradiente médio de referência do modelo neste tamanho, quando publicado. */
+  gradiente: number | null;
+  gradienteDesvio: number | null;
   fonteRotulo: string | null;
   fonteUrl: string | null;
   /** EOA indexada projetada = EOA ÷ superfície corporal. */
@@ -125,6 +128,8 @@ export function recomendarProteses(
       tamanho: p.size,
       eoa: p.effective_orifice_area,
       eoaDesvio: p.eoa_reference_sd,
+      gradiente: p.mean_gradient_ref,
+      gradienteDesvio: p.mean_gradient_ref_sd,
       fonteRotulo: p.eoa_source_label,
       fonteUrl: p.eoa_source_url,
       ieoa: r.ieoa,

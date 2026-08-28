@@ -213,6 +213,7 @@ function CartaoFamilia({ familia: f }: { familia: Familia }) {
   const anelMax = Math.max(...f.linhas.map((l) => l.annulus_max_mm ?? -Infinity));
   const temAnel = Number.isFinite(anelMin) && Number.isFinite(anelMax);
   const comEoa = f.linhas.filter((l) => l.effective_orifice_area != null);
+  const comGradiente = f.linhas.filter((l) => l.mean_gradient_ref != null);
 
   return (
     <Card className="overflow-hidden">
@@ -258,6 +259,16 @@ function CartaoFamilia({ familia: f }: { familia: Familia }) {
               <div className="flex gap-2">
                 <dt className="text-muted-foreground shrink-0">Anel</dt>
                 <dd className="text-foreground">{numeroPt(anelMin)}–{numeroPt(anelMax)} mm</dd>
+              </div>
+            )}
+            {comGradiente.length > 0 && (
+              <div className="flex gap-2">
+                <dt className="text-muted-foreground shrink-0">Grad. ref.</dt>
+                <dd className="text-foreground">
+                  {comGradiente
+                    .map((l) => `${numeroPt(l.size!)} mm: ${l.mean_gradient_ref}${l.mean_gradient_ref_sd ? `±${l.mean_gradient_ref_sd}` : ""} mmHg`)
+                    .join(" · ")}
+                </dd>
               </div>
             )}
             <div className="flex gap-2">

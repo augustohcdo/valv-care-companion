@@ -64,17 +64,18 @@ for (const linha of todas) {
   if (!v) continue;
   naoEncontrados.delete(chave);
 
+  // Idem: o gradiente tem coluna própria agora; isto limpa a frase que ficou de
+  // quando não tinha.
   const limpa = (linha.description || "").split(MARCA)[0].trim();
-  // Sem parênteses aninhados: o rótulo da fonte já traz os seus, e a frase saía
-  // "(Registro CONFIDENCE (Möllmann 2023) — 30 dias)".
-  const frase = v.grad != null ? ` ${MARCA} ${pt(v.grad)} ± ${pt(v.dpGrad)} mmHg — ${v.rotulo}.` : "";
 
   const corpo = {
     effective_orifice_area: v.eoa,
     eoa_reference_sd: v.dp,
     eoa_source_label: `${v.rotulo}${v.n ? `, n = ${v.n}` : ""}`,
     eoa_source_url: v.url,
-    description: (limpa + frase).trim(),
+    mean_gradient_ref: v.grad,
+    mean_gradient_ref_sd: v.dpGrad,
+    description: limpa,
   };
 
   if (seco) {

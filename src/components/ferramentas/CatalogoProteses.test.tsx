@@ -29,6 +29,7 @@ const linha = (over: Partial<ProteseDoCatalogo> = {}): ProteseDoCatalogo => ({
   id: "1", manufacturer: "Edwards", model_name: "Perimount", type: "biologica_aortica",
   valve_position: "aortica", size: 21, effective_orifice_area: 1.3, eoa_reference_sd: 0.4,
   eoa_source_label: "EACVI 2016 — Tabela 7", eoa_source_url: "https://pubmed.ncbi.nlm.nih.gov/27143783/",
+  mean_gradient_ref: 12.6, mean_gradient_ref_sd: 4.7,
   annulus_min_mm: null, annulus_max_mm: null, description: "Bioprótese aórtica.",
   reference_url: "https://exemplo.invalid/perimount", image_url: null, display_order: 1,
   ...over,

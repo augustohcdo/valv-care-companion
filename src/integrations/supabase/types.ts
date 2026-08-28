@@ -1853,6 +1853,8 @@ export type Database = {
           id: string
           image_url: string | null
           manufacturer: string
+          mean_gradient_ref: number | null
+          mean_gradient_ref_sd: number | null
           model_name: string
           reference_url: string | null
           size: number | null
@@ -1874,6 +1876,8 @@ export type Database = {
           id?: string
           image_url?: string | null
           manufacturer: string
+          mean_gradient_ref?: number | null
+          mean_gradient_ref_sd?: number | null
           model_name: string
           reference_url?: string | null
           size?: number | null
@@ -1895,6 +1899,8 @@ export type Database = {
           id?: string
           image_url?: string | null
           manufacturer?: string
+          mean_gradient_ref?: number | null
+          mean_gradient_ref_sd?: number | null
           model_name?: string
           reference_url?: string | null
           size?: number | null
@@ -2465,6 +2471,8 @@ export type Database = {
           id: string
           image_url: string
           manufacturer: string
+          mean_gradient_ref: number
+          mean_gradient_ref_sd: number
           model_name: string
           reference_url: string
           size: number

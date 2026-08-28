@@ -29,6 +29,9 @@ export interface ProteseDoCatalogo {
   eoa_reference_sd: number | null;
   eoa_source_label: string | null;
   eoa_source_url: string | null;
+  /** Gradiente médio de referência, em mmHg — mesma fonte da EOA. */
+  mean_gradient_ref: number | null;
+  mean_gradient_ref_sd: number | null;
   annulus_min_mm: number | null;
   annulus_max_mm: number | null;
   description: string | null;

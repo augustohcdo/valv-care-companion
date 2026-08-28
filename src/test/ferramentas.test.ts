@@ -75,6 +75,34 @@ describe("catálogo de próteses — a procedência que foi prometida", () => {
     expect(sql).toMatch(/size\s*<=\s*42/i);
   });
 
+  it("o gradiente de referência tem coluna própria — não vive dentro da prosa", () => {
+    // Enquanto o token da Management API esteve recusado, o gradiente foi
+    // gravado numa frase dentro de `description`: dava para ler, mas o
+    // recomendador não conseguia usá-lo e ninguém conseguia filtrar por ele.
+    // Com a coluna criada, os scripts passaram a limpar essa sobra — e esta
+    // guarda existe para o remendo não voltar.
+    expect(sql).toMatch(/add column if not exists mean_gradient_ref numeric/i);
+    for (const script of ["aplicar-eoa.mjs", "aplicar-estudos.mjs"]) {
+      const fonte = ler(`scripts/catalogo/${script}`);
+      expect(fonte, `${script} grava o gradiente na coluna?`).toMatch(/mean_gradient_ref:/);
+      expect(
+        /description:\s*\(limpa \+ frase\)/.test(fonte),
+        `${script} voltou a enfiar o gradiente na descrição`,
+      ).toBe(false);
+    }
+  });
+
+  it("trocar o retorno da função exige DROP antes do CREATE", () => {
+    // O Postgres recusa `CREATE OR REPLACE` quando o tipo de retorno muda, e a
+    // migration do gradiente muda. Medido ao aplicar: a transação inteira
+    // reverteu, inclusive as colunas.
+    const gradiente = ler("supabase/migrations/20260828020000_catalogo_gradiente_de_referencia.sql");
+    const drop = gradiente.indexOf("DROP FUNCTION IF EXISTS public.catalogo_proteses()");
+    const create = gradiente.indexOf("CREATE FUNCTION public.catalogo_proteses()");
+    expect(drop, "sem DROP, a migration não aplica").toBeGreaterThan(0);
+    expect(create, "sem CREATE, a função some").toBeGreaterThan(drop);
+  });
+
   it("a leitura pública é por função, não pela tabela aberta a anônimo", () => {
     expect(sql).toMatch(/create or replace function public\.catalogo_proteses\(\)/i);
     expect(sql).toMatch(/grant execute on function public\.catalogo_proteses\(\) to anon, authenticated/i);

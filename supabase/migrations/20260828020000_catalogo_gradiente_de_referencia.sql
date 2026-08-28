@@ -1,32 +1,29 @@
 -- ============================================================================
--- Coluna do gradiente médio de referência — PENDENTE DE APLICAÇÃO.
+-- Coluna própria para o gradiente médio de referência.
 --
--- ## Por que este arquivo existe separado
+-- A ASE 2024 publica, junto da EOA, o gradiente médio de cada modelo e tamanho —
+-- o dado de "performance" que o catálogo devia mostrar. Ele existe para 80 dos
+-- 87 tamanhos que têm EOA.
 --
--- Os dados desta rodada (EOA de referência de 74 tamanhos, desvio-padrão, fonte
--- por linha, e a foto oficial de 17 famílias) **já estão no banco**: foram
--- gravados pelo PostgREST com a `service_role`, e o script que os grava está
--- versionado em `scripts/catalogo/` — é ele, e não um bloco de UPDATE aqui, o
--- artefato reproduzível. Rodar de novo é idempotente.
+-- ## Por que esta migration nasceu separada
 --
--- O que NÃO deu para aplicar foi DDL: o token da Management API do projeto
--- passou a devolver 401 no meio da rodada, e a `service_role` do PostgREST não
--- executa comando de esquema. Então esta migration fica escrita e entra assim
--- que o token voltar.
+-- Os dados da rodada foram gravados pelo PostgREST com a `service_role`, e o
+-- script que os grava está versionado em `scripts/catalogo/` — é ele, e não um
+-- bloco de UPDATE aqui, o artefato reproduzível.
 --
--- ## O que falta, e o remendo que está no ar enquanto isso
+-- O que não deu para aplicar na hora foi DDL: o token da Management API do
+-- projeto expirou no meio da rodada, e a `service_role` não executa comando de
+-- esquema. Enquanto isso o gradiente ficou numa frase demarcada dentro de
+-- `description` — dava para ler, mas o recomendador não conseguia usá-lo e
+-- ninguém conseguia filtrar por ele. Com o token novo a coluna entrou, e os
+-- scripts passaram a limpar aquela sobra.
 --
--- A ASE 2024 publica, junto da EOA, o **gradiente médio de referência** de cada
--- modelo e tamanho — o dado de "performance" que o catálogo devia mostrar. Sem
--- coluna para ele, e para não perdê-lo, o script o gravou numa frase demarcada
--- dentro de `description`:
+-- ## O que a aplicação ensinou
 --
---     "Gradiente médio de referência: 12,6 ± 4,7 mmHg (ASE 2024)."
---
--- Funciona para leitura, mas é dado dentro de prosa: o recomendador não
--- consegue usá-lo, e ninguém consegue ordenar ou filtrar por ele. Quando esta
--- migration entrar, o script passa a gravar na coluna e a frase sai da
--- descrição.
+-- `CREATE OR REPLACE` **não** muda tipo de retorno, e é isso que esta migration
+-- faz na função de leitura. Na primeira tentativa o Postgres recusou com
+-- "cannot change return type of existing function" e a transação inteira
+-- reverteu — inclusive as colunas. Daí o `DROP FUNCTION` abaixo.
 -- ============================================================================
 
 ALTER TABLE public.prosthesis_catalog
@@ -39,7 +36,15 @@ COMMENT ON COLUMN public.prosthesis_catalog.mean_gradient_ref IS
   'a fonte é a mesma de eoa_source_url.';
 
 -- A função de leitura pública passa a devolver as duas colunas novas.
-CREATE OR REPLACE FUNCTION public.catalogo_proteses()
+--
+-- `DROP` antes do `CREATE`: o Postgres recusa `CREATE OR REPLACE` quando o tipo
+-- de retorno muda ("cannot change return type of existing function"), e mudar o
+-- retorno é exatamente o que esta migration faz. Medido ao aplicar — a
+-- transação inteira reverteu, inclusive as colunas, o que é o comportamento
+-- certo: ou entra tudo, ou nada.
+DROP FUNCTION IF EXISTS public.catalogo_proteses();
+
+CREATE FUNCTION public.catalogo_proteses()
 RETURNS TABLE (
   id uuid,
   manufacturer text,
