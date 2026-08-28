@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { BUSCA_DE_FONTES, buscaDaFamilia, TEXTO_DO_RESULTADO, N_MINIMO, BUSCA_FEITA_EM } from "./buscaDeFontes";
+import {
+  BUSCA_DE_FONTES, BUSCA_DE_FOTOS, buscaDaFamilia, motivoSemFoto,
+  TEXTO_DO_RESULTADO, N_MINIMO, BUSCA_FEITA_EM,
+} from "./buscaDeFontes";
 
 /**
  * O registro da busca por fonte, cobrado.
@@ -43,6 +46,23 @@ describe("registro da busca por EOA de referência", () => {
     expect(new Set(vistas).size).toBe(vistas.length);
   });
 
+  it("`coberta_em_parte` nomeia os tamanhos que ficaram de fora", () => {
+    // Este estado diz "tem dado em uns tamanhos e não em outros". Se a nota não
+    // disser QUAIS faltam, o médico fica sem saber se o tamanho dele é um dos
+    // cobertos — e a frase vira tranquilizante em vez de informação.
+    const parciais = BUSCA_DE_FONTES.filter((x) => x.resultado === "coberta_em_parte");
+    expect(parciais.length, "o estado existe mas ninguém o usa").toBeGreaterThan(0);
+    for (const b of parciais) {
+      // Duas exigências, e a primeira sozinha não bastava: a inversão mostrou
+      // que trocar "27 a 33 mm cobertos" por "faltam alguns tamanhos" ainda
+      // passava, porque havia outro "mm" adiante na mesma nota.
+      const medidas = b.nota.match(/\d+(?:,\d+)?\s*mm/g) ?? [];
+      expect(medidas.length, `${b.familia}: não nomeia tamanho nenhum`).toBeGreaterThanOrEqual(2);
+      expect(b.nota, `${b.familia}: não separa o que tem do que falta`)
+        .toMatch(/sem valor|falta|não (o )?(traz|tem)|continua sem/i);
+    }
+  });
+
   it("a busca tem data, e a tela a mostra", () => {
     expect(BUSCA_FEITA_EM).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     for (const arquivo of [
@@ -64,6 +84,25 @@ describe("registro da busca por EOA de referência", () => {
     // Divergir aqui deixaria a tela dizendo uma regra e o banco obedecendo outra.
     const script = readFileSync("scripts/catalogo/aplicar-estudos.mjs", "utf8");
     expect(script).toMatch(new RegExp(`N_MINIMO\\s*=\\s*${N_MINIMO}\\b`));
+  });
+
+  it("a ausência de foto também tem motivo registrado, e a tela o mostra", () => {
+    // Mesma disciplina da EOA: sem foto tem dois significados opostos — ninguém
+    // procurou, ou procurou-se e não há. O esquema construtivo desenhado aqui
+    // preenche o buraco visual e não distingue os dois.
+    expect(BUSCA_DE_FOTOS.length).toBeGreaterThan(5);
+    for (const b of BUSCA_DE_FOTOS) {
+      expect(b.familia, "família fora do formato fabricante|modelo").toMatch(/^[^|]+\|[^|]+$/);
+      expect(b.motivo.length, `${b.familia}: motivo curto demais para ser explicação`).toBeGreaterThan(60);
+    }
+    expect(new Set(BUSCA_DE_FOTOS.map((b) => b.familia)).size).toBe(BUSCA_DE_FOTOS.length);
+    expect(motivoSemFoto("Edwards", "Perimount")).toMatch(/radiografia/i);
+    expect(motivoSemFoto("Edwards", "Inspiris Resilia"), "tem foto, não deveria ter motivo")
+      .toBeUndefined();
+    expect(
+      readFileSync("src/components/ferramentas/CatalogoProteses.tsx", "utf8"),
+      "o catálogo não mostra o motivo de não haver foto",
+    ).toMatch(/\bmotivoSemFoto\b/);
   });
 
   it("as duas telas distinguem os três estados do campo vazio", () => {

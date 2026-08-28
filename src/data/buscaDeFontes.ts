@@ -18,7 +18,19 @@
  * token da Management API estiver recusado.)
  */
 
-export type ResultadoDaBusca = "sem_estudo" | "sem_dado_por_tamanho" | "amostra_pequena";
+/**
+ * `coberta_em_parte` entrou na segunda rodada, e por um erro meu: mudei a Open
+ * Pivot de `sem_estudo` para `sem_dado_por_tamanho` depois de achar os valores
+ * dela na ASE 2024, e a guarda que exige artigo citado em `sem_dado_por_tamanho`
+ * reprovou — com razão. Os três estados originais só descreviam ausência total;
+ * "tem dado em cinco tamanhos e falta um" não cabia em nenhum, e forçar o
+ * encaixe faria a tela dizer algo falso sobre a família inteira.
+ */
+export type ResultadoDaBusca =
+  | "sem_estudo"
+  | "sem_dado_por_tamanho"
+  | "amostra_pequena"
+  | "coberta_em_parte";
 
 export interface BuscaDeFonte {
   /** `fabricante|modelo` — a mesma chave de família usada no catálogo. */
@@ -116,11 +128,13 @@ export const BUSCA_DE_FONTES: BuscaDeFonte[] = [
   },
   {
     familia: "Abbott|Epic",
-    resultado: "sem_dado_por_tamanho",
+    resultado: "coberta_em_parte",
     nota:
-      "A posição aórtica está coberta pela ASE 2024. Na mitral, a Tabela A5 traz só dois pares por " +
-      "linha e, em posição mitral, velocidade de pico (m/s) e EOA (cm²) caem na mesma faixa numérica: " +
-      "não dá para saber qual coluna é qual.",
+      "Aórtica coberta em 21 a 29 mm e mitral em 27 a 33 mm pela ASE 2024. Falta só o 25 mm mitral: a " +
+      "Tabela A5 começa no 27 mm e não o traz. Registro do que mudou: esta família chegou a ficar inteira sem valor na " +
+      "mitral porque a leitura linear do PDF perdia o glifo '±' e colava os números; a leitura por " +
+      "posição de coluna mostrou que o segundo número está na coluna de EOA (x≈509) e que a de " +
+      "velocidade de pico (x≈383) está vazia nessas linhas.",
   },
   {
     familia: "Corcym|Crown PRT",
@@ -153,10 +167,11 @@ export const BUSCA_DE_FONTES: BuscaDeFonte[] = [
   },
   {
     familia: "Edwards|Mitris Resilia",
-    resultado: "sem_dado_por_tamanho",
+    resultado: "coberta_em_parte",
     nota:
-      "Os resultados clínicos publicados agrupam os tamanhos 23 e 25 mm numa única medida (EOA 1,9 ± " +
-      "0,9 cm²) e apresentam os demais só em figura, sem valor por tamanho.",
+      "Tamanhos 27 a 33 mm cobertos pela Tabela A5 da ASE 2024. O 25 mm continua sem valor: a tabela " +
+      "não o traz, e o estudo clínico agrupa 23 e 25 mm numa única medida (EOA 1,9 ± 0,9 cm²), que " +
+      "não serve para projetar mismatch de um tamanho.",
     referencia: {
       citacao: "Kainuma S, et al. Clinical Outcomes of First-Time and Redo Mitral Valve Replacement Using MITRIS RESILIA Bioprosthesis. Ann Thorac Surg Short Rep 2026;4(2):618-624.",
       url: "https://pubmed.ncbi.nlm.nih.gov/42267016/",
@@ -164,18 +179,29 @@ export const BUSCA_DE_FONTES: BuscaDeFonte[] = [
   },
   {
     familia: "Medtronic|Open Pivot",
-    resultado: "sem_estudo",
+    resultado: "coberta_em_parte",
     nota:
-      "A única publicação encontrada é de dinâmica de fluidos comparando desenhos de dobradiça, sem " +
-      "EOA clínica por tamanho.",
+      "Aórtica 19 a 27 mm coberta pela Tabela A4 da ASE 2024, sob o nome 'ATS Bileaflet' — a Open " +
+      "Pivot é a bileaflet da ATS Medical, comprada pela Medtronic em 2010. Ficam sem valor o 17 mm " +
+      "aórtico (fora da tabela) e o 29 mm mitral (a A5 não tem entrada ATS). NÃO foi usada a linha " +
+      "'ATS AP Bileaflet': é a série supra-anular, com outra numeração (18, 20, 22, 24, 26).",
   },
   {
     familia: "Edwards|Perimount",
-    resultado: "amostra_pequena",
+    resultado: "coberta_em_parte",
     nota:
-      "Coberta pela ASE 2024 em todos os tamanhos. Registrado aqui só para dizer que a entrada usada " +
-      "é 'Baxter Perimount' da Tabela A4, e não a 'Carpentier-Edwards Pericardial' da mesma tabela, " +
-      "cujo 25 mm não traz EOA.",
+      "Coberta pela ASE 2024 nos dois lados: aórtica pela entrada 'Baxter Perimount' da Tabela A4 " +
+      "(e não pela 'Carpentier-Edwards Pericardial' da mesma tabela, cujo 25 mm não traz EOA), " +
+      "mitral pela 'Carpentier-Edwards Perimount, stented pericardial' da Tabela A5, em 25 a 33 mm.",
+  },
+  {
+    familia: "Edwards|Magna Ease",
+    resultado: "coberta_em_parte",
+    nota:
+      "Com valor apenas em 23 mm e 25 mm, de estudo próprio (Mayr 2021, n = 17 e n = 27). Sem valor " +
+      "em 19, 21, 27 e 29 mm: a ASE 2024 não tem entrada 'Magna' nem 'Magna Ease' — conferido " +
+      "varrendo os 62 rótulos da Tabela A4 —, e a Magna Ease é geração posterior à Perimount, então " +
+      "emprestar o valor da Perimount seria inventar procedência.",
   },
 ];
 
@@ -192,8 +218,64 @@ export const TEXTO_DO_RESULTADO: Record<ResultadoDaBusca, string> = {
     "Há estudo publicado, mas ele não separa a EOA por tamanho — e um valor somando todos os tamanhos não serve para projetar mismatch.",
   amostra_pequena:
     "Há valor publicado, mas com amostra pequena demais para servir de referência.",
+  coberta_em_parte:
+    "Parte dos tamanhos tem EOA de referência publicada e parte não — os que faltam estão nomeados na nota.",
 };
 
+
+/**
+ * A varredura por foto oficial — e por que algumas famílias seguem sem.
+ *
+ * A regra é a mesma da EOA: campo vazio precisa dizer se ninguém procurou ou se
+ * procurou-se e não há. Onde não há foto, o cartão mostra o esquema construtivo
+ * daqui — que é desenho nosso e não se confunde com produto.
+ *
+ * O que foi consultado, em 28/08/2026:
+ *
+ *   · **Edwards** — API de entrega do CMS deles (`deliver.kontent.ai`, leitura
+ *     pública, a mesma que o site consome), 4.876 assets, cada um com o nome do
+ *     item que o usa. É de onde saíram Sapien 3, Sapien 3 Ultra e Magna Mitral
+ *     Ease nesta rodada.
+ *   · **Abbott** — páginas de produto e o DAM próprio (`/content/dam/cv/`).
+ *   · **Medtronic** — nada. Ver abaixo.
+ */
+export const BUSCA_DE_FOTOS: { familia: string; motivo: string }[] = [
+  {
+    familia: "Edwards|Perimount",
+    motivo:
+      "As duas únicas candidatas no CMS da Edwards são radiografia de peça explantada — a segunda " +
+      "traz 'Procedure: SPECIMEN IMAGING' escrito na própria imagem. A Edwards só publica foto de " +
+      "produto da geração Magna Ease.",
+  },
+  ...["Avalus", "CG Future", "Contour 3D", "Evolut FX", "Evolut PRO+", "Freestyle", "Hancock II",
+      "Open Pivot", "Profile 3D"].map((modelo) => ({
+    familia: `Medtronic|${modelo}`,
+    motivo:
+      "medtronic.com responde 1.104 bytes com 'Incorrect Browser' para tudo — página de produto, " +
+      "site regional e asset direto. É proteção contra robô, e não se contorna.",
+  })),
+  {
+    familia: "Abbott|Trifecta GT",
+    motivo:
+      "Retirada do mercado em 2023: a Abbott tirou a linha do site. Também não faria sentido " +
+      "ilustrar com foto de produto uma prótese que não deve ser indicada.",
+  },
+  {
+    familia: "Abbott|Portico",
+    motivo: "Substituída pela Navitor; a Abbott não mantém mais página de produto com foto da Portico.",
+  },
+  {
+    familia: "Abbott|Rigid Saddle Ring",
+    motivo: "Sem foto de produto nas páginas de reparo valvar da Abbott varridas nesta rodada.",
+  },
+];
+
+const PORFOTO = new Map(BUSCA_DE_FOTOS.map((b) => [b.familia, b.motivo]));
+
+/** Por que esta família não tem foto oficial — ou `undefined` se ninguém registrou. */
+export function motivoSemFoto(fabricante: string, modelo: string): string | undefined {
+  return PORFOTO.get(`${fabricante}|${modelo}`);
+}
 
 /**
  * A varredura por alerta regulatório — e o que ela achou.

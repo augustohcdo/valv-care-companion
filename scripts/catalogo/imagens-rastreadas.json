@@ -19,16 +19,18 @@
    "naPagina": false
   },
   "Sapien 3": {
-   "imagem": "https://assets-us-01.kc-usercontent.com/6239a81e-8f0f-0040-a1df-b4932a10f6ae/6e4a217e-0fe0-45fe-af42-66ab2ffd1e81/Sapien-3-ultra-thumbnail-02.png?q=75&w=1920&auto=format&fm=webp&lossless=true",
-   "alt": "SAPIEN 3 Ultra RESILIA",
+   "imagem": "https://assets-us-01.kc-usercontent.com/6239a81e-8f0f-0040-a1df-b4932a10f6ae/f57194f4-1a81-41be-bc48-fa163e109a84/SAPIEN%203%20Transcatheter%20Heart%20Valve.png",
+   "alt": "SAPIEN 3 valve - side view",
    "pagina": "https://www.edwards.com/healthcare-professionals/products-services/transcatheter-heart",
-   "naPagina": false
+   "naPagina": false,
+   "origem": "CMS Kontent da Edwards, item \"SAPIEN 3 valve - side view\""
   },
   "Sapien 3 Ultra": {
-   "imagem": "https://assets-us-01.kc-usercontent.com/6239a81e-8f0f-0040-a1df-b4932a10f6ae/6e4a217e-0fe0-45fe-af42-66ab2ffd1e81/Sapien-3-ultra-thumbnail-02.png?q=75&w=1920&auto=format&fm=webp&lossless=true",
-   "alt": "SAPIEN 3 Ultra RESILIA",
+   "imagem": "https://assets-us-01.kc-usercontent.com/6239a81e-8f0f-0040-a1df-b4932a10f6ae/92d3596d-158b-4702-aa92-03f124e2971c/sapien3-ultra-large%20%281%29.png",
+   "alt": "SAPIEN 3 Ultra valve",
    "pagina": "https://www.edwards.com/healthcare-professionals/products-services/transcatheter-heart",
-   "naPagina": false
+   "naPagina": false,
+   "origem": "CMS Kontent da Edwards, item \"SAPIEN 3 Ultra valve\""
   },
   "Sapien 3 Ultra RESILIA": {
    "imagem": "https://assets-us-01.kc-usercontent.com/6239a81e-8f0f-0040-a1df-b4932a10f6ae/6e4a217e-0fe0-45fe-af42-66ab2ffd1e81/Sapien-3-ultra-thumbnail-02.png?q=75&w=1920&auto=format&fm=webp&lossless=true",
@@ -61,10 +63,11 @@
    "naPagina": false
   },
   "Magna Mitral Ease": {
-   "imagem": "https://assets-us-01.kc-usercontent.com/6239a81e-8f0f-0040-a1df-b4932a10f6ae/327e4a64-0dd0-4542-959a-58421897080c/PERIMOUN-Magna-Mitral.png?q=75&w=1920&auto=format&fm=webp&lossless=true",
-   "alt": "magna perimount thumbnail",
-   "pagina": "https://www.edwards.com/healthcare-professionals/products-services/surgical-heart/mitral",
-   "naPagina": false
+   "imagem": "https://assets-us-01.kc-usercontent.com/6239a81e-8f0f-0040-a1df-b4932a10f6ae/39367807-7223-4e80-8445-74b6dcaca96e/slider-perimount-magma.jpg",
+   "alt": "Model 7300TFX",
+   "pagina": "https://www.edwards.com/healthcare-professionals/products-services/surgical-heart/mitral-pericardial",
+   "naPagina": false,
+   "origem": "CMS Kontent da Edwards, item \"Model 7300TFX Image\" — 7300TFX e o codigo da Magna Mitral Ease"
   },
   "Physio II (5200)": {
    "imagem": "https://assets-us-01.kc-usercontent.com/6239a81e-8f0f-0040-a1df-b4932a10f6ae/bb06cc30-ba22-4242-9516-fa03d4ec504d/carpentier-edwards-physio-ii-annuloplasty-ring-model%402x.png",
@@ -93,10 +96,17 @@
    "naPagina": false
   },
   "Epic": {
-   "imagem": "https://www.cardiovascular.abbott/content/dam/cv/cardiovascular/hcp/products/structural-heart/surgical-valves/product-images/epic-max-av-side-flip-fnl.png",
-   "alt": "Epic Max stented tissue valve",
-   "pagina": "https://www.cardiovascular.abbott/us/en/hcp/products/structural-heart/surgical-valve-solutions.html",
-   "naPagina": false
+   "aortica": {
+    "imagem": "https://www.cardiovascular.abbott/content/dam/cv/cardiovascular/hcp/products/structural-heart/surgical-valves/product-images/epic-plus-supra-av-side-flip-fnl.png",
+    "alt": "Epic Plus Supra aortic valve"
+   },
+   "mitral": {
+    "imagem": "https://www.cardiovascular.abbott/content/dam/cv/cardiovascular/hcp/products/structural-heart/surgical-valves/product-images/epic-plus-mv-side-fnl.png",
+    "alt": "Epic Plus mitral valve"
+   },
+   "pagina": "https://www.cardiovascular.abbott/us/en/hcp/products/structural-heart/surgical-valve-solutions/epic-tissue-valve.html",
+   "naPagina": true,
+   "origem": "pagina da Epic no site da Abbott, imagens do DAM proprio"
   },
   "St. Jude Regent": {
    "imagem": "https://www.cardiovascular.abbott/content/dam/cv/cardiovascular/hcp/products/structural-heart/surgical-valves/product-images/regent-perspective-bottom-fnl.png",

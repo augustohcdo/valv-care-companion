@@ -16,6 +16,35 @@
  *     válvula, mais nova.
  *
  * Mostrar a válvula errada a um cirurgião é pior do que não mostrar nenhuma.
+ *
+ * ## Segunda varredura
+ *
+ * Quatro das recusas acima foram resolvidas indo à fonte certa. O site da
+ * Edwards é renderizado no navegador e a página HTML não traz as fotos — mas a
+ * API de entrega do CMS deles (Kontent.ai, `deliver.kontent.ai`, leitura
+ * pública sem autenticação, a mesma que o site consome) traz **4.876 assets**
+ * com o nome do item que usa cada um. Foi de lá que saíram:
+ *
+ *   · **Sapien 3** — item "SAPIEN 3 valve - side view". Aberta e olhada: armação
+ *     hexagonal com saia externa curta, que é a Sapien 3. A Ultra tem a saia
+ *     alta, e é outra imagem.
+ *   · **Sapien 3 Ultra** — item "SAPIEN 3 Ultra valve", com a saia alta.
+ *   · **Magna Mitral Ease** — item "Model 7300TFX Image". 7300TFX é o código da
+ *     Magna Mitral Ease; é a única das quatro em que o próprio nome do item
+ *     carrega o número do modelo.
+ *   · **Epic** — página da Epic no site da Abbott, imagens do DAM deles. Aórtica
+ *     e mitral são fotos **diferentes**, e é por isso que este script passou a
+ *     aceitar imagem por posição valvar.
+ *
+ * Continuam sem foto, e o motivo está registrado em `buscaDeFontes.ts`:
+ *
+ *   · **Edwards Perimount** (a clássica). Os dois candidatos do CMS são
+ *     radiografia de peça — o segundo traz "Procedure: SPECIMEN IMAGING"
+ *     escrito na própria imagem. A Edwards só divulga foto de produto da
+ *     geração Magna Ease.
+ *   · **Todas as oito famílias da Medtronic.** `medtronic.com` devolve 1.104
+ *     bytes com "Incorrect Browser" para tudo — página, imagem, site regional,
+ *     asset direto. É proteção contra robô e não se contorna.
  */
 import { readFileSync } from "node:fs";
 
@@ -33,10 +62,10 @@ const rastreio = JSON.parse(readFileSync(new URL("./imagens-rastreadas.json", im
 /** fabricante|modelo -> aceito? (com o motivo, quando não) */
 const VEREDITO = {
   "Edwards|Magna Ease": true,
-  "Edwards|Perimount": "é a foto da Magna Ease, outra geração",
+  "Edwards|Perimount": "as duas candidatas são radiografia de peça, não foto de produto",
   "Edwards|Mitris Resilia": true,
-  "Edwards|Sapien 3": "a foto é da Sapien 3 Ultra RESILIA",
-  "Edwards|Sapien 3 Ultra": "a foto é da Sapien 3 Ultra RESILIA",
+  "Edwards|Sapien 3": true,
+  "Edwards|Sapien 3 Ultra": true,
   "Edwards|Sapien 3 Ultra RESILIA": true,
   "Edwards|Inspiris Resilia": true,
   "Edwards|Konect Resilia": true,
@@ -47,7 +76,7 @@ const VEREDITO = {
   "Edwards|Cosgrove-Edwards Band (4600)": true,
   "Edwards|MC3 Tricuspid (4900)": true,
   "Abbott|Navitor": true,
-  "Abbott|Epic": "a foto é da Epic Max, outra válvula",
+  "Abbott|Epic": true,
   "Abbott|St. Jude Regent": true,
   "Abbott|St. Jude Masters HP": true,
   "Meril|Dafodil": true,
@@ -64,6 +93,22 @@ async function ehImagem(url) {
   } catch (e) { return { ok: false, motivo: String(e.cause?.code || e.message).slice(0, 40) }; }
 }
 
+/**
+ * Uma entrada do rastreio vira uma ou mais gravações.
+ *
+ * O caso normal é uma foto para a família inteira. A Epic quebra isso: a
+ * aórtica e a mitral são válvulas com formato diferente e a Abbott publica foto
+ * de cada uma. Gravar a mesma nas duas mostraria a válvula errada em metade das
+ * linhas — o defeito que este arquivo inteiro existe para evitar.
+ */
+function gravacoes(v) {
+  const porPosicao = ["aortica", "mitral", "tricuspide"].filter((p) => v[p]?.imagem);
+  if (porPosicao.length) {
+    return porPosicao.map((p) => ({ posicao: p, imagem: v[p].imagem, pagina: v.pagina }));
+  }
+  return [{ posicao: null, imagem: v.imagem, pagina: v.pagina }];
+}
+
 let aplicadas = 0, recusadas = 0;
 for (const [fab, modelos] of Object.entries(rastreio)) {
   for (const [modelo, v] of Object.entries(modelos)) {
@@ -74,22 +119,28 @@ for (const [fab, modelos] of Object.entries(rastreio)) {
       recusadas++;
       continue;
     }
-    const conf = await ehImagem(v.imagem);
-    if (!conf.ok) {
-      console.log(`✗ ${chave.padEnd(38)} a URL não devolve imagem (${conf.motivo})`);
-      recusadas++;
-      continue;
+    for (const g of gravacoes(v)) {
+      const rotulo = g.posicao ? `${chave} (${g.posicao})` : chave;
+      const conf = await ehImagem(g.imagem);
+      if (!conf.ok) {
+        console.log(`✗ ${rotulo.padEnd(38)} a URL não devolve imagem (${conf.motivo})`);
+        recusadas++;
+        continue;
+      }
+      const filtro =
+        `manufacturer=eq.${encodeURIComponent(fab)}&model_name=eq.${encodeURIComponent(modelo)}` +
+        (g.posicao ? `&valve_position=eq.${g.posicao}` : "");
+      if (!seco) {
+        const r = await fetch(`${BASE}/rest/v1/prosthesis_catalog?${filtro}`, {
+          method: "PATCH",
+          headers: { ...cab, Prefer: "return=minimal" },
+          body: JSON.stringify({ image_url: g.imagem, reference_url: g.pagina }),
+        });
+        if (!r.ok) { console.log(`✗ ${rotulo} gravação falhou: ${r.status}`); recusadas++; continue; }
+      }
+      console.log(`✓ ${rotulo.padEnd(38)} ${conf.tipo}`);
+      aplicadas++;
     }
-    const corpo = { image_url: v.imagem, reference_url: v.pagina };
-    if (!seco) {
-      const r = await fetch(
-        `${BASE}/rest/v1/prosthesis_catalog?manufacturer=eq.${encodeURIComponent(fab)}&model_name=eq.${encodeURIComponent(modelo)}`,
-        { method: "PATCH", headers: { ...cab, Prefer: "return=minimal" }, body: JSON.stringify(corpo) },
-      );
-      if (!r.ok) { console.log(`✗ ${chave} gravação falhou: ${r.status}`); recusadas++; continue; }
-    }
-    console.log(`✓ ${chave.padEnd(38)} ${conf.tipo}`);
-    aplicadas++;
   }
 }
-console.log(`\n${aplicadas} famílias com foto${seco ? " (simulação)" : ""} · ${recusadas} recusadas`);
+console.log(`\n${aplicadas} gravação(ões) de foto${seco ? " (simulação)" : ""} · ${recusadas} recusadas`);

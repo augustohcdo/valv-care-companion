@@ -125,6 +125,13 @@ export function RecomendadorProtese({ catalogo, bsa, imc, posicao }: Props) {
         </div>
       )}
 
+      {/* A ordem dos cartões precisa vir escrita. Uma lista de fabricantes sem
+          critério declarado é lida como ranking de qualidade — que é o que a
+          Resolução CFM 2.336/2023 proíbe, e não é o que esta ordem significa. */}
+      {comOpcao.length > 1 && (
+        <p className="text-[11px] text-muted-foreground leading-relaxed">{r.criterioDeOrdem}</p>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-2">
         {comOpcao.map((f) => <CartaoFabricante key={f.fabricante} f={f} />)}
       </div>
@@ -231,8 +238,11 @@ function CartaoFabricante({ f }: { f: RecomendacaoDoFabricante }) {
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="px-4 py-2.5 border-b border-border bg-secondary/40 flex items-baseline justify-between gap-2">
         <h4 className="font-display font-semibold text-sm text-foreground">{f.fabricante}</h4>
+        {/* O número que ordena os cartões fica visível no cartão. Ordenar por
+            uma medida e não mostrá-la é pedir que o médico confie na ordem. */}
         <span className="text-[11px] text-muted-foreground tabular-nums">
-          {pisos.length} modelo{pisos.length > 1 ? "s" : ""}
+          {pisos.length} modelo{pisos.length > 1 ? "s" : ""} aqui · {f.comEoaPublicada} tamanho
+          {f.comEoaPublicada === 1 ? "" : "s"} com dado publicado
         </span>
       </div>
       <ul className="divide-y divide-border/60">

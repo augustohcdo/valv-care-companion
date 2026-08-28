@@ -7,8 +7,8 @@
   "_formato": "[tamanho, EOA, dp_EOA, gradiente_medio, dp_gradiente]  — null onde a tabela não reporta",
 
   "aortica_tabela_A4": {
-    "Abbott|Epic": [[21,1.0,0.3,19.1,8.2],[23,1.4,0.5,13.9,6.0],[25,1.5,0.5,12.1,5.1],[27,1.6,0.4,11.4,4.1]],
-    "Abbott|Trifecta GT": [[19,1.41,0.24,10.7,4.6],[21,1.63,0.29,8.1,3.5],[23,1.81,0.30,7.2,2.8],[25,2.02,0.32,6.2,2.7],[27,2.20,0.20,4.8,2.0],[29,2.35,0.22,4.7,1.6]],
+    "Abbott|Epic": [[21,1.0,0.3,19.1,8.2],[23,1.4,0.5,13.9,6.0],[25,1.5,0.5,12.1,5.1],[27,1.6,0.4,11.4,4.1],[29,2.4,1.1,7.5,3.3]],
+    "Abbott|Trifecta GT": [[19,1.41,0.24,10.7,4.6],[21,1.63,0.29,8.1,3.5],[23,1.81,0.3,7.2,2.8],[25,2.02,0.32,6.2,2.7],[27,2.2,0.2,4.8,2.0],[29,2.35,0.22,4.7,1.6]],
     "_Trifecta_nota": "A tabela nomeia 'Abbott Trifecta'. O catálogo traz 'Trifecta GT', que é a mesma bioprótese com a tecnologia de deslizamento no implante. O rótulo da fonte diz o nome exato da entrada.",
     "Edwards|Perimount": [[19,1.3,0.2,19.5,5.5],[21,1.3,0.3,13.8,4.0],[23,1.6,0.3,11.5,3.9],[25,1.6,0.4,10.7,3.8],[27,2.0,0.4,4.8,2.2]],
     "_Perimount_nota": "Entrada 'Baxter Perimount, stented bovine pericardial'. Substitui os valores da EACVI 2016 que estavam gravados: a ASE 2024 é mais recente e traz gradiente junto.",
@@ -22,12 +22,18 @@
     "_HancockII_nota": "A tabela não traz o 27 mm; essa linha mantém o valor da EACVI 2016.",
     "Abbott|St. Jude Regent": [[19,1.6,0.4,11.0,4.9],[21,2.0,0.7,8.0,4.8],[23,2.3,0.9,6.9,3.5],[25,2.5,0.8,5.6,3.2],[27,3.6,0.5,3.5,1.7]],
     "Corcym|Perceval Plus": [[21,1.3,0.3,10.1,4.2],[23,1.5,0.4,9.4,5.5],[25,1.5,0.4,8.5,4.6],[27,1.6,0.4,9.7,4.7]],
-    "_Perceval_nota": "A tabela nomeia 'Sorin Perceval Sutureless' com tamanhos S(21), M(23), L(25), XL(27) — a correspondência com o catálogo é exata. Sorin é a antecessora da Corcym."
+    "_Perceval_nota": "A tabela nomeia 'Sorin Perceval Sutureless' com tamanhos S(21), M(23), L(25), XL(27) — a correspondência com o catálogo é exata. Sorin é a antecessora da Corcym.",
+    "Medtronic|Open Pivot": [[19,1.1,0.3,25.3,8.0],[21,1.4,0.5,15.9,5.0],[23,1.7,0.5,14.4,4.9],[25,2.1,0.7,11.3,3.7],[27,2.5,0.1,8.4,3.7]],
+    "_OpenPivot_nota": "A tabela nomeia 'ATS Bileaflet'. A Open Pivot é a bileaflet da ATS Medical, comprada pela Medtronic em 2010 e vendida hoje como ATS Open Pivot — mesmos tamanhos (19 a 29). NÃO usei a linha 'ATS AP Bileaflet', que é a série supra-anular com outra numeração (18, 20, 22, 24, 26). O 17 mm do catálogo não está na tabela e fica sem valor."
   },
 
   "mitral_tabela_A5": {
-    "Medtronic|Hancock II": [[25,1.42,0.29,8.3,1.71],[27,1.62,0.47,6.1,1.33],[29,1.83,0.68,6.7,2.20],[31,1.70,0.41,6.0,1.58],[33,2.71,0.77,5.5,1.64]],
-    "_ambiguidade": "Abbott Epic mitral e Edwards Mitris trazem só DOIS pares por linha, e as colunas da A5 são gradiente de pico, gradiente médio, velocidade de pico, THP e EOA. Com dois pares não dá para saber se o segundo é velocidade de pico (m/s) ou EOA (cm²) — as duas grandezas caem na mesma faixa numérica em posição mitral. Ficam SEM valor: preencher seria adivinhar qual coluna é."
+    "Medtronic|Hancock II": [[25,1.42,0.29,8.3,1.71],[27,1.62,0.47,6.1,1.33],[29,1.83,0.68,6.7,2.2],[31,1.7,0.41,6.0,1.58],[33,2.71,0.77,5.5,1.64]],
+    "_ambiguidade": "RESOLVIDA na segunda leitura — ver _segunda_leitura. Ficava assim: 'Abbott Epic mitral e Edwards Mitris trazem só DOIS pares por linha, e não dá para saber se o segundo é velocidade de pico ou EOA'. Pela posição x os dois caem na coluna de EOA (x≈509), e a coluna de velocidade de pico (x≈383) está vazia nessas linhas. O 25 mm da Epic e da Mitris não aparece na tabela e fica sem valor.",
+    "Abbott|Epic": [[27,1.4,0.7,6.1,2.9],[29,1.5,0.5,5.5,1.7],[31,1.6,0.3,4.8,1.4],[33,1.5,0.3,4.1,1.6]],
+    "Edwards|Mitris Resilia": [[27,1.2,0.3,4.1,1.4],[29,1.5,0.6,4.1,1.5],[31,1.4,0.5,3.9,2.0],[33,1.5,0.7,3.3,1.4]],
+    "Edwards|Perimount": [[25,1.75,0.53,4.0,1.0],[27,1.88,0.52,6.3,1.65],[29,2.02,0.57,6.0,1.41],[31,2.09,0.48,5.5,1.06],[33,2.24,0.97,6.1,1.86]],
+    "_Perimount_mitral_nota": "Entrada 'Carpentier-Edwards Perimount, stented pericardial' na A5. É a Perimount mitral (modelo 6900) — NÃO a Magna Mitral Ease (7300TFX), que é geração seguinte e não está na tabela."
   },
 
   "tavi_tabelas_A1_A2": {
@@ -35,8 +41,9 @@
     "Edwards|Sapien 3 Ultra": [[20,1.22,0.22,16.23,5.01],[23,1.45,0.26,12.79,4.65],[26,1.74,0.35,10.59,3.88]],
     "Edwards|Sapien 3 Ultra RESILIA": [[20,1.22,0.22,16.23,5.01],[23,1.45,0.26,12.79,4.65],[26,1.74,0.35,10.59,3.88],[29,1.89,0.37,9.28,3.16]],
     "_Sapien_nota": "A Tabela A1 traz a iteração 'SAPIEN 3'. Ultra e Ultra RESILIA são a mesma armação e o mesmo folheto com saia externa e pericárdio RESILIA; o rótulo da fonte diz 'SAPIEN 3' para o médico ver a entrada exata que foi medida.",
-    "Medtronic|Evolut PRO+": [[23,1.09,0.26,14.97,7.15],[26,1.69,0.40,7.53,2.65],[29,1.97,0.54,7.85,3.08],[34,2.60,0.75,6.30,3.23]],
-    "Medtronic|Evolut FX": [[23,1.09,0.26,14.97,7.15],[26,1.69,0.40,7.53,2.65],[29,1.97,0.54,7.85,3.08],[34,2.60,0.75,6.30,3.23]],
+    "Medtronic|Evolut PRO+": [[23,1.09,0.26,14.97,7.15],[26,1.69,0.4,7.53,2.65],[29,1.97,0.54,7.85,3.08],[34,2.6,0.75,6.3,3.23]],
+    "Medtronic|Evolut FX": [[23,1.09,0.26,14.97,7.15],[26,1.69,0.4,7.53,2.65],[29,1.97,0.54,7.85,3.08],[34,2.6,0.75,6.3,3.23]],
     "_Evolut_nota": "A Tabela A2 traz 'Evolut R (30 dias)'. PRO+ e FX são gerações seguintes da mesma plataforma autoexpansível supra-anular."
-  }
+  },
+  "_segunda_leitura": "As linhas abaixo entraram numa segunda passagem. A primeira lia o texto corrido, onde o glifo '±' some e '8.3 ± 1.71' vira '8.361.71' — foi por isso que Epic mitral e Mitris ficaram sem valor, com a nota de que não dava para saber se o segundo número era velocidade de pico ou EOA. A segunda passagem lê os CARACTERES com caixa delimitadora (pdfplumber) e atribui cada número à coluna pela posição x: A5 tem gradiente de pico em x=251, gradiente médio em 316, velocidade de pico em 383, THP em ~449 e EOA em ~510. Não há o que adivinhar. Controle usado: Carpentier-Edwards Perimount mitral 25 mm sai 4,0±1,0 / 1,7±0,10 / 67±21,5 / 1,75±0,53 — os quatro valores clássicos dessa linha, na ordem certa."
 }

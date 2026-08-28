@@ -9,7 +9,7 @@ import { EsquemaProtese, familiaDe, NOME_DA_FAMILIA } from "./EsquemaProtese";
 import { CitacaoDaFonte } from "./CitacaoDaFonte";
 import { FONTE_EACVI_PROTESES } from "@/lib/fontes";
 import { useCatalogoProteses, type ProteseDoCatalogo } from "@/hooks/useCatalogoProteses";
-import { buscaDaFamilia, TEXTO_DO_RESULTADO, BUSCA_FEITA_EM, VARREDURA_DE_ALERTAS } from "@/data/buscaDeFontes";
+import { buscaDaFamilia, motivoSemFoto, TEXTO_DO_RESULTADO, BUSCA_FEITA_EM, VARREDURA_DE_ALERTAS } from "@/data/buscaDeFontes";
 
 /**
  * O catálogo de próteses.
@@ -20,11 +20,13 @@ import { buscaDaFamilia, TEXTO_DO_RESULTADO, BUSCA_FEITA_EM, VARREDURA_DE_ALERTA
  *
  * Duas coisas que a tela diz e não disfarça:
  *
- * 1. **A cobertura de EOA de referência é parcial** — 29 de 246 —, e o número
- *    aparece no cabeçalho. Um catálogo que escondesse isso empurraria o médico
- *    a supor que o campo vazio significa "sem mismatch".
- * 2. **O desenho é esquema de família construtiva, não foto do produto.** A foto
- *    real está na página do fabricante, para onde cada cartão aponta.
+ * 1. **A cobertura de EOA de referência é parcial** — 106 de 253 tamanhos em
+ *    28/08/2026 —, e o número aparece no cabeçalho, contado do que chegou.
+ *    Um catálogo que escondesse isso empurraria o médico a supor que o campo
+ *    vazio significa "sem mismatch".
+ * 2. **Onde há foto, ela é do fabricante; onde não há, o desenho é esquema de
+ *    família construtiva.** E, quando a busca por foto foi feita e deu vazio, o
+ *    cartão diz por quê — sem foto também tem os dois significados opostos.
  *
  * Sem nota, sem estrela, sem "recomendado" e sem ordenação por mérito: é
  * catálogo neutro entre fabricantes, a mesma disciplina já aplicada ao
@@ -253,6 +255,13 @@ function CartaoFamilia({ familia: f }: { familia: Familia }) {
               ? "foto do fabricante"
               : NOME_DA_FAMILIA[familiaDe(f.tipo, f.fabricante, f.modelo)]}
           </p>
+          {/* Sem foto tem dois significados: ninguém procurou, ou procurou-se e
+              não há. O esquema sozinho não distingue os dois. */}
+          {!f.imagem && motivoSemFoto(f.fabricante, f.modelo) && (
+            <p className="mt-1 text-[10px] leading-tight text-center text-muted-foreground/70">
+              sem foto oficial — motivo abaixo
+            </p>
+          )}
         </div>
 
         <div className="min-w-0 flex-1">
@@ -310,6 +319,14 @@ function CartaoFamilia({ familia: f }: { familia: Familia }) {
                   : <SemEoa fabricante={f.fabricante} modelo={f.modelo} />}
               </dd>
             </div>
+            {!f.imagem && motivoSemFoto(f.fabricante, f.modelo) && (
+              <div className="flex gap-2">
+                <dt className="text-muted-foreground shrink-0">Sem foto</dt>
+                <dd className="text-muted-foreground leading-relaxed">
+                  {motivoSemFoto(f.fabricante, f.modelo)}
+                </dd>
+              </div>
+            )}
           </dl>
 
           <div className="flex flex-wrap gap-3 mt-3">

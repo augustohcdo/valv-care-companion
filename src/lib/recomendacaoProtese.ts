@@ -26,6 +26,22 @@ import type { ProteseDoCatalogo } from "@/hooks/useCatalogoProteses";
  * consignação ou disponibilidade de uma ou duas marcas. Uma lista única
  * ordenada por EOA seria um ranking entre fabricantes — o que este produto não
  * faz — e ainda por cima inútil para quem só tem duas marcas na prateleira.
+ *
+ * ## Em que ordem os fabricantes aparecem
+ *
+ * Por **cobertura de evidência**: quantos tamanhos daquele fabricante têm dado
+ * de referência publicado nesta posição valvar, e em quantos modelos. O
+ * critério aparece escrito na tela, com o número de cada um ao lado.
+ *
+ * Isto é ordem de procedência, não de mérito comercial — a Resolução CFM
+ * 2.336/2023 proíbe ranking de produto, e um "fabricante preferido" gravado no
+ * código seria exatamente isso. Aqui quem lidera, lidera porque tem mais
+ * medida publicada, e deixa de liderar no dia em que outro publicar mais.
+ *
+ * Medido em 28/08/2026, na aórtica: Edwards 28 tamanhos com dado em 8 modelos,
+ * Medtronic 28 em 6, Abbott 21 em 6. Na mitral: Edwards 9, Medtronic 5,
+ * Abbott 4. A Edwards fica em primeiro nas duas posições — pelo número, não
+ * por estar escrita numa lista.
  */
 
 export interface OpcaoProtese {
@@ -71,6 +87,10 @@ export interface RecomendacaoDoFabricante {
   desaconselhadas: OpcaoProtese[];
   /** Quantos tamanhos deste fabricante ficaram de fora por não terem EOA publicada. */
   semEoaPublicada: number;
+  /** Quantos tamanhos deste fabricante têm EOA de referência publicada. */
+  comEoaPublicada: number;
+  /** Em quantos modelos distintos esse dado publicado se espalha. */
+  modelosComDado: number;
 }
 
 export interface Recomendacao {
@@ -83,7 +103,14 @@ export interface Recomendacao {
   desaconselhadas: number;
   limiares: { grave: number; moderado: number };
   faixaDeObesidade: boolean;
+  /** Frase que a tela mostra para explicar a ordem dos fabricantes. */
+  criterioDeOrdem: string;
 }
+
+export const CRITERIO_DE_ORDEM =
+  "Fabricantes em ordem de cobertura de evidência: quantos tamanhos têm EOA de " +
+  "referência publicada nesta posição, e em quantos modelos. Não é ranking de " +
+  "qualidade nem de preferência comercial.";
 
 /** Só faz sentido projetar *mismatch* para prótese que substitui a valva. */
 const TIPOS_DE_SUBSTITUICAO = new Set(["biologica_aortica", "biologica_mitral", "mecanica", "tavi"]);
@@ -114,7 +141,10 @@ export function recomendarProteses(
   const garantir = (nome: string) => {
     let f = porFabricante.get(nome);
     if (!f) {
-      f = { fabricante: nome, adequadas: [], insuficientes: [], desaconselhadas: [], semEoaPublicada: 0 };
+      f = {
+        fabricante: nome, adequadas: [], insuficientes: [], desaconselhadas: [],
+        semEoaPublicada: 0, comEoaPublicada: 0, modelosComDado: 0,
+      };
       porFabricante.set(nome, f);
     }
     return f;
@@ -122,6 +152,8 @@ export function recomendarProteses(
 
   let semEoaPublicada = 0;
   let avaliadas = 0;
+  /** fabricante -> modelos com pelo menos um tamanho com dado publicado. */
+  const modelosComDado = new Map<string, Set<string>>();
 
   for (const p of daPosicao) {
     const f = garantir(p.manufacturer);
@@ -130,6 +162,9 @@ export function recomendarProteses(
       semEoaPublicada++;
       continue;
     }
+    f.comEoaPublicada++;
+    if (!modelosComDado.has(p.manufacturer)) modelosComDado.set(p.manufacturer, new Set());
+    modelosComDado.get(p.manufacturer)!.add(p.model_name);
     const r = classificarPPM(p.effective_orifice_area, bsa, posicao, "projetada", imc);
     if (!r) continue;
     avaliadas++;
@@ -170,21 +205,31 @@ export function recomendarProteses(
   const porTamanho = (a: OpcaoProtese, b: OpcaoProtese) =>
     a.tamanho - b.tamanho || a.modelo.localeCompare(b.modelo, "pt-BR");
   for (const f of porFabricante.values()) {
+    f.modelosComDado = modelosComDado.get(f.fabricante)?.size ?? 0;
     f.adequadas.sort(porTamanho);
     f.desaconselhadas.sort(porTamanho);
     // Nas insuficientes, a maior primeiro: é a que chega mais perto de servir.
     f.insuficientes.sort((a, b) => b.ieoa - a.ieoa);
   }
 
+  // Cobertura de evidência: tamanhos com dado publicado, depois em quantos
+  // modelos esse dado se espalha, e só então o alfabeto. O desempate por
+  // modelos existe porque na aórtica Edwards e Medtronic empatam em 28
+  // tamanhos — e 28 espalhados por 8 modelos cobrem mais decisões clínicas do
+  // que 28 concentrados em 6.
+  const porEvidencia = (a: RecomendacaoDoFabricante, b: RecomendacaoDoFabricante) =>
+    b.comEoaPublicada - a.comEoaPublicada ||
+    b.modelosComDado - a.modelosComDado ||
+    a.fabricante.localeCompare(b.fabricante, "pt-BR");
+
   return {
-    fabricantes: [...porFabricante.values()].sort((a, b) =>
-      a.fabricante.localeCompare(b.fabricante, "pt-BR"),
-    ),
+    fabricantes: [...porFabricante.values()].sort(porEvidencia),
     semEoaPublicada,
     avaliadas,
     desaconselhadas: [...porFabricante.values()].reduce((n, f) => n + f.desaconselhadas.length, 0),
     limiares,
     faixaDeObesidade,
+    criterioDeOrdem: CRITERIO_DE_ORDEM,
   };
 }
 

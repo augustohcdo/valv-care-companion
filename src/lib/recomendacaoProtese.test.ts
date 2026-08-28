@@ -58,15 +58,69 @@ describe("recomendador de prótese", () => {
     expect(semImc.fabricantes[0]!.adequadas).toHaveLength(0);
   });
 
-  it("agrupa por fabricante, em ordem alfabética — não por mérito", () => {
+  it("a ordem dos fabricantes é cobertura de evidência, não EOA e não alfabeto", () => {
     const catalogo = [
-      linha({ manufacturer: "Medtronic", model_name: "Avalus", effective_orifice_area: 2.0 }),
-      linha({ manufacturer: "Abbott", model_name: "Trifecta GT", effective_orifice_area: 1.9 }),
-      linha({ manufacturer: "Edwards", effective_orifice_area: 2.2 }),
+      // Abbott: uma EOA altíssima, um tamanho só com dado.
+      linha({ manufacturer: "Abbott", model_name: "Trifecta GT", size: 21, effective_orifice_area: 3.0 }),
+      // Edwards: EOA menor, três tamanhos com dado.
+      ...[21, 23, 25].map((size) =>
+        linha({ manufacturer: "Edwards", size, effective_orifice_area: 2.0 })),
+      // Medtronic: dois tamanhos com dado.
+      ...[21, 23].map((size) =>
+        linha({ manufacturer: "Medtronic", model_name: "Avalus", size, effective_orifice_area: 2.1 })),
     ];
     const r = recomendarProteses(catalogo, BSA, "aortica", 24);
-    // Se ordenasse por EOA, Edwards (2,2) viria primeiro. Vem por nome.
-    expect(r.fabricantes.map((f) => f.fabricante)).toEqual(["Abbott", "Edwards", "Medtronic"]);
+    expect(
+      r.fabricantes.map((f) => f.fabricante),
+      "por EOA seria Abbott (3,0) primeiro; por alfabeto também. É por cobertura.",
+    ).toEqual(["Edwards", "Medtronic", "Abbott"]);
+    expect(r.fabricantes.map((f) => f.comEoaPublicada)).toEqual([3, 2, 1]);
+  });
+
+  it("empatados em tamanhos, desempata quem cobre mais modelos", () => {
+    // Os nomes vão CONTRA o alfabeto de propósito: "Zeta" precisa vir antes de
+    // "Alfa". Sem isso o teste passaria mesmo sem o desempate por modelos, só
+    // pelo alfabeto — foi assim que ele nasceu, e a mutação o pegou vazio.
+    const catalogo = [
+      // Zeta: 2 tamanhos espalhados em 2 modelos.
+      linha({ manufacturer: "Zeta", model_name: "Perimount", size: 21, effective_orifice_area: 2.0 }),
+      linha({ manufacturer: "Zeta", model_name: "Inspiris Resilia", size: 23, effective_orifice_area: 2.0 }),
+      // Alfa: 2 tamanhos, 1 modelo só.
+      ...[21, 23].map((size) =>
+        linha({ manufacturer: "Alfa", model_name: "Avalus", size, effective_orifice_area: 2.0 })),
+    ];
+    const r = recomendarProteses(catalogo, BSA, "aortica", 24);
+    expect(r.fabricantes.map((f) => [f.fabricante, f.comEoaPublicada, f.modelosComDado])).toEqual([
+      ["Zeta", 2, 2],
+      ["Alfa", 2, 1],
+    ]);
+  });
+
+  it("empatados em tamanhos e em modelos, aí sim vale o alfabeto", () => {
+    const catalogo = ["Zeta", "Alfa"].flatMap((manufacturer) =>
+      [21, 23].map((size) => linha({ manufacturer, size, effective_orifice_area: 2.0 })));
+    const r = recomendarProteses(catalogo, BSA, "aortica", 24);
+    expect(r.fabricantes.map((f) => f.fabricante)).toEqual(["Alfa", "Zeta"]);
+  });
+
+  it("tamanho sem dado publicado não conta a favor de ninguém na ordem", () => {
+    const catalogo = [
+      linha({ manufacturer: "Abbott", model_name: "Epic", size: 21, effective_orifice_area: 2.0 }),
+      linha({ manufacturer: "Abbott", model_name: "Epic", size: 23, effective_orifice_area: 2.0 }),
+      // Edwards com muitos tamanhos, e nenhum com EOA: fica atrás.
+      ...[19, 21, 23, 25, 27].map((size) =>
+        linha({ manufacturer: "Edwards", size, effective_orifice_area: null })),
+      linha({ manufacturer: "Edwards", size: 29, effective_orifice_area: 2.0 }),
+    ];
+    const r = recomendarProteses(catalogo, BSA, "aortica", 24);
+    expect(r.fabricantes.map((f) => f.fabricante)).toEqual(["Abbott", "Edwards"]);
+    expect(r.fabricantes.map((f) => f.semEoaPublicada)).toEqual([0, 5]);
+  });
+
+  it("a tela recebe o critério da ordem por escrito", () => {
+    const r = recomendarProteses([linha({})], BSA, "aortica", 24);
+    expect(r.criterioDeOrdem).toContain("cobertura de evidência");
+    expect(r.criterioDeOrdem, "precisa negar que seja ranking").toMatch(/não é ranking/i);
   });
 
   it("dentro do fabricante, o menor tamanho vem primeiro", () => {
