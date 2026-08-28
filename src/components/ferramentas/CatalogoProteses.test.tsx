@@ -68,12 +68,35 @@ describe("catálogo de próteses", () => {
     expect(screen.queryByText(/Nenhum modelo com esses filtros/)).toBeNull();
   });
 
-  it("modelo sem EOA publicada é dito, não deixado em branco", () => {
+  it("modelo sem EOA e SEM busca registrada: diz que ninguém procurou ainda", () => {
+    // Campo vazio tem dois sentidos opostos, e este é o primeiro. Confundi-lo
+    // com "procuramos e não há" faria o médico concluir que a prótese é mal
+    // documentada quando o catálogo é que está incompleto.
     mockUseCatalogo.mockReturnValue({
-      data: [linha({ effective_orifice_area: null, eoa_reference_sd: null, eoa_source_url: null, eoa_source_label: null })],
+      data: [linha({
+        manufacturer: "Fabricante", model_name: "Modelo Sem Busca",
+        effective_orifice_area: null, eoa_reference_sd: null, eoa_source_url: null, eoa_source_label: null,
+      })],
       isLoading: false, error: null,
     });
     render(<CatalogoProteses />);
-    expect(screen.getByText(/sem valor publicado para este modelo/)).toBeTruthy();
+    expect(screen.getByText(/ainda não pesquisado/)).toBeTruthy();
+  });
+
+  it("modelo sem EOA e COM busca registrada: diz que procurou e não há", () => {
+    // A Braile Biocor está no registro como `sem_estudo`: o acompanhamento
+    // publicado não traz nenhum dado hemodinâmico.
+    mockUseCatalogo.mockReturnValue({
+      data: [linha({
+        manufacturer: "Braile", model_name: "Biocor",
+        effective_orifice_area: null, eoa_reference_sd: null, eoa_source_url: null, eoa_source_label: null,
+      })],
+      isLoading: false, error: null,
+    });
+    render(<CatalogoProteses />);
+    const texto = document.body.textContent ?? "";
+    expect(texto).toMatch(/não há estudo publicado com EOA por tamanho/);
+    expect(texto, "não mostra a data da busca").toMatch(/busca de \d{4}-\d{2}-\d{2}/);
+    expect(screen.getByText(/ver o estudo mais próximo/), "não aponta o estudo achado").toBeTruthy();
   });
 });

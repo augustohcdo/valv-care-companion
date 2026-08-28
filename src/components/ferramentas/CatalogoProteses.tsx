@@ -9,6 +9,7 @@ import { EsquemaProtese, familiaDe, NOME_DA_FAMILIA } from "./EsquemaProtese";
 import { CitacaoDaFonte } from "./CitacaoDaFonte";
 import { FONTE_EACVI_PROTESES } from "@/lib/fontes";
 import { useCatalogoProteses, type ProteseDoCatalogo } from "@/hooks/useCatalogoProteses";
+import { buscaDaFamilia, TEXTO_DO_RESULTADO, BUSCA_FEITA_EM } from "@/data/buscaDeFontes";
 
 /**
  * O catálogo de próteses.
@@ -262,11 +263,9 @@ function CartaoFamilia({ familia: f }: { familia: Familia }) {
             <div className="flex gap-2">
               <dt className="text-muted-foreground shrink-0">EOA ref.</dt>
               <dd className="text-foreground">
-                {comEoa.length === 0 ? (
-                  <span className="text-muted-foreground">sem valor publicado para este modelo</span>
-                ) : (
-                  comEoa.map((l) => `${numeroPt(l.size!)} mm: ${l.effective_orifice_area}${l.eoa_reference_sd ? `±${l.eoa_reference_sd}` : ""} cm²`).join(" · ")
-                )}
+                {comEoa.length > 0
+                  ? comEoa.map((l) => `${numeroPt(l.size!)} mm: ${l.effective_orifice_area}${l.eoa_reference_sd ? `±${l.eoa_reference_sd}` : ""} cm²`).join(" · ")
+                  : <SemEoa fabricante={f.fabricante} modelo={f.modelo} />}
               </dd>
             </div>
           </dl>
@@ -288,5 +287,39 @@ function CartaoFamilia({ familia: f }: { familia: Familia }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * O campo vazio de EOA, dito com precisão.
+ *
+ * "Sem valor publicado" tem dois sentidos clinicamente opostos: ninguém
+ * procurou, ou procurou-se e não existe. Sem separar os dois, o médico não sabe
+ * se o produto é mal documentado ou se o catálogo é incompleto — e pode ler a
+ * ausência como "esta prótese não dá mismatch".
+ */
+function SemEoa({ fabricante, modelo }: { fabricante: string; modelo: string }) {
+  const busca = buscaDaFamilia(fabricante, modelo);
+  if (!busca) {
+    return <span className="text-muted-foreground">ainda não pesquisado</span>;
+  }
+  return (
+    <span className="text-muted-foreground">
+      {TEXTO_DO_RESULTADO[busca.resultado]}{" "}
+      <span className="text-[10px]">(busca de {BUSCA_FEITA_EM})</span>
+      {busca.referencia && (
+        <>
+          {" "}
+          <a
+            href={busca.referencia.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            ver o estudo mais próximo
+          </a>
+        </>
+      )}
+    </span>
   );
 }

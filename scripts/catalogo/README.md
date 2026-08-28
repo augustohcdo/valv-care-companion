@@ -27,7 +27,44 @@ parser por regex erra: o Freestyle 19 mm reporta gradiente e **não** reporta
 EOA, e a heurística "o último par é a EOA" o transformava numa EOA de 13 cm².
 Por isso não há parser neste diretório — há uma tabela conferida.
 
-### O que ficou de fora, e por quê
+## `eoa-estudos.json` — o garimpo por modelo
+
+Para as próteses que **não** estão nas tabelas das diretrizes. Cada valor foi
+lido no texto do artigo, nunca em resumo de buscador.
+
+| Modelo | Fonte | Tamanhos |
+|---|---|---|
+| Abbott Portico | Registro CONFIDENCE (Möllmann 2023), 30 dias | 23, 25, 27, 29 |
+| Meril Dafodil (aórtica) | Ensaio Dafodil-1 (Hiremath 2020), 12 meses | 19, 21 |
+| Meril Dafodil (mitral) | idem | 27, 31 |
+| Corcym Solo Smart | Christ 2017, alta — modelo "Sorin Freedom Solo" | 23, 25, 27 |
+| Edwards Magna Ease | Mayr 2021, alta | 23, 25 |
+
+**Regra do n ≥ 10.** Um valor derivado de 2 ou 3 casos não é referência, é
+anedota — e aqui alimentaria o recomendador que diz a um cirurgião qual prótese
+evita mismatch. A regra tem prova prática: no Dafodil-1, o 23 mm (n=3) marca EOA
+2,32 cm² e o 25 mm (n=3) marca 1,84 — a curva inverte, que é ruído de amostra.
+Os tamanhos recusados estão nomeados em `eoa-estudos.json`.
+
+## Onde a busca deu vazio
+
+`src/data/buscaDeFontes.ts` registra, por família, **o que foi consultado e o
+que se achou** — com data. Existe porque campo vazio tem dois sentidos
+clinicamente opostos: "ninguém procurou" e "procurou-se e não há". Sem separar
+os dois, o médico não sabe se o produto é mal documentado ou se o catálogo é
+incompleto, e pode ler a ausência como "esta prótese não dá mismatch".
+
+Vazio de verdade, com o motivo: Braile Biocor e Inovare, Meril Miltonia e Myval
+(o LANDMARK tem por tamanho, mas em suplemento fechado), Abbott Navitor e
+Masters HP, Corcym Crown PRT, Edwards Konect, Magna Mitral e Mitris, Medtronic
+Open Pivot.
+
+**A base da FDA está bloqueada deste contêiner** — os SSED trariam a tabela
+hemodinâmica completa de todo dispositivo aprovado, mas `accessdata.fda.gov`
+devolve HTML de erro mesmo para URL conhecida. É o caminho a tentar de outra
+rede.
+
+### O que ficou de fora das tabelas da ASE, e por quê
 
 - **Epic mitral e Mitris Resilia**: a Tabela A5 tem cinco colunas (pico, médio,
   velocidade de pico, THP, EOA) e essas linhas trazem só dois pares. Em posição

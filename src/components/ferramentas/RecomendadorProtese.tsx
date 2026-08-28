@@ -8,6 +8,7 @@ import {
 } from "@/lib/recomendacaoProtese";
 import type { PosicaoValvar } from "@/lib/mismatch";
 import type { ProteseDoCatalogo } from "@/hooks/useCatalogoProteses";
+import { buscaDaFamilia, BUSCA_FEITA_EM } from "@/data/buscaDeFontes";
 
 /**
  * "Qual prótese serve neste paciente, em cada fabricante."
@@ -50,6 +51,21 @@ export function RecomendadorProtese({ catalogo, bsa, imc, posicao }: Props) {
 
   const comOpcao = r.fabricantes.filter((f) => f.adequadas.length > 0);
   const semOpcao = r.fabricantes.filter((f) => f.adequadas.length === 0 && f.insuficientes.length > 0);
+  const semDado = r.fabricantes
+    .filter((f) => f.semEoaPublicada > 0)
+    .map((f) => ({
+      ...f,
+      familiasPesquisadas: [
+        ...new Map(
+          catalogo
+            .filter((p) => p.manufacturer === f.fabricante && p.effective_orifice_area == null)
+            .map((p) => buscaDaFamilia(p.manufacturer, p.model_name))
+            .filter((b): b is NonNullable<typeof b> => !!b)
+            .map((b) => [b.familia, b]),
+        ).values(),
+      ],
+    }))
+    .filter((f) => f.familiasPesquisadas.length > 0);
 
   return (
     <div className="space-y-5">
@@ -124,6 +140,42 @@ export function RecomendadorProtese({ catalogo, bsa, imc, posicao }: Props) {
               );
             })}
           </ul>
+        </div>
+      )}
+
+      {/* O fabricante que não entrou na conta por falta de dado NÃO é o
+          fabricante cujo produto não serve. Somem os dois numa lista só e o
+          médico conclui que a marca é ruim quando o que falta é publicação. */}
+      {semDado.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-xs font-medium text-foreground mb-2">
+            Fora da conta por falta de EOA publicada
+          </p>
+          <ul className="space-y-2">
+            {semDado.map((f) => (
+              <li key={f.fabricante} className="text-xs text-muted-foreground">
+                <strong className="text-foreground">{f.fabricante}</strong> —{" "}
+                {f.semEoaPublicada} tamanho(s) sem EOA de referência.{" "}
+                {f.familiasPesquisadas.map((b, i) => (
+                  <span key={b.familia}>
+                    {i > 0 && " "}
+                    <span className="text-foreground">{b.familia.split("|")[1]}</span>: {b.nota}
+                    {b.referencia && (
+                      <>
+                        {" "}
+                        <a href={b.referencia.url} target="_blank" rel="noopener noreferrer"
+                           className="text-primary hover:underline">estudo</a>
+                      </>
+                    )}
+                  </span>
+                ))}
+              </li>
+            ))}
+          </ul>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            Busca de {BUSCA_FEITA_EM}. Ausência de EOA publicada não diz nada sobre a prótese —
+            diz que não há medida por tamanho para projetar mismatch.
+          </p>
         </div>
       )}
     </div>

@@ -1,0 +1,54 @@
+{
+  "_o_que_e": "EOA de referência vinda de estudos por modelo, para as próteses que NÃO estão nas tabelas das diretrizes (ASE 2024 / EACVI 2016). Cada valor foi lido no texto do artigo, não em resumo de buscador.",
+
+  "_regra_do_n": "Só entra tamanho com n >= 10 pacientes. Um valor de referência derivado de 2 ou 3 casos não é referência, é anedota — e aqui ele alimentaria um recomendador que diz a um cirurgião qual prótese evita mismatch. A regra tem prova prática: no Dafodil, o 23 mm (n=3) marca EOA 2,32 e o 25 mm (n=3) marca 1,84 — a curva inverte, que é ruído de amostra pequena.",
+
+  "_formato": "[tamanho, EOA, dp_EOA, gradiente_medio, dp_gradiente, n]  — null onde o estudo não reporta",
+
+  "estudos": {
+    "portico": {
+      "citacao": "Möllmann H, et al. Valve Hemodynamics by Valve Size and 1-Year Survival Following Implantation of the Portico Valve in the Multicenter CONFIDENCE Registry. Struct Heart 2023;8(1):100226.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/38283573/",
+      "rotulo": "Registro CONFIDENCE (Möllmann 2023) — 30 dias, por tamanho",
+      "momento": "30 dias",
+      "modelos": {
+        "Abbott|Portico|aortica": [[23,1.7,0.4,7.0,2.7,73],[25,1.7,0.5,7.5,4.7,286],[27,1.8,0.5,7.3,3.3,357],[29,2.0,0.5,6.4,3.3,285]]
+      }
+    },
+
+    "dafodil": {
+      "citacao": "Hiremath CS, et al. Clinical outcomes and hemodynamic performance of Dafodil™ aortic and mitral pericardial bioprosthesis: 1-year results from the Dafodil-1 first-in-human trial. J Cardiothorac Surg 2020;15:140.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/32539847/",
+      "rotulo": "Ensaio Dafodil-1 (Hiremath 2020) — 12 meses, por tamanho",
+      "momento": "12 meses",
+      "modelos": {
+        "Meril|Dafodil|aortica": [[19,1.78,0.28,null,null,11],[21,1.83,0.23,null,null,13]],
+        "Meril|Dafodil|mitral": [[27,2.68,0.55,null,null,12],[31,2.78,0.42,null,null,10]]
+      },
+      "_fora_pela_regra": "aórtica 23 mm (n=3) e 25 mm (n=3); mitral 25 mm (n=5) e 29 mm (n=3)"
+    },
+
+    "solo_smart": {
+      "citacao": "Christ T, et al. Hemodynamics of Pericardial Aortic Valves: Contemporary Stented versus Stentless Valves in a Matched Comparison. Ann Thorac Cardiovasc Surg 2017;23(6):298-303.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/28890465/",
+      "rotulo": "Christ 2017 — alta hospitalar, modelo 'Sorin Freedom Solo'",
+      "momento": "alta hospitalar",
+      "modelos": {
+        "Corcym|Solo Smart|aortica": [[23,1.67,0.44,13.4,8.4,13],[25,1.87,0.37,9.1,4.1,24],[27,2.15,0.56,7.8,3.2,17]]
+      },
+      "_nome": "O estudo mede a 'Sorin Freedom Solo'; o catálogo traz a 'Solo Smart', que é a sucessora do mesmo desenho sem stent. O rótulo da fonte diz o nome medido.",
+      "_fora_pela_regra": "21 mm (n=3)"
+    },
+
+    "magna_ease": {
+      "citacao": "Mayr B, Burri M, Vitanova K, et al. Serial echocardiographic evaluation of the Perimount Magna Ease prosthesis. J Thorac Dis 2021;13(7):4104-4113.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/34422340/",
+      "rotulo": "Mayr 2021 — alta hospitalar, por tamanho",
+      "momento": "alta hospitalar",
+      "modelos": {
+        "Edwards|Magna Ease|aortica": [[23,1.76,0.32,16.03,3.53,17],[25,1.81,0.40,15.17,3.88,27]]
+      },
+      "_fora_pela_regra": "19 mm (n=2), 21 mm (n=6), 27 mm (n=4), 29 mm (n=1)"
+    }
+  }
+}
