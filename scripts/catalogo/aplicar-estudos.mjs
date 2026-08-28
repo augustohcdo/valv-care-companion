@@ -65,7 +65,9 @@ for (const linha of todas) {
   naoEncontrados.delete(chave);
 
   const limpa = (linha.description || "").split(MARCA)[0].trim();
-  const frase = v.grad != null ? ` ${MARCA} ${pt(v.grad)} ± ${pt(v.dpGrad)} mmHg (${v.rotulo}).` : "";
+  // Sem parênteses aninhados: o rótulo da fonte já traz os seus, e a frase saía
+  // "(Registro CONFIDENCE (Möllmann 2023) — 30 dias)".
+  const frase = v.grad != null ? ` ${MARCA} ${pt(v.grad)} ± ${pt(v.dpGrad)} mmHg — ${v.rotulo}.` : "";
 
   const corpo = {
     effective_orifice_area: v.eoa,
