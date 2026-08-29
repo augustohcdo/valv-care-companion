@@ -109,7 +109,19 @@ function medir() {
   };
 }
 
-const navegador = await chromium.launch();
+/**
+ * O mesmo lançamento do `ferramentas-verificar.mjs`: o Chromium deste contêiner
+ * vive em `/opt/pw-browsers/chromium` e o `chrome-headless-shell` que o
+ * Playwright procura por padrão não está instalado. Sem `executablePath` o
+ * script morre antes de medir qualquer coisa — e morrer é melhor do que medir
+ * errado, mas medir é melhor ainda. O proxy é preciso quando a `BASE` é
+ * externa; `127.0.0.1` fica de fora dele.
+ */
+const PROXY = process.env["HTTPS_PROXY"] || process.env["https_proxy"];
+const navegador = await chromium.launch({
+  executablePath: process.env["PW_CHROMIUM"] || "/opt/pw-browsers/chromium",
+  ...(PROXY ? { proxy: { server: PROXY, bypass: "127.0.0.1,localhost" } } : {}),
+});
 const contexto = await navegador.newContext({ ...IPHONE });
 let falhou = false;
 let medidas = 0;
