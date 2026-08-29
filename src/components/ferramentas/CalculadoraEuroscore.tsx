@@ -62,7 +62,13 @@ export function CalculadoraEuroscore(
     <div className="grid gap-6 lg:grid-cols-[1fr_360px] items-start">
       <div className="space-y-6">
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">Paciente</CardTitle></CardHeader>
+          {/*
+            Chamava-se "Paciente" — mesmo título da barra que agora fica logo
+            acima, na mesma tela. Duas seções com o mesmo nome fazem o médico
+            procurar altura e peso aqui dentro e não achar. O título diz o que
+            este cartão pede.
+          */}
+          <CardHeader className="pb-3"><CardTitle className="text-base">Condições prévias</CardTitle></CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="es-idade" className="text-sm font-medium">Idade (anos) *</Label>
