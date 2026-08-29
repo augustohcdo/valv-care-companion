@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, ExternalLink, Ruler, ShieldAlert } from "lucide-react";
-import { EsquemaProtese } from "./EsquemaProtese";
+import { FotoDaProtese } from "./FotoDaProtese";
 import {
   recomendarProteses, menoresPorModelo,
   type OpcaoProtese, type RecomendacaoDoFabricante,
@@ -261,13 +261,12 @@ function CartaoFabricante({ f }: { f: RecomendacaoDoFabricante }) {
 function LinhaOpcao({ o }: { o: OpcaoProtese }) {
   return (
     <li className="px-4 py-3 flex items-start gap-3">
-      <div className="w-11 h-11 shrink-0 rounded-lg bg-secondary/50 overflow-hidden grid place-items-center text-primary">
-        {o.imagem ? (
-          <img src={o.imagem} alt={`${o.fabricante} ${o.modelo}`} className="w-full h-full object-contain" loading="lazy" />
-        ) : (
-          <EsquemaProtese tipo={o.tipo} fabricante={o.fabricante} modelo={o.modelo} className="w-8 h-8" />
-        )}
-      </div>
+      <FotoDaProtese
+        imagem={o.imagem} fabricante={o.fabricante} modelo={o.modelo} tipo={o.tipo}
+        tamanhoQuadro="w-11 h-11 shrink-0 rounded-lg bg-secondary/50 overflow-hidden grid place-items-center text-primary"
+        tamanhoEsquema="w-8 h-8"
+        semLegenda
+      />
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">

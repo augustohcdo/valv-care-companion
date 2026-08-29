@@ -310,7 +310,10 @@ export const BUSCA_DE_FOTOS: { familia: string; motivo: string }[] = [
   },
   {
     familia: "Abbott|Portico",
-    motivo: "Substituída pela Navitor; a Abbott não mantém mais página de produto com foto da Portico.",
+    motivo:
+      "A Abbott aposentou a página própria da Portico e a foto foi com ela — mas a válvula CONTINUA " +
+      "no portfólio deles, listada em transcatheter-valve-solutions. Esta nota já dizia que a Portico " +
+      "tinha sido substituída pela Navitor, e isso estava errado.",
   },
   {
     familia: "Abbott|Rigid Saddle Ring",

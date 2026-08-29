@@ -1,0 +1,55 @@
+{
+ "_por_que_este_arquivo_existe": "medtronic.com devolve 1.104 bytes com 'Incorrect Browser' para tudo o que sai deste contêiner — página, site regional, asset direto. É proteção contra robô e não se contorna. Mas as URLs canônicas do DAM deles estão indexadas no arquivo da web, com capturas recentes, e de lá dá para (a) descobrir a URL e (b) ABRIR a imagem para conferir se é o produto certo.",
+
+ "_o_que_vai_para_o_banco": "A URL canônica da medtronic.com, nunca a do arquivo. O navegador do médico não está atrás deste egresso e carrega a imagem do fabricante normalmente; o arquivo serve só para eu descobrir e conferir. Contra o risco de a URL ter morrido depois da captura, o cartão cai no esquema construtivo com `onError`.",
+
+ "_a_regra_que_não_se_afrouxa": "Foto só entra depois de aberta e olhada. Já rejeitei quatro produtos errados por nome de arquivo enganoso, oito quadros de vídeo cirúrgico da Corcym e quatro cateteres-balão que se chamavam 'Myval_view'. Enquanto eu não conseguir abrir a imagem, ela fica aqui como pendente e NÃO vai para o catálogo.",
+
+ "conferidas": [
+  {
+   "familia": "Medtronic|Avalus",
+   "url": "https://www.medtronic.com/content/dam/medtronic-com/products/cardiovascular/heart-valves-surgical/avalus-bioprosthesis/images/2016-medtronic-cvg-surgical-avalus-hero-01.png",
+   "captura": "2025-07-29",
+   "o_que_eu_vi": "Bioprótese pericárdica aórtica com stent, folhetos creme, anel de sutura largo e escalopado com marcadores verde-azulados — o desenho característico da Avalus. Bate com o caminho do arquivo, que diz heart-valves-surgical/avalus-bioprosthesis."
+  }
+ ],
+
+ "pendentes": [
+  {
+   "familia": "Medtronic|Freestyle",
+   "url": "https://www.medtronic.com/content/dam/medtronic-com-m/mdt/cardsurg/images/cs_freestyle_995_lres.jpg",
+   "captura": "2025-07-30"
+  },
+  {
+   "familia": "Medtronic|Hancock II",
+   "url": "https://www.medtronic.com/content/dam/medtronic-com-m/mdt/cardsurg/images/cs_hancockii_t505_lres.jpg",
+   "captura": "2025-07-30"
+  },
+  {
+   "familia": "Medtronic|Profile 3D",
+   "url": "https://www.medtronic.com/content/dam/medtronic-com-m/mdt/cardsurg/images/cs-bf-profile3d.jpg",
+   "captura": "2025-07-30"
+  },
+  {
+   "familia": "Medtronic|Evolut PRO+",
+   "url": "https://www.medtronic.com/content/dam/medtronic-com/de-de/hcp/images/tcv/tcv_evolut-pro-plus_300x300.jpg",
+   "captura": "2025-07-29"
+  },
+  {
+   "familia": "Medtronic|Open Pivot",
+   "url": "https://www.medtronic.com/content/dam/medtronic-com-m/mdt/cardio/images/open-pivot-valve-bth.jpg",
+   "captura": "2018-01-06"
+  },
+  {
+   "familia": "Medtronic|CG Future",
+   "url": "https://www.medtronic.com/content/dam/medtronic-com-m/mdt/cardsurg/images/cs-cg-future-ring-band-150x150.jpg",
+   "captura": "2018-11-04"
+  }
+ ],
+
+ "_sem_url_ainda": [
+  "Medtronic|Evolut FX e Medtronic|Contour 3D: a consulta ao índice do arquivo caiu por limite de taxa antes de devolver candidatas. Nada foi inventado no lugar."
+ ],
+
+ "_por_que_as_pendentes_não_entraram": "O endpoint de replay do arquivo (web.archive.org/web/…) passou a recusar conexão deste contêiner depois das consultas ao índice — `archive.org` responde 200 na raiz, o replay não. Quinze tentativas, com espera crescente, mais o agregador Memento, que não resolve DNS aqui. Sem conseguir abrir, não gravo: a URL parece certa pelo caminho, e 'parece certa pelo caminho' foi exatamente o que colocou a foto da Magna Ease na Perimount."
+}

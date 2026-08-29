@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExternalLink, Search, ShieldAlert } from "lucide-react";
-import { EsquemaProtese, familiaDe, NOME_DA_FAMILIA } from "./EsquemaProtese";
+import { FotoDaProtese } from "./FotoDaProtese";
 import { CitacaoDaFonte } from "./CitacaoDaFonte";
 import { FONTE_EACVI_PROTESES } from "@/lib/fontes";
 import { useCatalogoProteses, type ProteseDoCatalogo } from "@/hooks/useCatalogoProteses";
@@ -244,23 +244,15 @@ function CartaoFamilia({ familia: f }: { familia: Familia }) {
     <Card className="overflow-hidden">
       <CardContent className="pt-6 flex gap-4">
         <div className="shrink-0 w-24">
-          <div className="w-24 h-24 rounded-xl bg-secondary/40 ring-1 ring-border overflow-hidden grid place-items-center text-primary">
-            {f.imagem ? (
-              <img
-                src={f.imagem}
-                alt={`${f.fabricante} ${f.modelo}`}
-                className="w-full h-full object-contain p-1"
-                loading="lazy"
-              />
-            ) : (
-              <EsquemaProtese tipo={f.tipo} fabricante={f.fabricante} modelo={f.modelo} className="w-16 h-16" />
-            )}
-          </div>
-          <p className="mt-1.5 text-[10px] leading-tight text-center text-muted-foreground">
-            {f.imagem
-              ? "foto do fabricante"
-              : NOME_DA_FAMILIA[familiaDe(f.tipo, f.fabricante, f.modelo)]}
-          </p>
+          {/* Quadro e legenda saem do mesmo componente de propósito: quando a
+              foto do fabricante não carrega, a tela cai no esquema E a legenda
+              cai junto. Separados, a legenda dizia "foto do fabricante" em cima
+              de um desenho nosso. */}
+          <FotoDaProtese
+            imagem={f.imagem} fabricante={f.fabricante} modelo={f.modelo} tipo={f.tipo}
+            tamanhoQuadro="w-24 h-24 rounded-xl bg-secondary/40 ring-1 ring-border overflow-hidden grid place-items-center text-primary"
+            tamanhoEsquema="w-16 h-16"
+          />
           {/* Sem foto tem dois significados: ninguém procurou, ou procurou-se e
               não há. O esquema sozinho não distingue os dois. */}
           {!f.imagem && motivoSemFoto(f.fabricante, f.modelo) && (

@@ -202,9 +202,27 @@ describe("o que as ferramentas não podem afirmar", () => {
     // imagem oficial do fabricante e as outras seguem com o esquema — o que
     // importa passou a ser **o médico saber qual das duas está vendo**, porque
     // um esquema tomado por foto vira geometria que ninguém desenhou.
+    // Os dois rótulos moraram no cartão e passaram para `FotoDaProtese`, e a
+    // mudança não foi cosmética: separados, a legenda dizia "foto do fabricante"
+    // sempre que houvesse `image_url`, INCLUSIVE quando a imagem falhava ao
+    // carregar e a tela caía no esquema. O médico via desenho legendado como
+    // fotografia. Agora quem decide o que mostrar decide o que escrever, e a
+    // guarda cobra justamente isso: os dois rótulos e o `onError` no mesmo lugar.
+    const quadro = ler("src/components/ferramentas/FotoDaProtese.tsx");
+    expect(quadro, "não rotula a foto oficial").toMatch(/foto do fabricante/i);
+    expect(quadro, "não rotula o esquema").toMatch(/NOME_DA_FAMILIA/);
+    expect(quadro, "sem `onError` a foto morta vira ícone quebrado").toMatch(/onError/);
+    expect(
+      quadro.replace(/\s+/g, " "),
+      "o rótulo não é decidido pelo mesmo estado que escolhe a imagem",
+    ).toMatch(/mostrandoFoto\s*\?\s*"foto do fabricante"/);
+    for (const tela of [
+      "src/components/ferramentas/CatalogoProteses.tsx",
+      "src/components/ferramentas/RecomendadorProtese.tsx",
+    ]) {
+      expect(ler(tela), `${tela} desenha <img> por fora do quadro comum`).not.toMatch(/<img\s/);
+    }
     const cartao = ler("src/components/ferramentas/CatalogoProteses.tsx");
-    expect(cartao, "o cartão não rotula a foto oficial").toMatch(/foto do fabricante/i);
-    expect(cartao, "o cartão não rotula o esquema").toMatch(/NOME_DA_FAMILIA/);
     // Tolerante a quebra de linha: a guarda é sobre a nota explicar a diferença,
     // não sobre as palavras caírem na mesma linha do arquivo. Ela chegou a
     // reprovar só porque o JSX reflowou "esquema da família / construtiva".
