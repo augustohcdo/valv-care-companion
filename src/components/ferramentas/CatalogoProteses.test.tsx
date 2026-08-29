@@ -86,11 +86,13 @@ describe("catálogo de próteses", () => {
   });
 
   it("modelo sem EOA e COM busca registrada: diz que procurou e não há", () => {
-    // A Braile Biocor está no registro como `sem_estudo`: o acompanhamento
-    // publicado não traz nenhum dado hemodinâmico.
+    // A bioprótese de pericárdio bovino da Braile está no registro como
+    // `sem_estudo`: o acompanhamento publicado não traz nenhum dado
+    // hemodinâmico. (Esta família já se chamou "Biocor" aqui — nome que é da
+    // linhagem St. Jude → Abbott e nunca foi produto da Braile.)
     mockUseCatalogo.mockReturnValue({
       data: [linha({
-        manufacturer: "Braile", model_name: "Biocor",
+        manufacturer: "Braile", model_name: "Prótese de Pericárdio Bovino",
         effective_orifice_area: null, eoa_reference_sd: null, eoa_source_url: null, eoa_source_label: null,
       })],
       isLoading: false, error: null,
@@ -100,6 +102,27 @@ describe("catálogo de próteses", () => {
     expect(texto).toMatch(/não há estudo publicado com EOA por tamanho/);
     expect(texto, "não mostra a data da busca").toMatch(/busca de \d{4}-\d{2}-\d{2}/);
     expect(screen.getByText(/ver o estudo mais próximo/), "não aponta o estudo achado").toBeTruthy();
+  });
+
+  it("a nota sobre as fotos descreve a regra, e não o histórico de recusas", () => {
+    // Nasceu de um defeito real: a nota listava por nome quatro fotos recusadas
+    // por serem outro produto, e três delas — Sapien 3, Sapien 3 Ultra e Epic —
+    // já tinham foto correta havia uma rodada. A tela contava um processo que
+    // tinha deixado de ser verdade.
+    //
+    // Texto que narra o que aconteceu precisa de manutenção a cada rodada e não
+    // recebe. Texto que descreve a regra vale enquanto a regra valer. A guarda
+    // é essa: a nota não nomeia modelo nenhum.
+    mockUseCatalogo.mockReturnValue({ data: [linha()], isLoading: false, error: null });
+    render(<CatalogoProteses />);
+    const nota = [...document.querySelectorAll("p")]
+      .map((p) => p.textContent ?? "")
+      .find((t) => t.includes("Sobre as imagens e os dados")) ?? "";
+    expect(nota, "a nota sobre imagens sumiu da tela").not.toBe("");
+    for (const modelo of ["Sapien", "Epic", "Magna", "Perimount", "Trifecta", "Avalus"]) {
+      expect(nota, `a nota cita "${modelo}" — vira histórico e envelhece`).not.toContain(modelo);
+    }
+    expect(nota, "não diz que cada foto é conferida").toMatch(/conferida|aberta/i);
   });
 
   it("prótese retirada do mercado mostra o alerta no cartão, com a fonte", () => {

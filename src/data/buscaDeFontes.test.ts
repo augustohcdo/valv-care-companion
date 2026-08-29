@@ -75,7 +75,7 @@ describe("registro da busca por EOA de referência", () => {
   });
 
   it("`buscaDaFamilia` acha o que está registrado e não inventa o resto", () => {
-    expect(buscaDaFamilia("Braile", "Biocor")?.resultado).toBe("sem_estudo");
+    expect(buscaDaFamilia("Braile", "Prótese de Pericárdio Bovino")?.resultado).toBe("sem_estudo");
     expect(buscaDaFamilia("Meril", "Myval")?.resultado).toBe("sem_dado_por_tamanho");
     expect(buscaDaFamilia("Fabricante", "Que Não Existe")).toBeUndefined();
   });

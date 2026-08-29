@@ -198,20 +198,26 @@ export function CatalogoProteses() {
       <div className="grid gap-4 md:grid-cols-2">
         <CitacaoDaFonte fonte={FONTE_EACVI_PROTESES} />
         <div className="rounded-lg border border-border bg-secondary/30 p-3">
+          {/* Este bloco já contou ao médico uma história que tinha deixado de
+              ser verdade: listava por nome quatro fotos recusadas por serem
+              outro produto, e três delas — Sapien 3, Sapien 3 Ultra e Epic — já
+              tinham foto própria e correta havia uma rodada. Texto de tela que
+              narra o processo envelhece; texto que descreve a regra, não. */}
           <p className="text-xs text-foreground/80 leading-relaxed">
-            <strong>Sobre as imagens e os dados.</strong> Onde há foto, ela é a imagem oficial do
-            produto, colhida na própria página do fabricante — e é para lá que o cartão aponta. Cada
-            uma foi conferida uma a uma: quatro candidatas do rastreio foram recusadas por serem
-            outro produto (a foto da Magna Ease casando com a Perimount, a da Ultra RESILIA casando
-            com as outras Sapien, e a da Epic Max casando com a Epic). Onde não há foto conferida,
-            o cartão mostra um esquema da família construtiva feito aqui, que não é a geometria do
-            modelo. Tamanhos, faixas de anel e descrições vêm do material público do fabricante; a
-            EOA de referência, quando existe, vem da publicação citada ao lado, e onde não existe o
-            campo fica vazio em vez de estimado.
+            <strong>Sobre as imagens e os dados.</strong> Onde há foto, ela é a do fabricante e cada
+            uma foi <strong>aberta e conferida</strong> antes de entrar — nome de arquivo não basta,
+            e candidatas já foram recusadas por mostrarem outro produto, radiografia de peça ou
+            quadro de vídeo cirúrgico. Onde não há foto, o cartão mostra um esquema da família
+            construtiva feito aqui, que não é a geometria do modelo, e diz o motivo de não haver.
+            Tamanhos e descrições vêm do material público do fabricante; a EOA de referência vem da
+            publicação citada ao lado, e onde não existe o campo fica vazio em vez de estimado.
           </p>
           <p className="text-xs text-muted-foreground mt-2">
-            Catálogo neutro, para registro e consulta. A presença de um modelo aqui não é
-            recomendação, e não há classificação de preferência entre fabricantes.
+            Este catálogo é neutro: lista alfabética, sem nota e sem preferência. A presença de um
+            modelo aqui não é recomendação. Na aba <strong>Gradiente e mismatch</strong> os
+            fabricantes aparecem ordenados — mas por <strong>cobertura de evidência</strong>, quantos
+            tamanhos têm medida publicada, com o critério e o número escritos na tela. Ordem de
+            procedência, não de mérito.
           </p>
           <p className="text-xs text-muted-foreground mt-2">
             <strong className="text-foreground">Alertas regulatórios:</strong> conferidos em{" "}

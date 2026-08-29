@@ -205,7 +205,11 @@ describe("o que as ferramentas não podem afirmar", () => {
     const cartao = ler("src/components/ferramentas/CatalogoProteses.tsx");
     expect(cartao, "o cartão não rotula a foto oficial").toMatch(/foto do fabricante/i);
     expect(cartao, "o cartão não rotula o esquema").toMatch(/NOME_DA_FAMILIA/);
-    expect(cartao, "a nota não explica a diferença").toMatch(/esquema da família construtiva/i);
+    // Tolerante a quebra de linha: a guarda é sobre a nota explicar a diferença,
+    // não sobre as palavras caírem na mesma linha do arquivo. Ela chegou a
+    // reprovar só porque o JSX reflowou "esquema da família / construtiva".
+    expect(cartao.replace(/\s+/g, " "), "a nota não explica a diferença")
+      .toMatch(/esquema da família construtiva/i);
     // E o esquema continua dizendo que não é a geometria do modelo.
     expect(ler("src/components/ferramentas/EsquemaProtese.tsx"))
       .toMatch(/não\*{0,2} a geometria do modelo/i);

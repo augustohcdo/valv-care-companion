@@ -1,0 +1,105 @@
+{
+ "_fonte": {
+  "quem": "Braile Biomédica Indústria, Comércio e Representações Ltda.",
+  "documento": "Catálogo Prótese Valvular Orgânica Biológica de Pericárdio Bovino, código 261904, revisão 03 — out/2021",
+  "url": "https://braile.com.br/wp-content/uploads/2026/02/Catalogo-Protese-Valv.-Org.Biolog.-Pericardio-Bovino-Port-cod.-261904.pdf",
+  "anvisa": "10159030026",
+  "_como_foi_lido": "O PDF não tem camada de texto — as duas páginas são imagem. Foi renderizado a 140 dpi e a tabela 'Especificações Técnicas' lida à vista, célula por célula. Nada de OCR automático: um dígito trocado aqui vira medida clínica errada."
+ },
+
+ "_por_que_este_arquivo_existe": "O catálogo trazia duas famílias 'Braile Biocor', aórtica e mitral. A Braile NÃO vende nenhum produto chamado Biocor — Biocor era a Biocor Indústria e Pesquisas, comprada pela St. Jude Medical, hoje linha Epic da Abbott. Era nome de outro fabricante colado num produto brasileiro. Ao corrigir o nome, conferi também os tamanhos contra o catálogo do fabricante, e eles estavam errados nas duas pontas.",
+
+ "_o_que_a_tabela_traz": "[tamanho, ØA interno, ØB externo, ØC anel de sutura, D altura da haste, E altura total, gradiente médio mmHg, EOA cm²] — todas em mm salvo indicação. Tolerâncias do catálogo: ØA/ØB/D/E ±0,5 mm, ØC ±1,0 mm.",
+
+ "_sobre_a_EOA_desta_tabela": "NÃO entra em `effective_orifice_area`. É número declarado pelo fabricante em ficha de produto, sem coorte, sem n e sem desvio — o catálogo irmão da mesma empresa (Vivere, código 610751) traz tabela do mesmo formato com '*Resultados in vitro*' escrito embaixo. Misturar isso com a EOA clínica da ASE 2024 faria o recomendador projetar mismatch com número de bancada. Fica registrado aqui, e a família segue marcada como sem EOA de referência publicada.",
+
+ "pericardio_bovino": {
+  "aortica": [
+   [19, 14, 19, 23, 7, 10, 10.98, 1.10],
+   [21, 16, 21, 25, 8, 11, 4.68, 1.50],
+   [23, 18, 23, 27, 9, 12, 4.10, 1.72],
+   [25, 20, 25, 29, 10, 13, 3.65, 1.95],
+   [27, 22, 27, 31, 11, 14, 2.42, 2.47],
+   [29, 24, 29, 33, 12, 15, 1.55, 3.07]
+  ],
+  "mitral": [
+   [25, 20, 25, 29, 10, 13, 3.65, 1.95],
+   [27, 22, 27, 31, 11, 14, 2.42, 2.47],
+   [29, 24, 29, 33, 12, 15, 1.55, 3.07],
+   [31, 26, 31, 35, 13, 16, 1.33, 3.45],
+   [33, 28, 33, 37, 13, 16, 0.56, 3.88],
+   [35, 30, 35, 39, 14, 17, 0.54, 4.27]
+  ],
+  "_faixas": "A tabela é única e as colunas 'Código Aórtico' e 'Código Mitral' é que dizem em que posição cada tamanho existe: aórtica 19 a 29 (códigos 8316 a 8374), mitral 25 a 35 (101347 a 8402). O catálogo daqui listava aórtica 19–27 e mitral 25–33: faltava o 29 aórtico e faltavam o 35 mitral."
+ },
+
+ "vivere": {
+  "_fonte": {
+   "documento": "Catálogo Prótese Valvular Biológica de Pericárdio Bovino Vivere, código 610751, revisão 04 — 01/2026",
+   "url": "https://braile.com.br/wp-content/uploads/2026/02/Catalogo-Protese-Valvular-Biologica-P.B-Vivere-Portugues-cod.-610751.pdf",
+   "anvisa": "10159030107",
+   "_ressalva": "As duas tabelas hemodinâmicas trazem '*Resultados in vitro*' escrito abaixo, e desvio de ±0,01 cm² na EOA — precisão que ensaio clínico não tem. É bancada."
+  },
+  "_o_que_e": "Prótese biológica de pericárdio bovino com tratamento anticalcificante REALOG®, indicada para aórtica (intra e supra-anular), mitral, tricúspide ou pulmonar. Não está no catálogo daqui.",
+  "aortica": [
+   [19, 14, 19, 23, 7, 10, 17.05, 1.71],
+   [21, 16, 21, 25, 8, 11, 12.33, 2.02],
+   [23, 18, 23, 27, 9, 12, 10.48, 2.32],
+   [25, 20, 25, 29, 10, 13, 9.52, 2.50],
+   [27, 22, 27, 31, 11, 14, 8.42, 2.74],
+   [29, 24, 29, 33, 12, 15, 7.58, 2.96]
+  ],
+  "mitral": [
+   [25, 20, 25, 29, 10, 13, 3.80, 2.17],
+   [27, 22, 27, 31, 11, 14, 2.89, 2.36],
+   [29, 24, 29, 33, 12, 15, 2.61, 2.85],
+   [31, 26, 31, 35, 13, 16, 1.86, 3.35],
+   [33, 28, 33, 37, 13, 16, 1.75, 3.62],
+   [35, 30, 35, 39, 14, 17, 1.47, 3.95]
+  ]
+ },
+
+ "inovare": {
+  "_nome": "O produto atual chama-se **Inovare Alpha®** (ANVISA 10159030095). O catálogo daqui dizia só 'Inovare'.",
+  "url": "https://braile.com.br/produto/inovare-alpha/"
+ },
+
+ "aneis": [
+  {
+   "modelo": "Anel de Anuloplastia Rígido Braile",
+   "url": "https://braile.com.br/produto/anel-para-anuloplastia-valvar-rigido-braile/",
+   "anvisa": "10159030076",
+   "documento": "Catálogo código 261746, revisão 03 — 12/2020",
+   "_forma": "Anel completo, fechado, em D — conferido na foto do fabricante.",
+   "_colunas": "[tamanho, A, B, C, D, área do orifício em mm²]",
+   "tamanhos": [
+    [24, 28.3, 23.1, 24, 21.2, 308],
+    [26, 30.3, 25.1, 26, 23.2, 379],
+    [28, 32.3, 27.1, 28, 25.2, 456],
+    [30, 34.3, 29.1, 30, 27.2, 539],
+    [32, 36.3, 31.1, 32, 29.2, 629],
+    [34, 38.3, 33.1, 34, 31.2, 725],
+    [36, 40.3, 35.1, 36, 33.2, 826],
+    [38, 42.3, 37.1, 38, 35.2, 938]
+   ]
+  },
+  {
+   "modelo": "Anel de Anuloplastia Rígido Gregori",
+   "url": "https://braile.com.br/produto/anel-para-anuloplastia-valvar-rigido-gregori/",
+   "anvisa": "10159030076",
+   "documento": "Catálogo código 261755, revisão 03 — dez/2021",
+   "_forma": "Semicírculo aberto, com trecho retificado do ponto médio até perto da extremidade, que na aplicação corresponde à comissura póstero-medial. Aberto de propósito, para permitir crescimento do anel mitral. Conferido na foto do fabricante.",
+   "_colunas": "[tamanho, A, B, C, D, E, F] em mm — este catálogo não publica área de orifício",
+   "tamanhos": [
+    [24, 17, 3, 18.5, 4.5, 20.5, 22],
+    [26, 18, 3, 19.5, 4.5, 22.5, 24],
+    [28, 20, 3, 21.5, 4.5, 24.5, 26],
+    [30, 21, 3, 22.5, 4.5, 26.5, 28],
+    [32, 22, 4, 23.5, 5.5, 27.5, 29],
+    [34, 24, 4, 25.5, 5.5, 29.5, 31],
+    [36, 25.5, 4, 27, 5.5, 30.5, 32],
+    [38, 27, 4, 28.5, 5.5, 33.5, 35]
+   ]
+  }
+ ]
+}

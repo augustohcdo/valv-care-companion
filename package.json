@@ -23,7 +23,8 @@
     "mobile": "node scripts/mobile.mjs",
     "test:watch": "vitest",
     "typecheck:functions": "cd supabase/functions && deno check --quiet */index.ts",
-    "ferramentas:verificar": "node scripts/ferramentas-verificar.mjs"
+    "ferramentas:verificar": "node scripts/ferramentas-verificar.mjs",
+    "pmids": "node scripts/conferir-pmids.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

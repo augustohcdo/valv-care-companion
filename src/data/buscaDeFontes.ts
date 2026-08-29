@@ -8,7 +8,7 @@
  *   2. **procurou-se e não há** — a literatura acessível não publica EOA por
  *      tamanho para aquele modelo.
  *
- * Sem essa distinção, um médico olha o campo em branco de uma Braile Biocor e
+ * Sem essa distinção, um médico olha o campo em branco de uma prótese Braile e
  * não tem como saber se o produto é mal documentado ou se o catálogo é
  * incompleto. E o pior: pode ler a ausência como "sem mismatch".
  *
@@ -57,18 +57,37 @@ export const N_MINIMO = 10;
 
 export const BUSCA_DE_FONTES: BuscaDeFonte[] = [
   {
-    familia: "Braile|Biocor",
+    familia: "Braile|Prótese de Pericárdio Bovino",
     resultado: "sem_estudo",
     nota:
-      "O acompanhamento tardio da válvula pericárdica Braile em posição aórtica relata sobrevida e " +
-      "complicações, e nenhum dado hemodinâmico — nem EOA, nem gradiente por tamanho.",
+      "Esta família estava catalogada como 'Braile Biocor' — nome que não é da Braile: Biocor era a " +
+      "Biocor Indústria e Pesquisas, comprada pela St. Jude Medical, hoje a linha Epic da Abbott. " +
+      "Corrigido contra o catálogo do fabricante (código 261904), que também mostrou que faltavam " +
+      "tamanhos: a aórtica vai a 29 mm e a mitral a 35 mm. Sobre a EOA: o acompanhamento tardio " +
+      "publicado relata sobrevida e complicações e nenhum dado hemodinâmico; a tabela do catálogo " +
+      "do fabricante traz EOA por tamanho, mas sem coorte, sem n e sem desvio — o catálogo irmão " +
+      "da Vivere, no mesmo formato, diz 'resultados in vitro'. Bancada não vira EOA de referência.",
     referencia: {
       citacao: "Azeredo LG, et al. Late outcome analysis of the Braile Biomédica pericardial valve in the aortic position. Rev Bras Cir Cardiovasc 2014;29(3):316-321.",
       url: "https://pubmed.ncbi.nlm.nih.gov/25372903/",
     },
   },
   {
-    familia: "Braile|Inovare",
+    familia: "Braile|Vivere",
+    resultado: "sem_dado_por_tamanho",
+    nota:
+      "O catálogo do fabricante (código 610751) traz EOA e gradiente nos seis tamanhos de cada " +
+      "posição — 19 a 29 mm na aórtica, 25 a 35 mm na mitral —, mas com '*Resultados in vitro*' " +
+      "escrito embaixo das duas tabelas e desvio de ±0,01 cm², precisão que ensaio em paciente não " +
+      "tem. É bancada, e bancada não projeta mismatch. Os valores ficam registrados em " +
+      "scripts/catalogo/braile-catalogo-oficial.json, fora do campo clínico.",
+    referencia: {
+      citacao: "Braile-Sternieri MCVB, Goissis G, Giglioti AF, et al. In vivo evaluation of Vivere bovine pericardium valvular bioprosthesis with a new anticalcifying treatment. Artif Organs 2020;44(11):E482-E493.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/32364253/",
+    },
+  },
+  {
+    familia: "Braile|Inovare Alpha",
     resultado: "sem_dado_por_tamanho",
     nota:
       "O estudo hemodinâmico da Inovare relata gradiente médio de 5,59 ± 2,61 mmHg no pós-operatório, " +
