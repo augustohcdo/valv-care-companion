@@ -36,9 +36,16 @@ export interface PreenchimentoInicial extends Partial<EntradaEuroscore> {
   pesoKg?: number | null;
 }
 
-export function CalculadoraEuroscore({ inicial }: { inicial?: PreenchimentoInicial }) {
+/**
+ * `pesoKg` vem da barra do paciente, no painel. O campo próprio saiu daqui: o
+ * mesmo peso era digitado nas duas ferramentas e elas podiam discordar sobre o
+ * mesmo paciente.
+ */
+export function CalculadoraEuroscore(
+  { inicial, pesoKg: pesoDeFora }: { inicial?: PreenchimentoInicial; pesoKg?: string },
+) {
   const [e, setE] = useState<EntradaEuroscore>(() => ({ ...inicial }));
-  const [pesoKg, setPesoKg] = useState(inicial?.pesoKg != null ? String(inicial.pesoKg) : "");
+  const pesoKg = pesoDeFora ?? (inicial?.pesoKg != null ? String(inicial.pesoKg) : "");
   const [creatinina, setCreatinina] = useState("");
 
   const set = <K extends keyof EntradaEuroscore>(k: K, v: EntradaEuroscore[K]) =>
@@ -114,10 +121,15 @@ export function CalculadoraEuroscore({ inicial }: { inicial?: PreenchimentoInici
           <CardHeader className="pb-3"><CardTitle className="text-base">Função renal</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
+              {/* O peso vem da barra do paciente e não se digita aqui: era o
+                  mesmo número em dois campos, e nada impedia que divergissem. */}
               <div className="space-y-1.5">
-                <Label htmlFor="es-peso" className="text-sm font-medium">Peso (kg)</Label>
-                <Input id="es-peso" inputMode="decimal" className="h-10" value={pesoKg}
-                  onChange={(ev) => setPesoKg(ev.target.value)} />
+                <span className="text-sm font-medium">Peso (kg)</span>
+                <p className="h-10 flex items-center text-sm tabular-nums">
+                  {pesoKg
+                    ? <strong className="text-foreground">{pesoKg}</strong>
+                    : <span className="text-muted-foreground">informe na barra do paciente, acima</span>}
+                </p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="es-creat" className="text-sm font-medium">Creatinina (mg/dL)</Label>

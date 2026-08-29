@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, ExternalLink, Ruler, ShieldAlert } from "lucide-react";
 import { FotoDaProtese } from "./FotoDaProtese";
+import { Explicacao } from "./Explicacao";
 import {
   recomendarProteses, menoresPorModelo,
   type OpcaoProtese, type RecomendacaoDoFabricante,
@@ -30,13 +31,43 @@ interface Props {
   bsa: number | null;
   imc: number | null;
   posicao: PosicaoValvar;
+  /** O catálogo ainda está vindo. */
+  carregando?: boolean;
+  /** O catálogo não veio. */
+  falhou?: boolean;
 }
 
-export function RecomendadorProtese({ catalogo, bsa, imc, posicao }: Props) {
+export function RecomendadorProtese({ catalogo, bsa, imc, posicao, carregando, falhou }: Props) {
   const r = useMemo(
     () => (bsa ? recomendarProteses(catalogo, bsa, posicao, imc) : null),
     [catalogo, bsa, posicao, imc],
   );
+
+  /**
+   * Catálogo vazio NÃO é resposta clínica.
+   *
+   * Visto numa foto da tela: com o catálogo fora do ar, o recomendador exibia
+   * "0 tamanhos avaliados" e o bloco vermelho "Nenhum tamanho com EOA publicada
+   * evita mismatch nesta superfície corporal" — que é uma **conclusão sobre o
+   * paciente**, tirada de uma lista vazia. Para o médico, a leitura é "não há
+   * prótese que sirva", e a conduta que ela sugere é ampliação de raiz.
+   *
+   * É a mesma família do "EOA publicada em 0 de 0 tamanhos", e aqui é pior:
+   * lá a tela errava um número, aqui erra uma conduta.
+   */
+  if (carregando || falhou || catalogo.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-border p-6 text-center">
+        <p className="text-sm text-muted-foreground">
+          {carregando
+            ? "Carregando o catálogo de próteses…"
+            : "Não foi possível carregar o catálogo de próteses, então esta lista não pode ser " +
+              "calculada. Isto não quer dizer que nenhuma prótese sirva — quer dizer que a " +
+              "ferramenta não sabe. Recarregue a página."}
+        </p>
+      </div>
+    );
+  }
 
   if (!bsa) {
     return (
@@ -88,10 +119,20 @@ export function RecomendadorProtese({ catalogo, bsa, imc, posicao }: Props) {
             mismatch nesta superfície corporal</em>. A faixa de anel de cada opção está ao lado —
             confronte com a medida do anel antes de escolher.
           </p>
-          <p className="text-muted-foreground">
-            A projeção por tabela de referência superestima o mismatch em relação à EOA medida no
-            ecocardiograma. Serve para escolher prótese, não para carimbar diagnóstico.
-          </p>
+          {/* A primeira frase — "quem decide é o anel" — NÃO se recolhe: é o
+              limite da ferramenta, e aviso escondido faz a tela parecer mais
+              segura do que é. Esta segunda, que é metodologia, cabe recolhida. */}
+          <Explicacao
+            resumo="Por que esta projeção superestima o mismatch"
+            className="bg-transparent border-warning/30"
+          >
+            <p>
+              A EOA de referência vem de tabela publicada, medida em coortes, e não do
+              ecocardiograma deste paciente. Comparada com a EOA medida depois do implante, a
+              projeção por tabela <strong>superestima</strong> o mismatch — há literatura específica
+              sobre isso, citada abaixo. Serve para escolher prótese, não para carimbar diagnóstico.
+            </p>
+          </Explicacao>
         </div>
       </div>
 

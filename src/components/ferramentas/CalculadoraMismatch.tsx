@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertTriangle, Info } from "lucide-react";
 import { CitacaoDaFonte } from "./CitacaoDaFonte";
 import { FONTE_EACVI_PROTESES, FONTE_DUBOIS, FONTE_LIMITE_PROJECAO } from "@/lib/fontes";
-import { superficieCorporal, imc as calcularImc } from "@/lib/bsa";
 import {
   classificarPPM, eoaPorContinuidade, dvi as calcularDvi, avaliarHemodinamica,
   LIMIARES_PPM, IMC_OBESIDADE,
@@ -66,12 +65,18 @@ export interface PreenchimentoMismatch {
   eoa?: number | null;
 }
 
-export function CalculadoraMismatch({ inicial }: { inicial?: PreenchimentoMismatch }) {
-  const { data: catalogo = [] } = useCatalogoProteses();
+/**
+ * `bsa` e `imc` vêm da barra do paciente, no painel — não são calculados aqui.
+ * Antes, altura e peso eram campos desta tela, e o EuroSCORE tinha um peso
+ * próprio: o mesmo paciente em dois lugares, livre para divergir.
+ */
+export function CalculadoraMismatch(
+  { inicial, bsa, imc }: { inicial?: PreenchimentoMismatch; bsa: number | null; imc: number | null },
+) {
+  const { data: catalogo = [], isLoading: catalogoCarregando, error: catalogoFalhou } =
+    useCatalogoProteses();
 
   const [posicao, setPosicao] = useState<PosicaoValvar>(inicial?.posicao ?? "aortica");
-  const [altura, setAltura] = useState("");
-  const [peso, setPeso] = useState("");
   const [proteseId, setProteseId] = useState<string>(inicial?.proteseId ?? "");
 
   // Aba "depois": medidas do ecocardiograma.
@@ -83,9 +88,6 @@ export function CalculadoraMismatch({ inicial }: { inicial?: PreenchimentoMismat
   const [vtiProtese, setVtiProtese] = useState("");
   const [tempoAceleracao, setTempoAceleracao] = useState("");
   const [tempoHemipressao, setTempoHemipressao] = useState("");
-
-  const bsa = useMemo(() => superficieCorporal(numero(altura) ?? 0, numero(peso) ?? 0), [altura, peso]);
-  const imc = useMemo(() => calcularImc(numero(altura) ?? 0, numero(peso) ?? 0), [altura, peso]);
 
   /** Só as próteses da posição escolhida — e as que têm EOA publicada primeiro. */
   const opcoes = useMemo(
@@ -138,44 +140,27 @@ export function CalculadoraMismatch({ inicial }: { inicial?: PreenchimentoMismat
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="pb-3"><CardTitle className="text-base">Paciente e posição valvar</CardTitle></CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-4">
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Posição</Label>
-            <Select value={posicao} onValueChange={(v) => { setPosicao(v as PosicaoValvar); setProteseId(""); }}>
-              <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="aortica">Aórtica</SelectItem>
-                <SelectItem value="mitral">Mitral</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="mm-altura" className="text-sm font-medium">Altura (cm)</Label>
-            <Input id="mm-altura" inputMode="decimal" className="h-10" value={altura} onChange={(e) => setAltura(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="mm-peso" className="text-sm font-medium">Peso (kg)</Label>
-            <Input id="mm-peso" inputMode="decimal" className="h-10" value={peso} onChange={(e) => setPeso(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Superfície corporal</Label>
-            <div className="h-10 flex items-center text-sm">
-              {bsa ? (
-                <span>
-                  <strong className="tabular-nums">{duas(bsa)}</strong> m²
-                  {imc != null && (
-                    <span className="text-muted-foreground"> · IMC {duas(imc)}</span>
-                  )}
-                </span>
-              ) : (
-                <span className="text-muted-foreground">informe altura e peso</span>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Só a posição valvar. Altura, peso, superfície corporal e IMC subiram
+          para a barra do paciente, que vale para as três ferramentas — aqui eles
+          eram um segundo lugar para digitar o mesmo paciente. */}
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium">Posição valvar</Label>
+          <Select value={posicao} onValueChange={(v) => { setPosicao(v as PosicaoValvar); setProteseId(""); }}>
+            <SelectTrigger className="h-10 w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="aortica">Aórtica</SelectItem>
+              <SelectItem value="mitral">Mitral</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {!bsa && (
+          <p className="text-xs text-muted-foreground pb-2.5">
+            Informe <strong className="text-foreground">altura e peso</strong> na barra do paciente,
+            acima, para a ferramenta indexar a EOA.
+          </p>
+        )}
+      </div>
 
       <Tabs defaultValue="antes">
         {/* `flex-wrap h-auto`: medido em 390px, os dois rótulos por extenso
@@ -205,7 +190,10 @@ export function CalculadoraMismatch({ inicial }: { inicial?: PreenchimentoMismat
               Por fabricante, o menor tamanho de cada modelo cuja EOA de referência publicada,
               indexada por esta superfície corporal, fica acima do limiar de mismatch.
             </p>
-            <RecomendadorProtese catalogo={catalogo} bsa={bsa} imc={imc} posicao={posicao} />
+            <RecomendadorProtese
+              catalogo={catalogo} bsa={bsa} imc={imc} posicao={posicao}
+              carregando={catalogoCarregando} falhou={Boolean(catalogoFalhou)}
+            />
           </section>
 
           <div className="grid gap-6 lg:grid-cols-[1fr_360px] items-start border-t border-border pt-6">

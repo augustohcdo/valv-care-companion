@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExternalLink, Search, ShieldAlert } from "lucide-react";
 import { FotoDaProtese } from "./FotoDaProtese";
+import { Explicacao } from "./Explicacao";
 import { CitacaoDaFonte } from "./CitacaoDaFonte";
 import { FONTE_EACVI_PROTESES } from "@/lib/fontes";
 import { useCatalogoProteses, type ProteseDoCatalogo } from "@/hooks/useCatalogoProteses";
@@ -197,28 +198,35 @@ export function CatalogoProteses() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <CitacaoDaFonte fonte={FONTE_EACVI_PROTESES} />
-        <div className="rounded-lg border border-border bg-secondary/30 p-3">
+        <div className="rounded-lg border border-border bg-secondary/30 p-3 space-y-2">
           {/* Este bloco já contou ao médico uma história que tinha deixado de
               ser verdade: listava por nome quatro fotos recusadas por serem
               outro produto, e três delas — Sapien 3, Sapien 3 Ultra e Epic — já
               tinham foto própria e correta havia uma rodada. Texto de tela que
-              narra o processo envelhece; texto que descreve a regra, não. */}
-          <p className="text-xs text-foreground/80 leading-relaxed">
-            <strong>Sobre as imagens e os dados.</strong> Onde há foto, ela é a do fabricante e cada
-            uma foi <strong>aberta e conferida</strong> antes de entrar — nome de arquivo não basta,
-            e candidatas já foram recusadas por mostrarem outro produto, radiografia de peça ou
-            quadro de vídeo cirúrgico. Onde não há foto, o cartão mostra um esquema da família
-            construtiva feito aqui, que não é a geometria do modelo, e diz o motivo de não haver.
-            Tamanhos e descrições vêm do material público do fabricante; a EOA de referência vem da
-            publicação citada ao lado, e onde não existe o campo fica vazio em vez de estimado.
-          </p>
-          <p className="text-xs text-muted-foreground mt-2">
-            Este catálogo é neutro: lista alfabética, sem nota e sem preferência. A presença de um
-            modelo aqui não é recomendação. Na aba <strong>Gradiente e mismatch</strong> os
-            fabricantes aparecem ordenados — mas por <strong>cobertura de evidência</strong>, quantos
-            tamanhos têm medida publicada, com o critério e o número escritos na tela. Ordem de
-            procedência, não de mérito.
-          </p>
+              narra o processo envelhece; texto que descreve a regra, não.
+
+              Recolhido porque é justificativa, não dado clínico: quem abre o
+              catálogo procura tamanho e EOA. Nada foi apagado. */}
+          <Explicacao resumo="Sobre as imagens e os dados: de onde vem cada coisa nesta tela.">
+            <p>
+              Onde há foto, ela é a do fabricante e cada uma foi <strong>aberta e conferida</strong>{" "}
+              antes de entrar — nome de arquivo não basta, e candidatas já foram recusadas por
+              mostrarem outro produto, radiografia de peça ou quadro de vídeo cirúrgico. Onde não há
+              foto, o cartão mostra um esquema da família construtiva feito aqui, que não é a
+              geometria do modelo, e diz o motivo de não haver.
+            </p>
+            <p>
+              Tamanhos e descrições vêm do material público do fabricante; a EOA de referência vem da
+              publicação citada ao lado, e onde não existe o campo fica vazio em vez de estimado.
+            </p>
+            <p>
+              Este catálogo é neutro: lista alfabética, sem nota e sem preferência. A presença de um
+              modelo aqui não é recomendação. Na aba <strong>Gradiente e mismatch</strong> os
+              fabricantes aparecem ordenados — mas por <strong>cobertura de evidência</strong>,
+              quantos tamanhos têm medida publicada, com o critério e o número escritos na tela.
+              Ordem de procedência, não de mérito.
+            </p>
+          </Explicacao>
           <p className="text-xs text-muted-foreground mt-2">
             <strong className="text-foreground">Alertas regulatórios:</strong> conferidos em{" "}
             {VARREDURA_DE_ALERTAS.feitaEm} contra {VARREDURA_DE_ALERTAS.fontes.length} fontes.{" "}

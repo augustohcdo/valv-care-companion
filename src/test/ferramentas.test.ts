@@ -196,6 +196,40 @@ describe("o que as ferramentas não podem afirmar", () => {
     }
   });
 
+  it("aviso de segurança nunca fica dentro de um bloco recolhido", () => {
+    // A prosa longa destas telas passou a viver em <details> fechados, para o
+    // número clínico não competir com a metodologia. A poda tem um limite, e é
+    // este: recolher um AVISO é escondê-lo, e a tela volta a parecer mais
+    // segura do que é — que é o defeito que este projeto inteiro persegue.
+    //
+    // Três frases que precisam estar abertas quando a tela abre:
+    //   · quem decide o que cabe é o anel do paciente, que a ferramenta não vê;
+    //   · a prótese com alerta regulatório não deve ser indicada;
+    //   · o resultado do EuroSCORE é faixa enquanto faltarem variáveis.
+    const AVISOS = [
+      /Quem decide o que cabe é o anel do paciente/,
+      /Não indicar para novo implante/,
+      /Ainda não é um resultado/,
+    ];
+    const telas = [
+      "src/components/ferramentas/RecomendadorProtese.tsx",
+      "src/components/ferramentas/CalculadoraEuroscore.tsx",
+      "src/components/ferramentas/CalculadoraMismatch.tsx",
+      "src/components/ferramentas/CatalogoProteses.tsx",
+    ].map((f) => ({ nome: f, texto: ler(f) }));
+
+    for (const aviso of AVISOS) {
+      const dono = telas.find((t) => aviso.test(t.texto));
+      expect(dono, `o aviso ${aviso} sumiu das telas`).toBeTruthy();
+      // Pega o trecho entre a abertura de <Explicacao> e o fechamento dela, e
+      // cobra que o aviso não esteja lá dentro.
+      const recolhidos = dono!.texto.match(/<Explicacao[\s\S]*?<\/Explicacao>/g) ?? [];
+      for (const bloco of recolhidos) {
+        expect(aviso.test(bloco), `${dono!.nome}: aviso recolhido dentro de <Explicacao>`).toBe(false);
+      }
+    }
+  });
+
   it("a tela distingue foto oficial de desenho esquemático", () => {
     // Esta guarda mudou junto com a realidade. Antes, nenhum cartão tinha foto e
     // ela cobrava a frase "não é a foto do produto". Agora 17 famílias têm a

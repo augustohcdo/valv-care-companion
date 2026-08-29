@@ -115,8 +115,10 @@ describe("catálogo de próteses", () => {
     // é essa: a nota não nomeia modelo nenhum.
     mockUseCatalogo.mockReturnValue({ data: [linha()], isLoading: false, error: null });
     render(<CatalogoProteses />);
-    const nota = [...document.querySelectorAll("p")]
-      .map((p) => p.textContent ?? "")
+    // A nota passou a viver num <details> recolhido — o resumo fica no
+    // <summary> e o corpo dentro. Procuro o bloco inteiro, não um <p>.
+    const nota = [...document.querySelectorAll("details, p")]
+      .map((e) => e.textContent ?? "")
       .find((t) => t.includes("Sobre as imagens e os dados")) ?? "";
     expect(nota, "a nota sobre imagens sumiu da tela").not.toBe("");
     for (const modelo of ["Sapien", "Epic", "Magna", "Perimount", "Trifecta", "Avalus"]) {

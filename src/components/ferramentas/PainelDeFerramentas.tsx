@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Activity, GitCompareArrows, Layers } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { CalculadoraEuroscore, type PreenchimentoInicial } from "./CalculadoraEuroscore";
 import { CalculadoraMismatch, type PreenchimentoMismatch } from "./CalculadoraMismatch";
 import { CatalogoProteses } from "./CatalogoProteses";
+import { BarraDoPaciente, derivar, type Paciente } from "./BarraDoPaciente";
 
 /**
  * As três ferramentas, montadas do mesmo jeito na página pública e dentro da
@@ -57,6 +59,21 @@ export function PainelDeFerramentas({ base, euroscore, mismatch }: Props) {
   const { pathname, search } = useLocation();
   const aba = abaDoCaminho(pathname, base);
 
+  /**
+   * O paciente mora aqui, e não dentro de cada ferramenta.
+   *
+   * Antes, altura e peso viviam na calculadora de mismatch e o EuroSCORE tinha
+   * um peso próprio: o mesmo paciente era digitado duas vezes e as duas telas
+   * podiam discordar sobre ele, cada uma calculando um número clínico sobre um
+   * peso diferente. Subindo o estado, trocar de aba não perde o paciente e não
+   * há como as duas divergirem.
+   */
+  const [paciente, setPaciente] = useState<Paciente>(() => ({
+    altura: "",
+    peso: euroscore?.pesoKg != null ? String(euroscore.pesoKg) : "",
+  }));
+  const { bsa, imc } = derivar(paciente);
+
   return (
     <div>
       <div
@@ -96,9 +113,23 @@ export function PainelDeFerramentas({ base, euroscore, mismatch }: Props) {
         })}
       </div>
 
+      {/* A barra do paciente fica FORA do painel de abas: ela não pertence a
+          nenhuma das três ferramentas, pertence ao caso. O catálogo não a usa e
+          por isso ela não aparece ali — mostrar campo que não faz nada naquela
+          tela é ruído. */}
+      {aba !== "proteses" && (
+        <div className="mb-6">
+          <BarraDoPaciente paciente={paciente} aoMudar={setPaciente} />
+        </div>
+      )}
+
       <div role="tabpanel">
-        {aba === "euroscore-ii" && <CalculadoraEuroscore inicial={euroscore} />}
-        {aba === "mismatch" && <CalculadoraMismatch inicial={mismatch} />}
+        {aba === "euroscore-ii" && (
+          <CalculadoraEuroscore inicial={euroscore} pesoKg={paciente.peso} />
+        )}
+        {aba === "mismatch" && (
+          <CalculadoraMismatch inicial={mismatch} bsa={bsa} imc={imc} />
+        )}
         {aba === "proteses" && <CatalogoProteses />}
       </div>
     </div>
