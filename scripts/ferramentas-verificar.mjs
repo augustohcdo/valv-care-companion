@@ -316,7 +316,7 @@ if (!CHAVE) {
    * declarado contra o catálogo real — não é a mesma fórmula calculando os dois
    * lados, que é o que esta verificação evita em todo o resto.
    */
-  const { BUSCA_DE_FOTOS } = await import("../src/data/buscaDeFontes.ts");
+  const { BUSCA_DE_FOTOS, VARREDURA_DE_ALERTAS } = await import("../src/data/buscaDeFontes.ts");
   const porFamilia = new Map();
   for (const l of linhas) {
     const k = `${l.manufacturer}|${l.model_name}`;
@@ -340,6 +340,50 @@ if (!CHAVE) {
   conferir(
     `fotos: nenhum motivo aponta para família fora do catálogo${motivoDeFamiliaInexistente.length ? ` — órfão: ${motivoDeFamiliaInexistente.join(", ")}` : ""}`,
     motivoDeFamiliaInexistente.length,
+    0,
+  );
+
+  /**
+   * A varredura de alerta cobre o catálogo inteiro — conferido pelos nomes.
+   *
+   * A tela anunciava "1 com alerta; 19 conferidos e sem alerta" enquanto o
+   * catálogo tinha 45 famílias: 26 nunca varridas, e a frase não dizia isso.
+   * Contar só o que foi feito, sem contar o que falta, é a forma mais comum de
+   * um relatório mentir sem escrever nada falso — e num catálogo de próteses o
+   * preço disso é uma família recolhida passando por limpa.
+   *
+   * Por nome, e não por tamanho de lista: se um nome sair da varredura enquanto
+   * outro entra no catálogo, a soma continua batendo e a lacuna some.
+   */
+  const varridas = new Set([
+    ...VARREDURA_DE_ALERTAS.comAlerta,
+    ...VARREDURA_DE_ALERTAS.achadoSemImpactoNaIndicacao.map((a) => a.familia),
+    ...VARREDURA_DE_ALERTAS.semAlerta,
+  ]);
+  const naoVarridas = [...porFamilia.keys()].filter((k) => !varridas.has(k));
+  const varreuFantasma = [...varridas].filter((k) => !porFamilia.has(k));
+  const emDuasListas = [...varridas].filter(
+    (k) =>
+      [VARREDURA_DE_ALERTAS.comAlerta.includes(k),
+       VARREDURA_DE_ALERTAS.achadoSemImpactoNaIndicacao.some((a) => a.familia === k),
+       VARREDURA_DE_ALERTAS.semAlerta.includes(k)].filter(Boolean).length > 1,
+  );
+
+  conferir(
+    `alertas: a varredura cobre as ${porFamilia.size} famílias do catálogo${naoVarridas.length ? ` — falta: ${naoVarridas.join(", ")}` : ""}`,
+    naoVarridas.length,
+    0,
+  );
+  conferir(
+    `alertas: nenhuma família varrida saiu do catálogo${varreuFantasma.length ? ` — fantasma: ${varreuFantasma.join(", ")}` : ""}`,
+    varreuFantasma.length,
+    0,
+  );
+  conferir(
+    // "Com alerta" e "sem achado" ao mesmo tempo faria a contagem da tela somar
+    // mais famílias do que existem, e a tela pareceria conferida demais.
+    `alertas: nenhuma família em duas listas ao mesmo tempo${emDuasListas.length ? ` — duplicada: ${emDuasListas.join(", ")}` : ""}`,
+    emDuasListas.length,
     0,
   );
 

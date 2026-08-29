@@ -10,7 +10,7 @@ import { Explicacao } from "./Explicacao";
 import { CitacaoDaFonte } from "./CitacaoDaFonte";
 import { FONTE_EACVI_PROTESES } from "@/lib/fontes";
 import { useCatalogoProteses, type ProteseDoCatalogo } from "@/hooks/useCatalogoProteses";
-import { buscaDaFamilia, motivoSemFoto, TEXTO_DO_RESULTADO, BUSCA_FEITA_EM, VARREDURA_DE_ALERTAS } from "@/data/buscaDeFontes";
+import { buscaDaFamilia, motivoSemFoto, TEXTO_DO_RESULTADO, BUSCA_FEITA_EM, VARREDURA_DE_ALERTAS, FAMILIAS_VARRIDAS } from "@/data/buscaDeFontes";
 
 /**
  * O catálogo de próteses.
@@ -124,6 +124,30 @@ export function CatalogoProteses() {
 
   const comEoa = catalogo.filter((p) => p.effective_orifice_area != null).length;
 
+  /**
+   * Quantas famílias o catálogo servido tem, e quantas dessas a varredura de
+   * alerta NÃO declara ter conferido.
+   *
+   * O denominador não é constante de propósito: uma família nova entra pelo
+   * banco, sem passar por este arquivo, e a lacuna precisa aparecer sozinha. As
+   * famílias que faltam são contadas por nome — contar só o tamanho das listas
+   * daria zero se um nome saísse da varredura e outro entrasse no catálogo.
+   */
+  const chavesNoCatalogo = useMemo(
+    () => new Set(catalogo.map((p) => `${p.manufacturer}|${p.model_name}`)),
+    [catalogo],
+  );
+  const familiasNoCatalogo = chavesNoCatalogo.size;
+  const varridas = useMemo(
+    () => new Set<string>([
+      ...VARREDURA_DE_ALERTAS.comAlerta,
+      ...VARREDURA_DE_ALERTAS.achadoSemImpactoNaIndicacao.map((a) => a.familia),
+      ...VARREDURA_DE_ALERTAS.semAlerta,
+    ]),
+    [],
+  );
+  const faltamVarrer = [...chavesNoCatalogo].filter((k) => !varridas.has(k)).length;
+
   if (error) {
     return (
       <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">
@@ -227,12 +251,30 @@ export function CatalogoProteses() {
               Ordem de procedência, não de mérito.
             </p>
           </Explicacao>
+          {/*
+            Esta frase já contou 19 conferidas num catálogo de 45 famílias, e
+            ninguém percebia, porque contava só o que tinha sido feito. Agora o
+            denominador vem do catálogo carregado: se entrar família nova sem
+            passar pela varredura, a diferença aparece aqui na hora, em vez de
+            esperar alguém somar à mão.
+          */}
           <p className="text-xs text-muted-foreground mt-2">
             <strong className="text-foreground">Alertas regulatórios:</strong> conferidos em{" "}
-            {VARREDURA_DE_ALERTAS.feitaEm} contra {VARREDURA_DE_ALERTAS.fontes.length} fontes.{" "}
-            {VARREDURA_DE_ALERTAS.comAlerta.length} modelo(s) com alerta que impede nova indicação;{" "}
-            {VARREDURA_DE_ALERTAS.semAlerta.length} conferidos e sem alerta. "Sem alerta" também é
-            uma afirmação, e por isso tem data.
+            {VARREDURA_DE_ALERTAS.feitaEm} contra {VARREDURA_DE_ALERTAS.fontes.length} fontes,{" "}
+            <strong className="text-foreground">
+              {FAMILIAS_VARRIDAS} de {familiasNoCatalogo || FAMILIAS_VARRIDAS}
+            </strong>{" "}
+            famílias do catálogo. {VARREDURA_DE_ALERTAS.comAlerta.length} com alerta que impede nova
+            indicação; {VARREDURA_DE_ALERTAS.achadoSemImpactoNaIndicacao.length} com recolhimento de
+            acessório, lote ou rótulo, que não retira a família da indicação; o restante sem achado.{" "}
+            {faltamVarrer > 0 && (
+              <strong className="text-warning">
+                {faltamVarrer} família(s) do catálogo ainda não passaram pela varredura.{" "}
+              </strong>
+            )}
+            "Sem achado" é afirmação sobre as fontes consultadas, e por isso tem data — não cobre{" "}
+            {VARREDURA_DE_ALERTAS.naoCobre}. A prova de que isso importa está na própria varredura:
+            a Trifecta GT, a única com alerta aqui, não tem nenhum registro no banco da FDA.
           </p>
         </div>
       </div>

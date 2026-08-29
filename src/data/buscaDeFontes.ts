@@ -371,29 +371,107 @@ export function motivoSemFoto(fabricante: string, modelo: string): string | unde
  * Descobrir isso por acaso — a página de produtos da Abbott simplesmente não
  * cita mais a Trifecta — deixou claro que "nenhum alerta" também precisa ser
  * uma afirmação com data, e não um silêncio.
+ *
+ * ## O segundo defeito, achado depois: a varredura cobria 42% e não dizia
+ *
+ * A lista `semAlerta` tinha 19 nomes. O catálogo tem **45 famílias**. As outras
+ * 25 nunca tinham sido conferidas por ninguém, e a tela anunciava "1 com alerta;
+ * 19 conferidos e sem alerta" — contando o que foi feito sem contar o que
+ * faltava, que é a forma mais comum de um relatório mentir sem escrever nada
+ * falso. Uma varredura parcial apresentada como completa é exatamente o que
+ * deixaria o próximo caso Trifecta passar.
+ *
+ * As 45 foram varridas com `scripts/catalogo/varredura-alertas.mjs`, contra os
+ * dois bancos públicos da FDA para dispositivos. As três listas abaixo somam o
+ * catálogo inteiro, e `ferramentas:verificar` quebra se deixarem de somar.
+ *
+ * ## O que esta varredura NÃO prova, e a prova disso
+ *
+ * Silêncio da FDA não é ausência de alerta. A prova está dentro da própria
+ * varredura: **`product_description:"Trifecta"` devolve 404 no banco de
+ * recolhimentos** — nenhum registro — e a Trifecta GT é justamente a única
+ * família com alerta que impede indicação, por carta ao cliente da Abbott. Se
+ * este catálogo dependesse só da FDA, teria dado a Trifecta como limpa.
  */
 export const VARREDURA_DE_ALERTAS = {
-  feitaEm: "2026-08-28",
+  feitaEm: "2026-08-29",
   /** O que foi consultado. */
   fontes: [
     "carta ao cliente da Abbott sobre a família Trifecta (31/07/2023)",
     "comunicado FDA/Abbott sobre deterioração estrutural precoce (27/02/2023)",
-    "busca por recolhimentos Classe I de válvulas cardíacas entre 2023 e 2025",
+    "banco de recolhimentos de dispositivos da FDA (openFDA device/recall), as 45 famílias",
+    "banco de ações de fiscalização da FDA (openFDA device/enforcement), as 45 famílias",
   ],
   /** Modelos com alerta que impede nova indicação. */
   comAlerta: ["Abbott|Trifecta GT"],
   /**
-   * O que foi conferido e **não** tem alerta que impeça indicação. Os
-   * recolhimentos Classe 2 encontrados (sistema de entrega da Sapien 3,
-   * embalagem da Perceval) são de acessório ou lote, não da prótese, e não
-   * mudam a indicação.
+   * Achado real da varredura que **não** impede indicação — e por quê, um a um.
+   *
+   * Esta categoria não existia, e a falta dela empurrava achado verdadeiro para
+   * dentro de `semAlerta`, onde ele sumia. Recolhimento de acessório, de lote
+   * nomeado ou de rótulo é fato, e fica escrito; promovê-lo a "não indicar"
+   * encheria a tela de alerta falso, e alerta falso treina o médico a ignorar
+   * alerta.
+   */
+  achadoSemImpactoNaIndicacao: [
+    {
+      familia: "Abbott|Navitor",
+      achado:
+        "Recolhimento Z-0491-2025 (iniciado em 17/10/2024, ainda aberto): erro de fabricação aceitou " +
+        "válvulas com deflexão de folheto fora de especificação, com risco potencial à durabilidade. " +
+        "É da própria válvula, e não de acessório — mas alcança 10 números de série nomeados, 1 " +
+        "unidade nos EUA e 9 fora, com carta entregue em mãos ao consignatário. Lote identificado " +
+        "não retira a família da indicação.",
+    },
+    {
+      familia: "Edwards|Sapien 3",
+      achado: "Recolhimentos do sistema de entrega (balão que estourava na retirada), não da prótese.",
+    },
+    {
+      familia: "Edwards|Sapien 3 Ultra",
+      achado: "Mesmo recolhimento do sistema de entrega da Sapien 3, em 2019. Acessório, não prótese.",
+    },
+    {
+      familia: "Medtronic|Evolut PRO+",
+      achado:
+        "Recolhimento de 2021 do cateter de entrega CoreValve Evolut PRO/PRO+, por separação do " +
+        "atuador, limitado ao fabricado antes de 11/07/2020. Acessório e lote.",
+    },
+    {
+      familia: "Medtronic|Hancock II",
+      achado:
+        "Dois achados de lote: válvulas distribuídas após excursão de temperatura (2009) e 15 unidades " +
+        "com tamanho errado no rótulo da caixa (2019) — a válvula em si estava correta.",
+    },
+    {
+      familia: "Medtronic|Open Pivot",
+      achado: "Uma caixa rotulada como aórtica contendo válvula mitral (2020). A válvula estava certa.",
+    },
+  ],
+  /**
+   * Conferido nas fontes acima e sem achado nenhum. É afirmação, não silêncio —
+   * e é afirmação sobre as fontes consultadas, não sobre o mundo.
    */
   semAlerta: [
-    "Edwards|Perimount", "Edwards|Magna Ease", "Edwards|Inspiris Resilia",
-    "Edwards|Intuity Elite", "Edwards|Konect Resilia", "Edwards|Mitris Resilia",
-    "Edwards|Sapien 3", "Abbott|Epic", "Abbott|Portico", "Abbott|Navitor",
-    "Abbott|St. Jude Regent", "Abbott|St. Jude Masters HP", "Medtronic|Avalus",
-    "Medtronic|Freestyle", "Medtronic|Hancock II", "Medtronic|Open Pivot",
-    "Medtronic|Evolut FX", "Medtronic|Evolut PRO+", "Corcym|Perceval Plus",
+    "Abbott|Epic", "Abbott|Portico", "Abbott|Rigid Saddle Ring", "Abbott|St. Jude Masters HP",
+    "Abbott|St. Jude Regent", "Braile|Anel Rígido Braile", "Braile|Anel Rígido Gregori",
+    "Braile|Inovare Alpha", "Braile|Prótese de Pericárdio Bovino", "Braile|Vivere",
+    "Corcym|Crown PRT", "Corcym|Memo 3D", "Corcym|Memo 4D", "Corcym|Perceval Plus",
+    "Corcym|Solo Smart", "Edwards|Cosgrove-Edwards Band (4600)", "Edwards|Inspiris Resilia",
+    "Edwards|Intuity Elite", "Edwards|Konect Resilia", "Edwards|MC3 Tricuspid (4900)",
+    "Edwards|Magna Ease", "Edwards|Magna Mitral Ease", "Edwards|Mitris Resilia",
+    "Edwards|Perimount", "Edwards|Physio Flex (5300)", "Edwards|Physio II (5200)",
+    "Edwards|Sapien 3 Ultra RESILIA", "Medtronic|Avalus", "Medtronic|CG Future",
+    "Medtronic|Contour 3D", "Medtronic|Evolut FX", "Medtronic|Freestyle", "Medtronic|Profile 3D",
+    "Meril|Dafodil", "Meril|Miltonia", "Meril|Miltonia AP", "Meril|Myval", "Meril|Myval Octacor",
   ],
+  /** O limite da varredura, dito na tela e não só aqui. */
+  naoCobre:
+    "bancos brasileiro (ANVISA) e europeu, e carta de fabricante que não vire recolhimento na FDA",
 } as const;
+
+/** Quantas famílias esta varredura declara ter conferido, nas três listas somadas. */
+export const FAMILIAS_VARRIDAS =
+  VARREDURA_DE_ALERTAS.comAlerta.length +
+  VARREDURA_DE_ALERTAS.achadoSemImpactoNaIndicacao.length +
+  VARREDURA_DE_ALERTAS.semAlerta.length;

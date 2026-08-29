@@ -4,6 +4,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { FONTE_EUROSCORE2, FONTE_EACVI_PROTESES, FONTE_DUBOIS, FONTE_LIMITE_PROJECAO } from "@/lib/fontes";
+import { VARREDURA_DE_ALERTAS, FAMILIAS_VARRIDAS } from "@/data/buscaDeFontes";
 
 /**
  * Guardas das ferramentas clínicas livres.
@@ -350,5 +351,55 @@ describe("o LaTeX que vazava para a tela do médico", () => {
     // Instrução a modelo reduz a frequência, não a possibilidade. Por isso ela
     // não substitui o sanitizador; as duas coisas existem juntas.
     expect(ler("supabase/functions/clinical-ai/index.ts")).toMatch(/SEM LaTeX/);
+  });
+});
+
+describe("varredura de alerta regulatório", () => {
+  /**
+   * As guardas de rede vivem no `ferramentas:verificar`, porque comparam a
+   * varredura com o catálogo servido. Estas três não precisam de rede: são
+   * sobre a consistência interna da própria declaração, e por isso rodam na CI
+   * a cada commit.
+   *
+   * O defeito que motivou: a tela contava "19 conferidos e sem alerta" num
+   * catálogo de 45 famílias, e a soma nunca era comparada com nada.
+   */
+  const listas = () => [
+    ["comAlerta", [...VARREDURA_DE_ALERTAS.comAlerta]],
+    ["achadoSemImpactoNaIndicacao", VARREDURA_DE_ALERTAS.achadoSemImpactoNaIndicacao.map((a) => a.familia)],
+    ["semAlerta", [...VARREDURA_DE_ALERTAS.semAlerta]],
+  ] as [string, string[]][];
+
+  it("FAMILIAS_VARRIDAS conta famílias distintas, e não linhas somadas", () => {
+    // Comparar a soma com a soma seria guarda vazia — foi a primeira versão
+    // deste teste, e ela passava com qualquer coisa. O que pode dar errado de
+    // verdade é a contagem inflar: nome repetido em duas listas soma duas
+    // vezes, e a tela imprime esse número como cobertura da varredura,
+    // anunciando mais catálogo conferido do que existe.
+    const distintas = new Set(listas().flatMap(([, l]) => l));
+    expect(FAMILIAS_VARRIDAS, "a contagem da tela está inflada por nome repetido").toBe(distintas.size);
+  });
+
+  it("nenhuma família aparece em duas listas", () => {
+    const vistas = new Map<string, string>();
+    for (const [nome, l] of listas()) {
+      for (const f of l) {
+        expect(vistas.has(f), `${f} está em ${vistas.get(f)} e em ${nome}`).toBe(false);
+        vistas.set(f, nome);
+      }
+    }
+  });
+
+  it("todo achado sem impacto explica por que não impede indicação", () => {
+    // Sem esta exigência, a categoria vira depósito: entra achado real, some da
+    // vista por não estar em `comAlerta`, e ninguém escreve o motivo.
+    for (const a of VARREDURA_DE_ALERTAS.achadoSemImpactoNaIndicacao) {
+      expect(a.achado.length, `${a.familia}: achado sem explicação`).toBeGreaterThan(60);
+    }
+  });
+
+  it("a tela diz o limite da varredura, e não só o que ela cobre", () => {
+    expect(VARREDURA_DE_ALERTAS.naoCobre).toMatch(/ANVISA/);
+    expect(ler("src/components/ferramentas/CatalogoProteses.tsx")).toMatch(/naoCobre/);
   });
 });
