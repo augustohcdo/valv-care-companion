@@ -297,6 +297,52 @@ if (!CHAVE) {
     /^[1-9]/,
   );
 
+  /**
+   * Foto e motivo, conferidos nos DOIS sentidos contra o catálogo servido.
+   *
+   * O sentido óbvio — família sem foto tem de ter motivo escrito — é o que
+   * impede o cartão de aparecer vazio sem explicar se ninguém procurou ou se
+   * procurou-se e não há.
+   *
+   * O sentido inverso é o que pega o defeito de verdade, e pegou: a Medtronic
+   * Avalus ganhou foto oficial nesta rodada e continuava listada em
+   * `BUSCA_DE_FOTOS` com o motivo "medtronic.com responde 'Incorrect Browser'".
+   * O motivo não aparecia em lugar nenhum, porque a família tinha foto — ficava
+   * ali, invisível e falso, esperando alguém lê-lo como afirmação conferida.
+   * Registro que sobrevive ao fato que o gerou é a forma mais silenciosa de
+   * mentir de que este projeto trata.
+   *
+   * Importar o `.ts` direto é seguro aqui porque o que se compara é **dado**
+   * declarado contra o catálogo real — não é a mesma fórmula calculando os dois
+   * lados, que é o que esta verificação evita em todo o resto.
+   */
+  const { BUSCA_DE_FOTOS } = await import("../src/data/buscaDeFontes.ts");
+  const porFamilia = new Map();
+  for (const l of linhas) {
+    const k = `${l.manufacturer}|${l.model_name}`;
+    porFamilia.set(k, (porFamilia.get(k) ?? false) || Boolean(l.image_url));
+  }
+  const declarados = new Set(BUSCA_DE_FOTOS.map((b) => b.familia));
+  const semFotoSemMotivo = [...porFamilia].filter(([k, tem]) => !tem && !declarados.has(k)).map(([k]) => k);
+  const comFotoComMotivo = [...porFamilia].filter(([k, tem]) => tem && declarados.has(k)).map(([k]) => k);
+  const motivoDeFamiliaInexistente = [...declarados].filter((k) => !porFamilia.has(k));
+
+  conferir(
+    `fotos: família sem foto tem motivo registrado${semFotoSemMotivo.length ? ` — falta: ${semFotoSemMotivo.join(", ")}` : ""}`,
+    semFotoSemMotivo.length,
+    0,
+  );
+  conferir(
+    `fotos: nenhum motivo sobrevive à foto que o desmente${comFotoComMotivo.length ? ` — sobrou: ${comFotoComMotivo.join(", ")}` : ""}`,
+    comFotoComMotivo.length,
+    0,
+  );
+  conferir(
+    `fotos: nenhum motivo aponta para família fora do catálogo${motivoDeFamiliaInexistente.length ? ` — órfão: ${motivoDeFamiliaInexistente.join(", ")}` : ""}`,
+    motivoDeFamiliaInexistente.length,
+    0,
+  );
+
   // A ordem dos fabricantes, recalculada da mesma regra escrita na tela.
   const cobertura = new Map();
   for (const l of linhas) {

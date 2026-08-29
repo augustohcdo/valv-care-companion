@@ -285,7 +285,19 @@ export const TEXTO_DO_RESULTADO: Record<ResultadoDaBusca, string> = {
  *     item que o usa. É de onde saíram Sapien 3, Sapien 3 Ultra e Magna Mitral
  *     Ease nesta rodada.
  *   · **Abbott** — páginas de produto e o DAM próprio (`/content/dam/cv/`).
+ *   · **Braile** — a REST do WordPress deles (`/wp-json/wp/v2/produto` e `/media`),
+ *     aberta. Cinco fotos saíram de lá.
+ *   · **Meril** — `strapi.merillife.com/uploads/...`, colhido do HTML das páginas
+ *     de produto (a API do Strapi responde 403).
  *   · **Medtronic** — nada. Ver abaixo.
+ *
+ * ## A lista abaixo é uma afirmação, não um depósito
+ *
+ * Cada linha diz "procurei e não há". Se a família ganhar foto depois, a linha
+ * vira mentira — e mentira aqui é pior do que ausência, porque quem lê o motivo
+ * confia que ele foi conferido. Por isso `ferramentas:verificar` compara esta
+ * lista com o catálogo servido nos dois sentidos: família sem foto tem de ter
+ * motivo, e família **com** foto não pode ter. Foi assim que a Avalus saiu daqui.
  */
 export const BUSCA_DE_FOTOS: { familia: string; motivo: string }[] = [
   {
@@ -295,13 +307,32 @@ export const BUSCA_DE_FOTOS: { familia: string; motivo: string }[] = [
       "traz 'Procedure: SPECIMEN IMAGING' escrito na própria imagem. A Edwards só publica foto de " +
       "produto da geração Magna Ease.",
   },
-  ...["Avalus", "CG Future", "Contour 3D", "Evolut FX", "Evolut PRO+", "Freestyle", "Hancock II",
+  ...["CG Future", "Contour 3D", "Evolut FX", "Evolut PRO+", "Freestyle", "Hancock II",
       "Open Pivot", "Profile 3D"].map((modelo) => ({
     familia: `Medtronic|${modelo}`,
     motivo:
-      "medtronic.com responde 1.104 bytes com 'Incorrect Browser' para tudo — página de produto, " +
-      "site regional e asset direto. É proteção contra robô, e não se contorna.",
+      "medtronic.com responde 'Incorrect Browser' às páginas e 403 aos próprios arquivos de imagem: " +
+      "é proteção contra robô, e não se contorna. O índice do arquivo da web chegou a devolver as " +
+      "URLs canônicas do DAM da Medtronic — foi assim que a Avalus entrou —, mas o arquivo passou a " +
+      "recusar conexão deste ambiente antes de as demais serem abertas, e URL que ninguém olhou não " +
+      "entra. A única imagem livre encontrada é um conduto ápico-aórtico montado na mesa cirúrgica, " +
+      "com a raiz porcina já recortada: não é foto de produto.",
   })),
+  ...["Crown PRT", "Memo 3D", "Memo 4D", "Perceval Plus", "Solo Smart"].map((modelo) => ({
+    familia: `Corcym|${modelo}`,
+    motivo:
+      "A Corcym não publica página de produto — o sitemap deles não tem nenhuma, e era daí que vinham " +
+      "os cinco 404 que este catálogo carregava. A biblioteca de mídia oferece oito arquivos em " +
+      "'product-images'; abri os oito, e são quadros de vídeo com o campo operatório aberto. Foto de " +
+      "cirurgia não ilustra prótese em cartão de catálogo.",
+  })),
+  {
+    familia: "Meril|Myval Octacor",
+    motivo:
+      "A Meril fundiu Myval e Myval Octacor numa página só, 'Myval THV series', com uma imagem que os " +
+      "dados estruturados da própria página atribuem à **série** e não a um dos dois modelos. Usá-la " +
+      "aqui seria afirmar que aquilo é a Octacor, que é justamente o erro que esta busca evita.",
+  },
   {
     familia: "Abbott|Trifecta GT",
     motivo:
