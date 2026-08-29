@@ -102,7 +102,10 @@ export const BUSCA_DE_FONTES: BuscaDeFonte[] = [
     resultado: "sem_dado_por_tamanho",
     nota:
       "A experiência clínica publicada com a Miltonia traz gradiente de pico e médio por tamanho, " +
-      "mas não calcula EOA em nenhum tamanho.",
+      "mas não calcula EOA em nenhum tamanho. O folheto do fabricante publica área GEOMÉTRICA do " +
+      "orifício, que é medida do desenho da válvula e sempre maior que a efetiva — fica na descrição " +
+      "de cada tamanho, com o nome certo, e fora do campo clínico. Este catálogo também trazia um " +
+      "17 mm aórtico que não existe na tabela de pedido da Meril; foi desativado.",
     referencia: {
       citacao: "Kashyap NK, et al. Clinical experience with the Miltonia valve. Indian J Thorac Cardiovasc Surg 2024;41(4):420-425.",
       url: "https://pubmed.ncbi.nlm.nih.gov/40144606/",
@@ -125,6 +128,24 @@ export const BUSCA_DE_FONTES: BuscaDeFonte[] = [
     resultado: "sem_estudo",
     nota:
       "Geração seguinte do Myval, sem estudo hemodinâmico próprio por tamanho publicado até esta busca.",
+  },
+  {
+    familia: "Meril|Dafodil Neo",
+    resultado: "sem_estudo",
+    nota:
+      "A Meril vende e este catálogo não tem, e o motivo é falta de fonte de tamanhos: o link " +
+      "'View Brochure' da página da Neo serve o PDF da Dafodil comum, não um da Neo, e a aba 'Size " +
+      "Chart' carrega por JavaScript e não vem no HTML. Sem tabela do fabricante, os tamanhos não " +
+      "são inventados — entrar com tamanho errado numa prótese é pior do que não ter a prótese.",
+  },
+  {
+    familia: "Meril|Flomero",
+    resultado: "sem_estudo",
+    nota:
+      "A Meril vende e este catálogo não tem. O único folheto disponível está marcado DRAFT em " +
+      "marca-d'água nas duas páginas e não traz tabela de pedido; rascunho do fabricante não é fonte " +
+      "para catálogo clínico. Da foto oficial dá para afirmar duas coisas: existe em aórtica e em " +
+      "mitral, e há oferta de 17 mm.",
   },
   {
     familia: "Abbott|Navitor",

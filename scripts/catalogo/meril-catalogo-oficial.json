@@ -1,0 +1,83 @@
+{
+ "_por_que_este_arquivo_existe": "Você apontou que o catálogo da Meril estava errado. Estava, em duas famílias e nas duas direções: tamanhos que a Meril vende e não apareciam, e um tamanho que aparecia sem existir. Tudo abaixo foi lido dos folhetos do próprio fabricante.",
+
+ "dafodil": {
+  "_fonte": {
+   "documento": "Dafodil™ Pericardial Bioprosthesis — folheto A4",
+   "url": "https://strapi.merillife.com/uploads/dafodil_a4_d3c4cb609b.pdf",
+   "_secao": "General Product Information / Ordering Information e Technical Specification"
+  },
+  "_erro_encontrado": "O catálogo daqui trazia aórtica 19–27 e mitral 25–31. A tabela de pedido do fabricante lista aórtica 19–29 (DDL19A a DDL29A) e mitral 23–33 (DDL23M a DDL33M). Faltavam o 29 aórtico e o 23 e o 33 mitrais.",
+  "aortica": {
+   "_colunas": "[tamanho, diâmetro do anel tecidual, diâmetro interno do stent na base, diâmetro externo do anel de sutura, altura total do perfil] em mm",
+   "linhas": [
+    [19, 19, 18, 25, 14],
+    [21, 21, 20, 27, 15],
+    [23, 23, 22, 29, 16],
+    [25, 25, 24, 31, 17],
+    [27, 27, 26, 33, 18],
+    [29, 29, 28, 35, 18]
+   ],
+   "modelos": ["DDL19A", "DDL21A", "DDL23A", "DDL25A", "DDL27A", "DDL29A"]
+  },
+  "mitral": {
+   "_colunas": "[tamanho, diâmetro do stent (wire form)] em mm — o folheto traz mais colunas na tabela mitral, mas a extração só devolveu esta com segurança e não vou transcrever de memória",
+   "linhas": [[23, 23], [25, 25], [27, 27], [29, 29], [31, 31], [33, 33]],
+   "modelos": ["DDL23M", "DDL25M", "DDL27M", "DDL29M", "DDL31M", "DDL33M"]
+  }
+ },
+
+ "miltonia": {
+  "_fonte": {
+   "documento": "MILTONIA™ Mechanical Bi-Leaflet Heart Valve — folheto, seção 'Ordering Information'",
+   "url": "https://strapi.merillife.com/uploads/miltonia_1702448206pdf_32c38dec34.pdf",
+   "_como_foi_lido": "As seis páginas do PDF são imagem, sem camada de texto. A página 5 foi renderizada a 110 dpi e a tabela lida à vista."
+  },
+  "_erro_encontrado": "O catálogo daqui trazia aórtica 17–27 e mitral 29–31. O 17 mm NÃO EXISTE na tabela do fabricante: a linha de anel pequeno é a série Advanced Performance, com números de catálogo MLT16AP, MLT18AP e MLT20AP e anel tecidual de 16,2 / 18,2 / 20,2 mm. E a mitral vai de 23 a 33, não de 29 a 31 — faltavam quatro tamanhos.",
+  "_sobre_a_area_publicada": "A coluna do folheto é **Geometric Orifice Area**, área geométrica do orifício, não EOA efetiva. São grandezas diferentes: a geométrica é medida do desenho da válvula, a efetiva é medida do jato no paciente e é sempre menor. Não entra em `effective_orifice_area`.",
+  "aortica_padrao": {
+   "_colunas": "[tamanho, anel tecidual, anel de sutura, diâmetro interno do orifício, área geométrica do orifício cm², altura total] em mm salvo a área",
+   "linhas": [
+    [19, 19, 19.8, 14.8, 1.55, 8.7],
+    [21, 21, 21.8, 16.8, 2.02, 9.7],
+    [23, 23, 23.8, 18.8, 2.56, 10.9],
+    [25, 25, 25.8, 20.8, 3.17, 12.1],
+    [27, 27, 27.8, 22.8, 3.84, 13.1]
+   ],
+   "modelos": ["MLT19A", "MLT21A", "MLT23A", "MLT25A", "MLT27A"]
+  },
+  "aortica_ap": {
+   "_o_que_e": "Série Advanced Performance: mesmo anel de sutura da padrão um número acima, para anel tecidual menor. É onde entra o paciente de anel pequeno.",
+   "linhas": [
+    [16, 16.2, 19.8, 14.8, 1.55, 8.7],
+    [18, 18.2, 21.8, 16.8, 2.02, 9.7],
+    [20, 20.2, 23.8, 18.8, 2.56, 10.9]
+   ],
+   "modelos": ["MLT16AP", "MLT18AP", "MLT20AP"]
+  },
+  "mitral": {
+   "linhas": [
+    [23, 23.8, 31, 18.8, 2.56, 11.5],
+    [25, 25.8, 33, 20.8, 3.17, 12.5],
+    [27, 27.8, 35, 22.8, 3.84, 13.5],
+    [29, 29.8, 37, 24.8, 4.59, 14.4],
+    [31, 31.8, 39, 26.8, 5.37, 14.4],
+    [33, 33.8, 41, 26.8, 5.37, 15.4]
+   ],
+   "modelos": ["MLT23M", "MLT25M", "MLT27M", "MLT29M", "MLT31M", "MLT33M"]
+  }
+ },
+
+ "nao_catalogados": [
+  {
+   "modelo": "Dafodil Neo",
+   "url": "https://www.merillife.com/our-products/cardiac-surgery/dafodil-neo",
+   "_por_que_nao_entrou": "A Meril vende, e não está aqui. Mas o link 'View Brochure' da página da Neo serve o PDF da Dafodil comum, não um da Neo, e a aba 'Size Chart' carrega por JavaScript e não vem no HTML. Sem tabela de tamanhos do fabricante eu não invento os tamanhos."
+  },
+  {
+   "modelo": "Flomero",
+   "url": "https://www.merillife.com/our-products/cardiac-surgery/flomero",
+   "_por_que_nao_entrou": "A Meril vende, e não está aqui. O único folheto disponível está marcado **DRAFT** em marca-d'água nas duas páginas e não traz tabela de pedido. Rascunho do fabricante não é fonte para catálogo clínico. O que dá para afirmar da foto oficial: existe em aórtica e mitral, e há oferta de 17 mm."
+  }
+ ]
+}
