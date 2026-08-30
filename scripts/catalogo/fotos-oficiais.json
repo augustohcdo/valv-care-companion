@@ -1,0 +1,158 @@
+{
+  "_por_que_este_arquivo_existe": [
+    "O registro do que eu ABRI E OLHEI antes de gravar uma foto no catálogo.",
+    "Nome de arquivo não basta: nesta base já foram rejeitadas 13 candidatas por",
+    "mostrarem outro produto, radiografia de peça explantada ou quadro de vídeo",
+    "cirúrgico. O campo `o_que_eu_vi` é a prova de que alguém olhou, e o script",
+    "que aplica recusa qualquer entrada sem ele."
+  ],
+  "_a_rota_que_destravou_a_medtronic": [
+    "Durante rodadas inteiras eu declarei a Medtronic intransponível. Estava",
+    "errado sobre o meio, não sobre o muro: eu só tinha tentado `curl`, que",
+    "medtronic.com bloqueia com 403 até no HTML. Duas coisas resolveram:",
+    "  1. o `WebFetch` sai por outro caminho, lê a página e GRAVA o binário em",
+    "     disco — então dá para abrir a imagem e olhar;",
+    "  2. a fotografia de produto da Medtronic não mora em medtronic.com, e sim",
+    "     em `medtronic.scene7.com`, que responde normalmente.",
+    "Declarar impossível o que só não tinha sido tentado direito é a mesma",
+    "família de defeito que este projeto inteiro persegue."
+  ],
+  "_regra": "URL canônica do fabricante vai para o banco. O onError do FotoDaProtese cai no esquema construtivo se ela morrer.",
+  "_data": "2026-08-30",
+  "conferidas": [
+    {
+      "familia": "Medtronic|Avalus",
+      "url": "https://medtronic.scene7.com/is/image/Medtronic/avalus-bioprosthesis-prodmast?fmt=jpg&fit=constrain,1&wid=600",
+      "o_que_eu_vi": "Bioprótese pericárdica com stent, vista de cima em três quartos: três folhetos bovinos claros, stent coberto de poliéster e anel de sutura escalopado com marcadores verde-azulados. É a Avalus de primeira geração — o punho é liso, diferente da malha texturizada da Ultra.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Medtronic|Avalus Ultra",
+      "url": "https://medtronic.scene7.com/is/image/Medtronic/avalus-ultra-bioprosthesis-prodmast?fmt=jpg&fit=constrain,1&wid=600",
+      "o_que_eu_vi": "Mesma família construtiva da Avalus, vista de cima, mas com o anel de sutura em malha texturizada visível e perfil mais baixo. Três folhetos pericárdicos e os mesmos marcadores verde-azulados.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Medtronic|Freestyle",
+      "url": "https://medtronic.scene7.com/is/image/Medtronic/freestyle-bioprosthesis-prodmast?fmt=jpg&fit=constrain,1&wid=600",
+      "o_que_eu_vi": "Raiz aórtica porcina inteira, sem stent: parede do seio com os dois cotos de óstio coronariano amarrados em fio verde, e a borda proximal revestida de tecido para sutura. É o Freestyle full root, inconfundível por não ter armação nenhuma.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Medtronic|Hancock II",
+      "url": "https://medtronic.scene7.com/is/image/Medtronic/hancock-ii-prodmast?fmt=jpg&fit=constrain,1&wid=600",
+      "o_que_eu_vi": "Bioprótese porcina com stent alto: três hastes cobertas de malha branca subindo do anel de sutura plano, e os folhetos porcinos amarelados no interior. Vista lateral.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Medtronic|Mosaic",
+      "url": "https://medtronic.scene7.com/is/image/Medtronic/mosaic-mitral-bioprosthesis-prodmast?fmt=jpg&fit=constrain,1&wid=600",
+      "o_que_eu_vi": "Bioprótese porcina de perfil baixo em posição mitral: anel de sutura branco largo e achatado, folhetos porcinos vistos pelo orifício, e uma haste do stent projetando-se para fora do plano do anel. Dois marcadores verde-azulados.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Medtronic|Open Pivot",
+      "url": "https://medtronic.scene7.com/is/image/Medtronic/medtronic-open-pivot-mechanical-prodmast?fmt=jpg&fit=constrain,1&wid=600",
+      "o_que_eu_vi": "Mecânica bileaflet de carbono pirolítico preto brilhante, folhetos na posição aberta (verticais), dentro de um punho de sutura branco felpudo. Vista em três quartos.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Medtronic|CG Future",
+      "url": "https://medtronic.scene7.com/is/image/Medtronic/cg-future-annuloplasty-ring-band-prodmast?fmt=jpg&fit=constrain,1&wid=600",
+      "o_que_eu_vi": "Dois dispositivos na mesma foto — um anel aberto e uma banda —, ambos revestidos de malha branca com marcas em X e traços verde-azulados. Bate com o nome do produto, que é 'ring AND band'.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Medtronic|Contour 3D",
+      "url": "https://medtronic.scene7.com/is/image/Medtronic/contour-3d-prodmast?fmt=jpg&fit=constrain,1&wid=600",
+      "o_que_eu_vi": "Anel de anuloplastia ABERTO, em C, revestido de malha branca com três traços verde-azulados. A abertura é a assinatura do anel tricúspide, que poupa a região de condução.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Medtronic|Profile 3D",
+      "url": "https://medtronic.scene7.com/is/image/Medtronic/profile-3d-prodmast?fmt=jpg&fit=constrain,1&wid=600",
+      "o_que_eu_vi": "Anel de anuloplastia mitral FECHADO e em sela, assimétrico, visto de lado para mostrar a curvatura tridimensional. Malha branca com marcas de guia de sutura verde-azuladas.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Corcym|Perceval Plus",
+      "url": "https://corcym.s3.eu-central-1.amazonaws.com/assets/v1/images/perceval_plus/perceval_PLUS_LANCELOT.webp",
+      "o_que_eu_vi": "Renderização da válvula sutureless: armação de nitinol preta em coroa dupla, folhetos de pericárdio bovino claros e dois marcadores azuis de posicionamento no anel inferior. É a Perceval Plus na versão Lancelot, a geração atual.",
+      "tipo": "ilustracao"
+    },
+    {
+      "familia": "Corcym|Crown PRT",
+      "url": "https://corcym.s3.eu-central-1.amazonaws.com/assets/v1/images/products/crown.webp",
+      "o_que_eu_vi": "Renderização de bioprótese aórtica com stent, vista de cima em três quartos: folhetos de pericárdio claros e o anel de sutura azul-acinzentado característico da Crown PRT, com dois traços verde-azulados de marcação.",
+      "tipo": "ilustracao"
+    },
+    {
+      "familia": "Corcym|Solo Smart",
+      "url": "https://corcym.s3.eu-central-1.amazonaws.com/assets/v1/images/products/solo_smart.webp",
+      "o_que_eu_vi": "Ilustração da bioprótese SEM stent montada no seu porta-válvula, com os fios de sutura azuis passados e a linha de sutura de entrada escalopada visível. A ausência total de armação é a assinatura da Solo Smart.",
+      "tipo": "ilustracao"
+    },
+    {
+      "familia": "Corcym|Memo 3D",
+      "url": "https://corcym.s3.eu-central-1.amazonaws.com/assets/v1/images/products/memo3d.webp",
+      "o_que_eu_vi": "Anel de anuloplastia mitral FECHADO, em D, revestido de malha escura com pontos brancos de marcação. Semi-rígido, sem a alça de cordoalha da versão ReChord.",
+      "tipo": "ilustracao"
+    },
+    {
+      "familia": "Corcym|Memo 4D",
+      "url": "https://corcym.s3.eu-central-1.amazonaws.com/assets/v1/images/products/memo4d.webp",
+      "o_que_eu_vi": "Anel de anuloplastia mitral fechado em sela, visto de lado para mostrar a curvatura, em malha escura com laçadas douradas de guia de sutura ao longo do segmento posterior.",
+      "tipo": "ilustracao"
+    },
+    {
+      "familia": "Abbott|Epic Plus Supra",
+      "url": "https://www.cardiovascular.abbott/content/dam/cv/cardiovascular/hcp/products/structural-heart/surgical-valves/product-images/epic-plus-supra-av-side-flip-fnl.png",
+      "o_que_eu_vi": "Bioprótese porcina aórtica em vista lateral: três hastes com folhetos porcinos amarelados e o anel de sutura branco escalopado com linha tracejada verde de marcação. Colhida da própria página da Epic Plus Supra.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Abbott|Epic Max",
+      "url": "https://www.cardiovascular.abbott/content/dam/cv/cardiovascular/hcp/products/structural-heart/surgical-valves/product-images/epic-max-aortic-valve-front-v2-250x.jpg",
+      "o_que_eu_vi": "Mesma plataforma Epic em vista frontal aórtica — folhetos porcinos, punho branco escalopado, tracejado verde. Visualmente quase idêntica à Plus Supra, o que é esperado: é a mesma família construtiva, e a URL veio da página própria da Epic Max.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Abbott|Epic Plus",
+      "url": "https://www.cardiovascular.abbott/content/dam/cv/cardiovascular/hcp/products/structural-heart/surgical-valves/product-images/epic-plus-mv-side-fnl.png",
+      "o_que_eu_vi": "Bioprótese porcina MITRAL vista de lado: o anel de sutura branco largo e plano fica em cima e as três hastes descem a partir dele — orientação inversa da aórtica, que é como se reconhece a versão mitral.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Abbott|St. Jude Regent",
+      "url": "https://www.cardiovascular.abbott/content/dam/cv/cardiovascular/hcp/products/structural-heart/surgical-valves/product-images/regent-perspective-bottom-fnl.png",
+      "o_que_eu_vi": "Mecânica bileaflet de carbono pirolítico preto vista pela face de entrada, com os dois folhetos abertos e o punho de sutura branco preso por fora do orifício — o desenho supra-anular que é a assinatura da Regent.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Abbott|St. Jude Masters HP",
+      "url": "https://www.cardiovascular.abbott/content/dam/cv/cardiovascular/hcp/products/structural-heart/surgical-valves/product-images/masters-valve-bottom-fnl.png",
+      "o_que_eu_vi": "Mecânica bileaflet de carbono pirolítico vista pela face de entrada, com o punho de sutura branco no mesmo plano do alojamento — diferente da Regent, em que o punho fica por fora.",
+      "tipo": "foto"
+    }
+  ],
+  "rejeitadas": [
+    {
+      "familia": "Medtronic|Freestyle",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/4/40/AVB_Implant_Using_Medtronic_Freestyle_Valve.jpg",
+      "por_que": "Conduto ápico-aórtico montado na mesa cirúrgica: dois segmentos de prótese de Dacron e, no meio, a raiz porcina já recortada, sobre campo cirúrgico e com marcação de caneta. Não é foto de produto."
+    },
+    {
+      "familia": "Medtronic|Freestyle",
+      "url": "https://www.medtronic.com/content/dam/medtronic-wide/public/united-states/products/cardiac-vascular/cardiovascular/heart-valves/freestyle-full-root-bioprosthesis-mdll.png",
+      "por_que": "Desenho técnico de cotas (A, B, C), não fotografia. Superado pela foto de produto do scene7."
+    }
+  ],
+  "_tipo_de_imagem": [
+    "Nem toda imagem oficial é fotografia. A Medtronic publica foto de estúdio; a",
+    "Corcym publica renderização 3D. As duas são do fabricante e as duas servem,",
+    "mas chamar renderização de 'foto do fabricante' na legenda seria dizer ao",
+    "médico que aquilo é o objeto retratado, quando é o objeto desenhado. Por isso",
+    "cada entrada declara `tipo`: 'foto' ou 'ilustracao', e a legenda da tela",
+    "acompanha."
+  ]
+}

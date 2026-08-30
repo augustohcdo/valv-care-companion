@@ -1,0 +1,93 @@
+{
+  "_o_que_e": [
+    "O que cada fabricante vende HOJE, lido na página de portfólio do próprio",
+    "fabricante em 30/08/2026, e o cruzamento com o que este catálogo tinha.",
+    "Existe porque 'o catálogo está atualizado' é afirmação, e afirmação sem",
+    "data e sem fonte é a mesma coisa que palpite."
+  ],
+  "_data": "2026-08-30",
+  "_regra_de_nomenclatura": [
+    "Um nome comercial = uma família. O catálogo trazia 'Abbott | Epic' cobrindo",
+    "aórtica e mitral como se fosse um produto só; a Abbott vende Epic Max e",
+    "Epic Plus Supra na aórtica e Epic Plus na mitral, com códigos de pedido",
+    "diferentes (EMAX-, ESP200-, E200-M). Nome errado no catálogo faz o cirurgião",
+    "pedir o produto errado."
+  ],
+
+  "Medtronic": {
+    "fonte": "https://www.medtronic.com/en-us/healthcare-professionals/specialties/cardiac-surgery/product-portfolio.html",
+    "ativas": [
+      "Avalus", "Avalus Ultra", "Freestyle", "Hancock II", "Mosaic",
+      "Open Pivot", "CG Future", "Contour 3D", "Profile 3D",
+      "SimuForm", "SimuPlus", "Tri-Ad 2.0 Adams"
+    ],
+    "faltavam_no_catalogo": ["Avalus Ultra", "Mosaic", "SimuForm", "SimuPlus", "Tri-Ad 2.0 Adams"],
+    "nota_open_pivot": [
+      "Eu tinha dito ao usuário que a Open Pivot havia saído de linha. ERRADO —",
+      "ela está viva em mechanical-valves-conduits, com tabela de códigos por",
+      "tamanho. A página de portfólio que eu li não cobria a categoria de",
+      "mecânicas, e eu li a ausência como retirada. Fonte:",
+      "https://www.medtronic.com/en-us/healthcare-professionals/products/cardiovascular/heart-valves/mechanical-valves-conduits/medtronic-open-pivot-mechanical-heart-valve.html"
+    ]
+  },
+
+  "Edwards": {
+    "fonte": "https://www.edwards.com/healthcare-professionals/products-services/surgical-heart/aortic",
+    "ativas": ["Inspiris Resilia", "Konect Resilia", "Intuity Elite", "Magna Ease", "Mitris Resilia", "Physio II (5200)", "Physio Flex (5300)", "Cosgrove-Edwards Band (4600)", "MC3 Tricuspid (4900)"],
+    "fora_de_linha": ["Perimount"],
+    "nota_perimount": [
+      "A página de aórticas cirúrgicas da Edwards lista Inspiris Resilia, Konect",
+      "Resilia, Intuity Elite e Magna Ease. A PERIMOUNT clássica não aparece mais —",
+      "a única da família PERIMOUNT ainda listada é a Magna Ease."
+    ]
+  },
+
+  "Abbott": {
+    "fonte": "https://www.cardiovascular.abbott/us/en/hcp/products/structural-heart/surgical-valve-solutions.html",
+    "ativas": ["Epic Max", "Epic Plus Supra", "Epic Plus", "St. Jude Regent", "St. Jude Masters HP"],
+    "fora_de_linha": ["Trifecta GT"],
+    "sem_confirmacao": ["Rigid Saddle Ring"],
+    "tamanhos_do_fabricante": {
+      "Epic Max": { "posicao": "aortica", "tamanhos": [19, 21, 23, 25, 27], "codigos": "EMAX-19 a EMAX-27" },
+      "Epic Plus Supra": { "posicao": "aortica", "tamanhos": [19, 21, 23, 25, 27], "codigos": "ESP200-19 a ESP200-27" },
+      "Epic Plus": { "posicao": "mitral", "tamanhos": [25, 27, 29, 31, 33], "codigos": "E200-25M a E200-33M" }
+    },
+    "nota_epic": [
+      "O catálogo tinha uma família 'Epic' com aórtica 19-29 e mitral 27-33. A",
+      "aórtica da Abbott hoje termina em 27 nos dois produtos — o 29 mm não existe",
+      "mais na tabela de pedido e é desativado, como já foi feito com o Miltonia",
+      "17 mm. A EOA gravada vem da entrada 'Abbott Epic' da ASE 2024, que é a",
+      "geração anterior: o rótulo da fonte continua dizendo o nome exato da fonte."
+    ],
+    "nota_rigid_saddle_ring": [
+      "A página de soluções valvares cirúrgicas da Abbott não lista anuloplastia",
+      "nenhuma, e não achei página de produto do Rigid Saddle Ring. Ele existe em",
+      "estudo de acompanhamento pós-mercado (NCT04761120), o que prova que esteve",
+      "no mercado, não que esteja. Sai do catálogo por falta de confirmação, e",
+      "isso fica escrito — 'não confirmei' não é 'não existe'."
+    ]
+  },
+
+  "Corcym": {
+    "fonte": "https://www.corcym.com/devices",
+    "ativas": ["Perceval Plus", "Crown PRT", "Solo Smart", "Memo 3D", "Memo 4D", "Memo 3D ReChord", "Bicarbon", "CarboMedics"],
+    "faltavam_no_catalogo": ["Memo 3D ReChord", "Bicarbon", "CarboMedics"],
+    "nota_nome": [
+      "A Corcym apresenta a Perceval Plus na versão LANCELOT, que é a geração",
+      "atual do sistema de entrega. O nome de família continua Perceval Plus —",
+      "Lancelot não é outra prótese —, e isso fica dito na descrição."
+    ]
+  },
+
+  "Braile": {
+    "fonte": "https://braile.com.br/wp-json/wp/v2/produto",
+    "ativas": ["Prótese de Pericárdio Bovino", "Vivere", "Anel Rígido Braile", "Anel Rígido Gregori"],
+    "fora_do_escopo_cirurgico": ["Inovare Alpha"]
+  },
+
+  "Meril": {
+    "fonte": "https://www.merillife.com/sitemap-our-products.xml",
+    "ativas": ["Dafodil", "Dafodil Neo", "Miltonia", "Miltonia AP", "Flomero"],
+    "fora_do_escopo_cirurgico": ["Myval", "Myval Octacor"]
+  }
+}
