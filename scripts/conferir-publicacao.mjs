@@ -5,10 +5,12 @@
  * ## Por que existe um script só para isto
  *
  * As mudanças de catálogo desta rodada vão por migration versionada, e migration
- * não roda aqui: não há Postgres nem Docker neste ambiente, e a CI também não as
- * aplica — quem aplica é o pipeline de publicação. Isso cria uma janela em que o
- * código já fala de 36 famílias e o banco ainda serve 45, e nessa janela o
- * `ferramentas:verificar` reprova **com razão**.
+ * não roda sozinha em lugar nenhum deste projeto. **Não existe pipeline que as
+ * aplique** — eu cheguei a escrever aqui que existia, e estava errado: a CI só
+ * roda os checks, e o `scripts/catalogo/README.md` registra que o DDL sempre
+ * entrou à mão, por token da Management API, porque `service_role` não executa
+ * DDL. Enquanto ninguém aplicar, o código fala de 36 famílias e o banco serve 45,
+ * e nessa janela o `ferramentas:verificar` reprova **com razão**.
  *
  * O risco de uma janela assim é o de sempre: alguém roda a conferência cedo
  * demais, vê vermelho, conclui "quebrou" e reverte; ou roda e vê verde por
@@ -76,8 +78,15 @@ if (!temFuncao && !temColuna && !semTavi) {
     "  · referencia_historica() não existe\n" +
     "  · o catálogo não devolve image_kind\n" +
     "  · ainda há linhas transcateter\n\n" +
-    "Isto NÃO é defeito do código publicado: é o banco ainda no estado anterior.\n" +
-    "Espere o pipeline de publicação aplicar as migrations e rode de novo.",
+    "Isto NÃO é defeito do código publicado: é o banco ainda no estado anterior.\n\n" +
+    "E não adianta esperar: NENHUM pipeline aplica migration neste projeto. A CI\n" +
+    "só roda os checks; o DDL sempre entrou à mão, por token da Management API\n" +
+    "(`sbp_...`), porque a chave `service_role` não executa DDL. As três migrations\n" +
+    "de 30/08/2026 estão em supabase/migrations/ esperando alguém com o token:\n\n" +
+    "  20260830010000_catalogo_so_cirurgico.sql\n" +
+    "  20260830020000_catalogo_imagens_e_novas.sql\n" +
+    "  20260830030000_magna_ease_por_tamanho.sql\n\n" +
+    "`npm run migrations` já confirmou que as três analisam sem erro de sintaxe.",
   );
   process.exit(3);
 }
