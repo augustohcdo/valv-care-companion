@@ -19,6 +19,7 @@
     "mobile": "node scripts/mobile.mjs",
     "pmids": "node scripts/conferir-pmids.mjs",
     "preview": "vite preview",
+    "publicacao": "node scripts/conferir-publicacao.mjs",
     "smoke": "node scripts/smoke.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
