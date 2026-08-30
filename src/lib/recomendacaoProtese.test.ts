@@ -19,7 +19,7 @@ const linha = (over: Partial<ProteseDoCatalogo>): ProteseDoCatalogo => ({
   eoa_source_label: "ASE 2024 — Tabela A4", eoa_source_url: "https://pubmed.ncbi.nlm.nih.gov/38182282/",
   mean_gradient_ref: 12.6, mean_gradient_ref_sd: 4.7,
   annulus_min_mm: 20, annulus_max_mm: 22, description: null, reference_url: null,
-  image_url: null, display_order: 1,
+  image_url: null, image_kind: null, display_order: 1,
   advisory: null, advisory_note: null, advisory_url: null, advisory_date: null, ...over,
 });
 
@@ -157,15 +157,27 @@ describe("recomendador de prótese", () => {
     expect(r.fabricantes[0]!.semEoaPublicada).toBe(2);
   });
 
-  it("anel de anuloplastia fica de fora: não substitui a valva", () => {
+  it("ficam de fora o anel e o transcateter — por motivos diferentes, e isso importa", () => {
+    // O anel sai porque **não substitui a valva**: é fato sobre o dispositivo, e
+    // projetar mismatch nele não significaria nada.
     expect(ehSubstituicao("anel_anuloplastia")).toBe(false);
     expect(ehSubstituicao("biologica_aortica")).toBe(true);
-    expect(ehSubstituicao("tavi")).toBe(true);
     expect(ehSubstituicao("mecanica")).toBe(true);
-    const catalogo = [linha({ type: "anel_anuloplastia", effective_orifice_area: 2.2 })];
+
+    // O transcateter sai por outra razão: **este site é de cirurgia valvar**. A
+    // conta valeria para ele, e a ASE publica a tabela — não é que a válvula
+    // seja pior nem que falte dado. Guardar os dois no mesmo teste sem dizer a
+    // diferença faria o código parecer estar afirmando que TAVI não tem EOA.
+    expect(ehSubstituicao("tavi")).toBe(false);
+
+    const catalogo = [
+      linha({ type: "anel_anuloplastia", effective_orifice_area: 2.2 }),
+      linha({ id: "tavi", type: "tavi", effective_orifice_area: 2.2 }),
+    ];
     const r = recomendarProteses(catalogo, BSA, "aortica", 24);
     expect(r.avaliadas).toBe(0);
-    expect(r.fabricantes).toHaveLength(0);
+    expect(r.fabricantes, "fabricante sem prótese de substituição nesta posição não vira cartão")
+      .toHaveLength(0);
   });
 
   it("a posição valvar filtra: mitral não aparece na busca aórtica", () => {

@@ -64,13 +64,38 @@ export interface OpcaoProtese {
   anelMin: number | null;
   anelMax: number | null;
   imagem: string | null;
+  imagemE: "foto" | "ilustracao" | null;
   paginaDoFabricante: string | null;
   /** Alerta regulatório, quando existe. Prótese com alerta nunca é indicada. */
   alerta: { tipo: string; nota: string; url: string; data: string | null } | null;
 }
 
+/**
+ * Em que situação cada fabricante ficou neste paciente.
+ *
+ * Existe porque a tela **omitia fabricante**. Ela montava a lista filtrando
+ * `adequadas.length > 0` e, para os que sobravam, exigia `insuficientes.length
+ * > 0`. Um fabricante cujos tamanhos estivessem todos sem EOA publicada
+ * simplesmente sumia — sem cartão, sem linha, sem nota. Para quem lê, some
+ * quer dizer "não tem produto para este paciente", quando o que houve foi
+ * "ninguém publicou medida".
+ *
+ * Agora todo fabricante com pelo menos uma linha na posição aparece, num destes
+ * quatro estados, e a tela desenha cada um de um jeito.
+ */
+export type SituacaoDoFabricante =
+  /** Tem tamanho que evita mismatch neste paciente. */
+  | "com_opcao"
+  /** Tem dado publicado, e nenhum tamanho chega ao limiar. */
+  | "sem_opcao"
+  /** Tem produto nesta posição e nenhum com EOA publicada — a conta não roda. */
+  | "sem_dado"
+  /** Só tem tamanhos sob alerta regulatório. */
+  | "so_desaconselhadas";
+
 export interface RecomendacaoDoFabricante {
   fabricante: string;
+  situacao: SituacaoDoFabricante;
   /** As que não produzem *mismatch* relevante, do menor tamanho para o maior. */
   adequadas: OpcaoProtese[];
   /** As que produziriam *mismatch*, para o médico ver onde está a fronteira. */
@@ -112,8 +137,21 @@ export const CRITERIO_DE_ORDEM =
   "referência publicada nesta posição, e em quantos modelos. Não é ranking de " +
   "qualidade nem de preferência comercial.";
 
-/** Só faz sentido projetar *mismatch* para prótese que substitui a valva. */
-const TIPOS_DE_SUBSTITUICAO = new Set(["biologica_aortica", "biologica_mitral", "mecanica", "tavi"]);
+/**
+ * Só faz sentido projetar *mismatch* para prótese **cirúrgica** que substitui a
+ * valva.
+ *
+ * `tavi` saiu desta lista. Não porque a conta não valesse para transcateter —
+ * vale, e a ASE publica a tabela —, mas porque este site é de cirurgia valvar e
+ * de caso cirúrgico. Misturar transcateter na lista de escolha de prótese
+ * respondia a uma pergunta que não é a desta tela, e ainda por cima punha lado
+ * a lado dois produtos que não competem pela mesma decisão no mesmo momento.
+ *
+ * O transcateter continua citado onde a decisão cirúrgica depende dele: SAVR
+ * versus TAVI no Heart Team, e a conduta quando nenhuma prótese evita mismatch.
+ * O que sai é a oferta, não a menção.
+ */
+const TIPOS_DE_SUBSTITUICAO = new Set(["biologica_aortica", "biologica_mitral", "mecanica"]);
 
 export function ehSubstituicao(tipo: string): boolean {
   return TIPOS_DE_SUBSTITUICAO.has(tipo);
@@ -142,7 +180,8 @@ export function recomendarProteses(
     let f = porFabricante.get(nome);
     if (!f) {
       f = {
-        fabricante: nome, adequadas: [], insuficientes: [], desaconselhadas: [],
+        fabricante: nome, situacao: "sem_dado",
+        adequadas: [], insuficientes: [], desaconselhadas: [],
         semEoaPublicada: 0, comEoaPublicada: 0, modelosComDado: 0,
       };
       porFabricante.set(nome, f);
@@ -186,6 +225,7 @@ export function recomendarProteses(
       anelMin: p.annulus_min_mm,
       anelMax: p.annulus_max_mm,
       imagem: p.image_url,
+      imagemE: p.image_kind,
       paginaDoFabricante: p.reference_url,
       alerta: p.advisory
         ? { tipo: p.advisory, nota: p.advisory_note ?? "", url: p.advisory_url ?? "", data: p.advisory_date }
@@ -206,6 +246,15 @@ export function recomendarProteses(
     a.tamanho - b.tamanho || a.modelo.localeCompare(b.modelo, "pt-BR");
   for (const f of porFabricante.values()) {
     f.modelosComDado = modelosComDado.get(f.fabricante)?.size ?? 0;
+    // A ordem importa: quem tem opção adequada é "com opção" mesmo tendo também
+    // tamanhos sob alerta, porque a opção adequada é o que o cirurgião procura.
+    // "Só desaconselhadas" é o caso em que TUDO que tem dado está sob alerta —
+    // e aí o cartão vermelho é a resposta inteira, não um rodapé.
+    f.situacao =
+      f.adequadas.length > 0 ? "com_opcao"
+      : f.insuficientes.length > 0 ? "sem_opcao"
+      : f.desaconselhadas.length > 0 ? "so_desaconselhadas"
+      : "sem_dado";
     f.adequadas.sort(porTamanho);
     f.desaconselhadas.sort(porTamanho);
     // Nas insuficientes, a maior primeiro: é a que chega mais perto de servir.
