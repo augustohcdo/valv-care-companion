@@ -2485,6 +2485,7 @@ export type Database = {
           eoa_source_label: string
           eoa_source_url: string
           id: string
+          image_kind: string
           image_url: string
           manufacturer: string
           mean_gradient_ref: number
@@ -2493,6 +2494,24 @@ export type Database = {
           reference_url: string
           size: number
           type: string
+          valve_position: string
+        }[]
+      }
+      referencia_historica: {
+        Args: never
+        Returns: {
+          discontinued_at: string
+          discontinued_note: string
+          discontinued_source_url: string
+          effective_orifice_area: number
+          eoa_reference_sd: number
+          eoa_source_label: string
+          eoa_source_url: string
+          manufacturer: string
+          mean_gradient_ref: number
+          mean_gradient_ref_sd: number
+          model_name: string
+          size: number
           valve_position: string
         }[]
       }

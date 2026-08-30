@@ -23,6 +23,13 @@ vi.mock("@/hooks/useCatalogoProteses", () => ({
   useCatalogoProteses: () => mockUseCatalogo(),
 }));
 
+// A seção de referência histórica faz a própria consulta, e sem este mock o
+// arquivo inteiro deixa de carregar com "supabaseUrl is required" — uma suíte
+// que some por erro de importação, não uma que reprova.
+vi.mock("@/hooks/useReferenciaHistorica", () => ({
+  useReferenciaHistorica: () => ({ data: [], isLoading: false, error: null }),
+}));
+
 const { CatalogoProteses } = await import("./CatalogoProteses");
 
 const linha = (over: Partial<ProteseDoCatalogo> = {}): ProteseDoCatalogo => ({
@@ -31,7 +38,7 @@ const linha = (over: Partial<ProteseDoCatalogo> = {}): ProteseDoCatalogo => ({
   eoa_source_label: "EACVI 2016 — Tabela 7", eoa_source_url: "https://pubmed.ncbi.nlm.nih.gov/27143783/",
   mean_gradient_ref: 12.6, mean_gradient_ref_sd: 4.7,
   annulus_min_mm: null, annulus_max_mm: null, description: "Bioprótese aórtica.",
-  reference_url: "https://exemplo.invalid/perimount", image_url: null, display_order: 1,
+  reference_url: "https://exemplo.invalid/perimount", image_url: null, image_kind: null, display_order: 1,
   advisory: null, advisory_note: null, advisory_url: null, advisory_date: null,
   ...over,
 });

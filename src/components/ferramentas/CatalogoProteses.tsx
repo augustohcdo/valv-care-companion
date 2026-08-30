@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ExternalLink, Search, ShieldAlert } from "lucide-react";
 import { FotoDaProtese } from "./FotoDaProtese";
 import { Explicacao } from "./Explicacao";
+import { ReferenciaHistorica } from "./ReferenciaHistorica";
 import { CitacaoDaFonte } from "./CitacaoDaFonte";
 import { FONTE_EACVI_PROTESES } from "@/lib/fontes";
 import { useCatalogoProteses, type ProteseDoCatalogo } from "@/hooks/useCatalogoProteses";
@@ -39,7 +40,6 @@ const ROTULO_TIPO: Record<string, string> = {
   biologica_mitral: "Bioprótese mitral",
   mecanica: "Prótese mecânica",
   anel_anuloplastia: "Anel de anuloplastia",
-  tavi: "Válvula transcateter (TAVI)",
 };
 const ROTULO_POSICAO: Record<string, string> = {
   aortica: "aórtica", mitral: "mitral", tricuspide: "tricúspide",
@@ -62,6 +62,7 @@ interface Familia {
   descricao: string | null;
   referencia: string | null;
   imagem: string | null;
+  imagemE: "foto" | "ilustracao" | null;
   alerta: { tipo: string; nota: string; url: string; data: string | null } | null;
   linhas: ProteseDoCatalogo[];
 }
@@ -77,6 +78,7 @@ function agrupar(linhas: ProteseDoCatalogo[]): Familia[] {
         posicao: l.valve_position,
         // A descrição da menor medida é a do modelo; as demais repetem o tamanho.
         descricao: l.description, referencia: l.reference_url, imagem: l.image_url,
+        imagemE: l.image_kind,
         alerta: l.advisory
           ? { tipo: l.advisory, nota: l.advisory_note ?? "", url: l.advisory_url ?? "", data: l.advisory_date }
           : null,
@@ -86,7 +88,7 @@ function agrupar(linhas: ProteseDoCatalogo[]): Familia[] {
     }
     f.linhas.push(l);
     if (!f.referencia && l.reference_url) f.referencia = l.reference_url;
-    if (!f.imagem && l.image_url) f.imagem = l.image_url;
+    if (!f.imagem && l.image_url) { f.imagem = l.image_url; f.imagemE = l.image_kind; }
   }
   for (const f of mapa.values()) f.linhas.sort((a, b) => (a.size ?? 0) - (b.size ?? 0));
   return [...mapa.values()];
@@ -274,10 +276,17 @@ export function CatalogoProteses() {
             )}
             "Sem achado" é afirmação sobre as fontes consultadas, e por isso tem data — não cobre{" "}
             {VARREDURA_DE_ALERTAS.naoCobre}. A prova de que isso importa está na própria varredura:
-            a Trifecta GT, a única com alerta aqui, não tem nenhum registro no banco da FDA.
+            a Trifecta, retirada do mercado pela Abbott em 2023 por deterioração estrutural precoce,
+            não tem registro nenhum no banco de recolhimentos da FDA. Quem dependesse só dela a teria
+            dado por limpa.
           </p>
         </div>
       </div>
+
+      {/* Fora do catálogo de propósito, e visualmente diferente dele: sem foto,
+          sem faixa de anel, sem "a partir de X mm". É tabela de consulta para
+          quem já tem a prótese implantada, não oferta. */}
+      <ReferenciaHistorica />
     </div>
   );
 }
@@ -299,7 +308,8 @@ function CartaoFamilia({ familia: f }: { familia: Familia }) {
               cai junto. Separados, a legenda dizia "foto do fabricante" em cima
               de um desenho nosso. */}
           <FotoDaProtese
-            imagem={f.imagem} fabricante={f.fabricante} modelo={f.modelo} tipo={f.tipo}
+            imagem={f.imagem} imagemE={f.imagemE}
+            fabricante={f.fabricante} modelo={f.modelo} tipo={f.tipo}
             tamanhoQuadro="w-24 h-24 rounded-xl bg-secondary/40 ring-1 ring-border overflow-hidden grid place-items-center text-primary"
             tamanhoEsquema="w-16 h-16"
           />

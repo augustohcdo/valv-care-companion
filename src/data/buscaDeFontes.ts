@@ -169,14 +169,52 @@ export const BUSCA_DE_FONTES: BuscaDeFonte[] = [
       "tamanho (1,9 → 1,8 → 1,7), o que não se sustenta — não foi usada.",
   },
   {
-    familia: "Abbott|Epic",
+    familia: "Abbott|Epic Plus Supra",
     resultado: "coberta_em_parte",
     nota:
-      "Aórtica coberta em 21 a 29 mm e mitral em 27 a 33 mm pela ASE 2024. Falta só o 25 mm mitral: a " +
-      "Tabela A5 começa no 27 mm e não o traz. Registro do que mudou: esta família chegou a ficar inteira sem valor na " +
-      "mitral porque a leitura linear do PDF perdia o glifo '±' e colava os números; a leitura por " +
-      "posição de coluna mostrou que o segundo número está na coluna de EOA (x≈509) e que a de " +
-      "velocidade de pico (x≈383) está vazia nessas linhas.",
+      "Coberta em 21, 23, 25 e 27 mm pela entrada 'Abbott Epic' da Tabela A4 da ASE 2024; sem valor " +
+      "no 19 mm, que a tabela não traz. Uma ressalva de procedência que precisa estar dita: a fonte " +
+      "nomeia 'Abbott Epic', a geração anterior, e a Abbott hoje vende Epic Plus Supra — o rótulo da " +
+      "fonte na tela continua dizendo o nome exato da entrada, para o médico saber que o valor é da " +
+      "plataforma e não desta versão. O 29 mm que este catálogo trazia foi desativado: a tabela de " +
+      "pedido da Abbott termina em 27 mm nos dois produtos aórticos de hoje.",
+  },
+  {
+    familia: "Abbott|Epic Plus",
+    resultado: "coberta_em_parte",
+    nota:
+      "Mitral coberta em 27, 29, 31 e 33 mm pela entrada 'AbbottEpic' da Tabela A5 da ASE 2024. Falta " +
+      "só o 25 mm: a tabela começa no 27 mm. Esta família chegou a ficar inteira sem valor porque a " +
+      "leitura linear do PDF perdia o glifo '±' e colava os números; a leitura por posição de coluna " +
+      "mostrou que o segundo número cai na coluna de EOA (x≈509) e que a de velocidade de pico " +
+      "(x≈383) está vazia nessas linhas. Mesma ressalva de geração da aórtica: a fonte nomeia 'Epic'.",
+  },
+  {
+    familia: "Abbott|Epic Max",
+    resultado: "sem_estudo",
+    nota:
+      "Entrou neste catálogo agora, com os cinco tamanhos e os códigos da tabela de pedido da Abbott " +
+      "(EMAX-19 a EMAX-27). Não há EOA por tamanho publicada em diretriz: a página do produto fala em " +
+      "hemodinâmica sem número, e a ASE 2024 não tem entrada 'Epic Max'. Emprestar o valor da 'Abbott " +
+      "Epic' da tabela seria dar a uma geração o desempenho medido em outra.",
+  },
+  {
+    familia: "Medtronic|Avalus Ultra",
+    resultado: "sem_estudo",
+    nota:
+      "Entrou agora, com os seis tamanhos e os códigos da Medtronic (400U19 a 400U29). É a geração " +
+      "seguinte da Avalus e ainda não tem entrada própria na ASE 2024 — a tabela traz 'Medtronic " +
+      "Avalus', que é a primeira geração e já está no catálogo com valor próprio.",
+  },
+  {
+    familia: "Medtronic|Mosaic",
+    resultado: "coberta_em_parte",
+    nota:
+      "Entrou agora na posição mitral, com os cinco tamanhos e os códigos da Medtronic (310C25 a " +
+      "310C33). A Tabela A5 da ASE 2024 traz só o 25 mm — 1,42 ± 0,29 cm² e 8,3 ± 1,71 mmHg, lidos " +
+      "por posição de coluna. Os outros quatro, de 27 a 33 mm, continuam sem valor. Vale registrar " +
+      "uma coincidência que parece erro e não é: essa linha da Mosaic traz números idênticos aos da " +
+      "Hancock II 25 mm na mesma tabela. É o que a fonte publica, conferido nas duas páginas.",
   },
   {
     familia: "Corcym|Crown PRT",
@@ -229,26 +267,20 @@ export const BUSCA_DE_FONTES: BuscaDeFonte[] = [
       "'ATS AP Bileaflet': é a série supra-anular, com outra numeração (18, 20, 22, 24, 26).",
   },
   {
-    familia: "Edwards|Perimount",
-    resultado: "coberta_em_parte",
-    nota:
-      "Coberta pela ASE 2024 nos dois lados: aórtica pela entrada 'Baxter Perimount' da Tabela A4 " +
-      "(e não pela 'Carpentier-Edwards Pericardial' da mesma tabela, cujo 25 mm não traz EOA), " +
-      "mitral pela 'Carpentier-Edwards Perimount, stented pericardial' da Tabela A5, em 25 a 33 mm.",
-  },
-  {
     familia: "Edwards|Magna Ease",
     resultado: "coberta_em_parte",
     nota:
-      "Com valor apenas em 23 mm e 25 mm, de estudo próprio (Mayr 2021, n = 17 e n = 27). Sem valor " +
-      "em 19, 21, 27 e 29 mm: a ASE 2024 não tem entrada 'Magna' nem 'Magna Ease' — conferido " +
-      "varrendo os 62 rótulos da Tabela A4 —, e a Magna Ease é geração posterior à Perimount, então " +
-      "emprestar o valor da Perimount seria inventar procedência. Existe medida de EOA da Magna Ease " +
-      "21 mm em duplicador de pulso, citada ao lado, mas é bancada: não se mistura com valor clínico " +
-      "no mesmo campo, e cobriria um tamanho só.",
+      "Coberta em 21, 23, 25, 27 e 29 mm por Tsui 2022, que traz a tabela por tamanho na alta " +
+      "hospitalar com coorte grande (n = 34, 87, 66, 19 e 11). Sem valor só no 19 mm, e por um motivo " +
+      "específico: ali o n é 9, um paciente abaixo do piso de amostra desta base. Baixar o piso para " +
+      "caber um caso é o mesmo que não ter piso — e o 19 mm é justamente o tamanho onde o mismatch " +
+      "decide conduta, o pior lugar para relaxar critério. Os valores anteriores, de Mayr 2021, " +
+      "cobriam só 23 e 25 mm com n = 17 e 27; foram substituídos pelos de Tsui, que medem a mesma " +
+      "coisa em coorte cinco vezes maior. A ASE 2024 não tem entrada 'Magna' nem 'Magna Ease' — " +
+      "conferido varrendo os 62 rótulos da Tabela A4.",
     referencia: {
-      citacao: "Sadat N, Scharfschwerdt M, Schaller T, et al. Functional performance of 8 small surgical aortic valve bioprostheses: an in vitro study. Eur J Cardiothorac Surg 2022;62(4):ezac426.",
-      url: "https://pubmed.ncbi.nlm.nih.gov/35993864/",
+      citacao: "Tsui S, Rosenbloom M, Abel J, et al. Eight-year outcomes of aortic valve replacement with the Carpentier-Edwards PERIMOUNT Magna Ease valve. J Card Surg 2022;37(12):4999-5010.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/36378942/",
     },
   },
 ];
@@ -289,7 +321,28 @@ export const TEXTO_DO_RESULTADO: Record<ResultadoDaBusca, string> = {
  *     aberta. Cinco fotos saíram de lá.
  *   · **Meril** — `strapi.merillife.com/uploads/...`, colhido do HTML das páginas
  *     de produto (a API do Strapi responde 403).
- *   · **Medtronic** — nada. Ver abaixo.
+ *   · **Medtronic** — `medtronic.scene7.com`. Ver abaixo.
+ *   · **Corcym** — `corcym.s3.eu-central-1.amazonaws.com`, colhido do HTML das
+ *     páginas de dispositivo.
+ *
+ * ## O erro que esta lista carregou por rodadas
+ *
+ * Durante três rodadas esta lista afirmou, com todas as letras, que as fotos da
+ * Medtronic eram inalcançáveis: "medtronic.com responde 'Incorrect Browser'
+ * para tudo — página de produto, site regional e asset direto. É proteção
+ * contra robô, e não se contorna."
+ *
+ * A primeira frase é verdade. A conclusão era falsa, e por duas razões que eu
+ * não tinha procurado:
+ *
+ *   1. `curl` não era o único meio — a busca da própria sessão sai por outro
+ *      caminho, lê a página e grava o binário, então dá para **olhar**;
+ *   2. a fotografia de produto da Medtronic **não mora em medtronic.com**. Mora
+ *      em `medtronic.scene7.com`, que responde a qualquer cliente.
+ *
+ * Nove famílias ficaram anos sem foto porque um obstáculo real virou conclusão
+ * geral sem ser testado até o fim. "Procurei e não há" só vale quando a busca
+ * acabou; até lá é "não achei", que é outra coisa.
  *
  * ## A lista abaixo é uma afirmação, não um depósito
  *
@@ -300,56 +353,13 @@ export const TEXTO_DO_RESULTADO: Record<ResultadoDaBusca, string> = {
  * motivo, e família **com** foto não pode ter. Foi assim que a Avalus saiu daqui.
  */
 export const BUSCA_DE_FOTOS: { familia: string; motivo: string }[] = [
-  {
-    familia: "Edwards|Perimount",
-    motivo:
-      "As duas únicas candidatas no CMS da Edwards são radiografia de peça explantada — a segunda " +
-      "traz 'Procedure: SPECIMEN IMAGING' escrito na própria imagem. A Edwards só publica foto de " +
-      "produto da geração Magna Ease.",
-  },
-  ...["CG Future", "Contour 3D", "Evolut FX", "Evolut PRO+", "Freestyle", "Hancock II",
-      "Open Pivot", "Profile 3D"].map((modelo) => ({
-    familia: `Medtronic|${modelo}`,
-    motivo:
-      "medtronic.com responde 'Incorrect Browser' às páginas e 403 aos próprios arquivos de imagem: " +
-      "é proteção contra robô, e não se contorna. O índice do arquivo da web chegou a devolver as " +
-      "URLs canônicas do DAM da Medtronic — foi assim que a Avalus entrou —, mas o arquivo passou a " +
-      "recusar conexão deste ambiente antes de as demais serem abertas, e URL que ninguém olhou não " +
-      "entra. A única imagem livre encontrada é um conduto ápico-aórtico montado na mesa cirúrgica, " +
-      "com a raiz porcina já recortada: não é foto de produto.",
-  })),
-  ...["Crown PRT", "Memo 3D", "Memo 4D", "Perceval Plus", "Solo Smart"].map((modelo) => ({
-    familia: `Corcym|${modelo}`,
-    motivo:
-      "A Corcym não publica página de produto — o sitemap deles não tem nenhuma, e era daí que vinham " +
-      "os cinco 404 que este catálogo carregava. A biblioteca de mídia oferece oito arquivos em " +
-      "'product-images'; abri os oito, e são quadros de vídeo com o campo operatório aberto. Foto de " +
-      "cirurgia não ilustra prótese em cartão de catálogo.",
-  })),
-  {
-    familia: "Meril|Myval Octacor",
-    motivo:
-      "A Meril fundiu Myval e Myval Octacor numa página só, 'Myval THV series', com uma imagem que os " +
-      "dados estruturados da própria página atribuem à **série** e não a um dos dois modelos. Usá-la " +
-      "aqui seria afirmar que aquilo é a Octacor, que é justamente o erro que esta busca evita.",
-  },
-  {
-    familia: "Abbott|Trifecta GT",
-    motivo:
-      "Retirada do mercado em 2023: a Abbott tirou a linha do site. Também não faria sentido " +
-      "ilustrar com foto de produto uma prótese que não deve ser indicada.",
-  },
-  {
-    familia: "Abbott|Portico",
-    motivo:
-      "A Abbott aposentou a página própria da Portico e a foto foi com ela — mas a válvula CONTINUA " +
-      "no portfólio deles, listada em transcatheter-valve-solutions. Esta nota já dizia que a Portico " +
-      "tinha sido substituída pela Navitor, e isso estava errado.",
-  },
-  {
-    familia: "Abbott|Rigid Saddle Ring",
-    motivo: "Sem foto de produto nas páginas de reparo valvar da Abbott varridas nesta rodada.",
-  },
+  // Vazia — e a lista vazia aqui é resultado, não descuido.
+  //
+  // Em 30/08/2026 as 36 famílias do catálogo cirúrgico têm imagem oficial do
+  // fabricante, conferida uma a uma (o que foi visto em cada uma está em
+  // `scripts/catalogo/fotos-oficiais.json`). A guarda dos dois sentidos no
+  // `ferramentas:verificar` continua ligada: no dia em que entrar família sem
+  // imagem, ela quebra até alguém escrever aqui o motivo.
 ];
 
 const PORFOTO = new Map(BUSCA_DE_FOTOS.map((b) => [b.familia, b.motivo]));
@@ -389,59 +399,56 @@ export function motivoSemFoto(fabricante: string, modelo: string): string | unde
  *
  * Silêncio da FDA não é ausência de alerta. A prova está dentro da própria
  * varredura: **`product_description:"Trifecta"` devolve 404 no banco de
- * recolhimentos** — nenhum registro — e a Trifecta GT é justamente a única
- * família com alerta que impede indicação, por carta ao cliente da Abbott. Se
- * este catálogo dependesse só da FDA, teria dado a Trifecta como limpa.
+ * recolhimentos** — nenhum registro — e a Trifecta é justamente a prótese que a
+ * Abbott retirou do mercado em 2023 por deterioração estrutural precoce, por
+ * carta ao cliente. Se este catálogo dependesse só da FDA, teria dado a
+ * Trifecta como limpa e continuaria a indicando.
  */
 export const VARREDURA_DE_ALERTAS = {
-  feitaEm: "2026-08-29",
+  feitaEm: "2026-08-30",
   /** O que foi consultado. */
   fontes: [
     "carta ao cliente da Abbott sobre a família Trifecta (31/07/2023)",
     "comunicado FDA/Abbott sobre deterioração estrutural precoce (27/02/2023)",
-    "banco de recolhimentos de dispositivos da FDA (openFDA device/recall), as 45 famílias",
-    "banco de ações de fiscalização da FDA (openFDA device/enforcement), as 45 famílias",
+    "banco de recolhimentos de dispositivos da FDA (openFDA device/recall), as 36 famílias",
+    "banco de ações de fiscalização da FDA (openFDA device/enforcement), as 36 famílias",
+    "página de portfólio de cada fabricante, para separar o que se vende do que saiu de linha",
   ],
-  /** Modelos com alerta que impede nova indicação. */
-  comAlerta: ["Abbott|Trifecta GT"],
+  /**
+   * Modelos com alerta que impede nova indicação — hoje, nenhum.
+   *
+   * A lista esvaziou por uma razão boa: a Trifecta GT, a única que estava aqui,
+   * **saiu do catálogo** nesta rodada, porque a Abbott não a vende mais. Ela
+   * continua com o alerta gravado e reaparece em `referencia_historica()`, para
+   * quem já a tem implantada.
+   *
+   * Lista vazia aqui NÃO quer dizer que o mecanismo virou enfeite. A exclusão
+   * por alerta continua coberta por teste de unidade com linha sintética em
+   * `src/lib/recomendacaoProtese.test.ts` — que é o lugar certo para provar que
+   * a máquina funciona, já que ela só é exercitada quando houver caso real.
+   */
+  comAlerta: [] as string[],
   /**
    * Achado real da varredura que **não** impede indicação — e por quê, um a um.
    *
-   * Esta categoria não existia, e a falta dela empurrava achado verdadeiro para
-   * dentro de `semAlerta`, onde ele sumia. Recolhimento de acessório, de lote
-   * nomeado ou de rótulo é fato, e fica escrito; promovê-lo a "não indicar"
-   * encheria a tela de alerta falso, e alerta falso treina o médico a ignorar
-   * alerta.
+   * Recolhimento de acessório, de lote nomeado ou de rótulo é fato, e fica
+   * escrito; promovê-lo a "não indicar" encheria a tela de alerta falso, e
+   * alerta falso treina o médico a ignorar alerta.
    */
   achadoSemImpactoNaIndicacao: [
-    {
-      familia: "Abbott|Navitor",
-      achado:
-        "Recolhimento Z-0491-2025 (iniciado em 17/10/2024, ainda aberto): erro de fabricação aceitou " +
-        "válvulas com deflexão de folheto fora de especificação, com risco potencial à durabilidade. " +
-        "É da própria válvula, e não de acessório — mas alcança 10 números de série nomeados, 1 " +
-        "unidade nos EUA e 9 fora, com carta entregue em mãos ao consignatário. Lote identificado " +
-        "não retira a família da indicação.",
-    },
-    {
-      familia: "Edwards|Sapien 3",
-      achado: "Recolhimentos do sistema de entrega (balão que estourava na retirada), não da prótese.",
-    },
-    {
-      familia: "Edwards|Sapien 3 Ultra",
-      achado: "Mesmo recolhimento do sistema de entrega da Sapien 3, em 2019. Acessório, não prótese.",
-    },
-    {
-      familia: "Medtronic|Evolut PRO+",
-      achado:
-        "Recolhimento de 2021 do cateter de entrega CoreValve Evolut PRO/PRO+, por separação do " +
-        "atuador, limitado ao fabricado antes de 11/07/2020. Acessório e lote.",
-    },
     {
       familia: "Medtronic|Hancock II",
       achado:
         "Dois achados de lote: válvulas distribuídas após excursão de temperatura (2009) e 15 unidades " +
         "com tamanho errado no rótulo da caixa (2019) — a válvula em si estava correta.",
+    },
+    {
+      familia: "Medtronic|Mosaic",
+      achado:
+        "Mesma família de achados de lote da Hancock II, e em parte o mesmo evento: a Mosaic 310 mitral " +
+        "(REF 310C29 e 310C31) entrou no recolhimento de rótulo de 21/05/2019, e a porcina com Cinch no " +
+        "de excursão de temperatura de 2009. Há ainda um recolhimento de 2014 do obturador aórtico, que " +
+        "é instrumento de medida e não prótese.",
     },
     {
       familia: "Medtronic|Open Pivot",
@@ -453,17 +460,17 @@ export const VARREDURA_DE_ALERTAS = {
    * e é afirmação sobre as fontes consultadas, não sobre o mundo.
    */
   semAlerta: [
-    "Abbott|Epic", "Abbott|Portico", "Abbott|Rigid Saddle Ring", "Abbott|St. Jude Masters HP",
-    "Abbott|St. Jude Regent", "Braile|Anel Rígido Braile", "Braile|Anel Rígido Gregori",
-    "Braile|Inovare Alpha", "Braile|Prótese de Pericárdio Bovino", "Braile|Vivere",
+    "Abbott|Epic Max", "Abbott|Epic Plus", "Abbott|Epic Plus Supra",
+    "Abbott|St. Jude Masters HP", "Abbott|St. Jude Regent", "Braile|Anel Rígido Braile",
+    "Braile|Anel Rígido Gregori", "Braile|Prótese de Pericárdio Bovino", "Braile|Vivere",
     "Corcym|Crown PRT", "Corcym|Memo 3D", "Corcym|Memo 4D", "Corcym|Perceval Plus",
     "Corcym|Solo Smart", "Edwards|Cosgrove-Edwards Band (4600)", "Edwards|Inspiris Resilia",
     "Edwards|Intuity Elite", "Edwards|Konect Resilia", "Edwards|MC3 Tricuspid (4900)",
     "Edwards|Magna Ease", "Edwards|Magna Mitral Ease", "Edwards|Mitris Resilia",
-    "Edwards|Perimount", "Edwards|Physio Flex (5300)", "Edwards|Physio II (5200)",
-    "Edwards|Sapien 3 Ultra RESILIA", "Medtronic|Avalus", "Medtronic|CG Future",
-    "Medtronic|Contour 3D", "Medtronic|Evolut FX", "Medtronic|Freestyle", "Medtronic|Profile 3D",
-    "Meril|Dafodil", "Meril|Miltonia", "Meril|Miltonia AP", "Meril|Myval", "Meril|Myval Octacor",
+    "Edwards|Physio Flex (5300)", "Edwards|Physio II (5200)", "Medtronic|Avalus",
+    "Medtronic|Avalus Ultra", "Medtronic|CG Future", "Medtronic|Contour 3D",
+    "Medtronic|Freestyle", "Medtronic|Profile 3D", "Meril|Dafodil", "Meril|Miltonia",
+    "Meril|Miltonia AP"
   ],
   /** O limite da varredura, dito na tela e não só aqui. */
   naoCobre:

@@ -36,7 +36,6 @@ describe("registro da busca por EOA de referência", () => {
     // É a diferença entre "não achei nada" e "achei, e não serve": a segunda
     // precisa mostrar o que foi achado, senão é indistinguível da primeira.
     for (const b of BUSCA_DE_FONTES.filter((x) => x.resultado === "sem_dado_por_tamanho")) {
-      if (b.familia === "Abbott|Epic") continue; // explicado pela tabela da ASE, sem artigo próprio
       expect(b.referencia, `${b.familia} diz que há estudo e não aponta qual`).toBeTruthy();
     }
   });
@@ -86,23 +85,39 @@ describe("registro da busca por EOA de referência", () => {
     expect(script).toMatch(new RegExp(`N_MINIMO\\s*=\\s*${N_MINIMO}\\b`));
   });
 
-  it("a ausência de foto também tem motivo registrado, e a tela o mostra", () => {
-    // Mesma disciplina da EOA: sem foto tem dois significados opostos — ninguém
-    // procurou, ou procurou-se e não há. O esquema construtivo desenhado aqui
-    // preenche o buraco visual e não distingue os dois.
-    expect(BUSCA_DE_FOTOS.length).toBeGreaterThan(5);
+  it("a ausência de foto tem motivo — e a lista vazia só é segura porque a guarda de rede existe", () => {
+    // Esta guarda exigia `BUSCA_DE_FOTOS.length > 5`, e passou a reprovar quando
+    // a lista zerou: em 30/08/2026 as 36 famílias do catálogo cirúrgico ganharam
+    // imagem oficial. Exigir que a lista tenha conteúdo era cobrar um NÚMERO, e
+    // o número mudou por um motivo bom.
+    //
+    // Só que uma lista vazia deixaria este teste passando por vacuidade — o laço
+    // não roda, e o arquivo continuaria "verde" mesmo se `motivoSemFoto` fosse
+    // apagada. Então o que se cobra aqui é o que sobrevive à lista vazia: a forma
+    // de cada entrada que exista, o fato de a tela consultar o registro, e a
+    // EXISTÊNCIA da guarda que de fato garante a cobertura — a dos dois sentidos
+    // no `ferramentas:verificar`, que compara esta lista com o catálogo servido
+    // e não tem como rodar aqui, porque depende de rede.
     for (const b of BUSCA_DE_FOTOS) {
       expect(b.familia, "família fora do formato fabricante|modelo").toMatch(/^[^|]+\|[^|]+$/);
       expect(b.motivo.length, `${b.familia}: motivo curto demais para ser explicação`).toBeGreaterThan(60);
     }
     expect(new Set(BUSCA_DE_FOTOS.map((b) => b.familia)).size).toBe(BUSCA_DE_FOTOS.length);
-    expect(motivoSemFoto("Edwards", "Perimount")).toMatch(/radiografia/i);
     expect(motivoSemFoto("Edwards", "Inspiris Resilia"), "tem foto, não deveria ter motivo")
       .toBeUndefined();
     expect(
       readFileSync("src/components/ferramentas/CatalogoProteses.tsx", "utf8"),
       "o catálogo não mostra o motivo de não haver foto",
     ).toMatch(/\bmotivoSemFoto\b/);
+
+    const verificador = readFileSync("scripts/ferramentas-verificar.mjs", "utf8");
+    for (const [rotulo, padrao] of [
+      ["família sem foto tem de ter motivo", /fotos: família sem foto tem motivo registrado/],
+      ["motivo não pode sobreviver à foto", /fotos: nenhum motivo sobrevive à foto que o desmente/],
+      ["motivo não pode apontar para fora do catálogo", /fotos: nenhum motivo aponta para família fora do catálogo/],
+    ] as [string, RegExp][]) {
+      expect(padrao.test(verificador), `a guarda de rede sumiu: ${rotulo}`).toBe(true);
+    }
   });
 
   it("as duas telas distinguem os três estados do campo vazio", () => {

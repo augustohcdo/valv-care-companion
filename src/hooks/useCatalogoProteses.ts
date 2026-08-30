@@ -37,13 +37,23 @@ export interface ProteseDoCatalogo {
   description: string | null;
   reference_url: string | null;
   image_url: string | null;
+  /**
+   * `foto` ou `ilustracao` — e a legenda da tela obedece.
+   *
+   * Nem toda imagem oficial é fotografia: a Medtronic e a Abbott publicam foto
+   * de estúdio, a Corcym publica renderização 3D. Chamar as duas de "foto do
+   * fabricante" diria ao médico que aquilo é o objeto retratado quando é o
+   * objeto desenhado.
+   */
+  image_kind: "foto" | "ilustracao" | null;
   display_order: number | null;
   /**
    * Situação regulatória que o médico precisa saber **antes** de escolher.
    *
-   * Não é `active = false` de propósito: a prótese retirada continua no
-   * catálogo porque quem já a tem implantada precisa das medidas dela — para
-   * planejar valve-in-valve e para ler o eco de seguimento.
+   * Não é `active = false` de propósito: uma prótese pode ter alerta e
+   * continuar à venda. O que sai de vez do catálogo — transcateter, fora de
+   * linha, tamanho que não existe — sai por `inactive_reason`, do lado do
+   * banco, e as fora de linha reaparecem por `referencia_historica()`.
    */
   advisory: "retirada_do_mercado" | "alerta_de_seguranca" | "descontinuada" | null;
   advisory_note: string | null;

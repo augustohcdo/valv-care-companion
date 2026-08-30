@@ -266,34 +266,87 @@ if (!CHAVE) {
     0,
   );
 
-  // O caso que motivou o alerta: mulher de 1,55 m / 60 kg. Antes da correção o
-  // recomendador sugeria "Trifecta GT 19 mm" para ela — uma válvula que a
-  // Abbott retirou do mercado em 2023 por falhar cedo.
   const bsaCaso = bsaDuBois(155, 60);
-  const SUB = new Set(["biologica_aortica", "biologica_mitral", "mecanica", "tavi"]);
+  const SUB = new Set(["biologica_aortica", "biologica_mitral", "mecanica"]);
+
+  /**
+   * Só válvula cirúrgica no que a tela serve.
+   *
+   * O corte é de escopo, não de qualidade: a conta de mismatch vale para
+   * transcateter e a ASE publica a tabela. Este site é de cirurgia valvar, e uma
+   * lista de escolha de prótese que mistura as duas responde a uma pergunta que
+   * não é a desta tela.
+   */
+  conferir(
+    "catálogo: nenhuma prótese transcateter no que a tela serve",
+    linhas.filter((l) => l.type === "tavi").length,
+    0,
+  );
+
+  /**
+   * O alerta regulatório, agora que a lista de "com alerta" está vazia.
+   *
+   * A conferência anterior perguntava "a exclusão por alerta ainda é
+   * necessária?" e exigia pelo menos um tamanho sob alerta passando do limiar.
+   * Ela existia para impedir que a guarda virasse enfeite — e cumpriu o papel:
+   * quando a Trifecta GT saiu do catálogo (a Abbott não a vende mais), esta
+   * conferência reprovou e obrigou a reescrita, em vez de passar despercebida.
+   *
+   * O que se cobra agora é o que continua verdadeiro e continua importando:
+   * nenhuma linha ATIVA carrega alerta, e a Trifecta continua existindo do outro
+   * lado — na referência histórica, para quem já a tem implantada. O mecanismo
+   * de exclusão em si é coberto por teste de unidade com linha sintética em
+   * `src/lib/recomendacaoProtese.test.ts`, que é onde ele pode ser exercitado
+   * sem depender de haver caso real no catálogo.
+   */
+  const ativasComAlerta = linhas.filter((l) => l.advisory);
+  conferir(
+    `alertas: nenhuma linha ativa do catálogo está sob alerta que impeça indicação` +
+      (ativasComAlerta.length
+        ? ` — apareceu: ${[...new Set(ativasComAlerta.map((l) => l.model_name))].join(", ")}`
+        : ""),
+    ativasComAlerta.length,
+    0,
+  );
+
+  const historica = await fetch(`${SUPABASE}/rest/v1/rpc/referencia_historica`, {
+    method: "POST",
+    headers: { apikey: CHAVE, Authorization: `Bearer ${CHAVE}`, "Content-Type": "application/json" },
+    body: "{}",
+  });
+  const foraDeLinha = historica.ok ? await historica.json() : [];
+  conferir("referência histórica: a função responde sem sessão", historica.status, 200);
+  conferir(
+    "referência histórica: a Trifecta GT continua acessível para quem já a tem implantada",
+    foraDeLinha.filter((l) => l.model_name === "Trifecta GT").length,
+    /^[1-9]/,
+  );
+  conferir(
+    "referência histórica: a Perimount continua acessível, e é a comparadora dos estudos atuais",
+    foraDeLinha.filter((l) => l.model_name === "Perimount").length,
+    /^[1-9]/,
+  );
+  conferir(
+    "referência histórica: toda linha diz quando e com que fonte saiu de linha",
+    foraDeLinha.filter((l) => !l.discontinued_at || !l.discontinued_source_url).length,
+    0,
+  );
+  conferir(
+    // A separação é o ponto: fora de linha NÃO pode continuar sendo oferecida.
+    "referência histórica: nenhuma delas voltou para o catálogo",
+    foraDeLinha.filter((h) =>
+      linhas.some((l) => l.manufacturer === h.manufacturer && l.model_name === h.model_name),
+    ).length,
+    0,
+  );
+
   const passam = linhas.filter(
     (l) => SUB.has(l.type) && l.valve_position === "aortica" &&
       l.effective_orifice_area != null && l.effective_orifice_area / bsaCaso > 0.85,
   );
-  // A pergunta certa aqui não é "o recomendador exclui a Trifecta?" — isso é
-  // teste de unidade, e existe. É "a exclusão ainda é necessária?". Se um dia
-  // nenhuma prótese com alerta passasse do limiar, a guarda estaria decorativa
-  // e ninguém perceberia que ela parou de proteger de alguma coisa.
-  const comAlertaQuePassariam = passam.filter((l) => l.advisory);
   conferir(
-    `recomendador: a exclusão por alerta ainda é necessária — ${comAlertaQuePassariam.length} tamanho(s) ` +
-      "com alerta passariam do limiar numa paciente de 1,55 m / 60 kg",
-    comAlertaQuePassariam.length,
-    /^[1-9]/,
-  );
-  conferir(
-    "recomendador: e todos eles estão marcados, com link e data",
-    comAlertaQuePassariam.filter((l) => l.advisory_url && l.advisory_date).length,
-    comAlertaQuePassariam.length,
-  );
-  conferir(
-    "recomendador: a Trifecta GT segue no catálogo, para quem já a tem implantada",
-    linhas.filter((l) => l.model_name === "Trifecta GT" && l.advisory === "retirada_do_mercado").length,
+    "recomendador: há opção que evita mismatch numa paciente de 1,55 m / 60 kg",
+    passam.length,
     /^[1-9]/,
   );
 
