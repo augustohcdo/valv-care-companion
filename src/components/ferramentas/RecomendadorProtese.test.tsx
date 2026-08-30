@@ -31,7 +31,7 @@ const linha = (over: Partial<ProteseDoCatalogo> = {}): ProteseDoCatalogo => ({
   eoa_source_label: "ASE 2024", eoa_source_url: "https://pubmed.ncbi.nlm.nih.gov/38182282/",
   mean_gradient_ref: 12.6, mean_gradient_ref_sd: 4.7,
   annulus_min_mm: null, annulus_max_mm: null, description: null, reference_url: null,
-  image_url: null, display_order: 1,
+  image_url: null, image_kind: null, display_order: 1,
   advisory: null, advisory_note: null, advisory_url: null, advisory_date: null,
   ...over,
 });
@@ -72,5 +72,75 @@ describe("recomendador de prótese, na tela", () => {
       />,
     );
     expect(document.body.textContent ?? "", "engoliu o achado clínico de verdade").toMatch(NEGA_CONDUTA);
+  });
+});
+
+/**
+ * Fabricante que some da tela é fabricante que o médico lê como "não tem opção".
+ *
+ * A montagem antiga filtrava `adequadas.length > 0` e, para o resto, exigia
+ * `insuficientes.length > 0`. Quem tivesse todos os tamanhos sem EOA publicada
+ * caía fora das duas listas e desaparecia — sem cartão, sem linha, sem nota.
+ *
+ * As duas coisas que somem são opostas: "nenhum tamanho serve neste paciente" é
+ * achado clínico; "ninguém publicou medida deste fabricante" é lacuna de
+ * literatura, e não diz nada sobre a prótese. Some as duas no mesmo silêncio e o
+ * cirurgião conclui a primeira quando o caso é a segunda.
+ */
+describe("nenhum fabricante desaparece da tela", () => {
+  const semDado = (over: Partial<ProteseDoCatalogo> = {}): ProteseDoCatalogo =>
+    linha({ effective_orifice_area: null, eoa_source_url: null, eoa_source_label: null, ...over });
+
+  it("fabricante sem NENHUMA EOA publicada aparece, e diz que a ausência é de dado", () => {
+    render(
+      <RecomendadorProtese
+        catalogo={[
+          linha({ id: "a", manufacturer: "ComDado", effective_orifice_area: 2.2 }),
+          semDado({ id: "b", manufacturer: "SemDado" }),
+          semDado({ id: "c", manufacturer: "SemDado", size: 23 }),
+        ]}
+        bsa={BSA} imc={24} posicao="aortica"
+      />,
+    );
+    const texto = document.body.textContent ?? "";
+    expect(texto, "o fabricante sem dado sumiu da tela").toContain("SemDado");
+    expect(texto, "não separa 'não serve' de 'não há medida'")
+      .toMatch(/não pôde entrar na conta|não diz nada sobre a prótese/i);
+  });
+
+  it("todo fabricante com linha na posição aparece — nenhum fica de fora", () => {
+    // A contraprova da guarda acima: três fabricantes em três situações
+    // diferentes, e os três têm de estar na tela.
+    render(
+      <RecomendadorProtese
+        catalogo={[
+          linha({ id: "1", manufacturer: "Serve", effective_orifice_area: 2.4 }),
+          linha({ id: "2", manufacturer: "NaoServe", effective_orifice_area: 0.6 }),
+          semDado({ id: "3", manufacturer: "SemMedida" }),
+        ]}
+        bsa={BSA} imc={24} posicao="aortica"
+      />,
+    );
+    const texto = document.body.textContent ?? "";
+    for (const f of ["Serve", "NaoServe", "SemMedida"]) {
+      expect(texto, `${f} não aparece em lugar nenhum da tela`).toContain(f);
+    }
+  });
+
+  it("transcateter não entra na lista de escolha", () => {
+    // O corte de escopo, cobrado na tela e não só na biblioteca.
+    render(
+      <RecomendadorProtese
+        catalogo={[
+          linha({ id: "1", manufacturer: "Cirurgica", effective_orifice_area: 2.4 }),
+          linha({ id: "2", manufacturer: "Transcateter", type: "tavi", effective_orifice_area: 2.4 }),
+        ]}
+        bsa={BSA} imc={24} posicao="aortica"
+      />,
+    );
+    const texto = document.body.textContent ?? "";
+    expect(texto).toContain("Cirurgica");
+    expect(texto, "prótese transcateter apareceu numa tela de escolha cirúrgica")
+      .not.toContain("Transcateter");
   });
 });

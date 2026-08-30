@@ -247,10 +247,19 @@ describe("o que as ferramentas não podem afirmar", () => {
     expect(quadro, "não rotula a foto oficial").toMatch(/foto do fabricante/i);
     expect(quadro, "não rotula o esquema").toMatch(/NOME_DA_FAMILIA/);
     expect(quadro, "sem `onError` a foto morta vira ícone quebrado").toMatch(/onError/);
-    expect(
-      quadro.replace(/\s+/g, " "),
-      "o rótulo não é decidido pelo mesmo estado que escolhe a imagem",
-    ).toMatch(/mostrandoFoto\s*\?\s*"foto do fabricante"/);
+    // A guarda cobrava a forma exata `mostrandoFoto ? "foto do fabricante"` e
+    // quebrou quando a legenda passou a distinguir foto de ilustração — porque
+    // ela cobrava a SINTAXE e não a garantia. O que precisa continuar valendo é
+    // que os três rótulos possíveis vivem dentro do ramo de `mostrandoFoto`: se
+    // algum escapar dali, volta a existir legenda de fotografia sobre desenho.
+    const legenda = quadro.replace(/\s+/g, " ");
+    const ramo = legenda.match(/mostrandoFoto \? (.*?) : NOME_DA_FAMILIA/);
+    expect(ramo, "o rótulo não é decidido pelo mesmo estado que escolhe a imagem").toBeTruthy();
+    for (const rotulo of ["foto do fabricante", "ilustração do fabricante", "imagem do fabricante"]) {
+      expect(ramo![1], `"${rotulo}" fora do ramo que sabe se a imagem carregou`).toContain(rotulo);
+    }
+    // E a distinção precisa existir: desenho 3D do fabricante não é fotografia.
+    expect(quadro, "não distingue ilustração de foto").toMatch(/imagemE\s*===\s*"ilustracao"/);
     for (const tela of [
       "src/components/ferramentas/CatalogoProteses.tsx",
       "src/components/ferramentas/RecomendadorProtese.tsx",

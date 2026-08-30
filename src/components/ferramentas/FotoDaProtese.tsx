@@ -23,14 +23,25 @@ import { EsquemaProtese, familiaDe, NOME_DA_FAMILIA } from "./EsquemaProtese";
  * geometria onde não há. Só o componente que sabe se a imagem carregou pode
  * escrever a legenda certa, então ele escreve as duas coisas.
  *
- * É também o que torna seguro gravar URLs da Medtronic que este ambiente não
- * consegue baixar: se estiverem vivas, o navegador do médico as carrega; se
- * tiverem morrido, ele cai no esquema, e a legenda acompanha.
+ * É também o que torna seguro gravar URLs que este ambiente não consegue
+ * baixar: se estiverem vivas, o navegador do médico as carrega; se tiverem
+ * morrido, ele cai no esquema, e a legenda acompanha.
+ *
+ * ## Foto não é a mesma coisa que desenho
+ *
+ * `imagemE` diz qual das duas é. Nem toda imagem oficial é fotografia: a
+ * Medtronic e a Abbott publicam foto de estúdio, a Corcym publica renderização
+ * 3D do produto. As duas são do fabricante e as duas servem — mas legendar as
+ * duas como "foto do fabricante" diria ao médico que aquilo é o objeto
+ * retratado, quando é o objeto desenhado, e desenho tem geometria escolhida por
+ * quem desenhou.
  */
 export function FotoDaProtese({
-  imagem, fabricante, modelo, tipo, tamanhoQuadro, tamanhoEsquema, semLegenda,
+  imagem, imagemE, fabricante, modelo, tipo, tamanhoQuadro, tamanhoEsquema, semLegenda,
 }: {
   imagem: string | null;
+  /** `foto` ou `ilustracao`. Sem isto, a legenda diz "imagem do fabricante". */
+  imagemE?: "foto" | "ilustracao" | null;
   fabricante: string;
   modelo: string;
   tipo: string;
@@ -62,7 +73,11 @@ export function FotoDaProtese({
       {!semLegenda && (
         <p className="mt-1.5 text-[10px] leading-tight text-center text-muted-foreground">
           {mostrandoFoto
-            ? "foto do fabricante"
+            ? imagemE === "ilustracao"
+              ? "ilustração do fabricante"
+              : imagemE === "foto"
+                ? "foto do fabricante"
+                : "imagem do fabricante"
             : NOME_DA_FAMILIA[familiaDe(tipo, fabricante, modelo)]}
         </p>
       )}

@@ -80,8 +80,22 @@ export function RecomendadorProtese({ catalogo, bsa, imc, posicao, carregando, f
   }
   if (!r) return null;
 
-  const comOpcao = r.fabricantes.filter((f) => f.adequadas.length > 0);
-  const semOpcao = r.fabricantes.filter((f) => f.adequadas.length === 0 && f.insuficientes.length > 0);
+  /**
+   * Nenhum fabricante sai da tela.
+   *
+   * Antes a lista era montada filtrando `adequadas.length > 0` e, para o resto,
+   * exigindo `insuficientes.length > 0`. Um fabricante cujos tamanhos estivessem
+   * todos sem EOA publicada simplesmente sumia — sem cartão, sem linha, sem
+   * nota. Para quem lê, sumir quer dizer "não tem produto para este paciente",
+   * quando o que houve foi "ninguém publicou medida". São coisas opostas: a
+   * primeira é achado clínico, a segunda é lacuna de literatura.
+   *
+   * Agora `situacao` vem calculada da biblioteca e todo fabricante presente na
+   * posição aparece em exatamente um dos quatro blocos abaixo.
+   */
+  const comOpcao = r.fabricantes.filter((f) => f.situacao === "com_opcao");
+  const semOpcao = r.fabricantes.filter((f) => f.situacao === "sem_opcao");
+  const soAlerta = r.fabricantes.filter((f) => f.situacao === "so_desaconselhadas");
   // Uma linha por modelo, não por tamanho: seis tamanhos da mesma prótese
   // retirada viram seis avisos iguais.
   const desaconselhadas = [
@@ -91,6 +105,10 @@ export function RecomendadorProtese({ catalogo, bsa, imc, posicao, carregando, f
         .map((o) => [`${o.fabricante}|${o.modelo}`, o]),
     ).values(),
   ];
+  // Inclui os que estão em `sem_dado` (nenhum tamanho com EOA) E os que têm
+  // opção mas deixaram tamanhos de fora — os dois casos precisam ser ditos. O
+  // `.filter(familiasPesquisadas.length > 0)` que existia aqui era o segundo
+  // ponto por onde um fabricante sumia: sem registro de busca, sem linha.
   const semDado = r.fabricantes
     .filter((f) => f.semEoaPublicada > 0)
     .map((f) => ({
@@ -104,8 +122,7 @@ export function RecomendadorProtese({ catalogo, bsa, imc, posicao, carregando, f
             .map((b) => [b.familia, b]),
         ).values(),
       ],
-    }))
-    .filter((f) => f.familiasPesquisadas.length > 0);
+    }));
 
   return (
     <div className="space-y-5">
@@ -234,6 +251,28 @@ export function RecomendadorProtese({ catalogo, bsa, imc, posicao, carregando, f
         </div>
       )}
 
+      {/* O quarto estado: o fabricante tem produto nesta posição, tem dado
+          publicado, e TUDO que tem dado está sob alerta regulatório. Sem este
+          bloco ele cairia no silêncio — nem entre os que servem, nem entre os
+          que não servem —, e some justamente o fabricante sobre quem havia algo
+          importante a dizer. */}
+      {soAlerta.length > 0 && (
+        <div className="rounded-xl border border-border bg-secondary/30 p-4">
+          <p className="text-xs font-medium text-foreground mb-2">
+            Só com modelos sob alerta nesta posição
+          </p>
+          <ul className="space-y-1.5">
+            {soAlerta.map((f) => (
+              <li key={f.fabricante} className="text-xs text-muted-foreground">
+                <strong className="text-foreground">{f.fabricante}</strong> — os{" "}
+                {f.desaconselhadas.length} tamanho(s) com dado publicado estão no bloco vermelho
+                acima e não devem ser indicados para novo implante.
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* O fabricante que não entrou na conta por falta de dado NÃO é o
           fabricante cujo produto não serve. Somem os dois numa lista só e o
           médico conclui que a marca é ruim quando o que falta é publicação. */}
@@ -246,7 +285,9 @@ export function RecomendadorProtese({ catalogo, bsa, imc, posicao, carregando, f
             {semDado.map((f) => (
               <li key={f.fabricante} className="text-xs text-muted-foreground">
                 <strong className="text-foreground">{f.fabricante}</strong> —{" "}
-                {f.semEoaPublicada} tamanho(s) sem EOA de referência.{" "}
+                {f.comEoaPublicada === 0
+                  ? `nenhum dos ${f.semEoaPublicada} tamanho(s) desta posição tem EOA de referência publicada, então este fabricante não pôde entrar na conta. Isso não diz nada sobre a prótese.`
+                  : `${f.semEoaPublicada} tamanho(s) sem EOA de referência.`}{" "}
                 {f.familiasPesquisadas.map((b, i) => (
                   <span key={b.familia}>
                     {i > 0 && " "}
@@ -303,7 +344,8 @@ function LinhaOpcao({ o }: { o: OpcaoProtese }) {
   return (
     <li className="px-4 py-3 flex items-start gap-3">
       <FotoDaProtese
-        imagem={o.imagem} fabricante={o.fabricante} modelo={o.modelo} tipo={o.tipo}
+        imagem={o.imagem} imagemE={o.imagemE}
+        fabricante={o.fabricante} modelo={o.modelo} tipo={o.tipo}
         tamanhoQuadro="w-11 h-11 shrink-0 rounded-lg bg-secondary/50 overflow-hidden grid place-items-center text-primary"
         tamanhoEsquema="w-8 h-8"
         semLegenda
