@@ -133,6 +133,30 @@
       "url": "https://www.cardiovascular.abbott/content/dam/cv/cardiovascular/hcp/products/structural-heart/surgical-valves/product-images/masters-valve-bottom-fnl.png",
       "o_que_eu_vi": "Mecânica bileaflet de carbono pirolítico vista pela face de entrada, com o punho de sutura branco no mesmo plano do alojamento — diferente da Regent, em que o punho fica por fora.",
       "tipo": "foto"
+    },
+    {
+      "familia": "Labcor|Dokimos Plus Aórtica",
+      "url": "https://labcor.com.br/wp-content/uploads/2022/04/dokimos-2.png",
+      "o_que_eu_vi": "Bioprótese de pericárdio bovino vista de cima com os folhetos abertos: anel de sutura em malha branca tricotada, três marcadores escuros nas comissuras e o pericárdio montado por FORA da armação — que é a assinatura construtiva da Dokimos Plus.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Labcor|Dokimos Plus Mitral",
+      "url": "https://labcor.com.br/wp-content/uploads/2022/04/dokimos-3.png",
+      "o_que_eu_vi": "Mesma família, vista pela face atrial com os folhetos FECHADOS: os três folhetos de pericárdio se tocam no centro, anel de sutura branco e os três marcadores escuros nas comissuras.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Cardioprótese|Premium Aórtica",
+      "url": "https://cardioprotese.com.br/wp-content/uploads/2024/11/Cardioprotese-Premium-Aortica.webp",
+      "o_que_eu_vi": "Bioprótese de pericárdio bovino em fundo azul, vista em três quartos: três folhetos claros, anel de sutura branco tricotado ESCALOPADO — o recorte aórtico — e marcadores pretos nas três comissuras.",
+      "tipo": "foto"
+    },
+    {
+      "familia": "Cardioprótese|Premium Mitral",
+      "url": "https://cardioprotese.com.br/wp-content/uploads/2024/11/Cardioprotese-Premium-Mitral.webp",
+      "o_que_eu_vi": "Mesma família em posição mitral, vista de cima com folhetos fechados. O anel de sutura é RETO e mais largo que o da aórtica, que é exatamente o que o fabricante descreve como diferença entre os dois modelos.",
+      "tipo": "foto"
     }
   ],
   "rejeitadas": [

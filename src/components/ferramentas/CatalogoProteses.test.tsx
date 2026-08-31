@@ -40,6 +40,7 @@ const linha = (over: Partial<ProteseDoCatalogo> = {}): ProteseDoCatalogo => ({
   annulus_min_mm: null, annulus_max_mm: null, description: "Bioprótese aórtica.",
   reference_url: "https://exemplo.invalid/perimount", image_url: null, image_kind: null, display_order: 1,
   advisory: null, advisory_note: null, advisory_url: null, advisory_date: null,
+  mercado_br: null, anvisa_registro: null, mercado_br_conferido_em: null, mercado_br_fonte: null,
   ...over,
 });
 

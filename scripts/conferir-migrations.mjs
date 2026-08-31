@@ -84,6 +84,25 @@ if (dados.faltando) {
   process.exit(2);
 }
 
+/**
+ * O SQL que vai para as mãos do usuário tem de refletir as migrations.
+ *
+ * `scripts/catalogo/aplicar-no-supabase.sql` é gerado por concatenação, e é o
+ * arquivo que alguém cola no painel do Supabase. Se uma migration for editada e
+ * ninguém regerar, o que o usuário executa passa a descrever um estado que o
+ * repositório não tem mais — e produção fica com um catálogo que nenhum arquivo
+ * do projeto explica. Foi desse tipo de buraco que saiu o "Biocor" que a Braile
+ * nunca vendeu.
+ */
+const gerado = spawnSync("node", ["scripts/catalogo/gerar-sql-de-aplicacao.mjs", "--conferir"], {
+  encoding: "utf8",
+});
+if (gerado.status !== 0) {
+  console.error("\n" + (gerado.stderr || gerado.stdout || "falha ao conferir o SQL de aplicação").trim());
+  process.exit(1);
+}
+console.log(gerado.stdout.trim());
+
 const ruins = dados.resultados.filter((r) => !r.ok);
 for (const r of dados.resultados) {
   console.log(r.ok ? `✓ ${r.arquivo} — ${r.comandos} comando(s)` : `✗ ${r.arquivo}\n    ${r.erro}`);

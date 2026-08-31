@@ -2478,6 +2478,7 @@ export type Database = {
           advisory_url: string
           annulus_max_mm: number
           annulus_min_mm: number
+          anvisa_registro: string
           description: string
           display_order: number
           effective_orifice_area: number
@@ -2490,6 +2491,9 @@ export type Database = {
           manufacturer: string
           mean_gradient_ref: number
           mean_gradient_ref_sd: number
+          mercado_br: string
+          mercado_br_conferido_em: string
+          mercado_br_fonte: string
           model_name: string
           reference_url: string
           size: number

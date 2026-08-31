@@ -20,7 +20,8 @@ const linha = (over: Partial<ProteseDoCatalogo>): ProteseDoCatalogo => ({
   mean_gradient_ref: 12.6, mean_gradient_ref_sd: 4.7,
   annulus_min_mm: 20, annulus_max_mm: 22, description: null, reference_url: null,
   image_url: null, image_kind: null, display_order: 1,
-  advisory: null, advisory_note: null, advisory_url: null, advisory_date: null, ...over,
+  advisory: null, advisory_note: null, advisory_url: null, advisory_date: null,
+  mercado_br: null, anvisa_registro: null, mercado_br_conferido_em: null, mercado_br_fonte: null, ...over,
 });
 
 /** 170 cm / 70 kg → 1,8097 m². Limiar aórtico de mismatch: iEOA > 0,85. */

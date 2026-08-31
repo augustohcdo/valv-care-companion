@@ -13,15 +13,29 @@
     "diferentes (EMAX-, ESP200-, E200-M). Nome errado no catálogo faz o cirurgião",
     "pedir o produto errado."
   ],
-
   "Medtronic": {
     "fonte": "https://www.medtronic.com/en-us/healthcare-professionals/specialties/cardiac-surgery/product-portfolio.html",
     "ativas": [
-      "Avalus", "Avalus Ultra", "Freestyle", "Hancock II", "Mosaic",
-      "Open Pivot", "CG Future", "Contour 3D", "Profile 3D",
-      "SimuForm", "SimuPlus", "Tri-Ad 2.0 Adams"
+      "Avalus",
+      "Avalus Ultra",
+      "Freestyle",
+      "Hancock II",
+      "Mosaic",
+      "Open Pivot",
+      "CG Future",
+      "Contour 3D",
+      "Profile 3D",
+      "SimuForm",
+      "SimuPlus",
+      "Tri-Ad 2.0 Adams"
     ],
-    "faltavam_no_catalogo": ["Avalus Ultra", "Mosaic", "SimuForm", "SimuPlus", "Tri-Ad 2.0 Adams"],
+    "faltavam_no_catalogo": [
+      "Avalus Ultra",
+      "Mosaic",
+      "SimuForm",
+      "SimuPlus",
+      "Tri-Ad 2.0 Adams"
+    ],
     "nota_open_pivot": [
       "Eu tinha dito ao usuário que a Open Pivot havia saído de linha. ERRADO —",
       "ela está viva em mechanical-valves-conduits, com tabela de códigos por",
@@ -30,27 +44,77 @@
       "https://www.medtronic.com/en-us/healthcare-professionals/products/cardiovascular/heart-valves/mechanical-valves-conduits/medtronic-open-pivot-mechanical-heart-valve.html"
     ]
   },
-
   "Edwards": {
     "fonte": "https://www.edwards.com/healthcare-professionals/products-services/surgical-heart/aortic",
-    "ativas": ["Inspiris Resilia", "Konect Resilia", "Intuity Elite", "Magna Ease", "Mitris Resilia", "Physio II (5200)", "Physio Flex (5300)", "Cosgrove-Edwards Band (4600)", "MC3 Tricuspid (4900)"],
-    "fora_de_linha": ["Perimount"],
+    "ativas": [
+      "Inspiris Resilia",
+      "Konect Resilia",
+      "Intuity Elite",
+      "Magna Ease",
+      "Mitris Resilia",
+      "Physio II (5200)",
+      "Physio Flex (5300)",
+      "Cosgrove-Edwards Band (4600)",
+      "MC3 Tricuspid (4900)"
+    ],
+    "fora_de_linha": [
+      "Perimount"
+    ],
     "nota_perimount": [
       "A página de aórticas cirúrgicas da Edwards lista Inspiris Resilia, Konect",
       "Resilia, Intuity Elite e Magna Ease. A PERIMOUNT clássica não aparece mais —",
       "a única da família PERIMOUNT ainda listada é a Magna Ease."
     ]
   },
-
   "Abbott": {
     "fonte": "https://www.cardiovascular.abbott/us/en/hcp/products/structural-heart/surgical-valve-solutions.html",
-    "ativas": ["Epic Max", "Epic Plus Supra", "Epic Plus", "St. Jude Regent", "St. Jude Masters HP"],
-    "fora_de_linha": ["Trifecta GT"],
-    "sem_confirmacao": ["Rigid Saddle Ring"],
+    "ativas": [
+      "Epic Max",
+      "Epic Plus Supra",
+      "Epic Plus",
+      "St. Jude Regent",
+      "St. Jude Masters HP"
+    ],
+    "fora_de_linha": [
+      "Trifecta GT"
+    ],
+    "sem_confirmacao": [
+      "Rigid Saddle Ring"
+    ],
     "tamanhos_do_fabricante": {
-      "Epic Max": { "posicao": "aortica", "tamanhos": [19, 21, 23, 25, 27], "codigos": "EMAX-19 a EMAX-27" },
-      "Epic Plus Supra": { "posicao": "aortica", "tamanhos": [19, 21, 23, 25, 27], "codigos": "ESP200-19 a ESP200-27" },
-      "Epic Plus": { "posicao": "mitral", "tamanhos": [25, 27, 29, 31, 33], "codigos": "E200-25M a E200-33M" }
+      "Epic Max": {
+        "posicao": "aortica",
+        "tamanhos": [
+          19,
+          21,
+          23,
+          25,
+          27
+        ],
+        "codigos": "EMAX-19 a EMAX-27"
+      },
+      "Epic Plus Supra": {
+        "posicao": "aortica",
+        "tamanhos": [
+          19,
+          21,
+          23,
+          25,
+          27
+        ],
+        "codigos": "ESP200-19 a ESP200-27"
+      },
+      "Epic Plus": {
+        "posicao": "mitral",
+        "tamanhos": [
+          25,
+          27,
+          29,
+          31,
+          33
+        ],
+        "codigos": "E200-25M a E200-33M"
+      }
     },
     "nota_epic": [
       "O catálogo tinha uma família 'Epic' com aórtica 19-29 e mitral 27-33. A",
@@ -67,27 +131,158 @@
       "isso fica escrito — 'não confirmei' não é 'não existe'."
     ]
   },
-
   "Corcym": {
     "fonte": "https://www.corcym.com/devices",
-    "ativas": ["Perceval Plus", "Crown PRT", "Solo Smart", "Memo 3D", "Memo 4D", "Memo 3D ReChord", "Bicarbon", "CarboMedics"],
-    "faltavam_no_catalogo": ["Memo 3D ReChord", "Bicarbon", "CarboMedics"],
+    "ativas": [
+      "Perceval Plus",
+      "Crown PRT",
+      "Solo Smart",
+      "Memo 3D",
+      "Memo 4D",
+      "Memo 3D ReChord",
+      "Bicarbon",
+      "CarboMedics"
+    ],
+    "faltavam_no_catalogo": [
+      "Memo 3D ReChord",
+      "Bicarbon",
+      "CarboMedics"
+    ],
     "nota_nome": [
       "A Corcym apresenta a Perceval Plus na versão LANCELOT, que é a geração",
       "atual do sistema de entrega. O nome de família continua Perceval Plus —",
       "Lancelot não é outra prótese —, e isso fica dito na descrição."
     ]
   },
-
   "Braile": {
     "fonte": "https://braile.com.br/wp-json/wp/v2/produto",
-    "ativas": ["Prótese de Pericárdio Bovino", "Vivere", "Anel Rígido Braile", "Anel Rígido Gregori"],
-    "fora_do_escopo_cirurgico": ["Inovare Alpha"]
+    "ativas": [
+      "Prótese de Pericárdio Bovino",
+      "Vivere",
+      "Anel Rígido Braile",
+      "Anel Rígido Gregori"
+    ],
+    "fora_do_escopo_cirurgico": [
+      "Inovare Alpha"
+    ]
   },
-
   "Meril": {
     "fonte": "https://www.merillife.com/sitemap-our-products.xml",
-    "ativas": ["Dafodil", "Dafodil Neo", "Miltonia", "Miltonia AP", "Flomero"],
-    "fora_do_escopo_cirurgico": ["Myval", "Myval Octacor"]
+    "ativas": [
+      "Dafodil",
+      "Dafodil Neo",
+      "Miltonia",
+      "Miltonia AP",
+      "Flomero"
+    ],
+    "fora_do_escopo_cirurgico": [
+      "Myval",
+      "Myval Octacor"
+    ]
+  },
+  "_mercado_brasileiro": [
+    "A auditoria original foi feita contra páginas americanas de fabricante, o que",
+    "responde à pergunta errada para um site de cirurgião brasileiro: o que importa",
+    "é se a prótese tem registro na ANVISA e chega à prateleira daqui.",
+    "",
+    "A base da ANVISA (consultas.anvisa.gov.br) responde 403 com desafio do",
+    "Cloudflare a qualquer cliente que não seja navegador com captcha resolvido, e",
+    "isso não se contorna. A prova aqui é a melhor disponível: página brasileira do",
+    "fabricante e número de registro quando ele aparece publicamente.",
+    "",
+    "Nenhuma família é removida por eu não ter conseguido confirmar. 'Não confirmei'",
+    "não é 'não existe', e tirar uma prótese que talvez esteja na prateleira do",
+    "serviço é pior do que mantê-la com ressalva na tela."
+  ],
+  "Labcor": {
+    "fonte": "https://labcor.com.br/dokimos-plus-aortic-labcor/",
+    "pais": "Brasil",
+    "ativas": [
+      "Dokimos Plus Aórtica",
+      "Dokimos Plus Mitral"
+    ],
+    "anvisa": {
+      "Dokimos Plus Aórtica": "10171250041",
+      "Dokimos Plus Mitral": "10171250042"
+    },
+    "tamanhos_do_fabricante": {
+      "Dokimos Plus Aórtica": {
+        "posicao": "aortica",
+        "tamanhos": [
+          19,
+          21,
+          23,
+          25,
+          27
+        ],
+        "codigos": "19A a 27A"
+      },
+      "Dokimos Plus Mitral": {
+        "posicao": "mitral",
+        "tamanhos": [
+          25,
+          27,
+          29,
+          31,
+          33
+        ],
+        "codigos": "25M a 33M"
+      }
+    },
+    "nota": [
+      "Fabricante nacional que faltava neste catálogo. Citado nominalmente no parecer",
+      "técnico brasileiro de 2023 sobre biopróteses, junto com Braile e Cardioprótese.",
+      "A tabela 'Technical Specifications' do fabricante traz diâmetro externo, interno,",
+      "projeção, anel de sutura e altura por tamanho — o diâmetro INTERNO é medida",
+      "geométrica e fica na descrição, nunca no campo de EOA.",
+      "Sobre EOA: a ASE 2024 não cobre a Dokimos Plus. Cobre a Labcor Santiago (19 mm,",
+      "EOA 1,2 ± 0,1) e a Synergy (21 mm, EOA 1,1 ± 0,3), que são gerações anteriores,",
+      "um tamanho cada — emprestar valor entre gerações seria inventar procedência."
+    ]
+  },
+  "Cardioprótese": {
+    "fonte": "https://cardioprotese.com.br/category/solucoes/",
+    "pais": "Brasil",
+    "ativas": [
+      "Premium Aórtica",
+      "Premium Mitral"
+    ],
+    "anvisa": {},
+    "tamanhos_do_fabricante": {
+      "Premium Aórtica": {
+        "posicao": "aortica",
+        "tamanhos": [
+          19,
+          21,
+          23,
+          25,
+          27
+        ]
+      },
+      "Premium Mitral": {
+        "posicao": "mitral",
+        "tamanhos": [
+          25,
+          27,
+          29,
+          31,
+          33
+        ]
+      }
+    },
+    "fora_do_escopo": [
+      "Remendo Convencional",
+      "Remendo Monocúspide",
+      "Remendo D-Patch"
+    ],
+    "nota": [
+      "Fabricante nacional sediado em Curitiba, também citado no parecer de 2023.",
+      "A página não traz o número de registro, então `anvisa_registro` fica nulo — mas",
+      "`mercado_br` fica 'confirmado', e a diferença é proposital: página de produto em",
+      "português de fabricante brasileiro é prova de que se vende aqui; o número do",
+      "registro é outro dado, que eu não tenho. Misturar os dois faria a ausência do",
+      "número parecer ausência de registro.",
+      "Os três remendos de pericárdio ficam fora: não são prótese valvar."
+    ]
   }
 }

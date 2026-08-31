@@ -59,6 +59,22 @@ export interface ProteseDoCatalogo {
   advisory_note: string | null;
   advisory_url: string | null;
   advisory_date: string | null;
+  /**
+   * Se esta prótese é vendida **no Brasil** — e os três estados que isso tem.
+   *
+   * `"confirmado"` e `"nao_confirmado"` são resultado de busca; **nulo quer dizer
+   * que ninguém procurou ainda**, e a tela precisa saber a diferença. Campo vazio
+   * que pode significar "procurei e não achei" ou "não olhei" é campo que engana,
+   * e é a mesma disciplina já aplicada à EOA e à foto.
+   *
+   * `nao_confirmado` NÃO tira a prótese do catálogo: tirar uma que talvez esteja
+   * na prateleira do serviço é pior do que mantê-la com ressalva.
+   */
+  mercado_br: "confirmado" | "nao_confirmado" | null;
+  /** Número do registro na ANVISA, quando ele aparece publicamente. */
+  anvisa_registro: string | null;
+  mercado_br_conferido_em: string | null;
+  mercado_br_fonte: string | null;
 }
 
 export const catalogoProtesesKey = ["catalogo-proteses"] as const;

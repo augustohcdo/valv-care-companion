@@ -217,6 +217,51 @@ export const BUSCA_DE_FONTES: BuscaDeFonte[] = [
       "Hancock II 25 mm na mesma tabela. É o que a fonte publica, conferido nas duas páginas.",
   },
   {
+    familia: "Labcor|Dokimos Plus Aórtica",
+    resultado: "sem_estudo",
+    nota:
+      "Fabricante nacional que faltava neste catálogo, e a falta pesava mais que " +
+      "qualquer nome errado de importada. Entra com os cinco tamanhos e os códigos da " +
+      "tabela do fabricante (19A a 27A). Sem EOA por tamanho: a ASE 2024 não traz a " +
+      "Dokimos Plus — traz a Labcor Santiago (19 mm) e a Synergy (21 mm), que são " +
+      "gerações anteriores, um tamanho cada, e emprestar valor entre gerações é " +
+      "inventar procedência. O diâmetro interno que o fabricante publica é medida " +
+      "GEOMÉTRICA e por isso fica na descrição, fora do campo clínico.",
+    referencia: {
+      citacao: "Christ T, Grubitzsch H, Claus B, et al. Clinical outcome and hemodynamic behavior of the Labcor Dokimos Plus aortic valve. J Cardiothorac Surg 2016;11(1):160.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/27899119/",
+    },
+  },
+  {
+    familia: "Labcor|Dokimos Plus Mitral",
+    resultado: "sem_estudo",
+    nota:
+      "Mesma família construtiva da aórtica, cinco tamanhos (25M a 33M) e registro " +
+      "ANVISA próprio. Sem EOA por tamanho publicada: a literatura acessível da " +
+      "Dokimos Plus é da versão aórtica, e a Tabela A5 da ASE 2024 não a traz.",
+  },
+  {
+    familia: "Cardioprótese|Premium Aórtica",
+    resultado: "sem_estudo",
+    nota:
+      "Fabricante nacional de Curitiba, citado no parecer técnico brasileiro de 2023 " +
+      "junto com Braile e Labcor. Entra com os cinco tamanhos da página do fabricante. " +
+      "A página fala em gradiente médio 'consistentemente de um dígito' sem número por " +
+      "tamanho, e frase sem número não vira valor de referência.",
+    referencia: {
+      citacao: "Farias FR, Loures DRR, Costa FDA, et al. Aortic valve replacement with the Cardioprotese Premium bovine pericardium bioprosthesis: four-year clinical results. Interact Cardiovasc Thorac Surg 2012;15(2):229-234.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/22588029/",
+    },
+  },
+  {
+    familia: "Cardioprótese|Premium Mitral",
+    resultado: "sem_estudo",
+    nota:
+      "Mesma plataforma em posição mitral, com aba de sutura reta e mais larga que a da " +
+      "aórtica — diferença que o próprio fabricante descreve. Cinco tamanhos, de 25 a " +
+      "33 mm. Sem hemodinâmica por tamanho publicada até esta busca.",
+  },
+  {
     familia: "Corcym|Crown PRT",
     resultado: "sem_dado_por_tamanho",
     nota:
@@ -461,6 +506,8 @@ export const VARREDURA_DE_ALERTAS = {
    */
   semAlerta: [
     "Abbott|Epic Max", "Abbott|Epic Plus", "Abbott|Epic Plus Supra",
+    "Cardioprótese|Premium Aórtica", "Cardioprótese|Premium Mitral",
+    "Labcor|Dokimos Plus Aórtica", "Labcor|Dokimos Plus Mitral",
     "Abbott|St. Jude Masters HP", "Abbott|St. Jude Regent", "Braile|Anel Rígido Braile",
     "Braile|Anel Rígido Gregori", "Braile|Prótese de Pericárdio Bovino", "Braile|Vivere",
     "Corcym|Crown PRT", "Corcym|Memo 3D", "Corcym|Memo 4D", "Corcym|Perceval Plus",
@@ -474,7 +521,9 @@ export const VARREDURA_DE_ALERTAS = {
   ],
   /** O limite da varredura, dito na tela e não só aqui. */
   naoCobre:
-    "bancos brasileiro (ANVISA) e europeu, e carta de fabricante que não vire recolhimento na FDA",
+    "os bancos brasileiro (ANVISA) e europeu, e carta de fabricante que não vire " +
+    "recolhimento na FDA — limite que pesa mais desde que entraram fabricantes " +
+    "nacionais, cujos recolhimentos, se houver, não passariam pela FDA",
 } as const;
 
 /** Quantas famílias esta varredura declara ter conferido, nas três listas somadas. */

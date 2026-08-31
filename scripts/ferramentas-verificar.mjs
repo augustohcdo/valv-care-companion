@@ -440,6 +440,61 @@ if (!CHAVE) {
     0,
   );
 
+  /**
+   * Todo nome do catálogo existe na auditoria de portfólio — e vice-versa.
+   *
+   * O usuário apontou que o catálogo trazia nome errado e produto que não se
+   * vende mais. A causa raiz não é digitação: é que o nome comercial vivia só na
+   * linha do banco, sem nada dizendo de onde ele veio nem quando foi conferido.
+   * `scripts/catalogo/auditoria-fabricantes.json` passa a ser esse registro, com
+   * a URL da página do fabricante e a data de cada afirmação, e esta guarda
+   * amarra os dois: nome no catálogo que não está na auditoria é nome que
+   * ninguém conferiu.
+   */
+  const { readFileSync } = await import("node:fs");
+  const auditoria = JSON.parse(readFileSync("scripts/catalogo/auditoria-fabricantes.json", "utf8"));
+  const auditadas = new Set();
+  for (const [fab, dados] of Object.entries(auditoria)) {
+    if (fab.startsWith("_")) continue;
+    for (const modelo of dados.ativas ?? []) auditadas.add(`${fab}|${modelo}`);
+  }
+  const semAuditoria = [...porFamilia.keys()].filter((k) => !auditadas.has(k));
+  conferir(
+    `nomes: toda família do catálogo consta da auditoria de portfólio${semAuditoria.length ? ` — falta: ${semAuditoria.join(", ")}` : ""}`,
+    semAuditoria.length,
+    0,
+  );
+
+  /**
+   * O registro brasileiro, nos três estados — e a data junto com a afirmação.
+   *
+   * `mercado_br` nulo quer dizer "ninguém procurou ainda", e é estado legítimo.
+   * O que não pode existir é afirmação sem data: "conferido" sem dizer quando é
+   * um fato com prazo de validade escondido.
+   */
+  const mercadoInvalido = linhas.filter(
+    (l) => l.mercado_br && !["confirmado", "nao_confirmado"].includes(l.mercado_br),
+  );
+  conferir("mercado BR: nenhum estado fora dos dois previstos", mercadoInvalido.length, 0);
+  conferir(
+    "mercado BR: toda afirmação vem com a data em que foi conferida",
+    linhas.filter((l) => Boolean(l.mercado_br) !== Boolean(l.mercado_br_conferido_em)).length,
+    0,
+  );
+  conferir(
+    "mercado BR: registro da ANVISA só onde a venda no Brasil foi confirmada",
+    linhas.filter((l) => l.anvisa_registro && l.mercado_br !== "confirmado").length,
+    0,
+  );
+  const comMercado = new Set(
+    linhas.filter((l) => l.mercado_br).map((l) => `${l.manufacturer}|${l.model_name}`),
+  );
+  conferir(
+    `mercado BR: quantas famílias já foram conferidas (${comMercado.size} de ${porFamilia.size})`,
+    comMercado.size,
+    /^[1-9]/,
+  );
+
   // A ordem dos fabricantes, recalculada da mesma regra escrita na tela.
   const cobertura = new Map();
   for (const l of linhas) {

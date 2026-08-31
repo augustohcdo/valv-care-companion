@@ -64,6 +64,11 @@ interface Familia {
   imagem: string | null;
   imagemE: "foto" | "ilustracao" | null;
   alerta: { tipo: string; nota: string; url: string; data: string | null } | null;
+  /** Registro brasileiro: os três estados vêm do banco e nenhum vira silêncio. */
+  mercadoBr: "confirmado" | "nao_confirmado" | null;
+  anvisa: string | null;
+  mercadoBrEm: string | null;
+  mercadoBrFonte: string | null;
   linhas: ProteseDoCatalogo[];
 }
 
@@ -82,6 +87,8 @@ function agrupar(linhas: ProteseDoCatalogo[]): Familia[] {
         alerta: l.advisory
           ? { tipo: l.advisory, nota: l.advisory_note ?? "", url: l.advisory_url ?? "", data: l.advisory_date }
           : null,
+        mercadoBr: l.mercado_br, anvisa: l.anvisa_registro,
+        mercadoBrEm: l.mercado_br_conferido_em, mercadoBrFonte: l.mercado_br_fonte,
         linhas: [],
       };
       mapa.set(chave, f);
@@ -291,6 +298,42 @@ export function CatalogoProteses() {
   );
 }
 
+/**
+ * Se esta prótese é vendida **no Brasil** — nos três estados que isso tem.
+ *
+ * O catálogo nasceu auditado contra páginas americanas de fabricante, o que
+ * responde à pergunta errada para quem opera aqui: uma prótese pode ter saído de
+ * linha nos EUA e continuar sendo implantada no Brasil, e o contrário também.
+ *
+ * Os três estados, e por que o terceiro existe:
+ *
+ *   · **confirmado** — achei a prova, e o selo mostra o registro ANVISA quando
+ *     ele existe;
+ *   · **não confirmado** — procurei e não achei. NÃO quer dizer que não se venda:
+ *     por isso a prótese continua no catálogo, e o selo diz a data da busca;
+ *   · **nada** — ninguém procurou ainda, e o selo não aparece. Fingir busca que
+ *     não houve seria pior do que não ter selo.
+ *
+ * A base da ANVISA está atrás de desafio do Cloudflare e não se contorna, então
+ * a prova vem da página brasileira do fabricante e do número de registro quando
+ * ele é público. O selo linka a fonte para o médico conferir sozinho.
+ */
+function SeloDeMercado({ f }: { f: Familia }) {
+  if (!f.mercadoBr) return null;
+  if (f.mercadoBr === "confirmado") {
+    return (
+      <Badge variant="outline" className="text-[11px] border-success/40 bg-success/10 text-success">
+        {f.anvisa ? `ANVISA ${f.anvisa}` : "vendida no Brasil"}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-[11px] border-warning/40 bg-warning/10 text-warning">
+      registro brasileiro não confirmado em {f.mercadoBrEm}
+    </Badge>
+  );
+}
+
 function CartaoFamilia({ familia: f }: { familia: Familia }) {
   const tamanhos = f.linhas.map((l) => l.size).filter((s): s is number => s != null);
   const anelMin = Math.min(...f.linhas.map((l) => l.annulus_min_mm ?? Infinity));
@@ -328,6 +371,7 @@ function CartaoFamilia({ familia: f }: { familia: Familia }) {
           <div className="flex flex-wrap gap-1.5 mt-2">
             <Badge variant="secondary" className="text-[11px]">{ROTULO_TIPO[f.tipo] ?? f.tipo}</Badge>
             <Badge variant="outline" className="text-[11px]">posição {ROTULO_POSICAO[f.posicao] ?? f.posicao}</Badge>
+            <SeloDeMercado f={f} />
           </div>
 
           {f.alerta && (
