@@ -8,9 +8,14 @@
  * não roda sozinha em lugar nenhum deste projeto. **Não existe pipeline que as
  * aplique** — eu cheguei a escrever aqui que existia, e estava errado: a CI só
  * roda os checks, e o `scripts/catalogo/README.md` registra que o DDL sempre
- * entrou à mão, por token da Management API, porque `service_role` não executa
- * DDL. Enquanto ninguém aplicar, o código fala de 36 famílias e o banco serve 45,
- * e nessa janela o `ferramentas:verificar` reprova **com razão**.
+ * entrou à mão. Enquanto ninguém aplicar, o código fala de um catálogo que o
+ * banco não tem, e nessa janela o `ferramentas:verificar` reprova **com razão**.
+ *
+ * A lista de migrações pendentes é **importada** do gerador, não repetida aqui.
+ * Repetida, ela envelheceu em silêncio: esta mensagem dizia "as três migrations
+ * de 30/08" quando já eram cinco, e mandava esperar por um token quando o
+ * caminho combinado com o usuário já era colar o SQL. Texto que descreve um
+ * estado precisa derivar do estado.
  *
  * O risco de uma janela assim é o de sempre: alguém roda a conferência cedo
  * demais, vê vermelho, conclui "quebrou" e reverte; ou roda e vê verde por
@@ -33,6 +38,8 @@
  * Uso: node scripts/conferir-publicacao.mjs
  * Precisa de `VITE_SUPABASE_PUBLISHABLE_KEY` no ambiente.
  */
+
+import { PENDENTES } from "./catalogo/gerar-sql-de-aplicacao.mjs";
 
 const SUPABASE = "https://qwiojyfxzvdcfbbexyxg.supabase.co";
 const CHAVE = process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
@@ -80,13 +87,14 @@ if (!temFuncao && !temColuna && !semTavi) {
     "  · ainda há linhas transcateter\n\n" +
     "Isto NÃO é defeito do código publicado: é o banco ainda no estado anterior.\n\n" +
     "E não adianta esperar: NENHUM pipeline aplica migration neste projeto. A CI\n" +
-    "só roda os checks; o DDL sempre entrou à mão, por token da Management API\n" +
-    "(`sbp_...`), porque a chave `service_role` não executa DDL. As três migrations\n" +
-    "de 30/08/2026 estão em supabase/migrations/ esperando alguém com o token:\n\n" +
-    "  20260830010000_catalogo_so_cirurgico.sql\n" +
-    "  20260830020000_catalogo_imagens_e_novas.sql\n" +
-    "  20260830030000_magna_ease_por_tamanho.sql\n\n" +
-    "`npm run migrations` já confirmou que as três analisam sem erro de sintaxe.",
+    "só roda os checks, e a chave `service_role` não executa DDL.\n\n" +
+    "O QUE FAZER: abra o SQL Editor no painel do Supabase e cole o arquivo\n" +
+    "  scripts/catalogo/aplicar-no-supabase.sql\n" +
+    `que é a concatenação destas ${PENDENTES.length} migrations, na ordem:\n\n` +
+    PENDENTES.map((m) => `  ${m}`).join("\n") + "\n\n" +
+    "É seguro rodar duas vezes. `npm run migrations` já confirmou que todas\n" +
+    "analisam sem erro de sintaxe e que cada INSERT tem colunas e valores em\n" +
+    "número igual.",
   );
   process.exit(3);
 }

@@ -28,6 +28,11 @@
  * tem como saber se o que ele queria — a Perimount fora do catálogo — aconteceu.
  * "Rodou sem erro" não é "fez o que devia".
  *
+ * `PENDENTES` é exportado porque o `conferir-publicacao.mjs` precisa dizer ao
+ * usuário QUAIS migrations estão esperando. Ele repetia a lista à mão e
+ * envelheceu em silêncio: dizia "as três migrations de 30/08" quando já eram
+ * cinco. Lista repetida diverge; lista derivada não tem como.
+ *
  * Uso:
  *   node scripts/catalogo/gerar-sql-de-aplicacao.mjs            # gera
  *   node scripts/catalogo/gerar-sql-de-aplicacao.mjs --conferir # só confere que está atualizado
@@ -46,7 +51,7 @@ const SAIDA = "scripts/catalogo/aplicar-no-supabase.sql";
  * qualquer uma que não seja idempotente quebraria no meio, deixando o banco pela
  * metade. Quem entra aqui é escolhido a dedo e conferido como idempotente.
  */
-const PENDENTES = [
+export const PENDENTES = [
   "20260830010000_catalogo_so_cirurgico.sql",
   "20260830020000_catalogo_imagens_e_novas.sql",
   "20260830030000_magna_ease_por_tamanho.sql",
@@ -125,6 +130,10 @@ SELECT
      FROM public.prosthesis_catalog WHERE active AND anvisa_registro IS NOT NULL) AS com_registro_anvisa;
 `;
 
+// O corpo abaixo só roda quando o script é EXECUTADO. Importado — que é como o
+// `conferir-publicacao.mjs` pega a lista — ele não pode escrever arquivo nenhum.
+const executando = process.argv[1]?.endsWith("gerar-sql-de-aplicacao.mjs");
+
 const partes = [CABECALHO];
 for (const nome of PENDENTES) {
   const caminho = join(DIR, nome);
@@ -142,7 +151,7 @@ for (const nome of PENDENTES) {
 partes.push(RODAPE);
 const conteudo = partes.join("");
 
-if (process.argv.includes("--conferir")) {
+if (executando && process.argv.includes("--conferir")) {
   // Modo usado pela guarda: o arquivo colado tem de refletir as migrations. Se
   // alguém editar uma migration e esquecer de regerar, o SQL entregue ao usuário
   // passa a descrever um estado que o repositório não tem mais.
@@ -160,5 +169,7 @@ if (process.argv.includes("--conferir")) {
   process.exit(0);
 }
 
-writeFileSync(SAIDA, conteudo);
-console.log(`${SAIDA} gerado a partir de ${PENDENTES.length} migrations, ${conteudo.split("\n").length} linhas.`);
+if (executando) {
+  writeFileSync(SAIDA, conteudo);
+  console.log(`${SAIDA} gerado a partir de ${PENDENTES.length} migrations, ${conteudo.split("\n").length} linhas.`);
+}

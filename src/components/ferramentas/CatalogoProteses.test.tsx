@@ -153,3 +153,80 @@ describe("catálogo de próteses", () => {
     expect(texto, "alerta sem data é boato").toMatch(/comunicado de 2023-07-31/);
   });
 });
+
+/**
+ * O selo de mercado brasileiro, nos quatro estados.
+ *
+ * O catálogo foi auditado durante rodadas contra páginas americanas, o que
+ * responde à pergunta errada para quem opera aqui: uma prótese pode ter saído de
+ * linha nos EUA e continuar sendo implantada no Brasil, e o contrário também.
+ *
+ * O selo nasceu na rodada passada e **nunca foi renderizado em teste** — toda
+ * fixture deste arquivo tem `mercado_br: null`, então o ramo que desenha o selo
+ * nunca rodava. Um componente que nenhum teste exercita é um componente cujo
+ * verde não significa nada.
+ *
+ * Os quatro estados, e por que o último importa tanto quanto os outros:
+ *
+ *   · confirmado COM registro   → mostra o número da ANVISA
+ *   · confirmado SEM registro   → diz que se vende aqui e NÃO inventa número
+ *   · não confirmado            → ressalva COM data, e a prótese CONTINUA na tela
+ *   · nulo                      → selo nenhum, porque ninguém procurou ainda
+ */
+describe("selo de mercado brasileiro", () => {
+  const comMercado = (over: Partial<ProteseDoCatalogo>) =>
+    ({ data: [linha(over)], isLoading: false, error: null });
+
+  it("confirmado com registro: mostra o número da ANVISA", () => {
+    mockUseCatalogo.mockReturnValue(comMercado({
+      manufacturer: "Labcor", model_name: "Dokimos Plus Aórtica",
+      mercado_br: "confirmado", anvisa_registro: "10171250041",
+      mercado_br_conferido_em: "2026-08-31",
+    }));
+    render(<CatalogoProteses />);
+    expect(document.body.textContent ?? "").toContain("ANVISA 10171250041");
+  });
+
+  it("confirmado sem registro: diz que se vende aqui e não inventa número", () => {
+    // A distinção que justifica os dois campos separados: distribuidor
+    // brasileiro prova a venda sem publicar o registro. Fabricar um número para
+    // preencher o selo seria a pior coisa possível num catálogo clínico.
+    mockUseCatalogo.mockReturnValue(comMercado({
+      manufacturer: "Medtronic", model_name: "Hancock II",
+      mercado_br: "confirmado", anvisa_registro: null,
+      mercado_br_conferido_em: "2026-08-31",
+    }));
+    render(<CatalogoProteses />);
+    const texto = document.body.textContent ?? "";
+    expect(texto).toContain("vendida no Brasil");
+    expect(texto, "inventou um número de registro").not.toMatch(/ANVISA \d/);
+  });
+
+  it("não confirmado: ressalva com data, e a prótese CONTINUA na tela", () => {
+    // A contraprova de que ressalva não é remoção. Tirar do catálogo uma prótese
+    // que talvez esteja na prateleira do serviço é pior do que mantê-la com a
+    // ressalva — decisão do usuário, e é o que este teste prende.
+    mockUseCatalogo.mockReturnValue(comMercado({
+      manufacturer: "Corcym", model_name: "Perceval Plus",
+      mercado_br: "nao_confirmado", anvisa_registro: null,
+      mercado_br_conferido_em: "2026-08-31",
+    }));
+    render(<CatalogoProteses />);
+    const texto = document.body.textContent ?? "";
+    expect(texto, "a família sumiu do catálogo por não ter sido confirmada").toContain("Perceval Plus");
+    expect(texto).toMatch(/registro brasileiro não confirmado em 2026-08-31/);
+  });
+
+  it("nulo: nenhum selo, porque ninguém procurou ainda", () => {
+    // O terceiro estado do projeto inteiro. Desenhar "não confirmado" aqui seria
+    // afirmar uma busca que não houve.
+    mockUseCatalogo.mockReturnValue(comMercado({
+      mercado_br: null, anvisa_registro: null, mercado_br_conferido_em: null,
+    }));
+    render(<CatalogoProteses />);
+    const texto = document.body.textContent ?? "";
+    expect(texto, "afirmou busca que não aconteceu").not.toMatch(/não confirmado/i);
+    expect(texto).not.toMatch(/vendida no Brasil/);
+    expect(texto).not.toMatch(/ANVISA \d/);
+  });
+});
