@@ -44,17 +44,85 @@ const py = `
 import sys, json
 try:
     import pglast
+    from pglast import ast
 except ImportError:
     print(json.dumps({"faltando": True})); sys.exit(0)
+
+# ---------------------------------------------------------------------------
+# Aridade e nome de coluna — o que o parser NÃO pega sozinho
+# ---------------------------------------------------------------------------
+#
+# \`parse_sql\` valida sintaxe. \`INSERT INTO t (a,b,c) SELECT x,y\` é sintaxe
+# perfeita e só explode quando alguém executa. Como o SQL desta rodada é colado
+# à mão no painel do Supabase, dentro de um BEGIN, esse erro deixaria metade do
+# catálogo aplicada e metade não — o pior estado possível.
+#
+# O mesmo vale para nome de coluna: \`mercado_br_fonte\` escrito \`mercado_br_font\`
+# passa no parser e morre na execução.
+CONHECIDAS = {}
+
+def registrar_colunas(arvore):
+    for raw in arvore:
+        st = raw.stmt
+        if isinstance(st, ast.CreateStmt) and st.relation is not None:
+            alvo = CONHECIDAS.setdefault(st.relation.relname, set())
+            for el in st.tableElts or []:
+                if isinstance(el, ast.ColumnDef):
+                    alvo.add(el.colname)
+        if isinstance(st, ast.AlterTableStmt) and st.relation is not None:
+            alvo = CONHECIDAS.setdefault(st.relation.relname, set())
+            for cmd in st.cmds or []:
+                d = getattr(cmd, "def_", None)
+                if isinstance(d, ast.ColumnDef):
+                    alvo.add(d.colname)
+
+def problemas(arvore, caminho):
+    achados = []
+    for raw in arvore:
+        st = raw.stmt
+        if isinstance(st, ast.InsertStmt) and st.relation is not None:
+            tabela = st.relation.relname
+            cols = [c.name for c in (st.cols or [])]
+            sel = st.selectStmt
+            alvos = getattr(sel, "targetList", None) or []
+            # Só compara quando é INSERT ... SELECT com lista explícita; um
+            # INSERT ... VALUES tem a checagem noutro ramo do nó.
+            if cols and alvos and len(cols) != len(alvos):
+                achados.append(
+                    "INSERT em %s: %d colunas para %d valores" % (tabela, len(cols), len(alvos)))
+            desconhecidas = [c for c in cols if c not in CONHECIDAS.get(tabela, set())]
+            if desconhecidas and tabela in CONHECIDAS:
+                achados.append("INSERT em %s cita coluna inexistente: %s" % (tabela, ", ".join(desconhecidas)))
+        if isinstance(st, ast.UpdateStmt) and st.relation is not None:
+            tabela = st.relation.relname
+            nomes = [t.name for t in (st.targetList or []) if t.name]
+            desconhecidas = [c for c in nomes if c not in CONHECIDAS.get(tabela, set())]
+            if desconhecidas and tabela in CONHECIDAS:
+                achados.append("UPDATE em %s cita coluna inexistente: %s" % (tabela, ", ".join(desconhecidas)))
+    return achados
+
+caminhos = sys.argv[1:]
+arvores = {}
 saida = []
-for caminho in sys.argv[1:]:
+for caminho in caminhos:
     with open(caminho, encoding="utf-8") as f:
         sql = f.read()
     try:
-        n = len(pglast.parse_sql(sql))
-        saida.append({"arquivo": caminho, "ok": True, "comandos": n})
+        arv = pglast.parse_sql(sql)
+        arvores[caminho] = arv
+        registrar_colunas(arv)
+        saida.append({"arquivo": caminho, "ok": True, "comandos": len(arv)})
     except Exception as e:
         saida.append({"arquivo": caminho, "ok": False, "erro": str(e)})
+
+# Segunda passada: as colunas de TODAS as migrations já estão registradas, então
+# uma migration que usa coluna criada por outra anterior não acusa falso.
+for caminho, arv in arvores.items():
+    for p in problemas(arv, caminho):
+        for r in saida:
+            if r["arquivo"] == caminho:
+                r["ok"] = False
+                r["erro"] = p
 print(json.dumps({"resultados": saida}))
 `;
 

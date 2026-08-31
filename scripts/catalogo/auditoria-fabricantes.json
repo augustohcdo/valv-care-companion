@@ -284,5 +284,26 @@
       "número parecer ausência de registro.",
       "Os três remendos de pericárdio ficam fora: não são prótese valvar."
     ]
+  },
+  "_varredura_de_mercado_31_08": {
+    "resumo": "40 famílias conferidas: 21 com venda no Brasil confirmada, 19 não confirmadas, 10 com número de registro ANVISA.",
+    "fontes_usadas": {
+      "intermedicalbr.com/cirurgia-cardiaca": "distribuidor brasileiro que publica o registro ao lado de cada produto Edwards — 6 números localizados no HTML cru e o texto anterior a cada um lido para confirmar a qual produto pertence",
+      "abbottbrasil.com.br (comunicado de 06/05/2026)": "aprovação da ANVISA da Epic Max; o número 10332340525 está no rodapé do HTML, e o texto diz que a válvula é fabricada em Belo Horizonte",
+      "medicicor.com.br": "distribuidor brasileiro da Medtronic; cinco páginas de produto responderam 200, sem publicar registro",
+      "labcor.com.br e cardioprotese.com.br": "fabricantes nacionais, com registro publicado só pela Labcor"
+    },
+    "correcao_que_esta_rodada_fez": [
+      "Eu tinha gravado anvisa_registro = '80219050154' para a Edwards Intuity Elite a partir de um RESUMO DE BUSCA, sem nunca abrir a página que continha o número.",
+      "É a mesma classe dos dois PMIDs que inventei nesta sessão: afirmação precisa, de aparência conferida, sem ninguém ter olhado a fonte.",
+      "As páginas de produto da Edwards Brasil respondem 404 deste ambiente (a raiz edwards.com/br carrega, as internas não) e o distribuidor que lista o portfólio deles não traz a Intuity.",
+      "O número saiu e a família voltou para nao_confirmado. Registro errado num catálogo clínico é pior do que registro nenhum: o número tem cara de conferido justamente por ser preciso."
+    ],
+    "nao_confirmadas_e_o_padrao_delas": [
+      "Medtronic Avalus Ultra, Freestyle, CG Future e Profile 3D; Edwards Cosgrove-Edwards Band, MC3 Tricuspid e Intuity Elite; Abbott Epic Plus, Epic Plus Supra, Regent e Masters HP; as cinco da Corcym; Meril Dafodil, Miltonia e Miltonia AP.",
+      "O padrão diz algo: anel de anuloplastia e mecânica de geração antiga quase não aparecem em catálogo de distribuidor on-line, e fabricante sem operação brasileira própria não publica nada em português.",
+      "Ausência de vitrine não é ausência de mercado — por isso nenhuma sai do catálogo, e o selo na tela mostra a data para quem souber melhor poder corrigir."
+    ],
+    "o_que_nao_deu_para_usar": "A base da ANVISA (consultas.anvisa.gov.br) responde 403 com desafio de captcha do Cloudflare a qualquer cliente que não seja navegador. Não se contorna. O portal de dados abertos (dados.anvisa.gov.br) não resolve deste ambiente e a API do dados.gov.br exige chave."
   }
 }

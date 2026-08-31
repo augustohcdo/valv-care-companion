@@ -51,6 +51,7 @@ const PENDENTES = [
   "20260830020000_catalogo_imagens_e_novas.sql",
   "20260830030000_magna_ease_por_tamanho.sql",
   "20260830040000_mercado_brasileiro.sql",
+  "20260831010000_mercado_brasileiro_varredura.sql",
 ];
 
 const CABECALHO = `-- ===========================================================================
@@ -74,7 +75,10 @@ const CABECALHO = `-- ==========================================================
 --   2. aplica as 19 imagens oficiais conferidas uma a uma e cadastra Avalus
 --      Ultra, Mosaic mitral e Epic Max
 --   3. completa a Magna Ease de 2 para 5 tamanhos com EOA (Tsui 2022)
---   4. marca o registro brasileiro por família e cadastra Labcor e Cardioprótese
+--   4. cria os campos de mercado brasileiro e cadastra Labcor e Cardioprótese
+--   5. varre as 40 famílias uma a uma: 21 com venda no Brasil confirmada (10
+--      delas com o número do registro ANVISA conferido no HTML da fonte) e 19
+--      não confirmadas — que CONTINUAM no catálogo, com a ressalva e a data
 --
 -- O QUE MUDA NA TELA: a Perimount e a Trifecta GT saem do catálogo e passam a
 -- aparecer só na seção de referência histórica; as 10 famílias transcateter
@@ -101,6 +105,8 @@ COMMIT;
 --   sem_imagem ............. 0
 --   fora_de_linha .......... 2   (Edwards Perimount e Abbott Trifecta GT)
 --   perimount_no_catalogo .. 0   ← era isto que estava errado na tela
+--   mercado_conferido ..... 40   (todas: 21 confirmadas, 19 não confirmadas)
+--   com_registro_anvisa ... 10   (7 Edwards, Abbott Epic Max e 2 da Labcor)
 
 SELECT
   (SELECT count(DISTINCT manufacturer || '|' || model_name)
@@ -112,7 +118,11 @@ SELECT
   (SELECT count(DISTINCT manufacturer || '|' || model_name)
      FROM public.prosthesis_catalog WHERE inactive_reason = 'fora_de_linha') AS fora_de_linha,
   (SELECT count(*) FROM public.prosthesis_catalog
-    WHERE active AND model_name = 'Perimount') AS perimount_no_catalogo;
+    WHERE active AND model_name = 'Perimount') AS perimount_no_catalogo,
+  (SELECT count(DISTINCT manufacturer || '|' || model_name)
+     FROM public.prosthesis_catalog WHERE active AND mercado_br IS NOT NULL) AS mercado_conferido,
+  (SELECT count(DISTINCT manufacturer || '|' || model_name)
+     FROM public.prosthesis_catalog WHERE active AND anvisa_registro IS NOT NULL) AS com_registro_anvisa;
 `;
 
 const partes = [CABECALHO];
