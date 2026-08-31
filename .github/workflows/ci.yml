@@ -42,6 +42,34 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # O SQL e as migrations ficavam fora de toda checagem automática. São
+      # arquivos que ninguém compila: erro de sintaxe neles só aparece quando
+      # alguém cola o SQL no painel e a transação aborta no meio.
+      #
+      # E há um segundo defeito, pior, que este passo fecha: o arquivo que o
+      # usuário cola (`scripts/catalogo/aplicar-no-supabase.sql`) é GERADO a
+      # partir das migrations. Editar uma migration sem regerar deixava o SQL
+      # entregue descrevendo um estado que o repositório não tem mais — e a CI
+      # continuava verde, porque nada comparava os dois. O `npm run migrations`
+      # roda essa comparação; até agora ela só acontecia se eu lembrasse.
+      #
+      # `pip install pglast` é obrigatório, não conveniência: sem ele o script
+      # sai com 2 = NÃO CONFERIDO, e 2 reprova o passo. A CI nunca fica verde
+      # dizendo que conferiu quando não conferiu.
+      # `setup-python` em vez do python de sistema: o Ubuntu recente marca o
+      # interpretador como externally-managed (PEP 668) e recusa `pip install`.
+      # O script chama `python3`, e o setup-python coloca o dele à frente no PATH.
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pglast (parser real do PostgreSQL)
+        run: pip install pglast
+
+      - name: Migrations (sintaxe, aridade dos INSERT, SQL de aplicação em dia)
+        run: npm run migrations
+
       - name: Test
         run: npm test
 
