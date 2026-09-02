@@ -49,6 +49,16 @@ type FormState = {
   peak_gradient: string;
   valve_area: string;
   regurgitation_grade: string;
+  // Medidas que a diretriz ESC/EACTS 2025 usa para decidir conduta.
+  vmax_m_s: string;
+  svi_ml_m2: string;
+  lvesd_mm: string;
+  altura_cm: string;
+  peso_kg: string;
+  teste_esforco: string;
+  risco_cirurgico: string;
+  fibrilacao_atrial: string;
+  em_etiologia: string;
   proposed_management: string;
   clinical_notes: string;
   prosthesis_id: string;
@@ -69,6 +79,15 @@ const emptyForm: FormState = {
   peak_gradient: "",
   valve_area: "",
   regurgitation_grade: "",
+  vmax_m_s: "",
+  svi_ml_m2: "",
+  lvesd_mm: "",
+  altura_cm: "",
+  peso_kg: "",
+  teste_esforco: "",
+  risco_cirurgico: "",
+  fibrilacao_atrial: "",
+  em_etiologia: "",
   proposed_management: "",
   clinical_notes: "",
   prosthesis_id: "",
@@ -90,6 +109,17 @@ function buildPayload(form: FormState) {
     peak_gradient: form.peak_gradient ? parseFloat(form.peak_gradient) : null,
     valve_area: form.valve_area ? parseFloat(form.valve_area) : null,
     regurgitation_grade: form.regurgitation_grade || null,
+    vmax_m_s: form.vmax_m_s ? parseFloat(form.vmax_m_s) : null,
+    svi_ml_m2: form.svi_ml_m2 ? parseFloat(form.svi_ml_m2) : null,
+    lvesd_mm: form.lvesd_mm ? parseFloat(form.lvesd_mm) : null,
+    altura_cm: form.altura_cm ? parseFloat(form.altura_cm) : null,
+    peso_kg: form.peso_kg ? parseFloat(form.peso_kg) : null,
+    teste_esforco: form.teste_esforco || null,
+    risco_cirurgico: form.risco_cirurgico || null,
+    // "" = não informado; "sim"/"nao" = informado. Os três estados de sempre —
+    // um booleano cru transformaria "ninguém perguntou" em "não tem".
+    fibrilacao_atrial: form.fibrilacao_atrial ? form.fibrilacao_atrial === "sim" : null,
+    em_etiologia: form.em_etiologia || null,
     proposed_management: form.proposed_management || null,
     clinical_notes: form.clinical_notes || null,
     prosthesis_id: form.prosthesis_id || null,
@@ -104,6 +134,11 @@ function validateClinicalRanges(form: FormState): string | null {
     ["mean_gradient", "Gradiente médio", 0, 200],
     ["peak_gradient", "Gradiente máximo", 0, 250],
     ["valve_area", "Área valvar", 0, 10],
+    ["vmax_m_s", "Vmax", 0, 10],
+    ["svi_ml_m2", "Volume sistólico indexado", 0, 100],
+    ["lvesd_mm", "DSVE", 0, 120],
+    ["altura_cm", "Altura", 40, 250],
+    ["peso_kg", "Peso", 2, 400],
   ];
   for (const [key, label, min, max] of checks) {
     const raw = form[key as keyof FormState] as string;
@@ -132,6 +167,15 @@ function hydrateForm(row: any): FormState {
     peak_gradient: row.peak_gradient?.toString() ?? "",
     valve_area: row.valve_area?.toString() ?? "",
     regurgitation_grade: row.regurgitation_grade ?? "",
+    vmax_m_s: row.vmax_m_s?.toString() ?? "",
+    svi_ml_m2: row.svi_ml_m2?.toString() ?? "",
+    lvesd_mm: row.lvesd_mm?.toString() ?? "",
+    altura_cm: row.altura_cm?.toString() ?? "",
+    peso_kg: row.peso_kg?.toString() ?? "",
+    teste_esforco: row.teste_esforco ?? "",
+    risco_cirurgico: row.risco_cirurgico ?? "",
+    fibrilacao_atrial: row.fibrilacao_atrial === true ? "sim" : row.fibrilacao_atrial === false ? "nao" : "",
+    em_etiologia: row.em_etiologia ?? "",
     proposed_management: row.proposed_management ?? "",
     clinical_notes: row.clinical_notes ?? "",
     prosthesis_id: row.prosthesis_id ?? "",
@@ -807,6 +851,97 @@ export default function NovoCaso() {
                     <Input value={form.regurgitation_grade}
                       onChange={(e) => update("regurgitation_grade", e.target.value)}
                       placeholder="Ex.: regurgitação mitral moderada (2+/4+)" className="mt-1.5" />
+                  </div>
+                </div>
+
+                {/*
+                  Os campos que a diretriz ESC/EACTS 2025 passou a exigir.
+                  Separados dos anteriores de propósito: quem já usa a
+                  ferramenta reconhece o bloco de cima, e o de baixo se explica.
+                  Todos opcionais — deixar em branco significa "não medido", e a
+                  sugestão de conduta diz o que falta em vez de escolher um ramo
+                  sozinha.
+                */}
+                <div className="mt-6 pt-5 border-t">
+                  <p className="text-xs font-medium text-foreground">Medidas da diretriz 2025</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 mb-3">
+                    Opcionais. Cada uma destrava uma recomendação específica — sem elas a sugestão
+                    aparece dizendo qual exame falta.
+                  </p>
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <Label className="text-xs">Vmax (m/s)</Label>
+                      <Input type="number" step="0.1" min="0" max="10" value={form.vmax_m_s}
+                        onChange={(e) => update("vmax_m_s", e.target.value)} className="mt-1.5" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Vol. sistólico ind. (mL/m²)</Label>
+                      <Input type="number" step="0.1" min="0" max="100" value={form.svi_ml_m2}
+                        onChange={(e) => update("svi_ml_m2", e.target.value)} className="mt-1.5" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">DSVE (mm)</Label>
+                      <Input type="number" step="0.1" min="0" max="120" value={form.lvesd_mm}
+                        onChange={(e) => update("lvesd_mm", e.target.value)} className="mt-1.5" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Fibrilação atrial</Label>
+                      <Select value={form.fibrilacao_atrial} onValueChange={(v) => update("fibrilacao_atrial", v)}>
+                        <SelectTrigger className="mt-1.5"><SelectValue placeholder="Não informado" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sim">Sim</SelectItem>
+                          <SelectItem value="nao">Não</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Altura (cm)</Label>
+                      <Input type="number" step="1" min="40" max="250" value={form.altura_cm}
+                        onChange={(e) => update("altura_cm", e.target.value)} className="mt-1.5" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Peso (kg)</Label>
+                      <Input type="number" step="0.1" min="2" max="400" value={form.peso_kg}
+                        onChange={(e) => update("peso_kg", e.target.value)} className="mt-1.5" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Teste de esforço</Label>
+                      <Select value={form.teste_esforco} onValueChange={(v) => update("teste_esforco", v)}>
+                        <SelectTrigger className="mt-1.5"><SelectValue placeholder="Não informado" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="normal">Normal</SelectItem>
+                          <SelectItem value="sintomas">Sintomas ao esforço</SelectItem>
+                          <SelectItem value="queda_pa">Queda de PA &gt; 20 mmHg</SelectItem>
+                          <SelectItem value="nao_realizado">Não realizado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Risco cirúrgico</Label>
+                      <Select value={form.risco_cirurgico} onValueChange={(v) => update("risco_cirurgico", v)}>
+                        <SelectTrigger className="mt-1.5"><SelectValue placeholder="Não informado" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="baixo">Baixo (EuroSCORE II &lt; 4%)</SelectItem>
+                          <SelectItem value="intermediario">Intermediário</SelectItem>
+                          <SelectItem value="alto">Alto</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {form.valve_type === "mitral" && form.valve_disease === "estenose" && (
+                      <div className="sm:col-span-2">
+                        <Label className="text-xs">Etiologia da estenose mitral</Label>
+                        <Select value={form.em_etiologia} onValueChange={(v) => update("em_etiologia", v)}>
+                          <SelectTrigger className="mt-1.5"><SelectValue placeholder="Não informado" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="reumatica">Reumática</SelectItem>
+                            <SelectItem value="degenerativa">Degenerativa</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          Decide a contraindicação ao anticoagulante oral direto quando há fibrilação atrial.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

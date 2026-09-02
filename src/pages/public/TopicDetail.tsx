@@ -111,7 +111,9 @@ const TopicDetail = () => {
                 <BookOpen className="h-4 w-4 text-accent" /> Base científica
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                Conteúdo baseado em diretrizes 2025 ESC/EACTS, 2020 ACC/AHA, Diretriz Brasileira de Valvopatias (SBC 2024) e materiais educacionais de AHA e CDC.
+                Conteúdo baseado nas diretrizes 2025 ESC/EACTS (Eur Heart J. 2025;46(44):4635–4736),
+                2020 ACC/AHA, Diretriz Brasileira de Valvopatias (SBC 2024) e materiais educacionais
+                de AHA e CDC.
               </p>
               <Link to="/referencias" className="text-xs font-medium text-accent hover:underline">
                 Ver referências completas →

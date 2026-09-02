@@ -525,6 +525,15 @@ export type Database = {
           proposed_management: string | null
           prosthesis_id: string | null
           regurgitation_grade: string | null
+          vmax_m_s: number | null
+          svi_ml_m2: number | null
+          lvesd_mm: number | null
+          altura_cm: number | null
+          peso_kg: number | null
+          teste_esforco: string | null
+          risco_cirurgico: string | null
+          fibrilacao_atrial: boolean | null
+          em_etiologia: string | null
           severity: Database["public"]["Enums"]["severity_level"]
           status: Database["public"]["Enums"]["case_status"]
           symptoms: string[] | null
@@ -552,6 +561,15 @@ export type Database = {
           proposed_management?: string | null
           prosthesis_id?: string | null
           regurgitation_grade?: string | null
+          vmax_m_s?: number | null
+          svi_ml_m2?: number | null
+          lvesd_mm?: number | null
+          altura_cm?: number | null
+          peso_kg?: number | null
+          teste_esforco?: string | null
+          risco_cirurgico?: string | null
+          fibrilacao_atrial?: boolean | null
+          em_etiologia?: string | null
           severity?: Database["public"]["Enums"]["severity_level"]
           status?: Database["public"]["Enums"]["case_status"]
           symptoms?: string[] | null
@@ -579,6 +597,15 @@ export type Database = {
           proposed_management?: string | null
           prosthesis_id?: string | null
           regurgitation_grade?: string | null
+          vmax_m_s?: number | null
+          svi_ml_m2?: number | null
+          lvesd_mm?: number | null
+          altura_cm?: number | null
+          peso_kg?: number | null
+          teste_esforco?: string | null
+          risco_cirurgico?: string | null
+          fibrilacao_atrial?: boolean | null
+          em_etiologia?: string | null
           severity?: Database["public"]["Enums"]["severity_level"]
           status?: Database["public"]["Enums"]["case_status"]
           symptoms?: string[] | null

@@ -26,6 +26,18 @@ export const GuidelineRecommendations = ({ caso }: Props) => {
     valve_area: caso.valve_area,
     symptoms: caso.symptoms,
     patient_age: caso.patient_age,
+    // As medidas da diretriz de 2025. Sem repassá-las aqui, o motor as trata
+    // como não informadas e a atualização inteira vira fachada: o código sabe
+    // ler Vmax e DSVE, e a tela nunca os entrega.
+    vmax_m_s: caso.vmax_m_s,
+    svi_ml_m2: caso.svi_ml_m2,
+    lvesd_mm: caso.lvesd_mm,
+    altura_cm: caso.altura_cm,
+    peso_kg: caso.peso_kg,
+    teste_esforco: caso.teste_esforco,
+    risco_cirurgico: caso.risco_cirurgico,
+    fibrilacao_atrial: caso.fibrilacao_atrial,
+    em_etiologia: caso.em_etiologia,
   });
 
   return (

@@ -57,10 +57,15 @@ export const PENDENTES = [
   "20260830030000_magna_ease_por_tamanho.sql",
   "20260830040000_mercado_brasileiro.sql",
   "20260831010000_mercado_brasileiro_varredura.sql",
+  // Não é de catálogo, e entra aqui de propósito: o usuário aplica DDL à mão,
+  // e mandar colar um segundo arquivo dobraria a chance de um deles ficar para
+  // trás. Um arquivo só, colado uma vez.
+  "20260902010000_medidas_da_diretriz_2025.sql",
 ];
 
 const CABECALHO = `-- ===========================================================================
--- CATÁLOGO DE PRÓTESES — aplicação manual, ${new Date().toISOString().slice(0, 10)}
+-- VALVEPATH — aplicação manual, ${new Date().toISOString().slice(0, 10)}
+-- Catálogo de próteses + medidas da diretriz ESC/EACTS 2025
 -- ===========================================================================
 --
 -- Cole ESTE ARQUIVO INTEIRO no SQL Editor do painel do Supabase e execute.
@@ -84,11 +89,16 @@ const CABECALHO = `-- ==========================================================
 --   5. varre as 40 famílias uma a uma: 21 com venda no Brasil confirmada (10
 --      delas com o número do registro ANVISA conferido no HTML da fonte) e 19
 --      não confirmadas — que CONTINUAM no catálogo, com a ressalva e a data
+--   6. cria em clinical_cases as 9 medidas que a diretriz ESC/EACTS 2025 usa e
+--      que o caso clínico não guardava: Vmax, volume sistólico indexado, DSVE,
+--      altura, peso, teste de esforço, risco cirúrgico, fibrilação atrial e
+--      etiologia da estenose mitral. Todas anuláveis — NULL é "ninguém mediu"
 --
 -- O QUE MUDA NA TELA: a Perimount e a Trifecta GT saem do catálogo e passam a
 -- aparecer só na seção de referência histórica; as 10 famílias transcateter
 -- somem; a Abbott "Epic" vira Epic Plus Supra e Epic Plus; entram os dois
--- fabricantes nacionais.
+-- fabricantes nacionais. E o formulário de caso clínico ganha os campos da
+-- diretriz de 2025, sem os quais o motor de conduta não sai de 2021.
 --
 -- NO FIM há um SELECT de conferência. Olhe o resultado dele: "rodou sem erro"
 -- não é a mesma coisa que "fez o que devia".
@@ -112,6 +122,7 @@ COMMIT;
 --   perimount_no_catalogo .. 0   ← era isto que estava errado na tela
 --   mercado_conferido ..... 40   (todas: 21 confirmadas, 19 não confirmadas)
 --   com_registro_anvisa ... 10   (7 Edwards, Abbott Epic Max e 2 da Labcor)
+--   colunas_diretriz_2025 ..  9   ← as medidas novas do caso clínico
 
 SELECT
   (SELECT count(DISTINCT manufacturer || '|' || model_name)
@@ -127,7 +138,12 @@ SELECT
   (SELECT count(DISTINCT manufacturer || '|' || model_name)
      FROM public.prosthesis_catalog WHERE active AND mercado_br IS NOT NULL) AS mercado_conferido,
   (SELECT count(DISTINCT manufacturer || '|' || model_name)
-     FROM public.prosthesis_catalog WHERE active AND anvisa_registro IS NOT NULL) AS com_registro_anvisa;
+     FROM public.prosthesis_catalog WHERE active AND anvisa_registro IS NOT NULL) AS com_registro_anvisa,
+  (SELECT count(*) FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'clinical_cases'
+      AND column_name IN ('vmax_m_s','svi_ml_m2','lvesd_mm','altura_cm','peso_kg',
+                          'teste_esforco','risco_cirurgico','fibrilacao_atrial',
+                          'em_etiologia')) AS colunas_diretriz_2025;
 `;
 
 // O corpo abaixo só roda quando o script é EXECUTADO. Importado — que é como o

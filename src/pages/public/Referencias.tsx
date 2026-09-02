@@ -7,7 +7,14 @@ const refs = [
     section: "Diretrizes clínicas",
     items: [
       { title: "Diretriz Brasileira de Valvopatias 2024", org: "Sociedade Brasileira de Cardiologia (SBC)" },
-      { title: "2025 ESC/EACTS Guidelines for the management of valvular heart disease", org: "European Society of Cardiology / European Association for Cardio-Thoracic Surgery" },
+      {
+        // A citação completa passou a valer a partir do momento em que o motor
+        // de conduta realmente segue esta diretriz. Antes, a página a listava e
+        // o `guidelines.ts` carimbava ESC 2021 — a tela afirmava o que o código
+        // não fazia.
+        title: "2025 ESC/EACTS Guidelines for the management of valvular heart disease",
+        org: "European Society of Cardiology / European Association for Cardio-Thoracic Surgery — Eur Heart J. 2025;46(44):4635–4736. DOI 10.1093/eurheartj/ehaf194",
+      },
       { title: "2020 ACC/AHA Guideline for the Management of Patients With Valvular Heart Disease", org: "American College of Cardiology / American Heart Association" },
     ],
   },
