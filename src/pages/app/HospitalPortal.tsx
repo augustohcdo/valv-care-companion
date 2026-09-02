@@ -22,6 +22,10 @@ export default function HospitalPortal() {
   const [requests, setRequests] = useState<any[]>([]);
   const [grants, setGrants] = useState<any[]>([]);
   const [audit, setAudit] = useState<any[]>([]);
+  /** Falha na leitura das três listas. Nulo = leu; string = não leu, e a tela diz. */
+  const [erroDosDados, setErroDosDados] = useState<string | null>(null);
+  /** Falha ao ler os vínculos do usuário — separada, porque troca a tela inteira. */
+  const [erroDoVinculo, setErroDoVinculo] = useState<string | null>(null);
 
   // Form: novo pedido
   const [patientId, setPatientId] = useState("");
@@ -37,11 +41,17 @@ export default function HospitalPortal() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: members } = await supabase
+      const { data: members, error } = await supabase
         .from("hospital_members")
         .select("hospital_id, role, hospitals(id, legal_name, trade_name, status)")
         .eq("user_id", user.id)
         .eq("active", true);
+      // Sem observar o erro, uma falha aqui caía em `members ?? []` e a tela
+      // dizia "Sem vínculo hospitalar — sua conta não está vinculada a nenhum
+      // hospital parceiro". Para quem opera o portal isso é uma afirmação sobre
+      // o contrato, não sobre a rede: o caminho seguinte que a tela oferece é
+      // escrever para o DPO pedindo um vínculo que já existe.
+      setErroDoVinculo(error ? error.message : null);
       const list = (members ?? []).map((m: any) => ({ ...m.hospitals, role: m.role }));
       setHospitals(list);
       if (list.length) setSelected(list[0].id);
@@ -52,12 +62,18 @@ export default function HospitalPortal() {
   useEffect(() => {
     if (!selected) return;
     (async () => {
-      const [{ data: r }, { data: g }, { data: a }] = await Promise.all([
+      const [r, g, a] = await Promise.all([
         supabase.from("data_access_requests").select("*").eq("hospital_id", selected).order("created_at", { ascending: false }).limit(50),
         supabase.from("data_access_grants").select("*").eq("hospital_id", selected).order("granted_at", { ascending: false }).limit(50),
         supabase.from("integration_audit_log").select("*").eq("hospital_id", selected).order("created_at", { ascending: false }).limit(50),
       ]);
-      setRequests(r ?? []); setGrants(g ?? []); setAudit(a ?? []);
+      // Mesma razão da tela do paciente, do outro lado do balcão: sem isto, uma
+      // falha virava "nenhuma concessão ativa" para quem opera o hospital — e a
+      // trilha de auditoria de integração aparecia vazia, que é justamente o
+      // que ninguém pode ler errado num registro de conformidade.
+      const erro = r.error ?? g.error ?? a.error;
+      setErroDosDados(erro ? erro.message : null);
+      setRequests(r.data ?? []); setGrants(g.data ?? []); setAudit(a.data ?? []);
     })();
   }, [selected]);
 
@@ -82,8 +98,12 @@ export default function HospitalPortal() {
     if (error) { toast.error(error.message); return; }
     toast.success("Pedido enviado. O paciente foi notificado.");
     setPatientId(""); setDoctorName(""); setDoctorCrm(""); setDetails(""); setMessage("");
-    const { data: r } = await supabase.from("data_access_requests").select("*").eq("hospital_id", selected).order("created_at", { ascending: false }).limit(50);
-    setRequests(r ?? []);
+    // A releitura depois de enviar. Sem observar o erro, ela zerava a lista logo
+    // após o "Pedido enviado" — e o operador via o próprio pedido sumir da tela
+    // que acabara de confirmá-lo.
+    const { data: r, error: erroRelista } = await supabase.from("data_access_requests").select("*").eq("hospital_id", selected).order("created_at", { ascending: false }).limit(50);
+    setErroDosDados(erroRelista ? erroRelista.message : null);
+    if (!erroRelista) setRequests(r ?? []);
   };
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
@@ -93,8 +113,12 @@ export default function HospitalPortal() {
       <div className="container max-w-3xl py-10">
         <Card>
           <CardHeader>
-            <CardTitle>Sem vínculo hospitalar</CardTitle>
-            <CardDescription>Sua conta não está vinculada a nenhum hospital parceiro.</CardDescription>
+            <CardTitle>{erroDoVinculo ? "Não foi possível verificar seu vínculo" : "Sem vínculo hospitalar"}</CardTitle>
+            <CardDescription>
+              {erroDoVinculo
+                ? `A consulta falhou (${erroDoVinculo}). Isto NÃO quer dizer que sua conta tenha deixado de estar vinculada a um hospital — quer dizer que não deu para verificar agora.`
+                : "Sua conta não está vinculada a nenhum hospital parceiro."}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
@@ -125,6 +149,25 @@ export default function HospitalPortal() {
           </Select>
         )}
       </header>
+
+      {/*
+        A ressalva vem ACIMA das abas e permanece visível junto com elas: aqui,
+        diferente da tela do paciente, o operador ainda precisa poder abrir um
+        novo pedido mesmo que as listas não tenham carregado. O que não pode é
+        ler as contagens como se fossem o estado real dos consentimentos.
+      */}
+      {erroDosDados && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Listas não carregadas</CardTitle>
+            <CardDescription>
+              Pedidos, acessos ativos e auditoria não puderam ser lidos ({erroDosDados}).
+              As contagens abaixo <strong>não</strong> representam o estado real dos consentimentos —
+              não conclua daqui que não há acesso vigente nem que não houve atividade registrada.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
 
       <Tabs defaultValue="novo" className="space-y-4">
         <TabsList>

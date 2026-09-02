@@ -230,3 +230,37 @@ describe("selo de mercado brasileiro", () => {
     expect(texto).not.toMatch(/ANVISA \d/);
   });
 });
+
+describe("cobertura da varredura de alerta", () => {
+  it("a conta fecha: varridas + faltam = famílias do catálogo", () => {
+    // A invariante que estava quebrada. O numerador vinha de FAMILIAS_VARRIDAS,
+    // que é a soma das listas declaradas e continua contando família que já saiu
+    // do catálogo. O denominador vinha do catálogo carregado. Resultado possível
+    // na tela: "40 de 45" logo acima de "10 famílias ainda não passaram" —
+    // 40 + 10 ≠ 45, e o médico lê o número maior.
+    //
+    // Aqui o catálogo tem três famílias, e NENHUMA delas está nas listas da
+    // varredura. Então o numerador honesto é 0, não 40.
+    mockUseCatalogo.mockReturnValue({
+      data: [
+        linha({ manufacturer: "Fabricante Fictício", model_name: "Modelo A" }),
+        linha({ manufacturer: "Fabricante Fictício", model_name: "Modelo B" }),
+        linha({ manufacturer: "Fabricante Fictício", model_name: "Modelo C" }),
+      ],
+      isLoading: false,
+      error: null,
+    });
+    render(<CatalogoProteses />);
+    const texto = document.body.textContent ?? "";
+
+    const conta = texto.match(/(\d+) de (\d+)\s*famílias do catálogo/);
+    expect(conta, "não achei a frase de cobertura na tela").not.toBeNull();
+    const varridas = Number(conta![1]);
+    const total = Number(conta![2]);
+    const faltam = Number((texto.match(/(\d+) família\(s\) do catálogo ainda não/) ?? [0, "0"])[1]);
+
+    expect(total, "o denominador não veio do catálogo carregado").toBe(3);
+    expect(varridas, "contou como varrida família que não está no catálogo").toBe(0);
+    expect(varridas + faltam, `${varridas} + ${faltam} ≠ ${total}`).toBe(total);
+  });
+});

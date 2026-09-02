@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PatientSymptomsViewer } from "@/components/PatientSymptomsViewer";
 import { queuePatientPdf } from "@/lib/exporters";
+import type { SecaoDoProntuario } from "@/lib/patientPdf";
 
 export const doctorPatientDetailKey = (doctorId?: string, patientId?: string) =>
   ["doctor-patient-detail", doctorId, patientId] as const;
@@ -24,26 +25,42 @@ export default function MedicoPacienteDetalhe() {
 
   const { data: doctor, isLoading: loadingDoctor } = useDoctor();
 
-  const { data, isLoading: loadingDetail } = useQuery({
+  const { data, isLoading: loadingDetail, error: erroDetalhe } = useQuery({
     queryKey: doctorPatientDetailKey(doctor?.id, id),
     queryFn: async () => {
-      const { data: docProf } = await supabase
+      // Este é o nome que vai no cabeçalho do PDF, ao lado do CRM. Falhar em
+      // silêncio produzia um prontuário emitido por ninguém.
+      const { data: docProf, error: erroDocProf } = await supabase
         .from("profiles").select("full_name").eq("user_id", user!.id).maybeSingle();
+      if (erroDocProf) throw erroDocProf;
 
       // O vínculo faz parte do filtro: sem `linked_doctor_id`, um médico
       // enxergaria o prontuário de paciente de outro só trocando a URL.
-      const { data: pat } = await supabase
+      const { data: pat, error: erroPat } = await supabase
         .from("patients").select("*").is("deleted_at", null).eq("id", id!).eq("linked_doctor_id", doctor!.id).maybeSingle();
+      // Lançar em vez de devolver `null`: os dois caminhos terminavam no mesmo
+      // `return null`, e o efeito lá embaixo dizia "Paciente não encontrado ou
+      // sem vínculo" — uma afirmação sobre o VÍNCULO tirada de uma falha de
+      // rede. O médico concluía que perdeu o acesso ao paciente.
+      if (erroPat) throw erroPat;
       if (!pat) return null;
 
       // Pelo RPC: ler `profiles` do paciente volta vazio pela policy
       // (`auth.uid() = user_id`), e o prontuário inteiro exibia "Paciente" no
       // lugar do nome — inclusive no título e no rastro de navegação.
-      const { data: meus } = await supabase.rpc("meus_pacientes");
+      // E este é o nome do PACIENTE. Sem ele o PDF saía intitulado "Paciente" e
+      // gravado como `valvepath-prontuario-paciente.pdf` — um prontuário sem
+      // identificação, que é exatamente o documento que se atribui à pessoa
+      // errada.
+      const { data: meus, error: erroMeus } = await supabase.rpc("meus_pacientes");
+      if (erroMeus) throw erroMeus;
       const meu = (meus ?? []).find((m) => m.patient_id === pat.id);
       const prof = meu ? { full_name: meu.full_name, phone: meu.phone, birth_date: meu.birth_date } : null;
-      const { data: cs } = await supabase
+      const { data: cs, error: erroCasos } = await supabase
         .from("clinical_cases").select("*").is("deleted_at", null).eq("patient_id", pat.id).eq("doctor_id", doctor!.id).neq("status", "draft" as any).order("created_at", { ascending: false });
+      // Idem: sem isto, uma falha aqui virava "Casos clínicos (0)" na tela e,
+      // pior, no PDF exportado.
+      if (erroCasos) throw erroCasos;
 
       return { patient: pat, profile: prof, cases: cs ?? [], doctorProfile: docProf };
     },
@@ -62,11 +79,21 @@ export default function MedicoPacienteDetalhe() {
   useEffect(() => {
     if (loading) return;
     if (!doctor) { navigate("/app/medico/pacientes"); return; }
+    // "Não chegou" e "não existe" levavam à mesma frase e à mesma expulsão da
+    // tela. São coisas diferentes: a primeira se resolve tentando de novo, a
+    // segunda não. E dizer "sem vínculo" quando o vínculo existe é afirmar um
+    // fato clínico-administrativo falso.
+    if (erroDetalhe) {
+      toast.error("Não foi possível carregar o prontuário", {
+        description: "Isto não quer dizer que o paciente tenha deixado de estar vinculado. Tente novamente.",
+      });
+      return;
+    }
     if (!patient) {
       toast.error("Paciente não encontrado ou sem vínculo");
       navigate("/app/medico/pacientes");
     }
-  }, [loading, doctor, patient, navigate]);
+  }, [loading, doctor, patient, erroDetalhe, navigate]);
 
   const handleExportPdf = async () => {
     if (!patient) return;
@@ -78,15 +105,28 @@ export default function MedicoPacienteDetalhe() {
         const since = new Date(); since.setDate(since.getDate() - 30);
         const sinceISO = since.toISOString().slice(0, 10);
 
-        const [{ data: exams }, { data: syms }, { data: meds }, { data: logs }] = await Promise.all([
+        // O `error` de cada leitura é OBSERVADO, não descartado. Antes, as
+        // quatro caíam em `meds || []` e o PDF omitia a seção inteira: para
+        // quem lesse o documento depois, "sem medicações" e "não deu para ler
+        // as medicações" eram indistinguíveis. Uma falha de rede de dois
+        // segundos virava um prontuário que sugere paciente sem anticoagulação.
+        const [rExams, rSyms, rMeds, rLogs] = await Promise.all([
           caseIds.length
             ? supabase.from("case_exams").select("*").in("case_id", caseIds).is("deleted_at", null).order("exam_date", { ascending: true })
-            : Promise.resolve({ data: [] as any[] }),
+            : Promise.resolve({ data: [] as any[], error: null }),
           supabase.from("symptom_entries").select("*").eq("patient_id", patient.id).is("deleted_at", null)
             .gte("entry_date", sinceISO).order("entry_date", { ascending: false }),
           supabase.from("medications").select("*").eq("patient_id", patient.id).eq("active", true),
           supabase.from("medication_logs").select("*").eq("patient_id", patient.id).gte("log_date", sinceISO),
         ]);
+
+        const naoCarregadas: SecaoDoProntuario[] = [];
+        if (rExams.error) naoCarregadas.push("exames");
+        if (rSyms.error) naoCarregadas.push("sintomas");
+        if (rMeds.error) naoCarregadas.push("medicacoes");
+        if (rLogs.error) naoCarregadas.push("aderencia");
+        // `casos` não entra aqui: ele vem da consulta da própria tela, que já
+        // trata o erro e nem chega a desenhar o botão de exportar sem ela.
 
         return {
           profile, patient,
@@ -95,10 +135,11 @@ export default function MedicoPacienteDetalhe() {
             crm: doctor.crm, crm_uf: doctor.crm_uf, specialty: doctor.specialty,
           } : null,
           cases,
-          exams: exams || [],
-          symptoms: syms || [],
-          medications: meds || [],
-          medLogs: logs || [],
+          exams: rExams.data || [],
+          symptoms: rSyms.data || [],
+          medications: rMeds.data || [],
+          medLogs: rLogs.data || [],
+          naoCarregadas,
         };
       },
     });
@@ -106,6 +147,24 @@ export default function MedicoPacienteDetalhe() {
     setExporting(false);
     toast.message("Prontuário enfileirado", { description: "Acompanhe na barra de exportações." });
   };
+
+  // Sem este ramo, a falha ficava girando o spinner para sempre — o usuário lê
+  // "está carregando" sobre algo que já terminou e falhou.
+  if (erroDetalhe) {
+    return (
+      <div className="mx-auto max-w-lg py-12 text-center space-y-3">
+        <p className="font-medium">Não foi possível carregar o prontuário.</p>
+        <p className="text-sm text-muted-foreground">
+          A ficha não chegou até aqui. Isso <strong>não</strong> significa que o paciente não exista
+          ou que o vínculo tenha sido desfeito — significa que a consulta falhou.
+        </p>
+        <div className="flex gap-2 justify-center pt-1">
+          <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
+          <Button variant="outline" asChild><Link to="/app/medico/pacientes">Voltar</Link></Button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || !patient) {
     return <div className="grid place-items-center min-h-[40vh]"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;

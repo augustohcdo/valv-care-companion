@@ -156,6 +156,20 @@ export function CatalogoProteses() {
     [],
   );
   const faltamVarrer = [...chavesNoCatalogo].filter((k) => !varridas.has(k)).length;
+  /**
+   * O numerador precisa ser a INTERSEÇÃO com o catálogo, não a soma das listas.
+   *
+   * `FAMILIAS_VARRIDAS` conta o que a varredura declara ter conferido — e
+   * continua contando família que já saiu do catálogo (a Trifecta GT saiu). O
+   * denominador, esse, vem do catálogo carregado. Somar um com o outro produzia
+   * na tela coisas como "40 de 45" logo acima de "10 famílias ainda não
+   * passaram pela varredura": 40 + 10 ≠ 45, e quem lê fica com o número maior.
+   *
+   * Com a interseção, numerador + faltam = denominador, sempre. É a mesma
+   * lição do "19 de 45" desta sessão, em escala menor: número de cobertura tem
+   * de ser medido contra o que existe hoje, não contra o que já foi feito.
+   */
+  const varridasNoCatalogo = [...chavesNoCatalogo].filter((k) => varridas.has(k)).length;
 
   if (error) {
     return (
@@ -271,7 +285,8 @@ export function CatalogoProteses() {
             <strong className="text-foreground">Alertas regulatórios:</strong> conferidos em{" "}
             {VARREDURA_DE_ALERTAS.feitaEm} contra {VARREDURA_DE_ALERTAS.fontes.length} fontes,{" "}
             <strong className="text-foreground">
-              {FAMILIAS_VARRIDAS} de {familiasNoCatalogo || FAMILIAS_VARRIDAS}
+              {familiasNoCatalogo ? varridasNoCatalogo : FAMILIAS_VARRIDAS} de{" "}
+              {familiasNoCatalogo || FAMILIAS_VARRIDAS}
             </strong>{" "}
             famílias do catálogo. {VARREDURA_DE_ALERTAS.comAlerta.length} com alerta que impede nova
             indicação; {VARREDURA_DE_ALERTAS.achadoSemImpactoNaIndicacao.length} com recolhimento de

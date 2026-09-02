@@ -17,15 +17,22 @@ export default function PacienteIntegracoes() {
 
   // As três listas são buscadas juntas porque a tela sempre as mostra juntas
   // (abas do mesmo painel) e compartilham o mesmo gatilho de recarga.
-  const { data, isFetching: loading } = useQuery({
+  const { data, isFetching: loading, error } = useQuery({
     queryKey: patientIntegrationsKey(user?.id),
     queryFn: async () => {
-      const [{ data: r }, { data: g }, { data: i }] = await Promise.all([
+      const [r, g, i] = await Promise.all([
         supabase.from("data_access_requests").select("*, hospitals(trade_name, legal_name)").eq("patient_id", user!.id).order("created_at", { ascending: false }),
         supabase.from("data_access_grants").select("*, hospitals(trade_name, legal_name)").eq("patient_id", user!.id).order("granted_at", { ascending: false }),
         supabase.from("fhir_resources_inbound").select("*, hospitals(trade_name, legal_name)").eq("patient_id", user!.id).order("received_at", { ascending: false }).limit(50),
       ]);
-      return { requests: r ?? [], grants: g ?? [], inbound: i ?? [] };
+      // O erro NÃO pode virar lista vazia aqui. Esta tela é onde o paciente
+      // confere quem tem acesso ao prontuário dele: `grants: g ?? []` fazia a
+      // aba imprimir "Acessos ativos (0)" quando a consulta falhava, e ele saía
+      // tranquilo com uma concessão vigente. É falsa garantia de LGPD, não
+      // defeito de interface — a tela promete "você decide quem acessa".
+      const erro = r.error ?? g.error ?? i.error;
+      if (erro) throw erro;
+      return { requests: r.data ?? [], grants: g.data ?? [], inbound: i.data ?? [] };
     },
     enabled: !!user,
   });
@@ -82,6 +89,27 @@ export default function PacienteIntegracoes() {
       </Card>
 
       {loading && <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />}
+
+      {/*
+        A falha SUBSTITUI as abas, em vez de conviver com elas. Mostrar
+        "Acessos ativos (0)" ao lado de um aviso ainda deixaria o número na
+        tela — e é o número que o paciente lê. Aqui a contagem some enquanto
+        não houver dado real por trás dela.
+      */}
+      {error && !loading ? (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardHeader>
+            <CardTitle className="text-base">Não foi possível carregar seus acessos</CardTitle>
+            <CardDescription>
+              A lista não chegou. <strong>Não conclua que nenhum hospital tem acesso aos seus dados</strong> —
+              esta tela simplesmente não conseguiu ler a informação agora.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button size="sm" onClick={reload}>Tentar novamente</Button>
+          </CardContent>
+        </Card>
+      ) : (
 
       <Tabs value={activeTab} onValueChange={setTab} className="space-y-4">
         <TabsList>
@@ -163,6 +191,7 @@ export default function PacienteIntegracoes() {
           ))}
         </TabsContent>
       </Tabs>
+      )}
     </div>
   );
 }

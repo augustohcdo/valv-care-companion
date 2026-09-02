@@ -237,8 +237,22 @@ console.log("\n=== Catálogo e recomendador (contra o RPC público) ===");
 
 const SUPABASE = "https://qwiojyfxzvdcfbbexyxg.supabase.co";
 const CHAVE = process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
+/**
+ * Sem a chave, a parte 3 inteira não roda — e é nela que vivem TODAS as guardas
+ * de catálogo: cobertura da varredura de alerta contra o catálogo servido,
+ * família varrida que saiu do catálogo, motivo de "sem foto" que sobreviveu à
+ * foto, EOA sem fonte citável, auditoria de portfólio, estado do mercado
+ * brasileiro.
+ *
+ * Antes isto imprimia "(pulado: falta a chave)" e o script terminava com
+ * "N de N conferências passaram" e código 0. Numa máquina nova — o caso padrão —
+ * ele declarava verde total sem ter medido nada disso. É o defeito que este
+ * próprio arquivo diz existir para impedir.
+ */
+let naoConferido = false;
 if (!CHAVE) {
-  console.log("  (pulado: falta VITE_SUPABASE_PUBLISHABLE_KEY no ambiente)");
+  naoConferido = true;
+  console.log("  (NÃO CONFERIDO: falta VITE_SUPABASE_PUBLISHABLE_KEY no ambiente)");
 } else {
   const resp = await fetch(`${SUPABASE}/rest/v1/rpc/catalogo_proteses`, {
     method: "POST",
@@ -529,4 +543,15 @@ if (falhas.length) {
   console.log("\nFALHOU:");
   for (const f of falhas) console.log("  · " + f);
   process.exit(1);
+}
+if (naoConferido) {
+  console.error(
+    "\nNÃO CONFERIDO — o catálogo não foi verificado.\n" +
+    "A linha acima conta apenas as conferências de tela. Sem\n" +
+    "VITE_SUPABASE_PUBLISHABLE_KEY no ambiente, nenhuma guarda de catálogo\n" +
+    "rodou: cobertura da varredura de alerta, foto, EOA, portfólio, mercado BR.\n\n" +
+    "Código 2, distinto do 1, para separar 'está errado' de 'não deu para olhar'\n" +
+    "— a mesma convenção do `mobile.mjs` e do `conferir-migrations.mjs`.",
+  );
+  process.exit(2);
 }

@@ -4,6 +4,17 @@ import {
   examTypeLabels,
 } from "@/lib/clinicalLabels";
 
+/** As seções cujo conteúdo vem de uma consulta que pode falhar. */
+export type SecaoDoProntuario = "casos" | "exames" | "sintomas" | "medicacoes" | "aderencia";
+
+export const ROTULO_DA_SECAO: Record<SecaoDoProntuario, string> = {
+  casos: "Casos clínicos",
+  exames: "Exames seriados",
+  sintomas: "Diário de sintomas",
+  medicacoes: "Medicações ativas",
+  aderencia: "Aderência",
+};
+
 export interface PatientPdfData {
   profile: any;
   patient: any;
@@ -13,6 +24,20 @@ export interface PatientPdfData {
   symptoms: any[];       // symptom_entries últimos 30
   medications: any[];    // ativas
   medLogs: any[];        // últimos 30 dias
+  /**
+   * Seções cuja CONSULTA FALHOU — diferente de seção vazia.
+   *
+   * Sem este campo o documento era mudo sobre a diferença: as leituras caíam em
+   * `meds || []`, a seção era `if (medications.length)` e sumia inteira. Um
+   * prontuário sem "Medicações ativas" sai do aplicativo e é lido fora de
+   * contexto — ausência de seção vira, para quem lê, paciente sem
+   * anticoagulação. Num portador de prótese mecânica isso é a diferença entre
+   * conduta certa e errada.
+   *
+   * Lista vazia significa o que parece: tudo que está vazio, está vazio de
+   * verdade.
+   */
+  naoCarregadas?: SecaoDoProntuario[];
 }
 
 const C = {
@@ -24,6 +49,8 @@ const C = {
 
 export function exportPatientPDF(data: PatientPdfData) {
   const { profile, patient, doctor, cases, exams, symptoms, medications, medLogs } = data;
+  const naoCarregadas = new Set<SecaoDoProntuario>(data.naoCarregadas ?? []);
+  const falhou = (s: SecaoDoProntuario) => naoCarregadas.has(s);
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -64,6 +91,29 @@ export function exportPatientPDF(data: PatientPdfData) {
     doc.text(lines, mx, y); y += lines.length * 4 + 2;
   };
 
+  /**
+   * A lacuna declarada.
+   *
+   * Chamada no lugar do conteúdo quando a consulta daquela seção falhou. O
+   * cabeçalho da seção continua sendo desenhado de propósito: é ele que impede
+   * a leitura errada. Sem cabeçalho o leitor não tem como saber que faltou algo
+   * — e a omissão silenciosa é justamente o defeito que este código conserta.
+   */
+  const lacuna = (secao: SecaoDoProntuario) => {
+    section(ROTULO_DA_SECAO[secao]);
+    doc.setFontSize(9); doc.setTextColor(...C.primary); doc.setFont("helvetica", "bold");
+    const linhas = doc.splitTextToSize(
+      `NÃO FOI POSSÍVEL CARREGAR. Esta seção não pôde ser lida no momento da emissão. ` +
+      `A ausência de conteúdo aqui NÃO significa que o paciente não tenha ` +
+      `${ROTULO_DA_SECAO[secao].toLowerCase()} registradas.`,
+      pageW - mx * 2,
+    );
+    ensure(linhas.length * 4 + 4);
+    doc.text(linhas, mx, y);
+    y += linhas.length * 4 + 3;
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...C.text);
+  };
+
   // HEADER
   doc.setFillColor(...C.primary); doc.rect(0, 0, pageW, 22, "F");
   doc.setTextColor(255, 255, 255); doc.setFontSize(16); doc.setFont("helvetica", "bold");
@@ -99,6 +149,8 @@ export function exportPatientPDF(data: PatientPdfData) {
   }
 
   // CASOS
+  if (falhou("casos")) lacuna("casos");
+  else {
   section(`Casos clínicos (${cases.length})`);
   if (!cases.length) para("Nenhum caso registrado.");
   cases.forEach((c) => {
@@ -119,9 +171,11 @@ export function exportPatientPDF(data: PatientPdfData) {
     if (c.proposed_management) para(`Conduta: ${c.proposed_management}`, 8.5);
     y += 1;
   });
+  }
 
   // EXAMES SERIADOS
-  if (exams.length) {
+  if (falhou("exames")) lacuna("exames");
+  else if (exams.length) {
     section(`Exames seriados (${exams.length})`);
     exams.forEach((e) => {
       ensure(8);
@@ -143,7 +197,8 @@ export function exportPatientPDF(data: PatientPdfData) {
   }
 
   // SINTOMAS (resumo)
-  if (symptoms.length) {
+  if (falhou("sintomas")) lacuna("sintomas");
+  else if (symptoms.length) {
     section(`Diário de sintomas (${symptoms.length} registros recentes)`);
     const avg = (k: string) => {
       const vals = symptoms.map((s) => s[k]).filter((v) => v != null);
@@ -156,8 +211,15 @@ export function exportPatientPDF(data: PatientPdfData) {
   }
 
   // MEDICAÇÕES
-  if (medications.length) {
+  //
+  // Esta é a seção que motivou a mudança inteira. Antes, `if (medications.length)`
+  // fazia a seção sumir tanto para "não toma nada" quanto para "a consulta
+  // falhou" — e num portador de prótese mecânica a leitura errada dessa ausência
+  // muda a conduta. Agora são três estados, e nenhum deles é silêncio.
+  if (falhou("medicacoes")) lacuna("medicacoes");
+  else {
     section(`Medicações ativas (${medications.length})`);
+    if (!medications.length) para("Nenhuma medicação ativa registrada.");
     medications.forEach((m) => {
       ensure(6);
       doc.setFontSize(9); doc.setTextColor(...C.text);
@@ -165,7 +227,9 @@ export function exportPatientPDF(data: PatientPdfData) {
       doc.text(`• ${m.name}${m.dose ? " — " + m.dose : ""}${horarios ? " • " + horarios : ""}`, mx, y);
       y += 5;
     });
-    if (medLogs.length) {
+    if (falhou("aderencia")) {
+      kv("Aderência (30 dias)", "não foi possível carregar os registros de dose.");
+    } else if (medLogs.length) {
       const taken = medLogs.filter((l) => l.status === "tomado").length;
       const total = medLogs.length;
       kv("Aderência (30 dias)", `${total ? Math.round((taken / total) * 100) : 0}% (${taken}/${total} doses confirmadas)`);
@@ -173,10 +237,20 @@ export function exportPatientPDF(data: PatientPdfData) {
   }
 
   // AVISO
-  ensure(22); y += 4;
-  doc.setFillColor(...C.bg); doc.rect(mx, y, pageW - mx * 2, 18, "F");
+  //
+  // Quando alguma seção falhou, a ressalva vem ANTES do texto padrão e nomeia
+  // quais. Quem lê prontuário costuma olhar o rodapé antes do miolo, e é aqui
+  // que a advertência tem chance de ser vista por inteiro.
+  const perdidas = [...naoCarregadas].map((s) => ROTULO_DA_SECAO[s]);
+  const altura = perdidas.length ? 28 : 18;
+  ensure(altura + 4); y += 4;
+  doc.setFillColor(...C.bg); doc.rect(mx, y, pageW - mx * 2, altura, "F");
   doc.setFontSize(8); doc.setTextColor(...C.text);
   const aviso = doc.splitTextToSize(
+    (perdidas.length
+      ? `PRONTUÁRIO INCOMPLETO: ${perdidas.join(", ")} não pôde(ram) ser carregada(s) na emissão. ` +
+        "Não interprete a falta desses dados como ausência deles no prontuário. Emita novamente. "
+      : "") +
     "Documento gerado pela plataforma ValvePath para apoio à prática clínica. Não substitui prontuário oficial " +
     "nem laudos. Decisões devem considerar avaliação individual e julgamento do Heart Team.",
     pageW - mx * 2 - 4
