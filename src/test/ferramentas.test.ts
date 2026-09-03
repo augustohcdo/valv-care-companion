@@ -247,17 +247,17 @@ describe("o que as ferramentas não podem afirmar", () => {
     expect(quadro, "não rotula a foto oficial").toMatch(/foto do fabricante/i);
     expect(quadro, "não rotula o esquema").toMatch(/NOME_DA_FAMILIA/);
     expect(quadro, "sem `onError` a foto morta vira ícone quebrado").toMatch(/onError/);
-    // A guarda cobrava a forma exata `mostrandoFoto ? "foto do fabricante"` e
-    // quebrou quando a legenda passou a distinguir foto de ilustração — porque
-    // ela cobrava a SINTAXE e não a garantia. O que precisa continuar valendo é
-    // que os três rótulos possíveis vivem dentro do ramo de `mostrandoFoto`: se
-    // algum escapar dali, volta a existir legenda de fotografia sobre desenho.
-    const legenda = quadro.replace(/\s+/g, " ");
-    const ramo = legenda.match(/mostrandoFoto \? (.*?) : NOME_DA_FAMILIA/);
-    expect(ramo, "o rótulo não é decidido pelo mesmo estado que escolhe a imagem").toBeTruthy();
-    for (const rotulo of ["foto do fabricante", "ilustração do fabricante", "imagem do fabricante"]) {
-      expect(ramo![1], `"${rotulo}" fora do ramo que sabe se a imagem carregou`).toContain(rotulo);
-    }
+    // O RESTO desta guarda saiu daqui, e o motivo está no próprio histórico dela.
+    //
+    // Ela cobrava a forma exata do ternário — `mostrandoFoto ? … : NOME_DA_FAMILIA`
+    // — para garantir que os três rótulos vivessem no ramo que sabe se a imagem
+    // carregou. Já tinha quebrado uma vez por cobrar SINTAXE e não a garantia, e
+    // quebrou de novo assim que a legenda do esquema mudou de expressão.
+    //
+    // A garantia agora é cobrada por comportamento, em `FotoDaProtese.test.tsx`:
+    // renderiza com imagem, dispara o erro de carregamento, e exige que a legenda
+    // caia junto. É o cenário que esta asserção existia para proteger e que
+    // nenhuma leitura de código-fonte conseguia exercitar.
     // E a distinção precisa existir: desenho 3D do fabricante não é fotografia.
     expect(quadro, "não distingue ilustração de foto").toMatch(/imagemE\s*===\s*"ilustracao"/);
     for (const tela of [

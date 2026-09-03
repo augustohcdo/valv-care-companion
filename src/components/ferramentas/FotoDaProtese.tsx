@@ -78,7 +78,15 @@ export function FotoDaProtese({
               : imagemE === "foto"
                 ? "foto do fabricante"
                 : "imagem do fabricante"
-            : NOME_DA_FAMILIA[familiaDe(tipo, fabricante, modelo)]}
+            // Sem foto, a legenda precisa dizer que o desenho NÃO é o produto.
+            //
+            // Antes ela mostrava só o nome da família construtiva, e o cartão
+            // compensava com uma linha explicando por que faltava a foto. Essa
+            // linha saiu — era registro do processo, não informação clínica —,
+            // mas a ambiguidade que ela tapava é real: desenho rotulado com o
+            // nome da família passa por geometria do modelo. Duas palavras
+            // resolvem, e cabem no lugar do texto que saiu.
+            : `esquema · ${NOME_DA_FAMILIA[familiaDe(tipo, fabricante, modelo)]}`}
         </p>
       )}
     </div>

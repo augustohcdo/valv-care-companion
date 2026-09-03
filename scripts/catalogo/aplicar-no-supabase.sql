@@ -1,15 +1,19 @@
 -- ===========================================================================
 -- VALVEPATH — aplicação manual, 2026-09-03
--- Encerramento de conta: as tabelas que ficavam para trás
+-- Duas coisas: o encerramento de conta e a limpeza do mercado brasileiro
 -- ===========================================================================
 --
 -- Cole ESTE ARQUIVO INTEIRO no SQL Editor do painel do Supabase e execute.
 --
--- É SEGURO RODAR DUAS VEZES: a única alteração é um CREATE OR REPLACE FUNCTION.
--- Nenhuma linha de dado é tocada AGORA — o que muda é o que vai acontecer no
--- PRÓXIMO encerramento de conta.
+-- É SEGURO RODAR DUAS VEZES: um CREATE OR REPLACE FUNCTION e um UPDATE cuja
+-- condição (mercado_br = 'nao_confirmado') deixa de valer depois da primeira vez.
 --
 -- O QUE ELE FAZ
+--
+-- 1) O ENCERRAMENTO DE CONTA PASSA A TRATAR AS TABELAS QUE FICAVAM PARA TRÁS
+--
+-- Nenhuma linha de conta é tocada agora — o que muda é o que vai acontecer no
+-- PRÓXIMO encerramento.
 --
 -- Uma varredura mostrou que 14 tabelas guardam `user_id` e a função de
 -- encerramento tocava 5. Das nove restantes, quatro sobrevivem por decisão
@@ -32,6 +36,18 @@
 --
 -- O restante da função continua idêntico: pseudonimização do prontuário, limpeza
 -- da camada de conta, revogação de autorizações e o registro em audit_logs.
+--
+-- 2) AS DEZENOVE "NÃO CONFIRMADO" DO CATÁLOGO SAEM
+--
+-- Aquele estado significava "não achei página brasileira que citasse este
+-- produto" — e a tela mostrava isso ao cardiologista como dúvida sobre o
+-- produto, em próteses que ele implanta toda semana. Ausência de evidência
+-- apresentada como evidência de ausência.
+--
+-- Não é caso de procurar melhor: a base da ANVISA está atrás de Cloudflare, e
+-- catálogo de distribuidor prova presença mas nunca prova ausência. Voltam a
+-- NULL, que é a verdade. As 21 confirmadas e os 10 registros conferidos no HTML
+-- ficam gravados, agora sem aparecer em tela nenhuma.
 --
 -- NO FIM há um SELECT de conferência. Olhe o resultado dele: "rodou sem erro"
 -- não é a mesma coisa que "fez o que devia".
@@ -234,15 +250,64 @@ $$;
 revoke all on function public.encerrar_conta(uuid, text) from public, anon;
 grant execute on function public.encerrar_conta(uuid, text) to authenticated;
 
+-- ---------------------------------------------------------------------------
+-- 20260903020000_mercado_br_sem_afirmacao_de_ausencia.sql
+-- ---------------------------------------------------------------------------
+
+-- As dezenove "não confirmado" saem: era ausência de evidência virando afirmação
+--
+-- ## O defeito, e por que ele chegou à tela
+--
+-- A coluna `mercado_br` tinha três estados, e a intenção era boa: `confirmado`,
+-- `nao_confirmado` e NULL para "ninguém procurou". O que eu não percebi é que os
+-- dois primeiros não são simétricos.
+--
+-- `confirmado` vem de prova positiva — uma página brasileira que lista o
+-- produto. `nao_confirmado` vinha de **não ter achado nada**, que é outra coisa.
+-- E a tela mostrava isso ao cardiologista como "registro brasileiro não
+-- confirmado", ao lado do tipo e da posição da prótese: no lugar de maior
+-- atenção do cartão, uma dúvida sobre produtos que ele implanta toda semana —
+-- Abbott Epic, St. Jude Regent, Corcym Perceval, as Medtronic.
+--
+-- ## Por que não é caso de procurar melhor
+--
+-- A base da ANVISA está atrás de desafio do Cloudflare e não se contorna. O que
+-- restou foram catálogos de distribuidor, que provam presença e **nunca provam
+-- ausência**. Um método que só consegue confirmar não pode produzir a
+-- informação "não vendida no Brasil". Gerar uma segunda lista pelo mesmo caminho
+-- repetiria o erro com mais confiança.
+--
+-- ## O que fica
+--
+-- As 21 `confirmado` e os 10 números de registro conferidos no HTML da fonte
+-- continuam gravados — são afirmações de presença, que o método sustenta. Não
+-- aparecem em tela nenhuma; ficam como referência para quem um dia tiver acesso
+-- ao registro oficial e quiser conferir.
+--
+-- Estado, data e fonte saem JUNTOS, porque o CHECK deste mesmo esquema exige
+-- `(mercado_br IS NULL) = (mercado_br_conferido_em IS NULL)` — afirmação sem
+-- data é palpite com cara de fato, e a recíproca também vale.
+
+UPDATE public.prosthesis_catalog SET
+  mercado_br = NULL,
+  mercado_br_conferido_em = NULL,
+  mercado_br_fonte = NULL
+ WHERE mercado_br = 'nao_confirmado';
+
 COMMIT;
 
 -- ===========================================================================
 -- CONFERÊNCIA — o resultado abaixo é o que prova que deu certo
 -- ===========================================================================
 --
--- Esperado: TODAS as colunas com valor 1. Zero em qualquer uma significa que a
--- função não ficou com aquele tratamento — e aí o encerramento seguinte deixaria
--- aquela tabela para trás de novo, em silêncio.
+-- Esperado: as colunas de encerramento com valor 1, e as duas últimas com 0.
+-- Zero numa coluna de encerramento significa que a função não ficou com aquele
+-- tratamento — e aí o encerramento seguinte deixaria aquela tabela para trás de
+-- novo, em silêncio.
+--
+--   mercado_nao_confirmado ....... 0  ← é este que responde ao pedido do catálogo
+--   dpo_apagado_deve_ser_zero .... 0
+--   com_registro_anvisa ......... 10  ← os conferidos continuam gravados
 
 WITH def AS (
   SELECT pg_get_functiondef(p.oid) AS src
@@ -258,4 +323,9 @@ SELECT
   (SELECT count(*) FROM def WHERE src ILIKE '%requester_cpf = null%')                AS anonimiza_dpo,
   (SELECT count(*) FROM def WHERE src ILIKE '%client_errors set user_id = null%')    AS anonimiza_erros,
   -- Contraprova: o pedido ao DPO NÃO pode ser apagado. Esta coluna tem de vir 0.
-  (SELECT count(*) FROM def WHERE src ILIKE '%delete from public.dpo_requests%')     AS dpo_apagado_deve_ser_zero;
+  (SELECT count(*) FROM def WHERE src ILIKE '%delete from public.dpo_requests%')     AS dpo_apagado_deve_ser_zero,
+  -- O catálogo: nenhuma família pode continuar afirmando "não vendida no Brasil".
+  (SELECT count(*) FROM public.prosthesis_catalog
+    WHERE mercado_br = 'nao_confirmado')                                              AS mercado_nao_confirmado,
+  (SELECT count(DISTINCT manufacturer || '|' || model_name) FROM public.prosthesis_catalog
+    WHERE anvisa_registro IS NOT NULL)                                                AS com_registro_anvisa;

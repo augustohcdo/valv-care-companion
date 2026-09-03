@@ -105,10 +105,16 @@ describe("registro da busca por EOA de referência", () => {
     expect(new Set(BUSCA_DE_FOTOS.map((b) => b.familia)).size).toBe(BUSCA_DE_FOTOS.length);
     expect(motivoSemFoto("Edwards", "Inspiris Resilia"), "tem foto, não deveria ter motivo")
       .toBeUndefined();
-    expect(
-      readFileSync("src/components/ferramentas/CatalogoProteses.tsx", "utf8"),
-      "o catálogo não mostra o motivo de não haver foto",
-    ).toMatch(/\bmotivoSemFoto\b/);
+    // A cobertura da tela NÃO é conferida aqui.
+    //
+    // Havia neste lugar uma asserção lendo o código-fonte do cartão à procura de
+    // uma palavra. Ela passou na inversão — com a legenda apagada, continuou
+    // verde, porque a palavra aparecia no nome de um componente e num comentário.
+    // Casar com o arquivo em vez de com a tela é verde que não prova nada.
+    //
+    // Quem cobra isso agora é `FotoDaProtese.test.tsx`, que renderiza e lê o que
+    // o médico lê. A cobertura do registro em si continua no
+    // `ferramentas:verificar`, que compara esta lista com o catálogo servido.
 
     const verificador = readFileSync("scripts/ferramentas-verificar.mjs", "utf8");
     for (const [rotulo, padrao] of [
