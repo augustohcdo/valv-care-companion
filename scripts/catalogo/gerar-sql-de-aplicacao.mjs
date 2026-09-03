@@ -52,53 +52,49 @@ const SAIDA = "scripts/catalogo/aplicar-no-supabase.sql";
  * metade. Quem entra aqui é escolhido a dedo e conferido como idempotente.
  */
 export const PENDENTES = [
-  "20260830010000_catalogo_so_cirurgico.sql",
-  "20260830020000_catalogo_imagens_e_novas.sql",
-  "20260830030000_magna_ease_por_tamanho.sql",
-  "20260830040000_mercado_brasileiro.sql",
-  "20260831010000_mercado_brasileiro_varredura.sql",
-  // Não é de catálogo, e entra aqui de propósito: o usuário aplica DDL à mão,
-  // e mandar colar um segundo arquivo dobraria a chance de um deles ficar para
-  // trás. Um arquivo só, colado uma vez.
-  "20260902010000_medidas_da_diretriz_2025.sql",
+  // As seis migrations do catálogo e da diretriz 2025 SAÍRAM daqui em 03/09,
+  // depois de o usuário colar o SQL e a conferência sair 0 (17 de 17, 40
+  // famílias, 9 colunas novas). Deixá-las na lista faria o próximo arquivo
+  // pedir para reaplicar o que já está no banco — "pendente" tem de significar
+  // pendente, senão a palavra não serve para nada. Elas continuam em
+  // supabase/migrations/ para quem reconstruir o banco do zero.
+  "20260903010000_encerramento_tabelas_restantes.sql",
 ];
 
 const CABECALHO = `-- ===========================================================================
 -- VALVEPATH — aplicação manual, ${new Date().toISOString().slice(0, 10)}
--- Catálogo de próteses + medidas da diretriz ESC/EACTS 2025
+-- Encerramento de conta: as tabelas que ficavam para trás
 -- ===========================================================================
 --
 -- Cole ESTE ARQUIVO INTEIRO no SQL Editor do painel do Supabase e execute.
 --
--- Ele é a concatenação, na ordem, das migrations que estão no repositório e
--- ainda não foram aplicadas. Não há pipeline que as aplique neste projeto: a CI
--- só roda os checks, e a chave service_role não executa DDL.
+-- É SEGURO RODAR DUAS VEZES: a única alteração é um CREATE OR REPLACE FUNCTION.
+-- Nenhuma linha de dado é tocada AGORA — o que muda é o que vai acontecer no
+-- PRÓXIMO encerramento de conta.
 --
--- É SEGURO RODAR DUAS VEZES. Toda alteração é idempotente: as colunas usam
--- ADD COLUMN IF NOT EXISTS, as restrições ignoram duplicata, os INSERT têm
--- WHERE NOT EXISTS e os UPDATE são por fabricante e modelo, não por posição.
+-- O QUE ELE FAZ
 --
--- O QUE ELE FAZ, em uma linha cada:
+-- Uma varredura mostrou que 14 tabelas guardam \`user_id\` e a função de
+-- encerramento tocava 5. Das nove restantes, quatro sobrevivem por decisão
+-- registrada (trilha de auditoria, histórico de consentimento, prova de
+-- consentimento e a base de reidentificação do DPO). As outras cinco passam a
+-- ter destino:
 --
---   1. separa os três motivos de uma prótese sair do catálogo — não existe,
---      é transcateter, ou saiu de linha — e cria a função referencia_historica()
---   2. aplica as 19 imagens oficiais conferidas uma a uma e cadastra Avalus
---      Ultra, Mosaic mitral e Epic Max
---   3. completa a Magna Ease de 2 para 5 tamanhos com EOA (Tsui 2022)
---   4. cria os campos de mercado brasileiro e cadastra Labcor e Cardioprótese
---   5. varre as 40 famílias uma a uma: 21 com venda no Brasil confirmada (10
---      delas com o número do registro ANVISA conferido no HTML da fonte) e 19
---      não confirmadas — que CONTINUAM no catálogo, com a ressalva e a data
---   6. cria em clinical_cases as 9 medidas que a diretriz ESC/EACTS 2025 usa e
---      que o caso clínico não guardava: Vmax, volume sistólico indexado, DSVE,
---      altura, peso, teste de esforço, risco cirúrgico, fibrilação atrial e
---      etiologia da estenose mitral. Todas anuláveis — NULL é "ninguém mediu"
+--   APAGAR      user_roles       — papel de acesso não sobrevive ao titular.
+--                                  Não é LGPD, é segurança: conta encerrada
+--                                  continuava carregando o papel, inclusive admin
+--               hospital_members — vínculo com hospital, sem função sem titular
 --
--- O QUE MUDA NA TELA: a Perimount e a Trifecta GT saem do catálogo e passam a
--- aparecer só na seção de referência histórica; as 10 famílias transcateter
--- somem; a Abbott "Epic" vira Epic Plus Supra e Epic Plus; entram os dois
--- fabricantes nacionais. E o formulário de caso clínico ganha os campos da
--- diretriz de 2025, sem os quais o motor de conduta não sai de 2021.
+--   ANONIMIZAR  access_requests  — a decisão administrativa fica; nome, e-mail,
+--                                  telefone e CRM saem
+--               dpo_requests     — o pedido é a PROVA de que o direito foi
+--                                  exercido e atendido, então não se apaga;
+--                                  o CPF, o nome e o e-mail saem
+--               client_errors    — o erro serve de estatística; o vínculo com a
+--                                  pessoa, não. Só o user_id é solto
+--
+-- O restante da função continua idêntico: pseudonimização do prontuário, limpeza
+-- da camada de conta, revogação de autorizações e o registro em audit_logs.
 --
 -- NO FIM há um SELECT de conferência. Olhe o resultado dele: "rodou sem erro"
 -- não é a mesma coisa que "fez o que devia".
@@ -114,36 +110,25 @@ COMMIT;
 -- CONFERÊNCIA — o resultado abaixo é o que prova que deu certo
 -- ===========================================================================
 --
--- Esperado depois de rodar:
---   familias_ativas ....... 40   (36 do catálogo cirúrgico + 4 dos nacionais)
---   transcateter_ativas .... 0
---   sem_imagem ............. 0
---   fora_de_linha .......... 2   (Edwards Perimount e Abbott Trifecta GT)
---   perimount_no_catalogo .. 0   ← era isto que estava errado na tela
---   mercado_conferido ..... 40   (todas: 21 confirmadas, 19 não confirmadas)
---   com_registro_anvisa ... 10   (7 Edwards, Abbott Epic Max e 2 da Labcor)
---   colunas_diretriz_2025 ..  9   ← as medidas novas do caso clínico
+-- Esperado: TODAS as colunas com valor 1. Zero em qualquer uma significa que a
+-- função não ficou com aquele tratamento — e aí o encerramento seguinte deixaria
+-- aquela tabela para trás de novo, em silêncio.
 
+WITH def AS (
+  SELECT pg_get_functiondef(p.oid) AS src
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'public' AND p.proname = 'encerrar_conta'
+   LIMIT 1
+)
 SELECT
-  (SELECT count(DISTINCT manufacturer || '|' || model_name)
-     FROM public.prosthesis_catalog WHERE active) AS familias_ativas,
-  (SELECT count(*) FROM public.prosthesis_catalog
-    WHERE active AND type::text = 'tavi') AS transcateter_ativas,
-  (SELECT count(DISTINCT manufacturer || '|' || model_name)
-     FROM public.prosthesis_catalog WHERE active AND image_url IS NULL) AS sem_imagem,
-  (SELECT count(DISTINCT manufacturer || '|' || model_name)
-     FROM public.prosthesis_catalog WHERE inactive_reason = 'fora_de_linha') AS fora_de_linha,
-  (SELECT count(*) FROM public.prosthesis_catalog
-    WHERE active AND model_name = 'Perimount') AS perimount_no_catalogo,
-  (SELECT count(DISTINCT manufacturer || '|' || model_name)
-     FROM public.prosthesis_catalog WHERE active AND mercado_br IS NOT NULL) AS mercado_conferido,
-  (SELECT count(DISTINCT manufacturer || '|' || model_name)
-     FROM public.prosthesis_catalog WHERE active AND anvisa_registro IS NOT NULL) AS com_registro_anvisa,
-  (SELECT count(*) FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'clinical_cases'
-      AND column_name IN ('vmax_m_s','svi_ml_m2','lvesd_mm','altura_cm','peso_kg',
-                          'teste_esforco','risco_cirurgico','fibrilacao_atrial',
-                          'em_etiologia')) AS colunas_diretriz_2025;
+  (SELECT count(*) FROM def)                                                        AS funcao_encontrada,
+  (SELECT count(*) FROM def WHERE src ILIKE '%delete from public.user_roles%')       AS apaga_papeis,
+  (SELECT count(*) FROM def WHERE src ILIKE '%delete from public.hospital_members%') AS apaga_vinculos,
+  (SELECT count(*) FROM def WHERE src ILIKE '%update public.access_requests%')       AS anonimiza_pedidos,
+  (SELECT count(*) FROM def WHERE src ILIKE '%requester_cpf = null%')                AS anonimiza_dpo,
+  (SELECT count(*) FROM def WHERE src ILIKE '%client_errors set user_id = null%')    AS anonimiza_erros,
+  -- Contraprova: o pedido ao DPO NÃO pode ser apagado. Esta coluna tem de vir 0.
+  (SELECT count(*) FROM def WHERE src ILIKE '%delete from public.dpo_requests%')     AS dpo_apagado_deve_ser_zero;
 `;
 
 // O corpo abaixo só roda quando o script é EXECUTADO. Importado — que é como o

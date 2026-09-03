@@ -39,7 +39,28 @@
  * Precisa de `VITE_SUPABASE_PUBLISHABLE_KEY` no ambiente.
  */
 
-import { PENDENTES } from "./catalogo/gerar-sql-de-aplicacao.mjs";
+/**
+ * As migrations que produzem o estado que este script confere.
+ *
+ * Antes esta lista era importada de `PENDENTES`, no gerador de SQL, e a razão
+ * era boa: lista repetida envelhece em silêncio. Mas `PENDENTES` significa "o
+ * que ainda falta colar", e em 03/09 essas seis foram aplicadas e saíram de lá —
+ * a importação passou a apontar para OUTRA rodada. Se o banco fosse
+ * reconstruído, esta mensagem mandaria colar um arquivo que não contém o
+ * catálogo.
+ *
+ * Derivar de uma lista com significado diferente é pior que repetir: parece
+ * seguro. Aqui a lista é fixa porque descreve um conjunto histórico e fechado —
+ * as migrations que criam exatamente as três marcas conferidas abaixo.
+ */
+const MIGRATIONS_DO_CATALOGO = [
+  "20260830010000_catalogo_so_cirurgico.sql",
+  "20260830020000_catalogo_imagens_e_novas.sql",
+  "20260830030000_magna_ease_por_tamanho.sql",
+  "20260830040000_mercado_brasileiro.sql",
+  "20260831010000_mercado_brasileiro_varredura.sql",
+  "20260902010000_medidas_da_diretriz_2025.sql",
+];
 
 const SUPABASE = "https://qwiojyfxzvdcfbbexyxg.supabase.co";
 const CHAVE = process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
@@ -88,10 +109,12 @@ if (!temFuncao && !temColuna && !semTavi) {
     "Isto NÃO é defeito do código publicado: é o banco ainda no estado anterior.\n\n" +
     "E não adianta esperar: NENHUM pipeline aplica migration neste projeto. A CI\n" +
     "só roda os checks, e a chave `service_role` não executa DDL.\n\n" +
-    "O QUE FAZER: abra o SQL Editor no painel do Supabase e cole o arquivo\n" +
-    "  scripts/catalogo/aplicar-no-supabase.sql\n" +
-    `que é a concatenação destas ${PENDENTES.length} migrations, na ordem:\n\n` +
-    PENDENTES.map((m) => `  ${m}`).join("\n") + "\n\n" +
+    "O QUE FAZER: abra o SQL Editor no painel do Supabase e aplique, NA ORDEM,\n" +
+    `estas ${MIGRATIONS_DO_CATALOGO.length} migrations de supabase/migrations/:\n\n` +
+    MIGRATIONS_DO_CATALOGO.map((m) => `  ${m}`).join("\n") + "\n\n" +
+    "Elas já foram aplicadas uma vez, em 03/09, e por isso NÃO estão mais no\n" +
+    "`aplicar-no-supabase.sql` — aquele arquivo carrega a rodada seguinte.\n" +
+    "Se esta mensagem apareceu, o banco não é o mesmo que foi migrado.\n\n" +
     "É seguro rodar duas vezes. `npm run migrations` já confirmou que todas\n" +
     "analisam sem erro de sintaxe e que cada INSERT tem colunas e valores em\n" +
     "número igual.",
