@@ -47,15 +47,16 @@
   "Edwards": {
     "fonte": "https://www.edwards.com/healthcare-professionals/products-services/surgical-heart/aortic",
     "ativas": [
-      "Inspiris Resilia",
-      "Konect Resilia",
-      "Intuity Elite",
-      "Magna Ease",
-      "Mitris Resilia",
-      "Physio II (5200)",
-      "Physio Flex (5300)",
       "Cosgrove-Edwards Band (4600)",
-      "MC3 Tricuspid (4900)"
+      "Inspiris Resilia",
+      "Intuity Elite",
+      "Konect Resilia",
+      "MC3 Tricuspid (4900)",
+      "Magna Ease",
+      "Magna Mitral Ease",
+      "Mitris Resilia",
+      "Physio Flex (5300)",
+      "Physio II (5200)"
     ],
     "fora_de_linha": [
       "Perimount"
@@ -64,7 +65,17 @@
       "A página de aórticas cirúrgicas da Edwards lista Inspiris Resilia, Konect",
       "Resilia, Intuity Elite e Magna Ease. A PERIMOUNT clássica não aparece mais —",
       "a única da família PERIMOUNT ainda listada é a Magna Ease."
-    ]
+    ],
+    "nota_magna_mitral_ease": [
+      "A `fonte` acima é a página de aórticas cirúrgicas e não lista valva mitral —",
+      "então esta família NÃO se apoia nela. A evidência é o catálogo do distribuidor",
+      "brasileiro, que descreve a Magna Ease como sendo 'para substituição de válvula",
+      "aórtica OU MITRAL, tecnologia Carpentier-Edwards', com um único número de",
+      "registro (10350250013) cobrindo as duas posições da família.",
+      "Ela estava no catálogo e fora desta auditoria — quem pegou foi o",
+      "`ferramentas:verificar`, depois que o SQL entrou em produção."
+    ],
+    "fonte_magna_mitral_ease": "https://intermedicalbr.com/cirurgia-cardiaca/"
   },
   "Abbott": {
     "fonte": "https://www.cardiovascular.abbott/us/en/hcp/products/structural-heart/surgical-valve-solutions.html",

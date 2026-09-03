@@ -80,6 +80,14 @@ function euroscoreMinimo(idade, feminino) {
 
 const casos = [];
 const falhas = [];
+/**
+ * Confere um valor LIDO DA TELA. O rótulo diz "tela" e precisa ser verdade.
+ *
+ * Havia conferências passando por aqui com valor vindo do RPC, e a saída
+ * anunciava "tela: Medtronic" sobre um número que ninguém tinha lido da página.
+ * Rótulo que mente sobre a própria origem é a versão pequena do defeito que este
+ * script existe para pegar. Para valor calculado, use `conferirDado`.
+ */
 function conferir(nome, obtido, esperado, tolerancia = 0) {
   const ok = typeof esperado === "number"
     ? Math.abs(obtido - esperado) <= tolerancia
@@ -87,6 +95,16 @@ function conferir(nome, obtido, esperado, tolerancia = 0) {
   casos.push({ nome, obtido, esperado: String(esperado), ok });
   if (!ok) falhas.push(nome);
   console.log(`${ok ? "✓" : "✗"} ${nome}\n     tela: ${obtido}\n     esperado: ${esperado}`);
+}
+
+/** Confere um valor CALCULADO a partir do RPC — não veio da tela, e o diz. */
+function conferirDado(nome, obtido, esperado, tolerancia = 0) {
+  const ok = typeof esperado === "number"
+    ? Math.abs(obtido - esperado) <= tolerancia
+    : esperado.test(String(obtido));
+  casos.push({ nome, obtido, esperado: String(esperado), ok });
+  if (!ok) falhas.push(nome);
+  console.log(`${ok ? "✓" : "✗"} ${nome}\n     dado: ${obtido}\n     esperado: ${esperado}`);
 }
 
 /**
@@ -520,10 +538,26 @@ if (!CHAVE) {
   const ordem = [...cobertura].sort(
     (a, b) => b[1].n - a[1].n || b[1].modelos.size - a[1].modelos.size || a[0].localeCompare(b[0], "pt-BR"),
   );
-  conferir(
+  // A conferência é da REGRA, não de quem está em primeiro.
+  //
+  // Antes esta linha exigia `/^Edwards$/`. Duas coisas erradas nisso. A primeira
+  // é que o valor comparado vinha do RPC, não da tela — o rótulo dizia "tela:" e
+  // ninguém tinha lido a página. A segunda é pior: prender o primeiro lugar a um
+  // fabricante transforma uma medida em ranking fixo, e a Resolução CFM
+  // nº 2.336/2023 proíbe ranking de produto. Quando a Perimount saiu do catálogo
+  // a liderança mudou de fato, e a guarda reprovou a verdade.
+  //
+  // O que se cobra agora é a ordenação monótona por cobertura, que é a promessa
+  // escrita na tela e continua valendo seja quem for o primeiro.
+  const foraDeOrdem = ordem.filter(([, c], i) => {
+    if (i === 0) return false;
+    const [, anterior] = ordem[i - 1];
+    return c.n > anterior.n || (c.n === anterior.n && c.modelos.size > anterior.modelos.size);
+  });
+  conferirDado(
     `ordem por cobertura na aórtica (${ordem.map(([f, c]) => `${f} ${c.n}/${c.modelos.size}`).join(", ")})`,
-    ordem[0]?.[0] ?? "(nenhum)",
-    /^Edwards$/,
+    foraDeOrdem.length,
+    0,
   );
 }
 
