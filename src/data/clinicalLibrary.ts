@@ -212,27 +212,33 @@ export const clinicalLibrary: ClinicalGuideline[] = [
         ],
       },
       {
-        heading: "Indicações de intervenção (ESC 2021 / ACC 2020)",
+        // Esta seção inteira era intitulada "(ESC 2021 / ACC 2020)" e ficou
+        // assim mesmo depois de eu declarar a biblioteca alinhada à 2025 — eu
+        // havia corrigido os `keyPoints` e passado direto pelas `sections`.
+        // Quem achou foi o usuário, cardiologista, abrindo a tela. Daí a
+        // varredura de `src/test/diretrizVigente.test.ts`.
+        heading: "Indicações de intervenção (ESC/EACTS 2025)",
         bullets: [
-          "Classe I: EA importante sintomática (dispneia, angina, síncope).",
-          "Classe I: EA importante assintomática com FEVE < 50%.",
-          "Classe I: EA importante assintomática indo para outra cirurgia cardíaca.",
-          "Classe IIa: EA importante assintomática com Vmax > 5,5 m/s (ESC) ou > 5,0 m/s com progressão rápida (ACC).",
-          "Classe IIa: EA importante assintomática com BNP > 3x o normal, sem outra causa.",
-          "Classe IIa: EA importante assintomática com teste de esforço positivo (sintomas, queda de PA).",
-          "Classe IIb: EA importante assintomática com escore de cálcio muito elevado e progressão rápida (> 100 AU/ano).",
+          "Classe I: EA grave sintomática (dispneia, angina, síncope).",
+          "Classe I: EA grave assintomática com FEVE < 50% sem outra causa.",
+          "Classe I: EA grave assintomática indo para outra cirurgia cardíaca.",
+          "IIa A — a mudança central de 2025: no assintomático com FEVE ≥ 50%, teste de esforço normal e risco do procedimento baixo, a intervenção é alternativa à vigilância ativa. Não é mais só esperar.",
+          "IIa B: assintomático de risco baixo com FEVE ≥ 50% e um critério adicional — gradiente médio ≥ 60 mmHg ou Vmax > 5,0 m/s; calcificação grave com progressão de Vmax ≥ 0,3 m/s/ano; BNP/NT-proBNP mais de três vezes o normal; ou FEVE < 55% sem outra causa.",
+          "IIa C: assintomático com queda sustentada de PA > 20 mmHg no teste de esforço.",
+          "Em 2021 o gatilho de EA muito grave era Vmax ≥ 5,5 m/s e o escore de cálcio entrava como critério isolado; 2025 usa a progressão de Vmax junto da calcificação grave.",
         ],
       },
       {
-        heading: "SAVR vs TAVI — algoritmo decisional",
+        heading: "SAVR vs TAVI — o corte é 70 anos desde 2025",
         bullets: [
-          "< 65 anos + baixo risco cirúrgico → SAVR (maior evidência de durabilidade a longo prazo).",
-          "65-80 anos → decisão individualizada pelo Heart Team; ambas são opções razoáveis.",
-          "> 80 anos ou STS/EuroSCORE II elevado → TAVI transfemoral preferida quando anatomicamente viável.",
-          "Contraindicação cirúrgica → TAVI é a única opção (não operar é contraindicado se expectativa > 1 ano).",
+          "Classe I A: TAVI a partir de 70 anos, com valva aórtica tricúspide e anatomia adequada.",
+          "Classe I B: cirurgia abaixo de 70 anos em paciente com risco cirúrgico baixo.",
+          "O corte era 75 anos na ESC/EACTS 2021 — é a mudança que mais desloca conduta na prática, e o motor de conduta do ValvePath já decide por 70.",
+          "Fora dessas duas faixas, a escolha é do Heart Team: anatomia, expectativa de vida, comorbidades e preferência informada.",
+          "Contraindicação cirúrgica → TAVI é a única opção (não intervir é contraindicado se expectativa > 1 ano).",
           "Bicúspide: TAVI factível em anatomias selecionadas com dispositivos de nova geração; cirurgia permanece preferida.",
-          "Considerar: necessidade de revascularização concomitante (favorece SAVR ou TAVI + PCI), doença de aorta, outras valvopatias.",
-          "Durabilidade TAVI: dados de 5-10 anos favoráveis com novas próteses; follow-up > 10 anos ainda limitado.",
+          "Considerar: revascularização concomitante (favorece SAVR ou TAVI + PCI), doença de aorta, outras valvopatias.",
+          "Durabilidade TAVI: dados de 5-10 anos favoráveis com novas próteses; seguimento > 10 anos ainda limitado.",
         ],
       },
       {

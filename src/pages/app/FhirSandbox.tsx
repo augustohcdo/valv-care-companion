@@ -88,7 +88,7 @@ export default function FhirSandbox() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base"><Database className="h-4 w-4 text-primary" /> Base de conhecimento (RAG)</CardTitle>
           <CardDescription>
-            Popula a tabela <code>knowledge_chunks</code> com trechos preliminares (SBC 2024, ACC/AHA 2020, ESC 2021, DATASUS) e gera embeddings via Gemini.
+            Popula a tabela <code>knowledge_chunks</code> com trechos preliminares (ESC/EACTS 2025, ACC/AHA 2020, diretriz brasileira de valvopatias, DATASUS) e gera embeddings via Gemini. Os trechos da ESC/EACTS 2021 ficam na base marcados como superados, para a IA poder mostrar o que mudou.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

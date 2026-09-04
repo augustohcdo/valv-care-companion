@@ -6,7 +6,16 @@ const refs = [
   {
     section: "Diretrizes clínicas",
     items: [
-      { title: "Diretriz Brasileira de Valvopatias 2024", org: "Sociedade Brasileira de Cardiologia (SBC)" },
+      {
+        // Esta linha dizia "2024". Procurando a edição para citá-la direito, as
+        // buscas — inclusive uma restrita ao site do próprio periódico —
+        // encontram a linhagem 2011 → 2017 → 2020 e nenhuma de 2024. Busca não
+        // prova ausência, mas atribuir recomendação clínica a um documento que
+        // não se consegue apresentar é fabricar procedência. Fica a edição
+        // apontável, com volume e páginas.
+        title: "Atualização das Diretrizes Brasileiras de Valvopatias — 2020",
+        org: "Sociedade Brasileira de Cardiologia (SBC) — Arq Bras Cardiol. 2020;115(4):720-775",
+      },
       {
         // A citação completa passou a valer a partir do momento em que o motor
         // de conduta realmente segue esta diretriz. Antes, a página a listava e

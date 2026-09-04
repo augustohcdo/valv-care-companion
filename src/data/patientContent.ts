@@ -872,7 +872,7 @@ export const patientTopics: PatientTopic[] = [
       },
       {
         heading: "O que as diretrizes sugerem por idade",
-        body: "As diretrizes ESC 2021 e AHA/ACC 2020 são práticas: em pacientes com menos de 50 anos, geralmente se recomenda prótese mecânica; entre 50 e 65 anos, a escolha é individualizada (chamada 'zona cinzenta'); acima de 65 anos, prótese biológica é preferida na maioria dos casos. Mulheres em idade fértil que desejam engravidar geralmente evitam prótese mecânica pelo risco da varfarina no feto.",
+        body: "As diretrizes europeias mais recentes (ESC/EACTS 2025) e as americanas (AHA/ACC 2020) são práticas: em pacientes com menos de 50 anos, geralmente se recomenda prótese mecânica; entre 50 e 65 anos, a escolha é individualizada (chamada 'zona cinzenta'); acima de 65 anos, prótese biológica é preferida na maioria dos casos. Nada disso é regra fixa — sua idade, seu estilo de vida, a possibilidade de tomar anticoagulante todos os dias e seus planos de vida entram na conversa. Mulheres em idade fértil que desejam engravidar geralmente evitam prótese mecânica pelo risco da varfarina no feto.",
       },
       {
         heading: "Fatores que influenciam a decisão",
@@ -901,7 +901,7 @@ export const patientTopics: PatientTopic[] = [
       },
       {
         heading: "Quem se beneficia mais",
-        body: "As diretrizes atuais recomendam TAVI para: pacientes acima de 75 anos com estenose aórtica grave sintomática; pacientes de qualquer idade com risco cirúrgico alto ou proibitivo; pacientes entre 65 e 75 anos após decisão do Heart Team, considerando anatomia favorável e preferência informada; e, cada vez mais, pacientes mais jovens em ensaios clínicos e casos selecionados. Não é apenas 'para idoso frágil' — hoje é opção robusta em muitos cenários.",
+        body: "As diretrizes europeias de 2025 recomendam o TAVI a partir dos 70 anos, quando a válvula aórtica tem três folhetos e a anatomia é adequada; abaixo dos 70, com risco cirúrgico baixo, a cirurgia continua sendo a primeira escolha. Fora dessas faixas, quem decide é a equipe (Heart Team), pesando anatomia, outras doenças, expectativa de vida e a sua preferência — e o TAVI segue indicado em qualquer idade quando o risco da cirurgia é alto ou proibitivo. Até 2021 esse corte era 75 anos; a mudança para 70 é recente e é uma das mais importantes da nova diretriz. Não é apenas 'para idoso frágil' — hoje é opção robusta em muitos cenários.",
       },
       {
         heading: "Riscos reais que você deve conhecer",

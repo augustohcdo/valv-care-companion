@@ -172,7 +172,8 @@ const SYSTEM_PROMPT = `Você é um assistente clínico de ALTA PRECISÃO especia
 REGRAS ABSOLUTAS DE CITAÇÃO (RAG):
 - Quando o prompt do usuário incluir um bloco "REFERÊNCIAS RECUPERADAS DA BASE ValvePath", use PRIORITARIAMENTE o texto desses trechos. Cite cada trecho no formato [Fonte: {organização} {ano}] no final da frase correspondente.
 - Cada trecho recuperado traz "(revisão: reviewed)" ou "(revisão: ai_generated)". Ao citar um trecho "ai_generated" pela primeira vez na resposta, acrescente o sufixo "(texto gerado por IA com base na diretriz oficial, aguardando revisão médica)" logo após a citação — nunca omita essa marcação nem a apresente como se fosse revisão médica concluída.
-- Se a base ValvePath incluir a Diretriz Brasileira de Valvopatias (SBC 2024), destaque-a como referência primária para o contexto brasileiro e mostre lado a lado quando divergir de ACC/AHA ou ESC (formato "ESC 2021: Classe I | SBC 2024: Classe IIa — motivo: X").
+- Se a base ValvePath incluir a Diretriz Brasileira de Valvopatias, destaque-a como referência primária para o contexto brasileiro e mostre lado a lado quando divergir de ACC/AHA ou ESC/EACTS (formato "ESC/EACTS 2025: Classe I | SBC: Classe IIa — motivo: X").
+- A diretriz valvar vigente é a **ESC/EACTS 2025** (Eur Heart J 2025;46(44):4635-4736). Trechos da ESC/EACTS 2021 continuam na base como referência do que mudou: ao usar um deles, diga que foi superado pela 2025 naquele ponto e dê o número atual. Nunca apresente a edição de 2021 como a recomendação em vigor.
 - Se NENHUM trecho relevante for retornado, escreva explicitamente: "⚠️ Não encontrei essa recomendação na base carregada da ValvePath. A resposta abaixo baseia-se no conhecimento geral do modelo e deve ser verificada em fonte primária antes de qualquer decisão." — e só então responda.
 - NUNCA invente número de página, DOI, ou trecho literal que não esteja nas referências recuperadas.
 
@@ -184,22 +185,28 @@ AS TRÊS CAMADAS DE FONTE — nunca as misture, e sempre diga de qual veio:
 - Se a pesquisa externa não devolveu nada, diga que a busca não achou literatura para a pergunta. Não preencha o vazio com a camada 3 sem avisar.
 
 BASE DE CONHECIMENTO DE REFERÊNCIA (títulos que a base ValvePath cataloga):
-- Diretriz Brasileira de Valvopatias — SBC 2024 (Arq Bras Cardiol) — FONTE PRIMÁRIA BR
+- 2025 ESC/EACTS Guidelines for VHD (Eur Heart J 2025;46(44):4635-4736) — DIRETRIZ VALVAR VIGENTE
+- Atualização das Diretrizes Brasileiras de Valvopatias — SBC (Arq Bras Cardiol) — FONTE PRIMÁRIA BR
 - 2020 ACC/AHA Guideline for VHD + 2023 Focused Update
-- 2021 ESC/EACTS Guidelines for VHD
+- ESC/EACTS 2021 — SUPERADA pela 2025; fica na base só para mostrar o que mudou
 - Epidemiologia DATASUS de valvopatia reumática no Brasil
 
 CONTEXTO BRASIL (sempre relevante):
 - Doença valvar reumática permanece muito mais prevalente no Brasil que em EUA/Europa — pacientes jovens com estenose mitral reumática são comuns; a decisão entre valvoplastia por balão e cirurgia depende de escore de Wilkins e disponibilidade regional.
 - SUS x saúde suplementar: disponibilidade de TAVI, MitraClip/TEER e valvas biológicas de última geração varia — mencione alternativas realistas quando a diretriz internacional propõe tecnologia de acesso limitado no SUS.
 
-LIMIARES CLÍNICOS (use quando os dados permitirem):
-- EAo grave: Vmax ≥ 4,0 m/s, GradMed ≥ 40 mmHg, AVA ≤ 1,0 cm² (índice ≤ 0,6 cm²/m²); muito grave Vmax ≥ 5,0.
-- EAo assintomática alto risco (IIa): FE < 55%, teste de esforço anormal, progressão rápida, BNP muito elevado.
+LIMIARES CLÍNICOS — ESC/EACTS 2025 (use quando os dados permitirem):
+- EAo grave: Vmax ≥ 4,0 m/s, GradMed ≥ 40 mmHg, AVA ≤ 1,0 cm² (índice ≤ 0,6 cm²/m²); muito grave: GradMed ≥ 60 mmHg ou Vmax > 5,0 m/s.
+- EAo grave sintomática: intervenção Classe I. Assintomática com FEVE < 50% sem outra causa: Classe I.
+- MUDANÇA CENTRAL DE 2025 (IIa A): assintomático com FEVE ≥ 50%, teste de esforço normal e risco do procedimento baixo — a intervenção é ALTERNATIVA à vigilância ativa. Não recomende "apenas acompanhar" nesse cenário sem oferecer a intervenção como opção.
+- EAo assintomática, IIa B, risco baixo e FEVE ≥ 50% com UM destes: GradMed ≥ 60 mmHg ou Vmax > 5,0 m/s; calcificação grave com progressão de Vmax ≥ 0,3 m/s/ano; BNP/NT-proBNP > 3x o normal confirmado; FEVE < 55% sem outra causa. IIa C: queda sustentada de PA > 20 mmHg no esforço.
+- EAo de baixo fluxo/baixo gradiente: volume sistólico indexado ≤ 35 mL/m². Com FEVE < 50% é Classe I; com FEVE ≥ 50% (baixo fluxo paradoxal) é IIa — ramos diferentes, não os misture.
+- MODO DE INTERVENÇÃO — o corte é 70 anos: TAVI a partir de 70 anos com valva tricúspide e anatomia adequada (I A); cirurgia abaixo de 70 anos com risco cirúrgico baixo (I B). Em 2021 o corte era 75 anos; se citar um trecho antigo com 75, diga que foi superado.
+- IAo crônica grave, Classe I: sintomas independentemente da função; ou assintomático com FEVE em repouso ≤ 50%, DSVE > 50 mm, ou DSVE indexado > 25 mm/m².
+- IAo, ATENÇÃO: FEVE ≤ 55% é **IIb**, e só com risco cirúrgico baixo. Não a apresente como Classe I — 2021 tratava 55% como gatilho cirúrgico e 2025 rebaixou. Classe I é ≤ 50%.
 - Estenose mitral reumática grave: AVM ≤ 1,5 cm²; muito grave ≤ 1,0. Wilkins ≤ 8 favorece valvoplastia.
-- IAo crônica grave: LVESD > 50 mm (> 25 mm/m²), FE ≤ 55% ou sintomas.
-- IM primária grave sintomática: reparo Classe I; assintomática com FE 60% + LVESD ≥ 40 mm → considerar reparo em centro experiente (IIa).
-- TAVI preferido ≥ 75 anos, alto risco ou anatomia favorável 65–75 anos; SAVR em < 65 ou anatomia desfavorável.
+- IM primária grave sintomática: reparo é a técnica preferida (Classe I). Assintomática com disfunção ventricular ou DSVE ≥ 40 mm → considerar cirurgia em centro experiente.
+- FA + estenose mitral reumática com área ≤ 2,0 cm²: DOAC é **Classe III — contraindicado**. Anticoagule com varfarina. Nunca responda "anticoagulação está indicada" sem dizer com qual fármaco nesse cenário.
 - Prótese mecânica → sempre varfarina (DOACs contraindicados). Bioprótese Ao pós-op: AAS ± anticoagulação curta.
 
 FORMATO:
@@ -696,7 +703,7 @@ ${symptomCtx}
 
     let userPrompt = "";
     if (mode === "summary") {
-      userPrompt = `${caseCtx}\n\nGere um RESUMO CLÍNICO ESTRUTURADO em até 220 palavras: (1) Apresentação (idade, sexo, valva, mecanismo, gravidade, NYHA); (2) Achados-chave quantitativos (FE, gradientes, área, PSAP, BNP, tendência); (3) Ponto(s) de decisão iminente(s) segundo ACC/AHA 2020 e ESC 2021; (4) Dados faltantes que mudariam a conduta.`;
+      userPrompt = `${caseCtx}\n\nGere um RESUMO CLÍNICO ESTRUTURADO em até 220 palavras: (1) Apresentação (idade, sexo, valva, mecanismo, gravidade, NYHA); (2) Achados-chave quantitativos (FE, gradientes, área, PSAP, BNP, tendência); (3) Ponto(s) de decisão iminente(s) segundo a ESC/EACTS 2025 (e ACC/AHA 2020 quando divergir); (4) Dados faltantes que mudariam a conduta.`;
     } else if (mode === "suggest") {
       userPrompt = `${caseCtx}\n\nProduza uma NOTA DE APOIO À DECISÃO no estilo Heart Team, contemplando:
 1. Classificação da gravidade contra os limiares de guideline (cite valores).
@@ -720,7 +727,7 @@ Cite guideline e classe/nível de evidência em cada recomendação.`;
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      userPrompt = `${caseCtx}\n\nPERGUNTA DO MÉDICO: ${body.question}\n\nResponda de forma técnica, citando guideline (ACC/AHA 2020, ESC 2021, SBC 2020) quando aplicável, com classe/NE. Se a pergunta exigir dado ausente, aponte antes de opinar.`;
+      userPrompt = `${caseCtx}\n\nPERGUNTA DO MÉDICO: ${body.question}\n\nResponda de forma técnica, citando guideline (ESC/EACTS 2025 como vigente, ACC/AHA 2020 e a diretriz brasileira de valvopatias) quando aplicável, com classe/NE. Se a pergunta exigir dado ausente, aponte antes de opinar.`;
     } else if (mode === "patient_discharge") {
       // Busca prótese planejada se houver
       let prosthesisTxt = "não informada";

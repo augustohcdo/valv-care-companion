@@ -209,7 +209,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
                 </>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Clique em Gerar para obter {m === "summary" ? "um resumo clínico estruturado" : m === "suggest" ? "sugestões de conduta ancoradas em SBC 2024, ACC/AHA 2020 e ESC 2021" : "análise de tendências dos exames seriados e sintomas"}.
+                  Clique em Gerar para obter {m === "summary" ? "um resumo clínico estruturado" : m === "suggest" ? "sugestões de conduta ancoradas na ESC/EACTS 2025, com ACC/AHA 2020 e a diretriz brasileira de valvopatias" : "análise de tendências dos exames seriados e sintomas"}.
                 </p>
               )}
             </TabsContent>
@@ -232,7 +232,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
             <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
               {chatHistory.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  Faça uma pergunta clínica sobre este caso. Ex: "Quais critérios de encaminhamento para TAVI segundo a SBC 2024?", "Como interpretar o gradiente atual?".
+                  Faça uma pergunta clínica sobre este caso. Ex: "Quais critérios de encaminhamento para TAVI na ESC/EACTS 2025?", "Como interpretar o gradiente atual?".
                 </p>
               ) : chatHistory.map((m, i) => (
                 <div key={i} className={`text-sm rounded-lg p-3 ${m.role === "user" ? "bg-primary/10 border border-primary/30" : "bg-secondary/40 border border-border"}`}>
@@ -295,7 +295,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
         <div className="mt-4 flex items-start gap-2 text-[11px] bg-amber-500/10 border-2 border-amber-500/50 rounded-lg p-3 text-amber-900 dark:text-amber-100">
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
           <p>
-            <strong>Apoio à decisão, nunca substitui julgamento clínico.</strong> A IA busca trechos ancorados nas diretrizes catalogadas (SBC 2024, ACC/AHA 2020, ESC 2021) e mostra a fonte de cada resposta. Verifique sempre na diretriz original antes de decisão terapêutica. Conteúdo preliminar (selo vermelho) requer revisão médica humana.
+            <strong>Apoio à decisão, nunca substitui julgamento clínico.</strong> A IA busca trechos ancorados nas diretrizes catalogadas — ESC/EACTS 2025, ACC/AHA 2020 e a diretriz brasileira de valvopatias — e mostra a fonte de cada resposta. Trechos da ESC/EACTS 2021 seguem na base como referência do que mudou, e a resposta diz quando um deles foi superado. Verifique sempre na diretriz original antes de decisão terapêutica. Conteúdo preliminar (selo vermelho) requer revisão médica humana.
           </p>
         </div>
       </CardContent>

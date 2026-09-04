@@ -53,9 +53,9 @@ export default function Biblioteca() {
           <BookOpen className="h-7 w-7" /> Biblioteca clínica
         </h1>
         <p className="text-muted-foreground mt-1 max-w-3xl">
-          Resumos clínicos por valvopatia, baseados em recomendações gerais das principais diretrizes
-          (SBC 2020, ESC/EACTS 2021, ACC/AHA 2020). Material educativo — não substitui julgamento
-          clínico individual nem consulta às diretrizes na íntegra.
+          Resumos clínicos por valvopatia, alinhados à ESC/EACTS 2025 e apoiados em ACC/AHA 2020 e na
+          Atualização das Diretrizes Brasileiras de Valvopatias (SBC 2020). Material educativo — não
+          substitui julgamento clínico individual nem consulta às diretrizes na íntegra.
         </p>
       </div>
 

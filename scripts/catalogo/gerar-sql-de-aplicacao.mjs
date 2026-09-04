@@ -52,72 +52,63 @@ const SAIDA = "scripts/catalogo/aplicar-no-supabase.sql";
  * metade. Quem entra aqui é escolhido a dedo e conferido como idempotente.
  */
 export const PENDENTES = [
-  // As seis migrations do catálogo e da diretriz 2025 SAÍRAM daqui em 03/09,
-  // depois de o usuário colar o SQL e a conferência sair 0 (17 de 17, 40
-  // famílias, 9 colunas novas). Deixá-las na lista faria o próximo arquivo
-  // pedir para reaplicar o que já está no banco — "pendente" tem de significar
-  // pendente, senão a palavra não serve para nada. Elas continuam em
-  // supabase/migrations/ para quem reconstruir o banco do zero.
-  "20260903010000_encerramento_tabelas_restantes.sql",
-  "20260903020000_mercado_br_sem_afirmacao_de_ausencia.sql",
+  // Tudo o que veio antes SAIU desta lista assim que o usuário colou e
+  // confirmou — as seis do catálogo e da diretriz 2025 em 03/09, as duas do
+  // encerramento e do mercado em 04/09. "Pendente" tem de significar pendente,
+  // senão o arquivo pede para reaplicar o que já está no banco e a palavra
+  // deixa de servir. Todas continuam em supabase/migrations/ para quem
+  // reconstruir o banco do zero.
+  "20260904120000_fontes_da_ia_na_diretriz_2025.sql",
 ];
 
 const CABECALHO = `-- ===========================================================================
 -- VALVEPATH — aplicação manual, ${new Date().toISOString().slice(0, 10)}
--- Duas coisas: o encerramento de conta e a limpeza do mercado brasileiro
+-- As fontes que a IA clínica cita
 -- ===========================================================================
 --
 -- Cole ESTE ARQUIVO INTEIRO no SQL Editor do painel do Supabase e execute.
 --
--- É SEGURO RODAR DUAS VEZES: um CREATE OR REPLACE FUNCTION e um UPDATE cuja
--- condição (mercado_br = 'nao_confirmado') deixa de valer depois da primeira vez.
+-- É SEGURO RODAR DUAS VEZES: um INSERT com ON CONFLICT e dois UPDATE
+-- idempotentes. Nenhum dado de paciente é tocado.
+--
+-- DEPOIS DE RODAR: abra /app/admin/fhir (Base de conhecimento) e clique em
+-- popular a base. Sem a linha de 2025 que este SQL cria, a função de seed pula
+-- os sete trechos novos.
 --
 -- O QUE ELE FAZ
 --
--- 1) O ENCERRAMENTO DE CONTA PASSA A TRATAR AS TABELAS QUE FICAVAM PARA TRÁS
+-- 1) CADASTRA A ESC/EACTS 2025 COMO FONTE
 --
--- Nenhuma linha de conta é tocada agora — o que muda é o que vai acontecer no
--- PRÓXIMO encerramento.
+-- O motor de conduta passou para a diretriz de 2025 em 02/09. A base de trechos
+-- que a IA consulta — que o próprio prompt chama de "a camada de maior peso para
+-- conduta" — continuou em 2021. Na mesma tela do caso, o painel dizia
+-- "ESC/EACTS 2025" e a IA respondia pela edição anterior, com TAVI a partir de
+-- 75 anos (hoje 70) e estenose muito grave a Vmax 5,5 m/s (hoje 5,0).
 --
--- Uma varredura mostrou que 14 tabelas guardam \`user_id\` e a função de
--- encerramento tocava 5. Das nove restantes, quatro sobrevivem por decisão
--- registrada (trilha de auditoria, histórico de consentimento, prova de
--- consentimento e a base de reidentificação do DPO). As outras cinco passam a
--- ter destino:
+-- Quem achou foi o senhor: "a parte médica ainda está desatualizada com a
+-- diretriz antiga". Estava, em cinco camadas — esta é a que mora no banco.
 --
---   APAGAR      user_roles       — papel de acesso não sobrevive ao titular.
---                                  Não é LGPD, é segurança: conta encerrada
---                                  continuava carregando o papel, inclusive admin
---               hospital_members — vínculo com hospital, sem função sem titular
+-- 2) CORRIGE UMA CITAÇÃO QUE NINGUÉM PODIA CONFERIR
 --
---   ANONIMIZAR  access_requests  — a decisão administrativa fica; nome, e-mail,
---                                  telefone e CRM saem
---               dpo_requests     — o pedido é a PROVA de que o direito foi
---                                  exercido e atendido, então não se apaga;
---                                  o CPF, o nome e o e-mail saem
---               client_errors    — o erro serve de estatística; o vínculo com a
---                                  pessoa, não. Só o user_id é solto
+-- A fonte brasileira estava cadastrada como "SBC 2024", com a citação
+-- \`Arq Bras Cardiol. 2024;122(5):e20240001\` — volume, fascículo e identificador
+-- de artigo, tudo com aparência de conferido. Procurando essa edição para
+-- citá-la direito, duas buscas (uma restrita ao site do próprio periódico)
+-- encontram a linhagem 2011 → 2017 → 2020 e NENHUMA de 2024.
 --
--- O restante da função continua idêntico: pseudonimização do prontuário, limpeza
--- da camada de conta, revogação de autorizações e o registro em audit_logs.
+-- Busca não prova ausência, e o senhor resolve isto num segundo. Mas número de
+-- fascículo inventado é exatamente o defeito que o \`npm run pmids\` existe para
+-- impedir, e ele estava na tabela que alimenta as respostas da IA. Fica a edição
+-- apontável: Arq Bras Cardiol. 2020;115(4):720-775.
 --
--- 2) AS DEZENOVE "NÃO CONFIRMADO" DO CATÁLOGO SAEM
+-- SE EXISTIR MESMO UMA EDIÇÃO DE 2024, me diga e eu devolvo o rótulo — com a
+-- citação real, não com a que estava lá.
 --
--- Aquele estado significava "não achei página brasileira que citasse este
--- produto" — e a tela mostrava isso ao cardiologista como dúvida sobre o
--- produto, em próteses que ele implanta toda semana. Ausência de evidência
--- apresentada como evidência de ausência.
+-- 3) MARCA A ESC/EACTS 2021 COMO SUPERADA, SEM APAGÁ-LA
 --
--- Não é caso de procurar melhor: a base da ANVISA está atrás de Cloudflare, e
--- catálogo de distribuidor prova presença mas nunca prova ausência. Voltam a
--- NULL, que é a verdade. As 21 confirmadas e os 10 registros conferidos no HTML
--- ficam gravados, agora sem aparecer em tela nenhuma.
---
--- NO FIM há um SELECT de conferência. Olhe o resultado dele: "rodou sem erro"
--- não é a mesma coisa que "fez o que devia".
--- ===========================================================================
-
-BEGIN;
+-- Decisão sua: manter 2021 onde 2025 não trouxe novidade. Diretriz antiga não é
+-- informação falsa; apresentá-la como vigente é. A descrição passa a dizer isso,
+-- porque é o texto que acompanha o trecho recuperado na resposta.
 `;
 
 const RODAPE = `
@@ -127,35 +118,29 @@ COMMIT;
 -- CONFERÊNCIA — o resultado abaixo é o que prova que deu certo
 -- ===========================================================================
 --
--- Esperado: as colunas de encerramento com valor 1, e as duas últimas com 0.
--- Zero numa coluna de encerramento significa que a função não ficou com aquele
--- tratamento — e aí o encerramento seguinte deixaria aquela tabela para trás de
--- novo, em silêncio.
+-- "Success. No rows returned" não é prova de nada. O SELECT abaixo é.
 --
---   mercado_nao_confirmado ....... 0  ← é este que responde ao pedido do catálogo
---   dpo_apagado_deve_ser_zero .... 0
---   com_registro_anvisa ......... 10  ← os conferidos continuam gravados
+-- Esperado:
+--   fonte_2025_cadastrada ........ 1  ← sem isto o seed pula os sete trechos novos
+--   sbc_com_edicao_apontavel ..... 1  ← ano 2020 e a citação com páginas reais
+--   sbc_citacao_inventada ........ 0  ← a de 2024 com fascículo que não se acha
+--   esc2021_marcada_superada ..... 1  ← fica na base, sem passar por vigente
+--
+-- Qualquer coluna fora disso significa que aquela parte NÃO foi aplicada.
 
-WITH def AS (
-  SELECT pg_get_functiondef(p.oid) AS src
-    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-   WHERE n.nspname = 'public' AND p.proname = 'encerrar_conta'
-   LIMIT 1
-)
 SELECT
-  (SELECT count(*) FROM def)                                                        AS funcao_encontrada,
-  (SELECT count(*) FROM def WHERE src ILIKE '%delete from public.user_roles%')       AS apaga_papeis,
-  (SELECT count(*) FROM def WHERE src ILIKE '%delete from public.hospital_members%') AS apaga_vinculos,
-  (SELECT count(*) FROM def WHERE src ILIKE '%update public.access_requests%')       AS anonimiza_pedidos,
-  (SELECT count(*) FROM def WHERE src ILIKE '%requester_cpf = null%')                AS anonimiza_dpo,
-  (SELECT count(*) FROM def WHERE src ILIKE '%client_errors set user_id = null%')    AS anonimiza_erros,
-  -- Contraprova: o pedido ao DPO NÃO pode ser apagado. Esta coluna tem de vir 0.
-  (SELECT count(*) FROM def WHERE src ILIKE '%delete from public.dpo_requests%')     AS dpo_apagado_deve_ser_zero,
-  -- O catálogo: nenhuma família pode continuar afirmando "não vendida no Brasil".
-  (SELECT count(*) FROM public.prosthesis_catalog
-    WHERE mercado_br = 'nao_confirmado')                                              AS mercado_nao_confirmado,
-  (SELECT count(DISTINCT manufacturer || '|' || model_name) FROM public.prosthesis_catalog
-    WHERE anvisa_registro IS NOT NULL)                                                AS com_registro_anvisa;
+  (SELECT count(*) FROM public.knowledge_sources
+    WHERE slug = 'esc-eacts-2025-vhd' AND year = 2025)                 AS fonte_2025_cadastrada,
+  (SELECT count(*) FROM public.knowledge_sources
+    WHERE slug = 'sbc-valvopatias-2024'
+      AND year = 2020
+      AND citation LIKE '%115(4):720-775%')                            AS sbc_com_edicao_apontavel,
+  -- Contraprova: a citação inventada não pode ter sobrado em lugar nenhum.
+  (SELECT count(*) FROM public.knowledge_sources
+    WHERE citation LIKE '%2024;122(5)%')                               AS sbc_citacao_inventada,
+  (SELECT count(*) FROM public.knowledge_sources
+    WHERE slug = 'esc-eacts-2021-vhd'
+      AND description ILIKE '%SUPERADA%')                              AS esc2021_marcada_superada;
 `;
 
 // O corpo abaixo só roda quando o script é EXECUTADO. Importado — que é como o

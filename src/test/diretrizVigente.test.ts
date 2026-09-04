@@ -4,6 +4,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { DIRETRIZ_2025 } from "@/data/diretriz2025";
+import { clinicalLibrary } from "@/data/clinicalLibrary";
 
 /**
  * A varredura que faltava: sobrou algum lugar ensinando a diretriz de 2021?
@@ -56,8 +57,31 @@ function arquivos(dir: string, out: string[] = []): string[] {
 
 const TODOS = RAIZES.flatMap((r) => arquivos(r));
 
-/** Linha de comentário: documentação do histórico, não texto que o usuário lê. */
-const ehComentario = (l: string) => /^\s*(\/\/|\/\*|\*|--)/.test(l);
+/**
+ * O texto do arquivo com os COMENTÁRIOS apagados, preservando a numeração.
+ *
+ * Comentário é documentação do histórico — "esta biblioteca ficou em ESC 2021
+ * enquanto o motor foi para 2025" precisa continuar escrito, e é justamente o
+ * tipo de linha que explica a correção a quem vier depois.
+ *
+ * A primeira versão desta função olhava linha a linha procurando `//` ou `*` no
+ * começo, e produziu dois falsos positivos: o comentário JSX de
+ * `GuidelineRecommendations.tsx` abre com `{/*`, e suas linhas seguintes não
+ * começam com nada reconhecível. Guarda que acusa código correto é guarda que
+ * alguém desliga — então aqui os blocos são apagados de verdade, da abertura à
+ * fechadura do comentário, e as quebras de linha ficam para os números não
+ * escorregarem.
+ */
+function textoVisivel(fonte: string): string {
+  return fonte
+    .replace(/\/\*[\s\S]*?\*\//g, (bloco) => bloco.replace(/[^\n]/g, " "))
+    .split("\n")
+    .map((l) => (/^\s*(\/\/|--)/.test(l) ? "" : l))
+    .join("\n");
+}
+
+/** Só para as contraprovas: a linha, isolada, é comentário? */
+const ehComentario = (l: string) => textoVisivel(l).trim() === "";
 
 /**
  * A marca que torna a menção honesta. Basta uma delas na linha.
@@ -65,23 +89,69 @@ const ehComentario = (l: string) => /^\s*(\/\/|\/\*|\*|--)/.test(l);
  * `insuficiência cardíaca` está aqui porque a ESC 2021 de IC é OUTRO documento,
  * que continua vigente: `guidelines.ts` a cita ao recomendar otimizar o
  * tratamento da IC, e essa citação está certa.
+ *
+ * O último padrão cobre a frase que ENSINA a mudança — "O corte era 75 anos em
+ * 2021", "Em 2021 o gatilho era Vmax ≥ 5,5 m/s". As duas ordens contam: a
+ * primeira versão exigia o verbo ANTES do ano e acusou a segunda frase, que é
+ * exatamente o texto certo. Guarda sensível à ordem das palavras é guarda
+ * casando com a redação em vez da garantia — o erro que já cometi nesta sessão
+ * com o "esquema" da foto de prótese.
  */
-const MARCA_DE_SUPERADA =
-  /superad|históric|substituíd|até 2025|antes de 2025|insuficiência cardíaca|o que mudou/i;
+const VERBO_DE_PASSADO = "(era|eram|foi|foram|entrava|entravam|usava|usavam)";
+const MARCA_DE_SUPERADA = new RegExp(
+  "superad|históric|substituíd|até 2025|antes de 2025|insuficiência cardíaca|o que mudou" +
+    `|\\b${VERBO_DE_PASSADO}\\b[^.]*\\b2021\\b|\\b2021\\b[^.]*\\b${VERBO_DE_PASSADO}\\b`,
+  "i",
+);
+
+/**
+ * As frases de uma linha, avaliadas UMA A UMA.
+ *
+ * A primeira versão isentava a linha inteira quando qualquer parte dela
+ * carregasse a marca de superada — e a inversão me pegou: pus `TAVI preferido a
+ * partir de 75 anos` como recomendação vigente na MESMA linha que terminava com
+ * "Em 2021 o corte era 75 anos", e a guarda ficou verde. Uma cláusula histórica
+ * imunizava a afirmação errada ao lado dela.
+ *
+ * O bloco de limiares do prompt da IA é feito de linhas longas, com várias
+ * frases cada — exatamente onde esse buraco mais custa.
+ */
+// Corta em ponto e em ponto-e-vírgula, NÃO em dois-pontos: dois-pontos
+// introduzem a continuação da mesma ideia, e cortar ali separava "Comparado com
+// o que era em 2021:" do que vinha depois — deixando a metade de trás órfã da
+// moldura que a explica.
+const frases = (linha: string) => linha.split(/(?<=[.;])\s+/).filter((f) => f.trim() !== "");
+
+/**
+ * A PRIMEIRA frase emoldura o resto.
+ *
+ * Apertar a regra para frase a frase criou o erro simétrico: um trecho da base
+ * que abre com "REFERÊNCIA HISTÓRICA — esta recomendação foi SUPERADA pela
+ * ESC/EACTS 2025" e depois enumera os números de 2021 passou a ser acusado,
+ * frase por frase — sendo que a moldura é justamente o que o leitor lê primeiro
+ * e o que vale para tudo que vem depois.
+ *
+ * Então: abertura histórica emoldura o trecho inteiro; marca no meio vale só
+ * para a frase dela. É como um humano lê, e fecha os dois buracos.
+ */
+const emolduradoComoHistorico = (linha: string) =>
+  MARCA_DE_SUPERADA.test(frases(linha)[0] ?? "");
+
+/** A frase afirma a edição antiga como vigente? */
+const afirmaComoVigente = (linha: string, padrao: RegExp) =>
+  !emolduradoComoHistorico(linha) &&
+  frases(linha).some((f) => padrao.test(f) && !MARCA_DE_SUPERADA.test(f));
 
 describe("nenhuma parte do produto fala pela diretriz antiga", () => {
   const EDICOES_ANTIGAS: [string, RegExp][] = [
     ["ESC 2021 / ESC-EACTS 2021", /\bESC(\/EACTS)?\s*2021\b|\b2021\s*ESC\b/],
-    ["SBC 2020", /\bSBC\s*2020\b/],
   ];
 
   it.each(EDICOES_ANTIGAS)("%s só aparece marcada como superada", (_rotulo, padrao) => {
     const achados: string[] = [];
     for (const arquivo of TODOS) {
-      readFileSync(arquivo, "utf8").split("\n").forEach((linha, i) => {
-        if (!padrao.test(linha)) return;
-        if (ehComentario(linha)) return;
-        if (MARCA_DE_SUPERADA.test(linha)) return;
+      textoVisivel(readFileSync(arquivo, "utf8")).split("\n").forEach((linha, i) => {
+        if (!afirmaComoVigente(linha, padrao)) return;
         achados.push(`${arquivo}:${i + 1}: ${linha.trim().slice(0, 120)}`);
       });
     }
@@ -100,6 +170,25 @@ describe("nenhuma parte do produto fala pela diretriz antiga", () => {
     expect(p.test("ESC/EACTS 2025")).toBe(false);
     expect(ehComentario("// a biblioteca ficou em ESC 2021")).toBe(true);
     expect(ehComentario('  section: "ESC 2021 — indicações"')).toBe(false);
+  });
+
+  it("uma cláusula histórica não absolve a afirmação errada ao lado", () => {
+    // A contraprova do buraco que a inversão me mostrou: eu havia posto o
+    // TAVI de volta em 75 anos como recomendação vigente, na mesma linha que
+    // terminava explicando o que era em 2021, e a guarda ficou verde.
+    const errada = "TAVI preferido a partir de 75 anos. Em 2021 o corte era 75 anos.";
+    const certa = "TAVI a partir de 70 anos (I A). Em 2021 o corte era 75 anos.";
+    const so75 = /75/;
+    expect(afirmaComoVigente(errada, so75), "a linha inteira foi absolvida").toBe(true);
+    expect(afirmaComoVigente(certa, so75), "a frase histórica sozinha reprovou").toBe(false);
+
+    // E o erro simétrico: a moldura na ABERTURA vale para o trecho inteiro.
+    const emoldurado =
+      "REFERÊNCIA HISTÓRICA — superada pela ESC/EACTS 2025. TAVI preferido a partir de 75 anos.";
+    expect(
+      afirmaComoVigente(emoldurado, so75),
+      "trecho aberto como histórico foi acusado frase a frase",
+    ).toBe(false);
   });
 });
 
@@ -160,15 +249,24 @@ describe("os números que a diretriz de 2025 aposentou", () => {
 
       const achados: string[] = [];
       for (const arquivo of FALAM_PELA_CONDUTA) {
-        readFileSync(arquivo, "utf8").split("\n").forEach((linha, i) => {
-          if (ehComentario(linha)) return;
-          if (MARCA_DE_SUPERADA.test(linha)) return;
-          // ACC/AHA tem números próprios, e citá-los com o nome da fonte é
-          // correto — o defeito é o número solto passando por vigente.
-          if (/ACC|AHA/.test(linha)) return;
-          if (!alvo.tema.test(linha)) return;
-          if (!citaONumero(linha, alvo.obsoleto)) return;
-          achados.push(`${arquivo}:${i + 1}: ${linha.trim().slice(0, 140)}`);
+        textoVisivel(readFileSync(arquivo, "utf8")).split("\n").forEach((linha, i) => {
+          // Frase a frase, pelo mesmo motivo: "TAVI a partir de 75 anos" não
+          // pode ser absolvido por um "em 2021 o corte era 75" na mesma linha.
+          if (emolduradoComoHistorico(linha)) return;
+          const culpada = frases(linha).find(
+            (f) =>
+              !MARCA_DE_SUPERADA.test(f) &&
+              // Uma frase que NOMEIA sua fonte está atribuída, e atribuição
+              // correta é o que se quer: a ACC/AHA 2020 e a diretriz brasileira
+              // têm cortes próprios, e citá-los com o nome da fonte não engana
+              // ninguém. O defeito é o número solto, sem dono, passando por
+              // vigente.
+              !/ACC|AHA|SBC/.test(f) &&
+              alvo.tema.test(f) &&
+              citaONumero(f, alvo.obsoleto),
+          );
+          if (!culpada) return;
+          achados.push(`${arquivo}:${i + 1}: ${culpada.trim().slice(0, 140)}`);
         });
       }
       expect(achados.join("\n"), "limiar de 2021 apresentado como vigente").toBe("");
@@ -192,17 +290,65 @@ describe("os números que a diretriz de 2025 aposentou", () => {
   });
 });
 
+/**
+ * A diretriz brasileira: só o ano que o projeto consegue apontar.
+ *
+ * O produto citava "SBC 2024" em seis trechos da base da IA, no prompt (como
+ * FONTE PRIMÁRIA BR) e em duas páginas públicas — e "SBC 2020" em outras duas.
+ * Duas buscas, uma delas restrita ao site do próprio periódico, encontram a
+ * linhagem 2011 → 2017 → **2020** (Arq Bras Cardiol 2020;115(4):720-775) e
+ * nenhuma edição de 2024.
+ *
+ * Isso não prova que a de 2024 não exista — busca não prova ausência, foi essa
+ * a lição do registro ANVISA. Mas atribuir recomendação clínica a um documento
+ * que não se consegue apresentar é fabricar procedência, e a direção da cautela
+ * é evidente. O ano vem da citação que a biblioteca já carrega, não é digitado
+ * aqui: se o projeto passar a citar outra edição, a guarda acompanha sozinha.
+ */
+const ANO_SBC = (() => {
+  const ref = clinicalLibrary
+    .flatMap((t) => t.references)
+    .find((r) => /Sociedade Brasileira de Cardiologia/i.test(r.citacao));
+  const ano = ref?.citacao.match(/\b(20\d\d)\b/)?.[1];
+  return { ano, citacao: ref?.citacao };
+})();
+
+describe("a diretriz brasileira citada é a que o projeto consegue apontar", () => {
+  it("a citação de referência existe e traz um ano", () => {
+    // Sem isto, uma citação renomeada zeraria a regra abaixo em silêncio.
+    expect(ANO_SBC.citacao, "nenhuma referência à SBC em clinicalLibrary").toBeTruthy();
+    expect(ANO_SBC.ano, `sem ano em "${ANO_SBC.citacao}"`).toMatch(/^20\d\d$/);
+  });
+
+  it("nenhum arquivo cita a SBC com outro ano", () => {
+    const achados: string[] = [];
+    for (const arquivo of TODOS) {
+      textoVisivel(readFileSync(arquivo, "utf8")).split("\n").forEach((linha, i) => {
+        for (const m of linha.matchAll(/\bSBC\s*(20\d\d)\b|Valvopatias\s*(20\d\d)\b/g)) {
+          const ano = m[1] ?? m[2];
+          if (ano === ANO_SBC.ano) continue;
+          achados.push(`${arquivo}:${i + 1}: cita SBC ${ano} (a referência do projeto é ${ANO_SBC.ano})`);
+        }
+      });
+    }
+    expect(
+      achados.join("\n"),
+      "edição da diretriz brasileira que o projeto não consegue apresentar — " +
+        "atribuir recomendação a documento inencontrável é fabricar procedência",
+    ).toBe("");
+  });
+});
+
 describe("duas edições da mesma diretriz no mesmo arquivo", () => {
   const PARES: [string, RegExp, RegExp][] = [
-    ["SBC", /\bSBC\s*2020\b/, /\bSBC\s*2024\b/],
     ["ESC/EACTS valvar", /\bESC(\/EACTS)?\s*2021\b/, /\bESC\/EACTS\s*2025\b/],
   ];
 
   it.each(PARES)("%s não é citada em duas edições fora de comentário", (_rotulo, antiga, nova) => {
     const achados: string[] = [];
     for (const arquivo of TODOS) {
-      const texto = readFileSync(arquivo, "utf8").split("\n")
-        .filter((l) => !ehComentario(l) && !MARCA_DE_SUPERADA.test(l))
+      const texto = textoVisivel(readFileSync(arquivo, "utf8")).split("\n")
+        .filter((l) => !MARCA_DE_SUPERADA.test(l))
         .join("\n");
       if (antiga.test(texto) && nova.test(texto)) achados.push(arquivo);
     }
