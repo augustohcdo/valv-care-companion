@@ -991,7 +991,14 @@ export const patientTopics: PatientTopic[] = [
     tags: ["segurança", "urgência", "autocuidado"],
   },
   {
-    slug: "endocardite-prevencao",
+    // Este slug era `endocardite-prevencao`, igual ao tópico de "Tratamentos"
+    // acima. As duas fichas apareciam no índice, as duas apontavam para o mesmo
+    // endereço, e `patientTopics.find(...)` devolve sempre a primeira — então o
+    // cartão "Endocardite: proteção prática no dia a dia" nunca abriu o texto
+    // que prometia. Quem escolheu a versão aprofundada leu a básica sem saber.
+    // Renomeei a segunda, e não a primeira, porque a primeira é a que já está
+    // publicada e linkada; nenhum endereço em uso muda.
+    slug: "endocardite-no-dia-a-dia",
     title: "Endocardite: proteção prática no dia a dia",
     category: "aprofundamento",
     shortDescription: "Como reduzir o risco de infecção grave da válvula com hábitos simples.",

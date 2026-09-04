@@ -1,26 +1,61 @@
+// Detalhe de um tópico educacional do PACIENTE logado.
+//
+// Serve `src/data/patientContent.ts`, não `clinicalLibrary`. O tipo do paciente
+// não tem `keyPoints` nem `references` — e nenhum dos dois faz falta aqui: o
+// primeiro era uma lista de recomendações com Classe e Nível; o segundo, uma
+// citação em inglês. O que ele tem, e a tela do médico não tinha, é `alerts`:
+// sinais que mandam procurar atendimento. Esses aparecem em destaque.
+
 import { Link, useParams, Navigate } from "react-router-dom";
-import { ArrowLeft, BookOpen, Lightbulb } from "lucide-react";
+import { ArrowLeft, ArrowRight, AlertTriangle, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { clinicalLibrary } from "@/data/clinicalLibrary";
+import { Badge } from "@/components/ui/badge";
+import { patientTopics, patientCategories } from "@/data/patientContent";
+import { categoryIllustrations } from "@/components/illustrations/categoryIllustrations";
+
+/**
+ * Endereços que a versão antiga desta tela servia com a biblioteca do médico e
+ * que não existem como tópico de paciente. Sem isto, um link salvo pelo
+ * paciente cairia no índice sem explicação. `endocardite-infecciosa` e
+ * `anticoagulacao-protese` têm equivalente escrito para leigo.
+ */
+const APELIDOS: Record<string, string> = {
+  "endocardite-infecciosa": "endocardite-prevencao",
+  "anticoagulacao-protese": "anticoagulacao",
+};
 
 const PacienteAprenderDetalhe = () => {
   const { slug } = useParams();
-  const guideline = clinicalLibrary.find((g) => g.slug === slug);
+  const destino = slug && APELIDOS[slug];
+  const topico = patientTopics.find((t) => t.slug === slug);
 
-  if (!guideline) return <Navigate to="/app/paciente/aprender" replace />;
+  if (!topico) {
+    return (
+      <Navigate
+        to={destino ? `/app/paciente/aprender/${destino}` : "/app/paciente/aprender"}
+        replace
+      />
+    );
+  }
+
+  const categoria = patientCategories[topico.category];
+  const Ilustracao = categoryIllustrations[topico.category];
+  const relacionados = patientTopics
+    .filter((t) => t.category === topico.category && t.slug !== topico.slug)
+    .slice(0, 4);
 
   return (
     <div className="max-w-3xl space-y-6">
       <PageHeader
-        eyebrow={`${guideline.valve} • ${guideline.pathology}`}
-        title={guideline.shortTitle}
-        description={guideline.summary}
+        eyebrow={categoria?.label ?? "Conteúdo educacional"}
+        title={topico.title}
+        description={topico.shortDescription}
         breadcrumbs={[
           { label: "Início", to: "/app/paciente" },
           { label: "Aprender", to: "/app/paciente/aprender" },
-          { label: guideline.shortTitle },
+          { label: topico.title },
         ]}
         actions={
           <Button variant="outline" asChild>
@@ -29,56 +64,83 @@ const PacienteAprenderDetalhe = () => {
         }
       />
 
-      <Card className="border-primary/30 bg-primary/5">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Lightbulb className="h-5 w-5 text-primary" /> Pontos-chave
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-2">
-            {guideline.keyPoints.map((p, i) => (
-              <li key={i} className="text-sm text-foreground flex items-start gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                {p}
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
-
-      {guideline.sections.map((section, i) => (
-        <Card key={i} className="shadow-sm-soft">
-          <CardHeader>
-            <CardTitle className="text-base">{section.heading}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-foreground leading-relaxed">
-            {section.body && <p className="whitespace-pre-wrap">{section.body}</p>}
-            {section.bullets && (
-              <ul className="space-y-1.5 pl-4 list-disc text-muted-foreground marker:text-primary">
-                {section.bullets.map((b, j) => <li key={j}>{b}</li>)}
-              </ul>
-            )}
+      {Ilustracao && (
+        <Card className="bg-accent-soft/60 border-border">
+          <CardContent className="py-6 flex items-center justify-center">
+            <Ilustracao className="w-full max-w-[200px] h-auto" />
           </CardContent>
         </Card>
-      ))}
+      )}
 
-      {guideline.references.length > 0 && (
-        <Card className="bg-secondary/40">
+      {topico.alerts && topico.alerts.length > 0 && (
+        <Card className="border-destructive/30 bg-destructive/5">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <BookOpen className="h-4 w-4 text-primary" /> Referências
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertTriangle className="h-5 w-5 text-destructive" /> Sinais de atenção
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-1.5 text-xs text-muted-foreground">
-              {/* Só a citação: o paciente não precisa do link do PubMed, e a tela
-                  dele tem de continuar em linguagem de leigo. */}
-              {guideline.references.map((r, i) => <li key={i}>{r.citacao}</li>)}
+            <ul className="space-y-2">
+              {topico.alerts.map((a, i) => (
+                <li key={i} className="text-sm text-foreground flex items-start gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-destructive mt-2 shrink-0" />
+                  {a}
+                </li>
+              ))}
             </ul>
           </CardContent>
         </Card>
       )}
+
+      {topico.sections.map((secao, i) => (
+        <Card key={i} className="shadow-sm-soft">
+          <CardHeader>
+            <CardTitle className="text-base">{secao.heading}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-foreground leading-relaxed">
+            <p className="whitespace-pre-wrap">{secao.body}</p>
+          </CardContent>
+        </Card>
+      ))}
+
+      {relacionados.length > 0 && (
+        <Card className="bg-secondary/40">
+          <CardHeader>
+            <CardTitle className="text-sm">Continue lendo</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {relacionados.map((t) => (
+              <Link
+                key={t.slug}
+                to={`/app/paciente/aprender/${t.slug}`}
+                className="flex items-center gap-2 text-sm text-primary hover:underline"
+              >
+                <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+                <span className="min-w-0">{t.title}</span>
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {topico.tags && topico.tags.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {topico.tags.map((tag) => (
+            <Badge key={tag} variant="outline" className="text-[10px]">{tag}</Badge>
+          ))}
+        </div>
+      )}
+
+      <Card className="bg-secondary/40 border-border">
+        <CardContent className="py-4 flex items-start gap-3">
+          <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <strong className="text-foreground">Importante:</strong> Este conteúdo é educativo
+            e não substitui a avaliação do seu cardiologista. Leve suas dúvidas para a próxima
+            consulta — e, diante de sintoma novo e intenso, procure um pronto-atendimento.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 };
