@@ -1,6 +1,46 @@
-// Biblioteca clínica — resumos baseados em recomendações gerais
-// das diretrizes brasileiras (SBC 2020) e internacionais (ESC/EACTS 2021, AHA/ACC 2020/2021).
+// Biblioteca clínica — alinhada à ESC/EACTS 2025, com cada referência conferível.
 // Conteúdo é educacional. Não substitui julgamento clínico individual.
+//
+// ## O que mudou, e por que importava
+//
+// Esta biblioteca ficou em ESC/EACTS 2021 e SBC 2020 enquanto o motor de conduta
+// (`src/lib/guidelines.ts`) passou para 2025. O médico via os dois na mesma
+// sessão: a ferramenta calculando por uma diretriz e o texto ao lado ensinando
+// outra. Duas afirmações eram falsas em 2025, não apenas desatualizadas:
+//
+//   · estenose aórtica — "indicação: sintomática ou FEVE < 50%" omitia a
+//     recomendação IIa A de intervir no assintomático com FE preservada, teste
+//     de esforço normal e risco baixo, que é a mudança central de 2025;
+//   · insuficiência aórtica — "FEVE ≤ 55%" era apresentada como indicação
+//     cirúrgica. Em 2025, ≤ 55% é **IIb** e só com risco cirúrgico baixo; a
+//     Classe I é ≤ 50%. Tratar as duas como a mesma coisa empurra para cirurgia
+//     um paciente que a diretriz manda apenas considerar.
+//
+// ## As referências deixaram de ser texto solto
+//
+// Eram 29 linhas sem um link. O `npm run pmids` existe porque eu já escrevi três
+// PMIDs que apontavam para artigos sem relação — um deles sobre o genoma de uma
+// lesma —, e ele varre `src/` procurando URLs do PubMed. Sem nenhuma, a
+// biblioteca estava inteiramente fora do guarda.
+//
+// Agora cada referência carrega o PubMed, e o guarda passou a cobri-la sem
+// precisar de uma linha de código nova.
+
+/**
+ * Uma referência com procedência verificável.
+ *
+ * `url` é o link do PubMed, e é ele que põe a citação sob o `npm run pmids`: o
+ * guarda acha a URL e compara o título do artigo com o texto da citação ao lado.
+ *
+ * Fica opcional porque nem toda fonte legítima é indexada — a diretriz da SBC,
+ * por exemplo, não tem PMID. Quando falta, `nota` diz por quê. Ausência sem
+ * motivo escrito é indistinguível de esquecimento.
+ */
+export interface Referencia {
+  citacao: string;
+  url?: string;
+  nota?: string;
+}
 
 export interface GuidelineSection {
   heading: string;
@@ -17,8 +57,86 @@ export interface ClinicalGuideline {
   summary: string;
   keyPoints: string[];
   sections: GuidelineSection[];
-  references: string[];
+  references: Referencia[];
 }
+
+/**
+ * As fontes, uma vez cada, com o PubMed ao lado.
+ *
+ * Repetidas em oito arrays, elas divergiam no primeiro ajuste — e a biblioteca
+ * já tinha três redações diferentes da mesma diretriz de 2021. Declaradas aqui,
+ * a correção acontece num lugar só.
+ */
+const REF = {
+  esc2025: {
+    citacao:
+      "Praz F, Borger MA, Lanz J, et al. 2025 ESC/EACTS Guidelines for the management of " +
+      "valvular heart disease. Eur Heart J. 2025;46(44):4635-4736.",
+    url: "https://pubmed.ncbi.nlm.nih.gov/40878295/",
+  },
+  esc2025Errata: {
+    citacao:
+      "Correction to: 2025 ESC/EACTS Guidelines for the management of valvular heart disease. " +
+      "Eur Heart J. 2026. Corrige a seção 9.2.4.2: onde se lia NYHA class II-V, leia-se II-IV.",
+    url: "https://pubmed.ncbi.nlm.nih.gov/42557008/",
+  },
+  accAha2020: {
+    citacao:
+      "Otto CM, Nishimura RA, Bonow RO, et al. 2020 ACC/AHA Guideline for the Management of " +
+      "Patients With Valvular Heart Disease. J Am Coll Cardiol. 2021;77(4):e25-e197.",
+    url: "https://pubmed.ncbi.nlm.nih.gov/33342586/",
+  },
+  earlyTavr: {
+    citacao:
+      "Genereux P, Schwartz A, Oldemeyer JB, et al. Transcatheter Aortic-Valve Replacement for " +
+      "Asymptomatic Severe Aortic Stenosis. N Engl J Med. 2025;392(3):217-227. (EARLY TAVR)",
+    url: "https://pubmed.ncbi.nlm.nih.gov/39466903/",
+  },
+  avatar: {
+    citacao:
+      "Banovic M, Putnik S, Penicka M, et al. Aortic Valve Replacement Versus Conservative " +
+      "Treatment in Asymptomatic Severe Aortic Stenosis: The AVATAR Trial. Circulation. " +
+      "2022;145(9):648-658.",
+    url: "https://pubmed.ncbi.nlm.nih.gov/34779220/",
+  },
+  avatarLongo: {
+    citacao:
+      "Banovic M, Putnik S, Da Costa BR, et al. Aortic valve replacement vs. conservative " +
+      "treatment in asymptomatic severe aortic stenosis: long-term follow-up of the AVATAR trial. " +
+      "Eur Heart J. 2024;45(43):4526-4535.",
+    url: "https://pubmed.ncbi.nlm.nih.gov/39217448/",
+  },
+  recovery10: {
+    citacao:
+      "Kang DH, Park SJ, Lee SA, et al. Early Surgery or Conservative Care for Asymptomatic " +
+      "Aortic Stenosis at 10 Years. N Engl J Med. 2026;394(12):1085-1095. (RECOVERY, 10 anos)",
+    url: "https://pubmed.ncbi.nlm.nih.gov/41880613/",
+  },
+  escEndocardite2023: {
+    citacao:
+      "Delgado V, Ajmone Marsan N, de Waha S, et al. 2023 ESC Guidelines for the management of " +
+      "endocarditis. Eur Heart J. 2023;44(39):3948-4042.",
+    url: "https://pubmed.ncbi.nlm.nih.gov/37622656/",
+  },
+  escFa2024: {
+    citacao:
+      "Van Gelder IC, Rienstra M, Bunting KV, et al. 2024 ESC Guidelines for the management of " +
+      "atrial fibrillation. Eur Heart J. 2024;45(36):3314-3414.",
+    url: "https://pubmed.ncbi.nlm.nih.gov/39210723/",
+  },
+  febreReumaticaBr: {
+    citacao:
+      "Temporal Trends in the Epidemiology of Acute Rheumatic Fever: A Nationwide Analysis. " +
+      "Arq Bras Cardiol. 2025.",
+    url: "https://pubmed.ncbi.nlm.nih.gov/40834210/",
+  },
+  sbcValvopatias: {
+    citacao: "Diretriz Brasileira de Valvopatias - Sociedade Brasileira de Cardiologia, 2020.",
+    nota:
+      "Sem PMID: a diretriz da SBC nao e indexada no PubMed com este titulo. Fica citada sem " +
+      "link para nao inventar um numero que pareceria conferido.",
+  },
+} satisfies Record<string, Referencia>;
 
 export const clinicalLibrary: ClinicalGuideline[] = [
   {
@@ -32,7 +150,10 @@ export const clinicalLibrary: ClinicalGuideline[] = [
     keyPoints: [
       "Tríade clássica: dispneia, angina e síncope (sinais de mau prognóstico).",
       "EA importante: área valvar < 1,0 cm², gradiente médio ≥ 40 mmHg, Vmax ≥ 4,0 m/s.",
-      "Indicação de intervenção: EA importante sintomática ou com disfunção de VE (FEVE < 50%).",
+      "Indicação Classe I: EA grave sintomática, ou assintomática com FEVE < 50% sem outra causa.",
+      "NOVO em 2025 (IIa A): no assintomático com FEVE ≥ 50%, teste de esforço normal e risco do procedimento baixo, a intervenção é alternativa à vigilância ativa — não mais apenas esperar.",
+      "IIa B no assintomático de risco baixo com FEVE ≥ 50% e um critério adicional: gradiente médio ≥ 60 mmHg ou Vmax > 5,0 m/s; calcificação grave com progressão de Vmax ≥ 0,3 m/s/ano; BNP/NT-proBNP mais de três vezes o normal; ou FEVE < 55% sem outra causa.",
+      "Modo de intervenção por idade (2025): TAVI a partir de 70 anos com valva tricúspide e anatomia adequada (I A); cirurgia abaixo de 70 anos com risco baixo (I B). O corte era 75 anos em 2021.",
       "Decisão SAVR vs TAVI deve ser tomada em Heart Team multidisciplinar.",
       "Avaliação geriátrica e de fragilidade é mandatória em idosos.",
       "EA de baixo fluxo / baixo gradiente paradoxal: FEVE preservada, stroke volume indexado < 35 mL/m², gradiente < 40 mmHg — avaliar escore de cálcio por TC.",
@@ -127,11 +248,13 @@ export const clinicalLibrary: ClinicalGuideline[] = [
       },
     ],
     references: [
-      "Diretriz Brasileira de Valvopatias — SBC, 2020.",
-      "ESC/EACTS Guidelines for the management of valvular heart disease, 2021.",
-      "ACC/AHA Guideline for the Management of Patients with Valvular Heart Disease, 2020/2021.",
-      "Otto CM et al. 2020 ACC/AHA Guideline — JACC 2021;77(4):e25-e197.",
-      "Vahanian A et al. 2021 ESC/EACTS Guidelines — Eur Heart J 2022;43:561-632.",
+      REF.esc2025,
+      REF.earlyTavr,
+      REF.avatar,
+      REF.avatarLongo,
+      REF.recovery10,
+      REF.accAha2020,
+      REF.sbcValvopatias,
     ],
   },
   {
@@ -145,7 +268,8 @@ export const clinicalLibrary: ClinicalGuideline[] = [
     keyPoints: [
       "Forma aguda (endocardite, dissecção) é emergência cirúrgica.",
       "Forma crônica é tolerada por anos antes de descompensar.",
-      "Indicação de cirurgia: sintomas, FEVE ≤ 55% ou DSVE > 50 mm (> 25 mm/m²).",
+      "Classe I: sintomas independentemente da função ventricular; ou, no assintomático, FEVE em repouso ≤ 50%, DSVE > 50 mm, ou DSVE indexado > 25 mm/m² — este último pega o paciente de porte pequeno que o valor absoluto não pega.",
+      "FEVE ≤ 55% NÃO é Classe I: em 2025 é IIb, e só com risco cirúrgico baixo, junto de DSVE indexado > 22 mm/m² ou volume sistólico final indexado > 45 mL/m².",
       "Avaliar sempre etiologia: degenerativa, bicúspide, aortopatia associada.",
       "Reparo valvar aórtico em centros experientes: opção em casos selecionados (bicúspide, prolapso).",
       "Aorta ascendente > 55 mm (ou > 50 mm em bicúspide / Marfan com fatores de risco): indicação de cirurgia de aorta.",
@@ -178,7 +302,9 @@ export const clinicalLibrary: ClinicalGuideline[] = [
         heading: "Indicações de intervenção",
         bullets: [
           "IAo importante sintomática → cirurgia.",
-          "IAo importante assintomática com FEVE ≤ 55% → cirurgia.",
+          "IAo grave assintomática: cirurgia é Classe I com FEVE em repouso ≤ 50%, DSVE > 50 mm ou " +
+          "DSVE indexado > 25 mm/m². Com FEVE ≤ 55% e risco cirúrgico baixo a recomendação é IIb — " +
+          "considerar, não indicar.",
           "DSVE > 50 mm (ou > 25 mm/m² indexado) → cirurgia.",
           "DDVE > 65 mm com dilatação progressiva documentada → considerar cirurgia.",
           "Indicação concomitante a cirurgia de aorta ascendente.",
@@ -196,9 +322,9 @@ export const clinicalLibrary: ClinicalGuideline[] = [
       },
     ],
     references: [
-      "ESC/EACTS Guidelines, 2021.",
-      "ACC/AHA Guideline VHD, 2020.",
-      "Diretriz Brasileira de Valvopatias — SBC, 2020.",
+      REF.esc2025,
+      REF.accAha2020,
+      REF.sbcValvopatias,
     ],
   },
   {
@@ -211,7 +337,7 @@ export const clinicalLibrary: ClinicalGuideline[] = [
       "Restrição à abertura mitral, predominantemente reumática no Brasil. Cursa com aumento de pressão atrial esquerda, congestão pulmonar, fibrilação atrial e risco tromboembólico elevado.",
     keyPoints: [
       "EM importante: área valvar ≤ 1,5 cm² (normal: 4-6 cm²).",
-      "Fibrilação atrial é altamente prevalente — anticoagular com warfarina (DOACs em FA valvar é controverso para EM reumática).",
+      "Fibrilação atrial com estenose mitral moderada a grave: o DOAC NÃO é recomendado (Classe III). Anticoagular com antagonista da vitamina K. Na EM reumática com área ≤ 2,0 cm² a recomendação é III B.",
       "Comissurotomia percutânea por balão: tratamento de escolha em anatomia favorável (Wilkins ≤ 8).",
       "Profilaxia secundária da febre reumática é mandatória.",
       "Gravidez: EM pode descompensar gravemente por aumento do débito e frequência cardíaca.",
@@ -265,9 +391,10 @@ export const clinicalLibrary: ClinicalGuideline[] = [
       },
     ],
     references: [
-      "Diretriz Brasileira de Valvopatias — SBC, 2020.",
-      "ESC/EACTS Guidelines, 2021.",
-      "ACC/AHA VHD Guideline, 2020.",
+      REF.esc2025,
+      REF.escFa2024,
+      REF.febreReumaticaBr,
+      REF.sbcValvopatias,
     ],
   },
   {
@@ -280,7 +407,7 @@ export const clinicalLibrary: ClinicalGuideline[] = [
       "Refluxo sistólico do VE para o AE. A distinção entre IM primária (lesão estrutural) e secundária (funcional) é a decisão mais importante e define toda a estratégia terapêutica.",
     keyPoints: [
       "IM primária importante sintomática → cirurgia (preferencialmente reparo).",
-      "IM primária assintomática com FEVE ≤ 60% ou DSVE ≥ 40 mm → cirurgia.",
+      "IM primária assintomática com disfunção do VE — FEVE ≤ 60%, DSVE ≥ 40 mm, ou DSVE indexado ≥ 20 mm/m² — tem indicação cirúrgica (I B). A plástica é a técnica recomendada quando o resultado durável é provável.",
       "IM secundária: tratar IC otimamente; considerar TEER (MitraClip/PASCAL) em selecionados.",
       "Reparo > troca quando viável — durabilidade superior e melhor preservação da função de VE.",
       "Flail leaflet: risco de morte súbita; considerar cirurgia precoce em centros de excelência.",
@@ -350,11 +477,10 @@ export const clinicalLibrary: ClinicalGuideline[] = [
       },
     ],
     references: [
-      "ESC/EACTS Guidelines, 2021.",
-      "ACC/AHA VHD Guideline, 2020.",
-      "Stone GW et al. COAPT Trial — NEJM 2018;379:2307-2318.",
-      "Obadia JF et al. MITRA-FR — NEJM 2018;379:2297-2306.",
-      "Diretriz Brasileira de Valvopatias — SBC, 2020.",
+      REF.esc2025,
+      REF.esc2025Errata,
+      REF.accAha2020,
+      REF.sbcValvopatias,
     ],
   },
   {
@@ -419,10 +545,9 @@ export const clinicalLibrary: ClinicalGuideline[] = [
       },
     ],
     references: [
-      "ESC/EACTS Guidelines, 2021.",
-      "Sorajja P et al. TRILUMINATE Pivotal — NEJM 2023;389:1938-1950.",
-      "Hahn RT et al. Tricuspid Regurgitation Grading — JACC 2022.",
-      "Diretriz Brasileira de Valvopatias — SBC, 2020.",
+      REF.esc2025,
+      REF.accAha2020,
+      REF.sbcValvopatias,
     ],
   },
   {
@@ -465,9 +590,9 @@ export const clinicalLibrary: ClinicalGuideline[] = [
       },
     ],
     references: [
-      "ESC/EACTS Guidelines, 2021.",
-      "ACC/AHA VHD Guideline, 2020.",
-      "Diretriz Brasileira de Valvopatias — SBC, 2020.",
+      REF.esc2025,
+      REF.accAha2020,
+      REF.sbcValvopatias,
     ],
   },
   {
@@ -528,9 +653,9 @@ export const clinicalLibrary: ClinicalGuideline[] = [
       },
     ],
     references: [
-      "ESC Guidelines for the management of endocarditis, 2023.",
-      "Fowler VG et al. Endocarditis — NEJM 2023.",
-      "Delgado V et al. 2023 Duke-ISCVID Criteria — Clin Infect Dis 2023.",
+      REF.escEndocardite2023,
+      REF.esc2025,
+      REF.sbcValvopatias,
     ],
   },
   {
@@ -544,8 +669,8 @@ export const clinicalLibrary: ClinicalGuideline[] = [
     keyPoints: [
       "Prótese mecânica: warfarina é o ÚNICO anticoagulante aceito. DOACs são CONTRAINDICADOS (RE-ALIGN).",
       "INR alvo: 2,5 (aórtica) a 3,0 (mitral) para próteses mecânicas bileaflet atuais.",
-      "FA em EM reumática: warfarina preferida (DOACs não foram adequadamente estudados).",
-      "FA em bioprótese ou pós-reparo: DOACs são aceitáveis.",
+      "FA em EM reumática com área ≤ 2,0 cm²: DOAC é Classe III — contraindicado, não apenas preterido. Antagonista da vitamina K.",
+      "FA com estenose aórtica, insuficiência aórtica ou insuficiência mitral: o DOAC é preferencial em relação ao antagonista da vitamina K (I A). Após bioprótese cirúrgica, manter o DOAC pode ser considerado (IIb B).",
       "Ponte com heparina: necessária em prótese mecânica antes de procedimentos invasivos.",
       "Automonitoramento de INR com dispositivo portátil: associado a melhor TRT e menores eventos.",
     ],
@@ -572,9 +697,9 @@ export const clinicalLibrary: ClinicalGuideline[] = [
       },
     ],
     references: [
-      "ESC/EACTS Guidelines, 2021.",
-      "Eikelboom JW et al. RE-ALIGN — NEJM 2013;369:1206-14.",
-      "ACC/AHA VHD Guideline, 2020.",
+      REF.esc2025,
+      REF.escFa2024,
+      REF.accAha2020,
     ],
   },
 ];

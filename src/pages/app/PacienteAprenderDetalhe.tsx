@@ -72,7 +72,9 @@ const PacienteAprenderDetalhe = () => {
           </CardHeader>
           <CardContent>
             <ul className="space-y-1.5 text-xs text-muted-foreground">
-              {guideline.references.map((r, i) => <li key={i}>{r}</li>)}
+              {/* Só a citação: o paciente não precisa do link do PubMed, e a tela
+                  dele tem de continuar em linguagem de leigo. */}
+              {guideline.references.map((r, i) => <li key={i}>{r.citacao}</li>)}
             </ul>
           </CardContent>
         </Card>

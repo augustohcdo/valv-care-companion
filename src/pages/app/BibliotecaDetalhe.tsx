@@ -75,7 +75,19 @@ export default function BibliotecaDetalhe() {
           <h3 className="font-serif text-base text-primary mb-2">Referências</h3>
           <ul className="text-xs text-muted-foreground space-y-1">
             {guideline.references.map((r) => (
-              <li key={r}>• {r}</li>
+              <li key={r.citacao}>
+                • {r.citacao}{" "}
+                {r.url ? (
+                  <a href={r.url} target="_blank" rel="noopener noreferrer"
+                     className="text-primary hover:underline whitespace-nowrap">
+                    PubMed <ExternalLink className="h-3 w-3 inline align-[-1px]" />
+                  </a>
+                ) : (
+                  /* Sem link, o motivo aparece — para "não tem PubMed" não ser
+                     confundido com "esqueceram de pôr". */
+                  r.nota && <span className="italic">({r.nota})</span>
+                )}
+              </li>
             ))}
           </ul>
           <p className="text-xs text-muted-foreground mt-4 pt-3 border-t border-border">
