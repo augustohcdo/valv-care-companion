@@ -1,7 +1,8 @@
 import { Link, useParams, Navigate } from "react-router-dom";
 import { ArrowLeft, BookOpen, PlayCircle, ExternalLink } from "lucide-react";
 import { clinicalLibrary } from "@/data/clinicalLibrary";
-import { MMCTS, tutoriaisDoTopico, urlDoTutorial } from "@/data/mmcts";
+import { MMCTS, tutoriaisDoTopico } from "@/data/mmcts";
+import { ListaDeTutoriais } from "@/components/mmcts/ListaDeTutoriais";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -124,22 +125,12 @@ function TecnicaCirurgica({ slug }: { slug: string }) {
         <p className="text-xs text-muted-foreground mt-1 mb-4">
           Tutoriais do {MMCTS.fonte}, de acesso aberto. Abrem no site da EACTS.
         </p>
-        <ul className="space-y-3">
-          {tutoriais.map((t) => (
-            <li key={t.id}>
-              <a
-                href={urlDoTutorial(t.id)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm font-medium text-primary hover:underline inline-flex items-start gap-1.5"
-              >
-                <span>{t.titulo}</span>
-                <ExternalLink className="h-3 w-3 mt-1 shrink-0" />
-              </a>
-              <p className="text-xs text-muted-foreground mt-0.5">{t.porque}</p>
-            </li>
-          ))}
-        </ul>
+        <ListaDeTutoriais tutoriais={tutoriais} />
+        <p className="text-xs text-muted-foreground mt-4">
+          <Link to="/app/medico/tecnica" className="text-primary hover:underline">
+            Ver todos os tutoriais por operação →
+          </Link>
+        </p>
       </CardContent>
     </Card>
   );

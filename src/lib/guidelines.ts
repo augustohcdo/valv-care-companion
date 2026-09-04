@@ -36,6 +36,15 @@ export type Recommendation = {
   title: string;
   detail: string;
   source: string;
+  /**
+   * A chave da recomendação em `DIRETRIZ_2025`, quando ela veio de lá.
+   *
+   * Existe para a tela poder ligar a sugestão a outra coisa — hoje, ao tutorial
+   * de técnica correspondente — sem sair procurando palavra no `title`.
+   * Casar por texto quebraria na primeira vez que alguém melhorasse a redação
+   * de um título, e quebraria em silêncio: o link simplesmente sumiria.
+   */
+  chave?: ChaveDaDiretriz;
 };
 
 interface Input {
@@ -137,6 +146,7 @@ function daDiretriz(
   const c: RecomendacaoCitada = DIRETRIZ_2025[chave];
   return {
     ...r,
+    chave,
     classRec: c.classe,
     evidence: c.nivel,
     source: `ESC/EACTS 2025 — ${c.tabela}${c.secao ? `, Seção ${c.secao}` : ""}`,

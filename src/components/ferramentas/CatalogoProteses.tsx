@@ -4,7 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ExternalLink, Search, ShieldAlert } from "lucide-react";
+import { ExternalLink, PlayCircle, Search, ShieldAlert } from "lucide-react";
+import { MMCTS, PROCEDIMENTOS, tutoriaisParaProtese } from "@/data/mmcts";
+import { ListaDeTutoriais } from "@/components/mmcts/ListaDeTutoriais";
 import { FotoDaProtese } from "./FotoDaProtese";
 import { Explicacao } from "./Explicacao";
 import { ReferenciaHistorica } from "./ReferenciaHistorica";
@@ -402,6 +404,8 @@ function CartaoFamilia({ familia: f }: { familia: Familia }) {
             <p className="text-xs text-muted-foreground mt-3 leading-relaxed line-clamp-3">{f.descricao}</p>
           )}
 
+          <TecnicaDeImplante tipo={f.tipo} posicao={f.posicao} />
+
           <div className="flex flex-wrap gap-3 mt-3">
             {f.referencia && (
               <a href={f.referencia} target="_blank" rel="noopener noreferrer"
@@ -419,6 +423,45 @@ function CartaoFamilia({ familia: f }: { familia: Familia }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * A técnica de implante, ligada pelo GESTO — nunca pelo modelo.
+ *
+ * ## Por que não existe "o vídeo desta prótese"
+ *
+ * Nenhum dos 17 tutoriais conferidos do MMCTS é sobre um modelo. O manual
+ * ensina o ato operatório — abrir, ressecar, passar os pontos, assentar o anel
+ * —, e esse ato é o mesmo para a Inspiris e para a São Jorge. Pendurar um vídeo
+ * num MODELO daria ao cirurgião a impressão de que aquele vídeo trata daquele
+ * produto, o que seria falso — a mesma família de erro das fotos que mostravam
+ * outra prótese.
+ *
+ * Então a ligação é por tipo e posição do dispositivo, o rótulo diz "implante
+ * em posição X" e não o nome do modelo, e as combinações sem vídeo conferido
+ * (prótese mecânica em posição tricúspide, por exemplo) não recebem nada — em
+ * vez de receber o vídeo da posição vizinha.
+ */
+function TecnicaDeImplante({ tipo, posicao }: { tipo: string; posicao: string }) {
+  const achado = tutoriaisParaProtese(tipo, posicao);
+  if (!achado) return null;
+
+  return (
+    <details className="mt-3 rounded-lg border border-border bg-secondary/30 px-2.5 py-1.5">
+      <summary className="text-[11px] font-medium text-foreground cursor-pointer inline-flex items-center gap-1.5">
+        <PlayCircle className="h-3.5 w-3.5 text-primary" />
+        Técnica de {PROCEDIMENTOS[achado.procedimento].rotulo.toLowerCase()} em vídeo (
+        {achado.tutoriais.length})
+      </summary>
+      <div className="pt-2 space-y-1.5">
+        <ListaDeTutoriais tutoriais={achado.tutoriais} compacta />
+        <p className="text-[10px] text-muted-foreground leading-relaxed">
+          Tutoriais do {MMCTS.fonte}, acesso aberto. São do <strong>gesto cirúrgico</strong>,
+          não deste modelo — o MMCTS não publica vídeo por produto.
+        </p>
+      </div>
+    </details>
   );
 }
 

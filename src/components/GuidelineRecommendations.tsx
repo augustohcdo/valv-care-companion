@@ -1,7 +1,11 @@
-import { Sparkles, AlertTriangle, Eye, ArrowRight, Info as InfoIcon } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Sparkles, AlertTriangle, Eye, ArrowRight, Info as InfoIcon, PlayCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getRecommendations } from "@/lib/guidelines";
+import { FONTE_2025 } from "@/data/diretriz2025";
+import { MMCTS, tutoriaisDaConduta } from "@/data/mmcts";
+import { ListaDeTutoriais } from "@/components/mmcts/ListaDeTutoriais";
 
 interface Props {
   caso: any;
@@ -74,10 +78,50 @@ export const GuidelineRecommendations = ({ caso }: Props) => {
             </div>
           );
         })}
+        <TecnicaDaConduta recs={recs} />
+
+        {/* Esta linha dizia "ESC 2021 e AHA-ACC 2020" depois que o motor já
+            tinha sido reescrito para a ESC/EACTS 2025 — a tela nomeando uma
+            fonte que o código não usava mais. O DOI vem do arquivo de citações,
+            então a frase não pode voltar a divergir sozinha. */}
         <p className="text-[11px] text-muted-foreground italic pt-1">
-          Recomendações automáticas baseadas em diretrizes ESC 2021 e AHA-ACC 2020. Não substituem julgamento clínico nem decisão do Heart Team.
+          Recomendações automáticas segundo a ESC/EACTS 2025 (DOI {FONTE_2025.doi}). Não
+          substituem julgamento clínico nem decisão do Heart Team.
         </p>
       </CardContent>
     </Card>
+  );
+};
+
+/**
+ * O tutorial de técnica, quando a conduta sugerida é uma operação.
+ *
+ * Discreto de propósito: some por inteiro no paciente em vigilância, e nunca
+ * aparece como bloco no meio das recomendações. A pergunta "como se faz" só
+ * existe depois que a pergunta "faz?" foi respondida.
+ *
+ * A ligação é pela chave da recomendação, não por palavra no título — ver
+ * `GESTO_DA_RECOMENDACAO` em `src/data/mmcts.ts`.
+ */
+const TecnicaDaConduta = ({ recs }: { recs: ReturnType<typeof getRecommendations> }) => {
+  const tutoriais = tutoriaisDaConduta(recs.map((r) => r.chave));
+  if (tutoriais.length === 0) return null;
+
+  return (
+    <details className="rounded-lg border border-border bg-secondary/30 px-3 py-2">
+      <summary className="text-xs font-medium text-foreground cursor-pointer inline-flex items-center gap-1.5">
+        <PlayCircle className="h-3.5 w-3.5 text-primary" />
+        Técnica operatória em vídeo ({tutoriais.length})
+      </summary>
+      <div className="pt-2.5 space-y-2">
+        <ListaDeTutoriais tutoriais={tutoriais} compacta />
+        <p className="text-[10px] text-muted-foreground">
+          {MMCTS.fonte}, acesso aberto — abre no site da EACTS.{" "}
+          <Link to="/app/medico/tecnica" className="text-primary hover:underline">
+            Ver todas por operação
+          </Link>
+        </p>
+      </div>
+    </details>
   );
 };

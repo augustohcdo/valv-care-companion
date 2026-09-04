@@ -56,6 +56,7 @@ const MedicoRelatorios = lazy(() => import("./pages/app/MedicoRelatorios"));
 const PacienteJornada = lazy(() => import("./pages/app/PacienteJornada"));
 const Biblioteca = lazy(() => import("./pages/app/Biblioteca"));
 const BibliotecaDetalhe = lazy(() => import("./pages/app/BibliotecaDetalhe"));
+const TecnicaCirurgica = lazy(() => import("./pages/app/TecnicaCirurgica"));
 const MedicoPerfil = lazy(() => import("./pages/app/MedicoPerfil"));
 const MedicoFerramentas = lazy(() => import("./pages/app/MedicoFerramentas"));
 const PacientePerfil = lazy(() => import("./pages/app/PacientePerfil"));
@@ -135,6 +136,7 @@ const App = () => (
               <Route path="/app/medico/relatorios" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoRelatorios />)}</ProtectedRoute>} />
               <Route path="/app/medico/biblioteca" element={<ProtectedRoute requiredType="medico">{withSuspense(<Biblioteca />, "list")}</ProtectedRoute>} />
               <Route path="/app/medico/biblioteca/:slug" element={<ProtectedRoute requiredType="medico">{withSuspense(<BibliotecaDetalhe />, "detail")}</ProtectedRoute>} />
+              <Route path="/app/medico/tecnica" element={<ProtectedRoute requiredType="medico">{withSuspense(<TecnicaCirurgica />, "list")}</ProtectedRoute>} />
               <Route path="/app/medico/perfil" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoPerfil />, "form")}</ProtectedRoute>} />
               <Route path="/app/medico/ferramentas" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoFerramentas />, "form")}</ProtectedRoute>} />
               <Route path="/app/medico/ferramentas/euroscore-ii" element={<ProtectedRoute requiredType="medico">{withSuspense(<MedicoFerramentas />, "form")}</ProtectedRoute>} />
