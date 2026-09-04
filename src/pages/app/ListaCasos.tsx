@@ -34,7 +34,15 @@ const ALL = "__all__";
 export default function ListaCasos() {
   const { user } = useAuth();
   const [cases, setCases] = useState<any[]>([]);
-  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  /**
+   * `null` = ninguém conseguiu ler quais casos têm ação pendente.
+   *
+   * O terceiro estado de sempre: `new Set()` diz "conferi e não há nenhum", e
+   * as duas coisas apareciam iguais na tela — o botão "Pendentes" simplesmente
+   * não era desenhado. Alerta que some em silêncio é pior que alerta errado.
+   */
+  const [pendingIds, setPendingIds] = useState<Set<string> | null>(new Set());
+  const [erroCasos, setErroCasos] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [q, setQ] = useState("");
@@ -49,12 +57,16 @@ export default function ListaCasos() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [{ data }, { data: pend }] = await Promise.all([
+      const [{ data, error: erroLista }, { data: pend, error: erroPendencias }] = await Promise.all([
         supabase.from("clinical_cases").select("*").is("deleted_at", null).neq("status", "draft" as any).order("created_at", { ascending: false }),
         supabase.rpc("cases_pending_action", { _doctor_user_id: user.id }),
       ]);
-      setCases(data || []);
-      setPendingIds(new Set(((pend as any[]) || []).map((p) => p.case_id)));
+      // As duas falhas são independentes e têm consequências diferentes: sem a
+      // lista, a tela dizia "Nenhum caso registrado" a um médico com casos;
+      // sem as pendências, a faixa de ação pendente sumia sem uma palavra.
+      setErroCasos(erroLista ? (erroLista.message ?? "falha ao ler os casos") : null);
+      setCases(erroLista ? [] : data || []);
+      setPendingIds(erroPendencias ? null : new Set(((pend as any[]) || []).map((p) => p.case_id)));
       setLoading(false);
     })();
   }, [user]);
@@ -79,7 +91,7 @@ export default function ListaCasos() {
       if (severity !== ALL && c.severity !== severity) return false;
       if (status !== ALL && c.status !== status) return false;
       if (nyha !== ALL && c.nyha !== nyha) return false;
-      if (pendingOnly && !pendingIds.has(c.id)) return false;
+      if (pendingOnly && !pendingIds?.has(c.id)) return false;
       return true;
     });
 
@@ -197,7 +209,13 @@ export default function ListaCasos() {
               <SelectItem value="severity">Severidade ↓</SelectItem>
             </SelectContent>
           </Select>
-          {pendingIds.size > 0 && (
+          {pendingIds === null && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-warning px-3 py-1.5 rounded-md border border-warning/40 bg-warning/5">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              Não foi possível checar quais casos têm ação pendente
+            </span>
+          )}
+          {pendingIds !== null && pendingIds.size > 0 && (
             <Button
               variant={pendingOnly ? "default" : "outline"}
               onClick={() => setPendingOnly((v) => !v)}
@@ -282,6 +300,23 @@ export default function ListaCasos() {
 
       {loading ? (
         <p className="text-muted-foreground text-sm">Carregando casos...</p>
+      ) : erroCasos ? (
+        /* Sem isto, a falha de leitura caía no `cases.length === 0` abaixo e a
+           tela afirmava "Nenhum caso registrado" — e ainda convidava a criar o
+           primeiro — a um médico que tem casos e não conseguiu vê-los. */
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="p-8 text-center">
+            <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-3" />
+            <h3 className="font-serif text-lg text-foreground mb-2">
+              Não foi possível carregar seus casos
+            </h3>
+            <p className="text-sm text-foreground/85 max-w-md mx-auto leading-relaxed">
+              Isto é uma falha de leitura, não a ausência de casos. Nada foi
+              apagado. Recarregue a página; se continuar, avise o suporte.
+            </p>
+            <p className="text-xs text-muted-foreground font-mono mt-3">{erroCasos}</p>
+          </CardContent>
+        </Card>
       ) : cases.length === 0 ? (
         <Card className="shadow-sm-soft">
           <CardContent className="p-10 text-center">
@@ -314,14 +349,14 @@ export default function ListaCasos() {
               style={{ animationDelay: `${Math.min(idx * 30, 300)}ms`, animationFillMode: "backwards" }}
             >
               <Card className="relative overflow-hidden shadow-sm-soft hover:shadow-md-soft transition-all duration-300 hover:-translate-y-0.5 group border-border/50 hover:border-primary/40">
-                <div className={`absolute left-0 top-0 bottom-0 w-1 ${pendingIds.has(c.id) ? "bg-amber-400" : "bg-transparent group-hover:bg-primary"} transition-colors`} />
+                <div className={`absolute left-0 top-0 bottom-0 w-1 ${pendingIds?.has(c.id) ? "bg-amber-400" : "bg-transparent group-hover:bg-primary"} transition-colors`} />
                 <CardContent className="p-5 pl-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-serif text-lg text-primary truncate group-hover:underline underline-offset-4">{c.patient_name}</h3>
                       {c.patient_age && <span className="text-xs text-muted-foreground">{c.patient_age} anos</span>}
                       {ehDemo(c) && <DemoBadge />}
-                      {pendingIds.has(c.id) && (
+                      {pendingIds?.has(c.id) && (
                         <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700 bg-amber-50">
                           <AlertTriangle className="h-3 w-3 mr-1" /> Ação pendente
                         </Badge>

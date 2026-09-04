@@ -36,7 +36,12 @@ export default function MedicoAgenda() {
   const { data: appts = [], isLoading: loadingAppts, error } = useQuery({
     queryKey: doctorAgendaKey(doctor?.id),
     queryFn: async (): Promise<Appt[]> => {
-      const { data: cases } = await supabase.from("clinical_cases").select("id").is("deleted_at", null).eq("doctor_id", doctor!.id).neq("status", "draft" as any);
+      // A leitura de fora observava o erro e a de dentro não. Falhando esta,
+      // `ids` ficava vazio, a função devolvia `[]` e a agenda aparecia limpa —
+      // sem disparar o toast que existe seis linhas abaixo. O médico via
+      // "nenhum compromisso" numa agenda que ninguém conseguiu ler.
+      const { data: cases, error: erroCasos } = await supabase.from("clinical_cases").select("id").is("deleted_at", null).eq("doctor_id", doctor!.id).neq("status", "draft" as any);
+      if (erroCasos) throw erroCasos;
       const ids = (cases ?? []).map((c) => c.id);
       if (ids.length === 0) return [];
       const { data, error } = await supabase

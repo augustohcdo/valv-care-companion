@@ -46,16 +46,29 @@ export default function MedicoRelatorios() {
 
   const { data: doctorInfo, isLoading: loadingDoctor } = useDoctor();
 
-  const { data: report, isLoading: loadingReport } = useQuery({
+  const { data: report, isLoading: loadingReport, error: erroDoReport } = useQuery({
     queryKey: doctorReportsKey(doctorInfo?.id),
     queryFn: async () => {
-      const { data: prof } = await supabase
+      // Sete leituras aqui descartavam o `error` do Supabase. Numa tela de
+      // números agregados isso é pior do que em qualquer outra: recusa de RLS
+      // ou queda de rede não deixa buraco visível, vira ZERO — e zero é um
+      // valor plausível. "Pacientes com sintomas críticos: 0" é a leitura mais
+      // tranquilizadora da tela, e era exatamente o que aparecia quando a
+      // consulta de `symptom_entries` falhava.
+      //
+      // Cada `throw` aqui vira `error` no `useQuery`, e a tela para de desenhar
+      // gráfico. É a direção certa do erro: melhor não mostrar coorte nenhuma
+      // do que mostrar uma coorte saudável que ninguém conseguiu ler.
+      const { data: prof, error: erroPerfil } = await supabase
         .from("profiles").select("full_name").eq("user_id", user!.id).maybeSingle();
+      if (erroPerfil) throw erroPerfil;
 
-      const [{ data: cs }, { data: pts }] = await Promise.all([
+      const [{ data: cs, error: erroCasos }, { data: pts, error: erroPacientes }] = await Promise.all([
         supabase.from("clinical_cases").select("*").is("deleted_at", null).eq("doctor_id", doctorInfo!.id).neq("status", "draft" as any),
         supabase.from("patients").select("id, comorbidities").is("deleted_at", null).eq("linked_doctor_id", doctorInfo!.id),
       ]);
+      if (erroCasos) throw erroCasos;
+      if (erroPacientes) throw erroPacientes;
 
       const patientIds = (pts || []).map((p) => p.id);
       if (!patientIds.length) {
@@ -64,10 +77,12 @@ export default function MedicoRelatorios() {
 
       const since = new Date(); since.setDate(since.getDate() - 30);
       const sinceISO = since.toISOString().slice(0, 10);
-      const [{ data: syms }, { data: logs }] = await Promise.all([
+      const [{ data: syms, error: erroSintomas }, { data: logs, error: erroLogs }] = await Promise.all([
         supabase.from("symptom_entries").select("*").in("patient_id", patientIds).is("deleted_at", null).gte("entry_date", sinceISO),
         supabase.from("medication_logs").select("*").in("patient_id", patientIds).gte("log_date", sinceISO),
       ]);
+      if (erroSintomas) throw erroSintomas;
+      if (erroLogs) throw erroLogs;
       return { profile: prof, cases: cs ?? [], patients: pts ?? [], symptoms: syms ?? [], medLogs: logs ?? [] };
     },
     enabled: !!doctorInfo?.id,
@@ -194,7 +209,13 @@ export default function MedicoRelatorios() {
         );
         const caseIds = periodCases.map((c) => c.id);
 
-        const [{ data: appts }, { data: events }] = await Promise.all([
+        // Este relatório vira PDF assinado, lido depois fora do aplicativo.
+        // Uma agenda que não carregou não pode virar "nenhum atendimento no
+        // período" num documento com CRM em cima.
+        const [
+          { data: appts, error: erroAgenda },
+          { data: events, error: erroEventos },
+        ] = await Promise.all([
           caseIds.length
             ? supabase
                 .from("appointments")
@@ -203,15 +224,17 @@ export default function MedicoRelatorios() {
                 .is("deleted_at", null)
                 .gte("scheduled_at", fromIso)
                 .lte("scheduled_at", toIso)
-            : Promise.resolve({ data: [] as any[] }),
+            : Promise.resolve({ data: [] as any[], error: null }),
           caseIds.length
             ? supabase
                 .from("case_events")
                 .select("event_type, event_date, case_id")
                 .in("case_id", caseIds)
                 .is("deleted_at", null)
-            : Promise.resolve({ data: [] as any[] }),
+            : Promise.resolve({ data: [] as any[], error: null }),
         ]);
+        if (erroAgenda) throw erroAgenda;
+        if (erroEventos) throw erroEventos;
 
         return {
           doctor:
@@ -237,6 +260,40 @@ export default function MedicoRelatorios() {
 
   if (loading) {
     return <div className="grid place-items-center min-h-[40vh]"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+  }
+
+  // Antes, a falha caía nos `?? []` acima e a tela desenhava a coorte inteira
+  // zerada — inclusive "Pacientes com sintomas críticos: 0". Não há como
+  // desenhar honestamente um gráfico de distribuição sem os dados: a tela para.
+  if (erroDoReport) {
+    return (
+      <div className="max-w-2xl">
+        <PageHeader
+          eyebrow="Analytics"
+          title="Relatórios da coorte"
+          breadcrumbs={[{ label: "Início", to: "/app/medico" }, { label: "Relatórios" }]}
+        />
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="py-5 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-foreground">
+                Não foi possível carregar a coorte.
+              </p>
+              <p className="text-sm text-foreground/85 leading-relaxed">
+                Nenhum número é exibido nesta situação de propósito: um gráfico
+                zerado é indistinguível de uma coorte sem casos graves e sem
+                sintomas críticos. A ausência aqui é falha de leitura, não achado
+                clínico. Recarregue a página; se persistir, avise o suporte.
+              </p>
+              <p className="text-xs text-muted-foreground font-mono">
+                {(erroDoReport as { message?: string }).message ?? String(erroDoReport)}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
