@@ -21,6 +21,7 @@
     "pmids": "node scripts/conferir-pmids.mjs",
     "preview": "vite preview",
     "publicacao": "node scripts/conferir-publicacao.mjs",
+  "revisao:biblioteca": "node scripts/gerar-revisao-biblioteca.mjs",
     "smoke": "node scripts/smoke.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
