@@ -9,8 +9,16 @@ jobs:
     name: Type-check, lint, test, build
     runs-on: ubuntu-latest
     steps:
+      # `fetch-depth: 0` = histórico completo. O padrão do checkout é clone
+      # raso (só o commit da ponta), e `src/test/revisaoBiblioteca.test.ts` roda
+      # o gerador da página de revisão, que lê a versão ANTERIOR da biblioteca
+      # com `git show <commit>:src/data/clinicalLibrary.ts`. Sem histórico, esse
+      # `git show` falha, o gerador sai com 2 — corretamente, porque não gerou —
+      # e o teste reprova na CI passando local.
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

@@ -40,9 +40,23 @@ let tmp = "";
 beforeAll(() => {
   tmp = mkdtempSync(join(tmpdir(), "revisao-teste-"));
   const arquivo = join(tmp, "saida.html");
-  execFileSync("node", ["scripts/gerar-revisao-biblioteca.mjs", "--saida", arquivo], {
-    stdio: "pipe",
-  });
+  try {
+    execFileSync("node", ["scripts/gerar-revisao-biblioteca.mjs", "--saida", arquivo], {
+      stdio: "pipe",
+    });
+  } catch (e) {
+    // A causa mais provável de falhar aqui e não localmente é clone RASO: o
+    // gerador lê a versão anterior da biblioteca com `git show <commit>:…`, e
+    // `actions/checkout` traz só o commit da ponta por padrão. O `ci.yml` pede
+    // `fetch-depth: 0` por causa disto — se alguém tirar, a mensagem tem de
+    // dizer o que houve, em vez de "comando falhou".
+    const saida = (e as { stderr?: Buffer }).stderr?.toString() ?? String(e);
+    throw new Error(
+      `O gerador da revisão não rodou.\n${saida}\n` +
+        "Se isto é a CI: confira `fetch-depth: 0` no checkout — sem histórico, " +
+        "o `git show` do commit anterior não existe.",
+    );
+  }
   html = readFileSync(arquivo, "utf8");
 }, 60_000);
 
