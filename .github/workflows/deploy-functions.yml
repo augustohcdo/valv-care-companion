@@ -1,0 +1,122 @@
+name: Deploy edge functions
+
+# ---------------------------------------------------------------------------
+# Por que este arquivo existe
+# ---------------------------------------------------------------------------
+#
+# A Vercel publica o front a cada push na `main`. As edge functions NÃO subiam
+# por caminho nenhum: nem pela CI, que só roda os checks, nem por qualquer outra
+# automação. O efeito ficou visível quando o usuário rodou o seed da base de
+# conhecimento e recebeu
+# `{ ok: true, total: 11 }` com 18 trechos no repositório: a função em produção
+# era código velho.
+#
+# O custo real não foi o seed. Enquanto o painel de conduta do médico dizia
+# "ESC/EACTS 2025", a `clinical-ai` respondia pela edição de 2021, porque o
+# prompt corrigido estava no Git e não estava rodando. Código que passa na CI e
+# não chega à produção é a versão mais cara do defeito que este projeto
+# persegue: o relatório diz feito, e não está.
+#
+# ---------------------------------------------------------------------------
+# Segurança — este repositório é PÚBLICO
+# ---------------------------------------------------------------------------
+#
+# `SUPABASE_ACCESS_TOKEN` é root sobre a conta inteira do Supabase. Três coisas
+# o protegem aqui, e nenhuma é dispensável:
+#
+#   1. **Nunca em `pull_request`.** Só `push` na `main` e disparo manual. Num
+#      repositório público, workflow que roda em PR de fork com segredo no
+#      ambiente é entrega de token a qualquer pessoa que abra um PR.
+#   2. **Nunca ecoado.** O `supabase` CLI lê o token do ambiente; ele não
+#      aparece em comando nenhum. O GitHub mascara o valor no log, mas contar
+#      com o mascaramento seria contar com sorte.
+#   3. **Permissão mínima.** `contents: read` e nada mais.
+#
+# O token vive em Settings → Secrets and variables → Actions. Não entra em
+# arquivo, não entra em commit, não passa por conversa.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+      - "supabase/config.toml"
+      - ".github/workflows/deploy-functions.yml"
+  # Para publicar sem esperar um push — é como se sai da situação atual, em que
+  # tudo já está commitado e nada foi publicado.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Dois deploys simultâneos deixariam o resultado dependendo de quem termina
+  # por último. `cancel-in-progress: false` porque interromper um deploy pela
+  # metade é pior que esperar.
+  group: deploy-functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Publicar functions no Supabase
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # O mesmo check da CI, repetido aqui de propósito: este workflow pode ser
+      # disparado à mão, e publicar sem conferir o tipo seria publicar no
+      # escuro. Custa segundos.
+      - name: Type-check (edge functions)
+        run: cd supabase/functions && deno check --quiet */index.ts
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Recusar sem o token
+        # Sem esta parada explícita, o `deploy` falharia com uma mensagem de
+        # autenticação genérica e alguém concluiria "problema do Supabase". A
+        # causa mais provável é o segredo não estar cadastrado, e é isso que a
+        # mensagem tem de dizer.
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Falta o segredo SUPABASE_ACCESS_TOKEN."
+            echo "Cadastre em Settings → Secrets and variables → Actions."
+            echo "Gere o token em https://supabase.com/dashboard/account/tokens"
+            exit 1
+          fi
+
+      # `--project-ref` explícito em vez de `supabase link`: o link grava estado
+      # local que não sobrevive ao runner, e o ref não é segredo — já está em
+      # supabase/config.toml e nas URLs públicas das functions.
+      #
+      # Sem nome de função, o CLI publica TODAS. É o que se quer: a divergência
+      # acumulada é de várias rodadas, e publicar só a que mudou no último
+      # commit deixaria o resto para trás — que é exatamente como chegamos aqui.
+      #
+      # O `verify_jwt` de cada função vem de supabase/config.toml, e o CLI o
+      # respeita. É o que mantém a `clinical-ai` exigindo JWT.
+      - name: Deploy
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy --project-ref qwiojyfxzvdcfbbexyxg
+
+      - name: O que conferir depois
+        if: success()
+        run: |
+          echo "### Functions publicadas" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Publicado não é o mesmo que **conferido**. Para provar que o código novo está rodando:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "1. Abra **Administração → Base da IA e FHIR** e clique em *Popular / atualizar base RAG*." >> "$GITHUB_STEP_SUMMARY"
+          echo "2. A tela compara o total devolvido com o que esta versão do site espera." >> "$GITHUB_STEP_SUMMARY"
+          echo "   Se disser *\"A função publicada está desatualizada\"*, o deploy não pegou." >> "$GITHUB_STEP_SUMMARY"

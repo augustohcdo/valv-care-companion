@@ -160,7 +160,52 @@ Três coisas valem saber antes de usar:
 `--limpar` devolve o banco exatamente ao estado anterior (inclusive apagando os
 laudos que o seed enviou ao bucket).
 
-## Deploy (Vercel)
+## Deploy — são DOIS caminhos, e por muito tempo só um existia
+
+O front vai para a **Vercel** a cada push na `main`. As edge functions vão para
+o **Supabase**, por um workflow separado. Eram coisas distintas e só a primeira
+existia: durante semanas, mexer em `supabase/functions/` não mudava nada em
+produção, e a CI continuava verde porque ela roda os checks, não publica.
+
+O sintoma apareceu tarde. O seed da base de conhecimento devolveu
+`{ ok: true, total: 11 }` com 18 trechos no repositório — e, com ele, a
+descoberta de que a `clinical-ai` respondia pela ESC/EACTS 2021 enquanto o
+painel de conduta do médico anunciava a de 2025, porque o prompt corrigido
+estava no Git e não estava rodando.
+
+### Publicar as edge functions
+
+`.github/workflows/deploy-functions.yml` publica **todas** as functions quando
+`supabase/functions/**` ou `supabase/config.toml` mudam na `main`, e também sob
+demanda (Actions → *Deploy edge functions* → *Run workflow*).
+
+Ele exige o segredo **`SUPABASE_ACCESS_TOKEN`** em Settings → Secrets and
+variables → Actions. O token sai de
+https://supabase.com/dashboard/account/tokens.
+
+**Esse token é root sobre a conta inteira do Supabase, e este repositório é
+público.** Três coisas o protegem, e `src/test/deployFunctions.test.ts` reprova
+se alguma cair:
+
+- o workflow **nunca** roda em `pull_request` — num repositório público, um PR
+  de fork executaria o job com o segredo no ambiente;
+- o token só existe como variável de ambiente, nunca como argumento de comando
+  (que apareceria em log e em lista de processos);
+- `permissions: contents: read`, e nada mais.
+
+O `verify_jwt` de cada função vem de `supabase/config.toml` e o CLI o respeita —
+é o que mantém a `clinical-ai` exigindo JWT depois de cada deploy.
+
+### Conferir que o deploy pegou
+
+Publicado não é conferido. Em **Administração → Base da IA e FHIR**, o botão
+*Popular / atualizar base RAG* compara o total que a função devolve com o que
+esta versão do site espera (`src/data/baseDaIA.ts`). Divergiu, a tela diz
+**"A função publicada está desatualizada"** em vermelho — as duas metades sobem
+por caminhos diferentes, e é essa divergência que denuncia a que ficou para
+trás.
+
+## Deploy do front (Vercel)
 
 O `vercel.json` da raiz existe por um motivo só, e **não pode ser removido**: o
 preset de Vite da Vercel não adiciona o *fallback* de SPA sozinho. Sem o
