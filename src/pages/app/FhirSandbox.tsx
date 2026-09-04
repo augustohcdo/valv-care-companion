@@ -11,6 +11,7 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { lerResultadoDoSeed, type LeituraDoSeed } from "@/data/baseDaIA";
 
 const SAMPLE_OBS = (patientId: string) => JSON.stringify({
   resourceType: "Observation",
@@ -32,6 +33,8 @@ export default function FhirSandbox() {
   const [body, setBody] = useState("");
   const [readTypes, setReadTypes] = useState("Condition,Observation,MedicationStatement");
   const [response, setResponse] = useState<string>("");
+  // Fica na tela depois que o toast some — a conclusão importa mais que o aviso.
+  const [leituraDoSeed, setLeituraDoSeed] = useState<LeituraDoSeed | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -76,22 +79,17 @@ export default function FhirSandbox() {
       // O toast dizia "Base RAG populada" mesmo com `inserted: 0` — sucesso
       // anunciado sobre trabalho que não aconteceu, e no lugar de maior
       // consequência: quem clica aqui está conferindo se a base foi atualizada.
-      // Agora os três desfechos têm mensagens diferentes.
-      const inseridos = data?.inserted ?? 0;
-      const faltando: string[] = data?.fontes_nao_cadastradas ?? [];
-      if (faltando.length > 0) {
-        toast.error("Base NÃO atualizada por completo", {
-          description: `Fontes não cadastradas em knowledge_sources: ${faltando.join(", ")}. Rode o SQL da rodada e tente de novo.`,
-        });
-      } else if (inseridos === 0) {
-        toast.message("Nada novo entrou", {
-          description: `${data?.skipped ?? 0} trecho(s) já existiam. Se você esperava trechos novos, a versão publicada da função pode estar desatualizada.`,
-        });
-      } else {
-        toast.success(`${inseridos} trecho(s) novo(s) na base`, {
-          description: `${data?.skipped ?? 0} já existiam. Todos entram como preliminares, aguardando revisão médica.`,
-        });
-      }
+      //
+      // A leitura mora em `src/data/baseDaIA.ts` porque ela também compara o
+      // `total` devolvido com o que ESTA versão do site espera — é assim que a
+      // tela percebe que a edge function publicada é código velho. Foi o que
+      // aconteceu: o repositório tinha 18 trechos e a produção rodou com 11,
+      // respondendo `ok: true` sem nenhum sinal.
+      const leitura = lerResultadoDoSeed(data ?? {});
+      setLeituraDoSeed(leitura);
+      const mostrar = leitura.nivel === "erro" ? toast.error
+        : leitura.nivel === "aviso" ? toast.message : toast.success;
+      mostrar(leitura.titulo, { description: leitura.detalhe });
     } catch (e: any) { toast.error(e.message ?? "Falha ao popular base"); } finally { setBusy(false); }
   };
 
@@ -118,6 +116,21 @@ export default function FhirSandbox() {
             {busy && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             Popular / atualizar base RAG
           </Button>
+
+          {leituraDoSeed && (
+            <div
+              className={`rounded-lg border p-3 text-xs leading-relaxed ${
+                leituraDoSeed.nivel === "erro"
+                  ? "border-destructive/50 bg-destructive/10 text-destructive"
+                  : leituraDoSeed.nivel === "aviso"
+                    ? "border-warning/50 bg-warning/10 text-foreground"
+                    : "border-success/50 bg-success/10 text-foreground"
+              }`}
+            >
+              <p className="font-semibold">{leituraDoSeed.titulo}</p>
+              <p className="mt-1 text-foreground/85">{leituraDoSeed.detalhe}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
