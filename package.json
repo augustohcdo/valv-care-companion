@@ -16,6 +16,7 @@
     "ferramentas:verificar": "node scripts/ferramentas-verificar.mjs",
     "lint": "eslint .",
     "migrations": "node scripts/conferir-migrations.mjs",
+    "mmcts": "node scripts/conferir-mmcts.mjs",
     "mobile": "node scripts/mobile.mjs",
     "pmids": "node scripts/conferir-pmids.mjs",
     "preview": "vite preview",

@@ -1,6 +1,7 @@
 import { Link, useParams, Navigate } from "react-router-dom";
-import { ArrowLeft, BookOpen } from "lucide-react";
+import { ArrowLeft, BookOpen, PlayCircle, ExternalLink } from "lucide-react";
 import { clinicalLibrary } from "@/data/clinicalLibrary";
+import { MMCTS, tutoriaisDoTopico, urlDoTutorial } from "@/data/mmcts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,8 @@ export default function BibliotecaDetalhe() {
         ))}
       </div>
 
+      <TecnicaCirurgica slug={guideline.slug} />
+
       <Card className="bg-secondary/40 border-border">
         <CardContent className="p-6">
           <h3 className="font-serif text-base text-primary mb-2">Referências</h3>
@@ -81,5 +84,51 @@ export default function BibliotecaDetalhe() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+/**
+ * Os tutoriais de técnica do MMCTS para este tópico.
+ *
+ * Fica DEPOIS do conteúdo clínico e ANTES das referências, que é a ordem em que
+ * a coisa é usada: primeiro a indicação, depois como se faz, por último de onde
+ * saiu.
+ *
+ * Some por inteiro quando o tópico não tem tutorial — o motivo de não ter está
+ * registrado em `SEM_TUTORIAL`, e é informação para quem mantém o catálogo, não
+ * para quem lê sobre anticoagulação. Seção vazia com explicação é o tipo de
+ * ruído que acabamos de tirar do catálogo de próteses.
+ */
+function TecnicaCirurgica({ slug }: { slug: string }) {
+  const tutoriais = tutoriaisDoTopico(slug);
+  if (tutoriais.length === 0) return null;
+
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <h3 className="font-serif text-base text-primary flex items-center gap-2">
+          <PlayCircle className="h-4 w-4" /> Técnica cirúrgica em vídeo
+        </h3>
+        <p className="text-xs text-muted-foreground mt-1 mb-4">
+          Tutoriais do {MMCTS.fonte}, de acesso aberto. Abrem no site da EACTS.
+        </p>
+        <ul className="space-y-3">
+          {tutoriais.map((t) => (
+            <li key={t.id}>
+              <a
+                href={urlDoTutorial(t.id)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-primary hover:underline inline-flex items-start gap-1.5"
+              >
+                <span>{t.titulo}</span>
+                <ExternalLink className="h-3 w-3 mt-1 shrink-0" />
+              </a>
+              <p className="text-xs text-muted-foreground mt-0.5">{t.porque}</p>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }
