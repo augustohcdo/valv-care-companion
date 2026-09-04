@@ -55,6 +55,9 @@ beforeAll(() => {
       `O gerador da revisão não rodou.\n${saida}\n` +
         "Se isto é a CI: confira `fetch-depth: 0` no checkout — sem histórico, " +
         "o `git show` do commit anterior não existe.",
+      // O erro original vai junto: a mensagem acima é o palpite mais provável,
+      // não a única causa possível, e sumir com a original esconderia as outras.
+      { cause: e },
     );
   }
   html = readFileSync(arquivo, "utf8");
