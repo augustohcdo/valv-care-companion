@@ -19,27 +19,44 @@ export default function PacienteHome() {
   const { user, profile } = useAuth();
   const [patient, setPatient] = useState<any>(null);
   const [linkedDoctor, setLinkedDoctor] = useState<any>(null);
+  /**
+   * `true` = não foi possível ler. É diferente de "não tem médico".
+   *
+   * As três leituras deste efeito descartavam o `error`, e a tela caía no ramo
+   * de baixo: **"Você ainda não vinculou um médico"**, com o convite para
+   * vincular. Dito a um paciente que TEM médico vinculado, numa recusa de RLS
+   * ou queda de rede, é uma afirmação falsa sobre o cuidado dele — e das que
+   * assustam.
+   */
+  const [falhouLeitura, setFalhouLeitura] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
-      const { data: pat } = await supabase.from("patients").select("*").is("deleted_at", null).eq("user_id", user.id).maybeSingle();
+      const { data: pat, error: erroPaciente } = await supabase
+        .from("patients").select("*").is("deleted_at", null).eq("user_id", user.id).maybeSingle();
       if (cancelled) return;
+      if (erroPaciente) { setFalhouLeitura(true); return; }
       setPatient(pat);
       if (pat?.linked_doctor_id) {
-        const { data: doc } = await supabase
+        const { data: doc, error: erroMedico } = await supabase
           .from("doctors")
           .select("id, crm, crm_uf, specialty, institution, user_id")
           .eq("id", pat.linked_doctor_id)
           .maybeSingle();
         if (cancelled) return;
+        if (erroMedico) { setFalhouLeitura(true); return; }
         if (doc) {
           // Pelo RPC: ler `profiles` de outra pessoa volta vazio pela policy,
           // e o cartão exibia o médico do paciente sem nome.
-          const { data: meus } = await supabase.rpc("meus_medicos");
+          const { data: meus, error: erroMeus } = await supabase.rpc("meus_medicos");
           if (cancelled) return;
-          const meu = (meus ?? []).find((m) => m.doctor_id === doc.id);
+          // Falhar SÓ aqui não some com o médico: o vínculo está confirmado
+          // pelas duas leituras acima. O que falta é o nome, e `full_name`
+          // já sabe ser nulo. Marcar a tela inteira como falha por causa do
+          // nome seria trocar um exagero por outro.
+          const meu = erroMeus ? undefined : (meus ?? []).find((m) => m.doctor_id === doc.id);
           setLinkedDoctor({ ...doc, full_name: meu?.full_name ?? null });
         }
       }
@@ -127,6 +144,22 @@ export default function PacienteHome() {
             <Info label="CRM" value={`${linkedDoctor.crm}/${linkedDoctor.crm_uf}`} />
             <Info label="Especialidade" value={linkedDoctor.specialty} />
             <Info label="Instituição" value={linkedDoctor.institution || "—"} />
+          </CardContent>
+        </Card>
+      ) : falhouLeitura ? (
+        <Card className="shadow-sm-soft border-warning/40 bg-warning/5">
+          <CardContent className="p-6 flex items-start gap-4">
+            <div className="h-10 w-10 rounded-lg bg-warning/15 grid place-items-center shrink-0">
+              <AlertCircle className="h-5 w-5 text-warning" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-medium text-foreground">Não conseguimos carregar seus dados agora</h3>
+              <p className="text-sm text-foreground/85 mt-1 leading-relaxed">
+                Isto é uma falha de conexão com o sistema. <strong>Não quer dizer que você
+                esteja sem médico vinculado</strong> — nada foi alterado no seu cadastro.
+                Recarregue a página; se continuar, avise o suporte.
+              </p>
+            </div>
           </CardContent>
         </Card>
       ) : (

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileHeart, Stethoscope } from "lucide-react";
+import { FileHeart, Stethoscope, AlertTriangle } from "lucide-react";
 import {
   valveTypeLabels, valveDiseaseLabels, severityLabels, severityColors, caseStatusLabels,
 } from "@/lib/clinicalLabels";
@@ -21,27 +21,42 @@ export default function PacienteJornada() {
   const [cases, setCases] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
+  // O toast some em segundos; a tela fica. Sem este estado, o paciente que
+  // perdeu o toast continua lendo "Nenhum caso clínico ainda" como se fosse
+  // fato sobre a saúde dele.
+  const [falhou, setFalhou] = useState(false);
   const [openCase, setOpenCase] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
       try {
-        const { data: pat } = await supabase.from("patients").select("id").is("deleted_at", null).eq("user_id", user.id).maybeSingle();
+        // O `try` desta função já existia, mas o cliente do Supabase NÃO
+        // lança: devolve `{ data: null, error }`. O `catch` de baixo nunca
+        // via falha nenhuma, e a jornada aparecia vazia — "Nenhum caso
+        // clínico ainda" — para um paciente que tem casos registrados pelo
+        // médico. Com o `throw`, o toast que já estava escrito passa a sair.
+        const { data: pat, error: erroPaciente } = await supabase.from("patients").select("id").is("deleted_at", null).eq("user_id", user.id).maybeSingle();
+        if (erroPaciente) throw erroPaciente;
         if (!pat) return;
 
-        const { data: cs } = await supabase
+        const { data: cs, error: erroCasos } = await supabase
           .from("clinical_cases").select("*").is("deleted_at", null).eq("patient_id", pat.id)
           .neq("status", "draft" as any)
           .order("created_at", { ascending: false });
+        if (erroCasos) throw erroCasos;
 
         const docIds = [...new Set((cs || []).map((c) => c.doctor_id))];
-        const { data: docs } = docIds.length
+        const { data: docs, error: erroMedicos } = docIds.length
           ? await supabase.from("doctors").select("id, user_id, crm, crm_uf, specialty").in("id", docIds)
-          : { data: [] as any[] };
+          : { data: [] as any[], error: null };
+        if (erroMedicos) throw erroMedicos;
 
         // Pelo RPC: `profiles` de outra pessoa volta vazio pela policy, e a
         // jornada mostrava os médicos do próprio paciente sem nome.
+        // Esta pode falhar sozinha sem derrubar a tela: ela traz só o NOME do
+        // médico, e `full_name` já sabe ser nulo. Perder o nome não é perder
+        // a jornada.
         const { data: meus } = await supabase.rpc("meus_medicos");
         const nomePorMedico = new Map<string, string | null>(
           (meus ?? []).map((m) => [m.doctor_id, m.full_name]),
@@ -55,6 +70,7 @@ export default function PacienteJornada() {
         setCases(cs || []);
         setDoctors(map);
       } catch (e) {
+        setFalhou(true);
         toast.error("Erro ao carregar jornada clínica", { description: (e as Error).message });
       } finally {
         setLoading(false);
@@ -73,6 +89,18 @@ export default function PacienteJornada() {
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
+      ) : falhou ? (
+        <Card className="border-warning/40 bg-warning/5">
+          <CardContent className="py-6 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+            <p className="text-sm text-foreground/85 leading-relaxed">
+              <strong className="text-foreground">Não foi possível carregar sua jornada agora.</strong>{" "}
+              Isto é uma falha de conexão — <strong>não significa que não haja casos
+              registrados</strong>. Nada foi apagado. Recarregue a página; se continuar,
+              avise o suporte ou seu médico.
+            </p>
+          </CardContent>
+        </Card>
       ) : cases.length === 0 ? (
         <EmptyState
           icon={FileHeart}

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/use-toast";
-import { User, Loader2 } from "lucide-react";
+import { User, Loader2, AlertTriangle } from "lucide-react";
 import { commonComorbidities } from "@/lib/clinicalLabels";
 
 const UFs = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
@@ -16,6 +16,8 @@ export default function PacientePerfil() {
   const { user, refreshProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  /** Mensagem da falha de leitura. Enquanto houver uma, salvar fica bloqueado. */
+  const [falhouCarregar, setFalhouCarregar] = useState<string | null>(null);
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -28,10 +30,20 @@ export default function PacientePerfil() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [{ data: prof }, { data: pat }] = await Promise.all([
+      // Estas duas leituras PREENCHEM um formulário que depois é salvo por
+      // cima do registro. Descartando o erro, o formulário abria em branco e o
+      // botão Salvar continuava ativo: um clique gravava nome, telefone, data
+      // de nascimento e comorbidades VAZIOS sobre os dados reais do paciente.
+      // Não é uma tela mostrando menos do que existe — é perda de dado.
+      const [{ data: prof, error: erroPerfil }, { data: pat, error: erroPaciente }] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
         supabase.from("patients").select("*").is("deleted_at", null).eq("user_id", user.id).maybeSingle(),
       ]);
+      if (erroPerfil || erroPaciente) {
+        setFalhouCarregar((erroPerfil ?? erroPaciente)!.message);
+        setLoading(false);
+        return;
+      }
       if (prof) {
         setFullName(prof.full_name || "");
         setPhone(prof.phone || "");
@@ -77,6 +89,38 @@ export default function PacientePerfil() {
   };
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+
+  // Nada de formulário quando a leitura falhou. Mostrar os campos vazios com o
+  // botão Salvar ao lado convida o paciente a apagar o próprio cadastro sem
+  // saber — a direção do erro aqui é destrutiva, e a tela para.
+  if (falhouCarregar) {
+    return (
+      <div className="max-w-3xl">
+        <div className="mb-6">
+          <p className="text-sm text-muted-foreground">Configurações</p>
+          <h1 className="font-serif text-3xl lg:text-4xl text-primary mt-1 flex items-center gap-3">
+            <User className="h-7 w-7" /> Meu perfil
+          </h1>
+        </div>
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="py-6 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-foreground">
+                Não foi possível carregar seu perfil.
+              </p>
+              <p className="text-sm text-foreground/85 leading-relaxed">
+                O formulário não é exibido nesta situação de propósito: ele abriria
+                em branco, e salvar apagaria seus dados. <strong>Nada foi alterado.</strong>{" "}
+                Recarregue a página; se continuar, avise o suporte.
+              </p>
+              <p className="text-xs text-muted-foreground font-mono">{falhouCarregar}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl space-y-6">

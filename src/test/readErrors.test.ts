@@ -74,8 +74,17 @@ const SEM_TOLERANCIA = [
  *            com `{`. Junto veio o falso NEGATIVO gêmeo, que era o grave: o
  *            mesmo padrão quebrado em várias linhas não casava com regex
  *            nenhuma e era absolvido como "resultado descartado de propósito".
+ *   49 → 40  as telas do PACIENTE sobre ele mesmo. A pior era
+ *            `PacientePerfil`: o formulário abria em branco com o botão Salvar
+ *            ativo, e um clique gravava nome, telefone, data de nascimento e
+ *            comorbidades VAZIOS por cima do cadastro real. Não era tela
+ *            mostrando menos do que existe — era perda de dado. Junto,
+ *            `PacienteHome` dizendo "Você ainda não vinculou um médico" a quem
+ *            tem, e `PacienteJornada` mostrando "Nenhum caso clínico ainda"
+ *            porque o `try/catch` que já existia nunca via falha (o cliente do
+ *            Supabase não lança, devolve `{ data: null, error }`).
  */
-const DIVIDA_CONHECIDA = 49;
+const DIVIDA_CONHECIDA = 40;
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const nome of readdirSync(dir)) {

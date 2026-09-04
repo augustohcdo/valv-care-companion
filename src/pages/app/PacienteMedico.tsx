@@ -79,8 +79,12 @@ const PacienteMedico = () => {
       // Pelo RPC, e não por `profiles`: a policy só deixa ler a própria linha,
       // então isto voltava vazio e o paciente lia "Dr(a). Médico(a)" no cartão
       // do próprio médico assistente.
-      const { data: meus } = await supabase.rpc("meus_medicos");
-      const meu = (meus ?? []).find((m) => m.doctor_id === doc.id);
+      // Falha aqui NÃO derruba o cartão: o vínculo já veio da leitura de
+      // `doctors` acima, e o que esta traz é só o nome — que `full_name` já
+      // sabe ser nulo. Lançar faria o médico vinculado sumir da tela por causa
+      // de um nome que falta, o que é pior do que exibi-lo sem nome.
+      const { data: meus, error: erroMeus } = await supabase.rpc("meus_medicos");
+      const meu = erroMeus ? undefined : (meus ?? []).find((m) => m.doctor_id === doc.id);
       return { ...(doc as any), full_name: meu?.full_name ?? null };
     },
     enabled: !!patient?.linked_doctor_id,
