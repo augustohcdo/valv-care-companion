@@ -73,7 +73,25 @@ export default function FhirSandbox() {
       const { data, error } = await supabase.functions.invoke("knowledge-seed");
       if (error) throw error;
       setResponse(JSON.stringify(data, null, 2));
-      toast.success(`Base RAG populada: ${data?.inserted ?? 0} inseridos, ${data?.skipped ?? 0} já existiam`);
+      // O toast dizia "Base RAG populada" mesmo com `inserted: 0` — sucesso
+      // anunciado sobre trabalho que não aconteceu, e no lugar de maior
+      // consequência: quem clica aqui está conferindo se a base foi atualizada.
+      // Agora os três desfechos têm mensagens diferentes.
+      const inseridos = data?.inserted ?? 0;
+      const faltando: string[] = data?.fontes_nao_cadastradas ?? [];
+      if (faltando.length > 0) {
+        toast.error("Base NÃO atualizada por completo", {
+          description: `Fontes não cadastradas em knowledge_sources: ${faltando.join(", ")}. Rode o SQL da rodada e tente de novo.`,
+        });
+      } else if (inseridos === 0) {
+        toast.message("Nada novo entrou", {
+          description: `${data?.skipped ?? 0} trecho(s) já existiam. Se você esperava trechos novos, a versão publicada da função pode estar desatualizada.`,
+        });
+      } else {
+        toast.success(`${inseridos} trecho(s) novo(s) na base`, {
+          description: `${data?.skipped ?? 0} já existiam. Todos entram como preliminares, aguardando revisão médica.`,
+        });
+      }
     } catch (e: any) { toast.error(e.message ?? "Falha ao popular base"); } finally { setBusy(false); }
   };
 

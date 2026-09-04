@@ -28,6 +28,7 @@ import {
   type LucideIcon, UserPlus,
   Calculator,
   PlayCircle,
+  Beaker,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -88,6 +89,10 @@ const adminNav: NavItem[] = [
   { to: "/app/admin/usuarios", label: "Usuários e papéis", icon: Users },
   { to: "/app/admin/conteudo", label: "Revisão de conteúdo", icon: BookOpenCheck },
   { to: "/app/admin/fontes", label: "Fontes da IA", icon: Globe },
+  // Só se chegava aqui digitando a URL. É a tela que popula a base de trechos
+  // que a IA consulta — a mesma razão pela qual as outras entraram no menu:
+  // painel que ninguém alcança é o mesmo que não ter painel.
+  { to: "/app/admin/fhir-sandbox", label: "Base da IA e FHIR", icon: Beaker },
   { to: "/app/admin/biblioteca", label: "Biblioteca de referência", icon: BookOpen },
   { to: "/app/admin/arquivos", label: "Arquivos de trabalho", icon: FolderLock },
   { to: "/app/admin/erros", label: "Erros e tarefas", icon: ShieldAlert },
@@ -98,6 +103,7 @@ const adminNav: NavItem[] = [
 // Prefetch da chunk da rota ao passar o mouse no link
 const routeLoader: Record<string, () => Promise<unknown>> = {
   "/app/admin/acessos": () => import("@/pages/app/AdminAcessos"),
+  "/app/admin/fhir-sandbox": () => import("@/pages/app/FhirSandbox"),
   "/app/paciente/encontrar": () => import("@/pages/app/PacienteEncontrar"),
   "/app/medico": () => import("@/pages/app/MedicoHome"),
   "/app/medico/pacientes": () => import("@/pages/app/MedicoPacientes"),
