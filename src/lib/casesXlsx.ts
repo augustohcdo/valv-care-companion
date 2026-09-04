@@ -26,7 +26,16 @@ function styleHeaderRow(row: ExcelJS.Row) {
   row.height = 20;
 }
 
-export async function exportCasesToXlsx(cases: CaseRow[], filename = "casos-clinicos.xlsx") {
+/**
+ * Monta a planilha e devolve os bytes.
+ *
+ * Separado do download de propósito: é o que permite `casesXlsx.test.ts` gerar
+ * o arquivo de verdade e LER de volta, em vez de conferir só que a função não
+ * explodiu. Sem essa separação, o teste dependeria de `Blob` e de
+ * `URL.createObjectURL`, que no jsdom são fachada — o arquivo nunca chegaria a
+ * existir e o teste "passaria" sem exercitar o exceljs.
+ */
+export async function montarPlanilhaDeCasos(cases: CaseRow[]): Promise<ArrayBuffer> {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "ValvePath";
   workbook.created = new Date();
@@ -71,7 +80,11 @@ export async function exportCasesToXlsx(cases: CaseRow[], filename = "casos-clin
     summary.addRow({});
   }
 
-  const buffer = await workbook.xlsx.writeBuffer();
+  return workbook.xlsx.writeBuffer() as unknown as Promise<ArrayBuffer>;
+}
+
+export async function exportCasesToXlsx(cases: CaseRow[], filename = "casos-clinicos.xlsx") {
+  const buffer = await montarPlanilhaDeCasos(cases);
   const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
