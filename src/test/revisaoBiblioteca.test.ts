@@ -50,15 +50,17 @@ beforeAll(() => {
     // `actions/checkout` traz só o commit da ponta por padrão. O `ci.yml` pede
     // `fetch-depth: 0` por causa disto — se alguém tirar, a mensagem tem de
     // dizer o que houve, em vez de "comando falhou".
-    const saida = (e as { stderr?: Buffer }).stderr?.toString() ?? String(e);
-    throw new Error(
-      `O gerador da revisão não rodou.\n${saida}\n` +
-        "Se isto é a CI: confira `fetch-depth: 0` no checkout — sem histórico, " +
-        "o `git show` do commit anterior não existe.",
-      // O erro original vai junto: a mensagem acima é o palpite mais provável,
-      // não a única causa possível, e sumir com a original esconderia as outras.
-      { cause: e },
-    );
+    // O erro ORIGINAL é reemitido, com a mensagem enriquecida — em vez de um
+    // `new Error` que engoliria a causa. A explicação abaixo é o palpite mais
+    // provável, não a única causa possível: quem cair numa das outras precisa
+    // continuar vendo o que o gerador realmente disse.
+    const erro = e as Error & { stderr?: Buffer };
+    const saida = erro.stderr?.toString().trim();
+    erro.message =
+      `O gerador da revisão não rodou.\n${saida || erro.message}\n` +
+      "Se isto é a CI: confira `fetch-depth: 0` no checkout — sem histórico, " +
+      "o `git show` do commit anterior não existe.";
+    throw erro;
   }
   html = readFileSync(arquivo, "utf8");
 }, 60_000);
