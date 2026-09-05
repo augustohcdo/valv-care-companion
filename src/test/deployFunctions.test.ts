@@ -111,6 +111,13 @@ describe("o deploy das edge functions", () => {
     expect(yml, `o workflow não usa o project_ref de config.toml (${ref})`).toContain(ref!);
   });
 
+  it("dispara sozinho quando as functions mudam", () => {
+    // Sem isto o deploy volta a depender de alguém lembrar de rodar — que é
+    // exatamente o estado de onde saímos.
+    expect(yml).toMatch(/paths:/);
+    expect(yml).toMatch(/supabase\/functions/);
+  });
+
   it("o repositório tem functions para publicar", () => {
     // Contraprova: as exigências acima passariam com a pasta vazia.
     const dirs = readdirSync("supabase/functions").filter(
@@ -121,4 +128,76 @@ describe("o deploy das edge functions", () => {
     expect(dirs).toContain("clinical-ai");
     expect(dirs).toContain("knowledge-seed");
   });
+});
+
+/**
+ * A regra vale para TODO workflow que toca o token, não só o do deploy.
+ *
+ * O `deploy-functions.yml` nasceu com as três proteções escritas nele. Um dia
+ * depois nasceu o `db.yml`, que executa SQL em produção com o MESMO token — e
+ * um teste amarrado ao nome do primeiro arquivo não teria olhado para o
+ * segundo. Guarda que cobre um caso nominal envelhece na primeira vez que
+ * alguém acrescenta o caso seguinte.
+ *
+ * Então a varredura é sobre a PROPRIEDADE: qualquer workflow que carregue
+ * `SUPABASE_ACCESS_TOKEN` obedece às mesmas regras, hoje e nos próximos.
+ */
+describe("todo workflow que carrega o token do Supabase", () => {
+  const DIR = ".github/workflows";
+  const comToken = readdirSync(DIR)
+    .filter((n) => /\.ya?ml$/.test(n))
+    .map((n) => ({ nome: `${DIR}/${n}`, yml: readFileSync(`${DIR}/${n}`, "utf8") }))
+    .filter(({ yml }) => yml.includes("SUPABASE_ACCESS_TOKEN"));
+
+  it("existe pelo menos um, senão a varredura cobre nada", () => {
+    expect(comToken.map((w) => w.nome)).toContain(".github/workflows/deploy-functions.yml");
+    expect(comToken.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it.each(comToken.map((w) => [w.nome, w.yml] as const))(
+    "%s nunca roda em pull_request",
+    (_nome, yml) => {
+      // Comentários fora: o `deploy-functions.yml` EXPLICA por que não roda em
+      // pull_request, e a primeira versão desta varredura acusou justamente a
+      // explicação. Guarda que casa com a palavra, e não com o gatilho, pune
+      // quem documentou a regra — foi o mesmo erro que cometi hoje na varredura
+      // da diretriz.
+      const gatilhos = yml
+        .split(/\npermissions:|\njobs:/)[0]
+        .split("\n")
+        .filter((l) => !/^\s*#/.test(l))
+        .join("\n");
+      expect(
+        gatilhos,
+        "num repositório público, um PR de fork rodaria este job com o token root no ambiente",
+      ).not.toMatch(/^\s*pull_request/m);
+    },
+  );
+
+  it.each(comToken.map((w) => [w.nome, w.yml] as const))(
+    "%s pede permissão mínima",
+    (_nome, yml) => {
+      expect(yml).toMatch(/permissions:\s*\n\s*contents:\s*read/);
+      expect(yml).not.toMatch(/contents:\s*write/);
+    },
+  );
+
+  it.each(comToken.map((w) => [w.nome, w.yml] as const))(
+    "%s não põe o token na linha de comando",
+    (_nome, yml) => {
+      // Argumento de comando aparece em log e em lista de processos. A variável
+      // de ambiente, não.
+      expect(yml).not.toMatch(/--token[= ]|-H "Authorization: Bearer \$\{\{/);
+    },
+  );
+
+  it.each(comToken.map((w) => [w.nome, w.yml] as const))(
+    "%s recusa explicitamente quando o segredo falta",
+    (_nome, yml) => {
+      expect(
+        yml,
+        "sem a recusa, o erro vira uma falha de autenticação genérica e a causa real se perde",
+      ).toMatch(/Falta o segredo SUPABASE_ACCESS_TOKEN/);
+    },
+  );
 });

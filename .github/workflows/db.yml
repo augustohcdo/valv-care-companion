@@ -1,0 +1,113 @@
+name: Banco de dados
+
+# ---------------------------------------------------------------------------
+# Por que existe
+# ---------------------------------------------------------------------------
+#
+# Até aqui toda migration era aplicada à mão: o projeto gerava um arquivo SQL e
+# alguém colava no SQL Editor do painel. Três vezes só nesta sessão. Passo manual
+# repetido é passo que uma hora não acontece, ou acontece pela metade — e aí o
+# código sabe de um estado que o banco não tem, que é a origem de metade dos
+# defeitos que esta sessão perseguiu.
+#
+# ---------------------------------------------------------------------------
+# Por que a API de gestão, e não `supabase db push`
+# ---------------------------------------------------------------------------
+#
+# O `db push` conecta direto no Postgres e exige a SENHA DO BANCO — um segundo
+# segredo a cadastrar, mais uma ação para o usuário, e mais uma credencial de
+# alto valor guardada. A API de gestão executa SQL com o token que JÁ existe
+# aqui, o mesmo do deploy das functions. Um segredo a menos para vazar.
+#
+# ---------------------------------------------------------------------------
+# Por que NÃO roda sozinho a cada push
+# ---------------------------------------------------------------------------
+#
+# Este banco guarda prontuário. O arquivo aplicado é sempre um SQL do
+# repositório — revisado, validado pelo parser real do PostgreSQL na CI
+# (`npm run migrations`) e idempotente por construção. Ainda assim, DDL em
+# produção é ato deliberado: quem dispara escolhe o arquivo e vê o resultado.
+# O disparo pode ser feito por quem cuida do projeto sem precisar do painel.
+
+on:
+  workflow_dispatch:
+    inputs:
+      arquivo:
+        description: "Arquivo SQL do repositório a executar"
+        required: true
+        default: scripts/catalogo/aplicar-no-supabase.sql
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: banco-de-dados
+  cancel-in-progress: false
+
+jobs:
+  aplicar:
+    name: Executar SQL no Supabase
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Recusar sem o token
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Falta o segredo SUPABASE_ACCESS_TOKEN."
+            echo "Cadastre em Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      # Caminho vem de input, então precisa ser contido: sem isto, um disparo
+      # com `../../etc/passwd` mandaria o conteúdo para a API. É entrada de
+      # usuário mesmo vindo de quem tem acesso ao repositório.
+      - name: Conferir o arquivo
+        env:
+          ARQUIVO: ${{ inputs.arquivo }}
+        run: |
+          case "$ARQUIVO" in
+            *..*|/*) echo "::error::Caminho inválido: $ARQUIVO"; exit 1 ;;
+            *.sql) ;;
+            *) echo "::error::Só arquivos .sql: $ARQUIVO"; exit 1 ;;
+          esac
+          if [ ! -f "$ARQUIVO" ]; then
+            echo "::error::Não existe no repositório: $ARQUIVO"
+            exit 1
+          fi
+          echo "Vai executar: $ARQUIVO ($(wc -l < "$ARQUIVO") linhas)"
+
+      # O SQL vai no corpo de um JSON montado pelo `jq`, e não por interpolação
+      # de shell: o arquivo tem aspas, cifrões e acentos, e montar JSON com
+      # `echo` quebraria no primeiro deles — ou pior, mudaria o SQL em silêncio.
+      #
+      # `--fail-with-body` para o passo falhar no HTTP de erro E ainda mostrar o
+      # que a API respondeu. Sem o `--fail`, um 400 passaria como sucesso; sem o
+      # `-with-body`, falharia sem dizer por quê.
+      - name: Executar
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          ARQUIVO: ${{ inputs.arquivo }}
+        run: |
+          jq -Rs '{query: .}' < "$ARQUIVO" > /tmp/corpo.json
+          echo "## Resultado de \`$ARQUIVO\`" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          curl --fail-with-body -sS -X POST \
+            "https://api.supabase.com/v1/projects/qwiojyfxzvdcfbbexyxg/database/query" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            --data @/tmp/corpo.json \
+          | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Lembrete
+        if: always()
+        run: |
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '> O JSON acima é a saída do `SELECT` de conferência que todo arquivo gerado traz no fim.' >> "$GITHUB_STEP_SUMMARY"
+          echo '> "Executou sem erro" não é "fez o que devia" — é esse resultado que prova.' >> "$GITHUB_STEP_SUMMARY"
