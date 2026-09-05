@@ -14,6 +14,15 @@ verify_jwt = false
 [functions.turnstile-config]
 verify_jwt = false
 
+# Semear a base de trechos era a última ação manual que sobrava para o usuário —
+# abrir a tela de administração e clicar. Ele pediu para não precisar, e a saída
+# é a mesma das outras aqui: o pg_cron chama a função com um segredo de
+# `internal_secrets`. Para o segredo chegar ao código, a plataforma não pode
+# barrar antes; a função continua exigindo esse segredo OU um JWT de admin, e o
+# caminho do admin não mudou.
+[functions.knowledge-seed]
+verify_jwt = false
+
 [functions.weekly-export]
 verify_jwt = false
 

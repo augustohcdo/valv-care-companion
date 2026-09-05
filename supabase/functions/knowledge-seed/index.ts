@@ -195,16 +195,54 @@ Deno.serve(async (req) => {
     const PUBLISHABLE = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return new Response(JSON.stringify({ error: "unauth" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-
-    const userClient = createClient(SUPABASE_URL, PUBLISHABLE, { global: { headers: { Authorization: authHeader } } });
-    const { data: userRes } = await userClient.auth.getUser();
-    if (!userRes?.user) return new Response(JSON.stringify({ error: "unauth" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    const { data: isAdmin } = await admin.rpc("has_role", { _user_id: userRes.user.id, _role: "admin" });
-    if (!isAdmin) return new Response(JSON.stringify({ error: "admin only" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const naoAutorizado = () =>
+      new Response(JSON.stringify({ error: "unauth" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
+    // ---------------------------------------------------------------------
+    // Duas portas: o admin logado, e o próprio banco.
+    // ---------------------------------------------------------------------
+    //
+    // A porta do admin já existia e continua igual. A segunda entra porque
+    // semear a base era a última ação manual que sobrava para o usuário — ele
+    // pediu, com todas as letras, para não precisar clicar. Sem ela, uma
+    // migration que acrescenta trechos depende de alguém lembrar de abrir a
+    // tela; e "alguém lembra" foi exatamente o que falhou quando as edge
+    // functions passaram semanas sem ser publicadas.
+    //
+    // O segredo mora em `internal_secrets`, tabela que só o service_role lê, e
+    // é o MESMO mecanismo que o `weekly-export`, o `admin-digest` e o
+    // `job-watchdog` já usam para serem chamados pelo pg_cron. Nada de novo em
+    // superfície de ataque: quem consegue ler `internal_secrets` já é
+    // service_role, e com isso escreve na tabela direto.
+    const { data: linhaSegredo } = await admin
+      .from("internal_secrets")
+      .select("value")
+      .eq("key", "seed_cron_secret")
+      .maybeSingle();
+    const SEGREDO_CRON = linhaSegredo?.value ?? null;
+    const cabecalhoCron = req.headers.get("x-cron-secret");
+
+    // `SEGREDO_CRON &&` não é redundante: sem ele, um segredo ausente no banco
+    // (null) casaria com um cabeçalho ausente na requisição (null) e a função
+    // ficaria aberta. É a comparação que transforma "não configurado" em
+    // "liberado" — e o tipo de erro que ninguém enxerga lendo o código rápido.
+    let autorizado = !!(SEGREDO_CRON && cabecalhoCron === SEGREDO_CRON);
+
+    if (!autorizado) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) return naoAutorizado();
+
+      const userClient = createClient(SUPABASE_URL, PUBLISHABLE, { global: { headers: { Authorization: authHeader } } });
+      const { data: userRes } = await userClient.auth.getUser();
+      if (!userRes?.user) return naoAutorizado();
+
+      const { data: isAdmin } = await admin.rpc("has_role", { _user_id: userRes.user.id, _role: "admin" });
+      if (!isAdmin) return new Response(JSON.stringify({ error: "admin only" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      autorizado = true;
+    }
 
     // Mapa slug -> id
     //

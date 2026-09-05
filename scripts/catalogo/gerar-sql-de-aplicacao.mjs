@@ -58,57 +58,41 @@ export const PENDENTES = [
   // senão o arquivo pede para reaplicar o que já está no banco e a palavra
   // deixa de servir. Todas continuam em supabase/migrations/ para quem
   // reconstruir o banco do zero.
-  "20260904120000_fontes_da_ia_na_diretriz_2025.sql",
+  "20260905030000_semear_base_da_ia_sem_clique.sql",
 ];
 
 const CABECALHO = `-- ===========================================================================
--- VALVEPATH — aplicação manual, ${new Date().toISOString().slice(0, 10)}
--- As fontes que a IA clínica cita
+-- VALVEPATH — aplicação, ${new Date().toISOString().slice(0, 10)}
+-- Semear a base da IA deixa de depender de um clique
 -- ===========================================================================
 --
--- Cole ESTE ARQUIVO INTEIRO no SQL Editor do painel do Supabase e execute.
+-- Este arquivo é executado pelo workflow "Banco de dados" (Actions), com o
+-- token que já está no cofre do GitHub. Não é mais preciso colar nada no
+-- painel do Supabase.
 --
--- É SEGURO RODAR DUAS VEZES: um INSERT com ON CONFLICT e dois UPDATE
--- idempotentes. Nenhum dado de paciente é tocado.
---
--- DEPOIS DE RODAR: abra /app/admin/fhir (Base de conhecimento) e clique em
--- popular a base. Sem a linha de 2025 que este SQL cria, a função de seed pula
--- os sete trechos novos.
+-- É SEGURO RODAR DUAS VEZES: o segredo só é criado se não existir, e o próprio
+-- seed pula trecho que já está na base.
 --
 -- O QUE ELE FAZ
 --
--- 1) CADASTRA A ESC/EACTS 2025 COMO FONTE
+-- Sete trechos da ESC/EACTS 2025 estão no código e não estão na base que a IA
+-- consulta. Entrariam com um clique em Administração → Base da IA e FHIR — e é
+-- esse clique que sai de cena.
 --
--- O motor de conduta passou para a diretriz de 2025 em 02/09. A base de trechos
--- que a IA consulta — que o próprio prompt chama de "a camada de maior peso para
--- conduta" — continuou em 2021. Na mesma tela do caso, o painel dizia
--- "ESC/EACTS 2025" e a IA respondia pela edição anterior, com TAVI a partir de
--- 75 anos (hoje 70) e estenose muito grave a Vmax 5,5 m/s (hoje 5,0).
+-- O banco passa a chamar a função \`knowledge-seed\` sozinho, por \`pg_net\`, com
+-- um segredo lido de \`internal_secrets\` — o mesmo mecanismo que o backup
+-- semanal e o resumo administrativo já usam. A função aceita esse segredo sem
+-- perder o caminho do administrador logado.
 --
--- Quem achou foi o senhor: "a parte médica ainda está desatualizada com a
--- diretriz antiga". Estava, em cinco camadas — esta é a que mora no banco.
+-- A tarefa se desagenda depois de rodar: é uma vez só, não um agendamento
+-- esquecido no banco.
 --
--- 2) CORRIGE UMA CITAÇÃO QUE NINGUÉM PODIA CONFERIR
+-- O QUE CONFERIR
 --
--- A fonte brasileira estava cadastrada como "SBC 2024", com a citação
--- \`Arq Bras Cardiol. 2024;122(5):e20240001\` — volume, fascículo e identificador
--- de artigo, tudo com aparência de conferido. Procurando essa edição para
--- citá-la direito, duas buscas (uma restrita ao site do próprio periódico)
--- encontram a linhagem 2011 → 2017 → 2020 e NENHUMA de 2024.
---
--- Busca não prova ausência, e o senhor resolve isto num segundo. Mas número de
--- fascículo inventado é exatamente o defeito que o \`npm run pmids\` existe para
--- impedir, e ele estava na tabela que alimenta as respostas da IA. Fica a edição
--- apontável: Arq Bras Cardiol. 2020;115(4):720-775.
---
--- SE EXISTIR MESMO UMA EDIÇÃO DE 2024, me diga e eu devolvo o rótulo — com a
--- citação real, não com a que estava lá.
---
--- 3) MARCA A ESC/EACTS 2021 COMO SUPERADA, SEM APAGÁ-LA
---
--- Decisão sua: manter 2021 onde 2025 não trouxe novidade. Diretriz antiga não é
--- informação falsa; apresentá-la como vigente é. A descrição passa a dizer isso,
--- porque é o texto que acompanha o trecho recuperado na resposta.
+-- O SELECT do fim roda ANTES de o seed terminar, então ele prova o que dá para
+-- provar agora: segredo criado, URL base presente, tarefa na fila. A prova de
+-- que os trechos entraram é a contagem de \`knowledge_chunks\` alguns minutos
+-- depois — ou a faixa verde na tela de administração.
 `;
 
 const RODAPE = `
@@ -121,26 +105,23 @@ COMMIT;
 -- "Success. No rows returned" não é prova de nada. O SELECT abaixo é.
 --
 -- Esperado:
---   fonte_2025_cadastrada ........ 1  ← sem isto o seed pula os sete trechos novos
---   sbc_com_edicao_apontavel ..... 1  ← ano 2020 e a citação com páginas reais
---   sbc_citacao_inventada ........ 0  ← a de 2024 com fascículo que não se acha
---   esc2021_marcada_superada ..... 1  ← fica na base, sem passar por vigente
+--   segredo_criado ....... 1  ← sem ele o banco não consegue chamar a função
+--   url_base_existe ...... 1  ← sem ela a chamada não tem para onde ir
+--   seed_agendado ........ 1  ← a tarefa entrou na fila
+--   trechos_agora ........ 11 ← ainda os antigos; o seed roda no minuto seguinte
 --
--- Qualquer coluna fora disso significa que aquela parte NÃO foi aplicada.
+-- \`trechos_agora\` é o número ANTES do seed. A prova de que os sete novos
+-- entraram vem depois: 18 nesta mesma contagem, ou a faixa verde na tela de
+-- administração. Rodar isto e ver 11 não é falha — é o retrato do instante.
 
 SELECT
-  (SELECT count(*) FROM public.knowledge_sources
-    WHERE slug = 'esc-eacts-2025-vhd' AND year = 2025)                 AS fonte_2025_cadastrada,
-  (SELECT count(*) FROM public.knowledge_sources
-    WHERE slug = 'sbc-valvopatias-2024'
-      AND year = 2020
-      AND citation LIKE '%115(4):720-775%')                            AS sbc_com_edicao_apontavel,
-  -- Contraprova: a citação inventada não pode ter sobrado em lugar nenhum.
-  (SELECT count(*) FROM public.knowledge_sources
-    WHERE citation LIKE '%2024;122(5)%')                               AS sbc_citacao_inventada,
-  (SELECT count(*) FROM public.knowledge_sources
-    WHERE slug = 'esc-eacts-2021-vhd'
-      AND description ILIKE '%SUPERADA%')                              AS esc2021_marcada_superada;
+  (SELECT count(*) FROM public.internal_secrets
+    WHERE key = 'seed_cron_secret')              AS segredo_criado,
+  (SELECT count(*) FROM public.internal_secrets
+    WHERE key = 'functions_base_url')            AS url_base_existe,
+  (SELECT count(*) FROM cron.job
+    WHERE jobname = 'valvepath-seed-unico')      AS seed_agendado,
+  (SELECT count(*) FROM public.knowledge_chunks) AS trechos_agora;
 `;
 
 // O corpo abaixo só roda quando o script é EXECUTADO. Importado — que é como o
