@@ -33,9 +33,17 @@
 --                                 "o seed não precisou inserir nada" e "o seed
 --                                 nunca aconteceu", que o total sozinho não
 --                                 distingue.
+--   esc_2025_entraram_em ...    ← quando os trechos da 2025 foram gravados. É a
+--                                 evidência que não depende de nada ter sido
+--                                 preservado: o carimbo está na própria linha.
 --   ultima_execucao ........    ← o que o pg_cron registrou da última rodada da
---                                 tarefa: quando e com que status. `null` é
---                                 tarefa que nunca disparou.
+--                                 tarefa. Filtrado pelo COMANDO, não por junção
+--                                 com `cron.job`: a tarefa se apaga de lá ao se
+--                                 desagendar, e a primeira versão desta consulta
+--                                 devolveu tudo nulo por isso — o que se leria
+--                                 como "nunca rodou" quando o certo era "rodou e
+--                                 saiu da fila". Junção com tabela que o próprio
+--                                 sucesso esvazia não serve de prova.
 --   por_fonte ..............    ← distingue "a base tem N trechos" de "a base
 --                                 tem N trechos DAS FONTES CERTAS".
 
@@ -49,12 +57,20 @@ select
   (select count(*) from cron.job
      where jobname = 'valvepath-seed-unico')            as seed_ainda_agendado,
   (select jsonb_build_object(
-            'quando', max(d.start_time),
-            'status', (array_agg(d.status order by d.start_time desc))[1],
-            'retorno', (array_agg(d.return_message order by d.start_time desc))[1])
-     from cron.job_run_details d
-     join cron.job j on j.jobid = d.jobid
-     where j.jobname = 'valvepath-seed-unico')          as ultima_execucao,
+            'primeiro', min(c.created_at), 'ultimo', max(c.created_at))
+     from public.knowledge_chunks c
+     join public.knowledge_sources s on s.id = c.source_id
+     where s.slug = 'esc-eacts-2025-vhd')               as esc_2025_entraram_em,
+  (select jsonb_agg(jsonb_build_object(
+            'quando', d.start_time, 'status', d.status, 'retorno', d.return_message)
+            order by d.start_time desc)
+     from (
+       select start_time, status, return_message
+       from cron.job_run_details
+       where command like '%knowledge-seed%'
+       order by start_time desc
+       limit 5
+     ) d)                                               as ultima_execucao,
   -- `review_status` é coluna; `awaiting_medical_review` mora dentro de
   -- `metadata` (o seed grava os dois). Conferi o `insert` da função antes de
   -- escrever isto — a primeira versão tratava a segunda como coluna e teria
