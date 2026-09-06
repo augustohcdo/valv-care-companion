@@ -137,6 +137,42 @@ pagina.on("requestfailed", (r) => {
   if (!IGNORAR.test(r.url())) erros.push(`${r.failure()?.errorText} ${r.url()}`);
 });
 
+/**
+ * Abre uma página, e trata "não alcancei o site" como NÃO CONFERIDO.
+ *
+ * O cabeçalho deste arquivo já avisa que, de dentro do contêiner do agente, o
+ * Chromium recebe `ERR_CONNECTION_RESET` até no HTML de produção. Mas o aviso
+ * estava só no comentário: o `goto` estourava com exceção não tratada, e a
+ * saída era um rastro de pilha do Node encimado por "net::ERR_CONNECTION_RESET".
+ *
+ * Quem lê aquilo conclui a coisa errada — parece a página quebrada, quando é o
+ * egresso do ambiente. É a mesma confusão que os códigos de saída deste projeto
+ * existem para desfazer: 1 é "está errado", 2 é "não deu para olhar". Um erro de
+ * navegação é o segundo caso, e agora sai assim.
+ *
+ * Erro DEPOIS de a página abrir continua subindo: aí é defeito de verdade.
+ */
+async function irPara(caminho) {
+  const url = `${BASE}${caminho}`;
+  try {
+    await pagina.goto(url, { waitUntil: "domcontentloaded" });
+  } catch (e) {
+    const motivo = String(e?.message ?? e).split("\n")[0];
+    console.error(
+      `\nNÃO CONFERIDO — não foi possível abrir ${url}\n` +
+      `  ${motivo}\n\n` +
+      "Isto NÃO diz que a ferramenta está errada: diz que o navegador não\n" +
+      "chegou até ela. De dentro do contêiner do agente é o esperado — o\n" +
+      "egresso não alcança o site publicado. Rode de uma máquina com internet,\n" +
+      "ou contra o preview local:\n\n" +
+      "  npm run build && npx vite preview --port 4173 --host 127.0.0.1\n" +
+      "  node scripts/ferramentas-verificar.mjs http://127.0.0.1:4173\n",
+    );
+    await navegador.close();
+    process.exit(2);
+  }
+}
+
 /** Preenche um campo pelo rótulo visível. */
 async function preencher(rotulo, valor) {
   const campo = pagina.getByLabel(rotulo, { exact: false }).first();
@@ -148,7 +184,7 @@ async function preencher(rotulo, valor) {
 // 1. EuroSCORE II
 // ===========================================================================
 console.log("\n=== EuroSCORE II ===");
-await pagina.goto(`${BASE}/ferramentas/euroscore-ii`, { waitUntil: "domcontentloaded" });
+await irPara("/ferramentas/euroscore-ii");
 
 const IDADE = 72, FEMININO = true;
 await preencher("Idade (anos)", IDADE);
@@ -175,7 +211,7 @@ conferir(
 // 2. Gradiente e mismatch
 // ===========================================================================
 console.log("\n=== Gradiente e mismatch ===");
-await pagina.goto(`${BASE}/ferramentas/mismatch`, { waitUntil: "domcontentloaded" });
+await irPara("/ferramentas/mismatch");
 
 const ALTURA = 165, PESO = 62;
 await preencher("Altura (cm)", ALTURA);

@@ -52,14 +52,49 @@ const SAIDA = "scripts/catalogo/aplicar-no-supabase.sql";
  * metade. Quem entra aqui é escolhido a dedo e conferido como idempotente.
  */
 export const PENDENTES = [
-  // Tudo o que veio antes SAIU desta lista assim que o usuário colou e
-  // confirmou — as seis do catálogo e da diretriz 2025 em 03/09, as duas do
-  // encerramento e do mercado em 04/09. "Pendente" tem de significar pendente,
-  // senão o arquivo pede para reaplicar o que já está no banco e a palavra
-  // deixa de servir. Todas continuam em supabase/migrations/ para quem
-  // reconstruir o banco do zero.
-  "20260905030000_semear_base_da_ia_sem_clique.sql",
+  // VAZIA, e isso é o estado correto.
+  //
+  // Tudo o que veio antes saiu desta lista assim que foi aplicado — as seis do
+  // catálogo e da diretriz 2025 em 03/09, as duas do encerramento e do mercado
+  // em 04/09, e a do seed sem clique em 05/09, esta última pelo workflow
+  // "Banco de dados" (a saída trouxe `segredo_criado: 1, seed_agendado: 1`).
+  //
+  // "Pendente" tem de significar pendente. Enquanto a do seed continuou aqui
+  // depois de aplicada, o arquivo gerado pedia para reaplicá-la — inofensivo,
+  // porque é idempotente, mas a palavra tinha deixado de servir. É o mesmo
+  // defeito que esta lista já teve em 03/09.
+  //
+  // Todas continuam em supabase/migrations/ para quem reconstruir o banco.
 ];
+
+/**
+ * Quando não há migration pendente, o arquivo não pode continuar descrevendo a
+ * última rodada — era o que aconteceria: cabeçalho e rodapé falavam do seed, e
+ * um arquivo vazio de DDL com aquele texto anunciaria trabalho que não existe.
+ *
+ * O `select` no fim não é enfeite: o workflow "Banco de dados" pode ser
+ * disparado com este arquivo a qualquer momento, e um `.sql` sem comando
+ * nenhum faz a API de gestão devolver erro. Melhor devolver a frase.
+ */
+const NADA_PENDENTE = `-- ===========================================================================
+-- VALVEPATH — nada pendente, ${new Date().toISOString().slice(0, 10)}
+-- ===========================================================================
+--
+-- Este arquivo é gerado a partir de \`PENDENTES\`, em
+-- scripts/catalogo/gerar-sql-de-aplicacao.mjs. A lista está VAZIA: toda
+-- migration do repositório já foi aplicada em produção.
+--
+-- Não é um arquivo para rodar — é o registro de que não há o que rodar. Se
+-- alguém o executar pelo workflow "Banco de dados", a resposta abaixo diz
+-- exatamente isso, em vez de um erro de SQL vazio.
+--
+-- Quando entrar migration nova: acrescente o nome em \`PENDENTES\`, rode
+-- \`node scripts/catalogo/gerar-sql-de-aplicacao.mjs\` e commite o resultado.
+-- A CI reprova se este arquivo divergir da lista.
+
+select 'nada pendente' as situacao,
+       'toda migration do repositorio ja foi aplicada' as observacao;
+`;
 
 const CABECALHO = `-- ===========================================================================
 -- VALVEPATH — aplicação, ${new Date().toISOString().slice(0, 10)}
@@ -128,30 +163,49 @@ SELECT
 // `conferir-publicacao.mjs` pega a lista — ele não pode escrever arquivo nenhum.
 const executando = process.argv[1]?.endsWith("gerar-sql-de-aplicacao.mjs");
 
-const partes = [CABECALHO];
-for (const nome of PENDENTES) {
-  const caminho = join(DIR, nome);
-  if (!existsSync(caminho)) {
-    console.error(`Migration não encontrada: ${caminho}. Nada foi gerado.`);
-    process.exit(1);
+let conteudo;
+if (PENDENTES.length === 0) {
+  conteudo = NADA_PENDENTE;
+} else {
+  const partes = [CABECALHO];
+  for (const nome of PENDENTES) {
+    const caminho = join(DIR, nome);
+    if (!existsSync(caminho)) {
+      console.error(`Migration não encontrada: ${caminho}. Nada foi gerado.`);
+      process.exit(1);
+    }
+    partes.push(
+      `\n-- ---------------------------------------------------------------------------\n` +
+      `-- ${nome}\n` +
+      `-- ---------------------------------------------------------------------------\n\n` +
+      readFileSync(caminho, "utf8").trimEnd() + "\n",
+    );
   }
-  partes.push(
-    `\n-- ---------------------------------------------------------------------------\n` +
-    `-- ${nome}\n` +
-    `-- ---------------------------------------------------------------------------\n\n` +
-    readFileSync(caminho, "utf8").trimEnd() + "\n",
-  );
+  partes.push(RODAPE);
+  conteudo = partes.join("");
 }
-partes.push(RODAPE);
-const conteudo = partes.join("");
+
+/**
+ * O corpo, sem a linha de data — ela muda todo dia e não diz nada sobre as
+ * migrations.
+ *
+ * A versão anterior recortava a partir de `BEGIN;`. Quando a lista esvaziou,
+ * `BEGIN;` deixou de existir no arquivo, `indexOf` devolveu −1 e `slice(-1)`
+ * passou a comparar **o último caractere** dos dois lados — que é `\n` em
+ * ambos. A guarda continuaria verde com qualquer conteúdo no arquivo.
+ *
+ * Guarda cuja âncora some junto com o conteúdo que ela deveria vigiar para de
+ * vigiar em silêncio, e no melhor momento para não se notar: quando não há mais
+ * nada pendente. Agora o recorte é por remoção da linha de data, que não
+ * depende de o arquivo ter DDL.
+ */
+const corpo = (t) => t.split("\n").filter((l) => !/^-- VALVEPATH — .*\d{4}-\d{2}-\d{2}$/.test(l)).join("\n");
 
 if (executando && process.argv.includes("--conferir")) {
-  // Modo usado pela guarda: o arquivo colado tem de refletir as migrations. Se
-  // alguém editar uma migration e esquecer de regerar, o SQL entregue ao usuário
-  // passa a descrever um estado que o repositório não tem mais.
+  // Modo usado pela guarda: o arquivo entregue tem de refletir as migrations. Se
+  // alguém editar uma migration e esquecer de regerar, o SQL passa a descrever
+  // um estado que o repositório não tem mais.
   const atual = existsSync(SAIDA) ? readFileSync(SAIDA, "utf8") : "";
-  // A data do cabeçalho muda todo dia; comparar o corpo é o que importa.
-  const corpo = (t) => t.slice(t.indexOf("BEGIN;"));
   if (corpo(atual) !== corpo(conteudo)) {
     console.error(
       `${SAIDA} está desatualizado em relação às migrations.\n` +
