@@ -78,35 +78,29 @@ const Referencias = () => {
         </Card>
 
         {/*
-          Quem responde pelo site, e o que ISSO significa.
+          O estado de revisão do conteúdo — sem nome de pessoa.
 
-          O pedido foi "coloque meu nome como avaliador e gestor". Gestor é
-          verdade e vai aqui. Avaliador, no vocabulário desta base, é o selo de
-          REVISÃO MÉDICA — e ele exige CRM, que ele não tem. Um site que orienta
-          conduta valvar dizendo "revisado" sem médico por trás é a pior versão
-          do defeito que este projeto persegue, porque o leitor confia no selo
-          justamente quando não tem como conferir.
+          A primeira versão deste bloco creditava o responsável pelo site pelo
+          nome. O pedido do usuário foi tirar: o nome dele aparece só onde a lei
+          exige, nas páginas legais, e não numa página de conteúdo.
 
-          Então o bloco diz as duas coisas na mesma tela: quem cuida do site, e
-          que o conteúdo clínico ainda não passou por revisão médica. A segunda
-          frase protege quem lê e protege quem assina.
+          A frase sobre revisão médica FICA, e não depende de nome nenhum. Ela
+          está aqui porque é aqui que alguém procura procedência, e porque o
+          silêncio nesse ponto é lido como "revisado" — o mesmo engano do selo,
+          por omissão. Enquanto nenhum médico com CRM tiver revisado, a página
+          diz isso.
         */}
         <Card className="p-6 mt-6 border-l-4 border-l-accent">
           <h2 className="font-display font-semibold text-lg text-foreground mb-2">
-            Responsável pelo site
+            Estado da revisão do conteúdo
           </h2>
           <p className="text-sm text-foreground/85 leading-relaxed">
-            <strong>Augusto Henrique</strong> — criação, curadoria e gestão do ValvePath.
-            Responde pela seleção das fontes, pela organização do conteúdo e pela manutenção
-            da plataforma.
-          </p>
-          <p className="text-sm text-foreground/85 leading-relaxed mt-3">
-            <strong>Revisão médica:</strong> o conteúdo clínico é organizado a partir das
-            diretrizes citadas acima e <strong>ainda não passou por revisão de médico
-            registrado no CRM</strong>. Onde a plataforma usa material gerado por IA — como
-            os trechos que alimentam as respostas do assistente clínico — isso vem sinalizado
-            como preliminar na própria resposta. Nenhum conteúdo aqui substitui avaliação
-            médica, decisão do Heart Team ou conduta individualizada.
+            O conteúdo clínico do ValvePath é organizado a partir das diretrizes citadas
+            acima e <strong>ainda não passou por revisão de médico registrado no CRM</strong>.
+            Onde a plataforma usa material gerado por IA — como os trechos que alimentam as
+            respostas do assistente clínico — isso vem sinalizado como preliminar na própria
+            resposta. Nenhum conteúdo aqui substitui avaliação médica, decisão do Heart Team
+            ou conduta individualizada.
           </p>
         </Card>
       </section>

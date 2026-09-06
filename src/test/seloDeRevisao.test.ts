@@ -159,11 +159,44 @@ describe("o selo de revisão médica exige um médico", () => {
     // alguém procura procedência. Sem esta frase, o silêncio é lido como
     // "revisado" — que é o mesmo engano do selo, só que por omissão.
     const pagina = readFileSync("src/pages/public/Referencias.tsx", "utf8");
-    expect(pagina, "sumiu o bloco de responsável pelo site").toMatch(/Responsável pelo site/);
+    expect(pagina, "sumiu o bloco de estado da revisão").toMatch(/Estado da revisão do conteúdo/);
     expect(
       pagina,
       "a página não diz mais que o conteúdo não passou por revisão de médico com CRM",
     ).toMatch(/não passou por revisão de médico[\s\S]{0,40}CRM/);
+  });
+
+  it("nenhuma página de CONTEÚDO credita uma pessoa pelo nome", () => {
+    // O usuário pediu que o nome dele apareça só onde a lei exige — nas páginas
+    // legais —, e não nas de conteúdo. Sem esta guarda, o crédito volta na
+    // próxima vez que alguém quiser assinar o trabalho, e volta justamente na
+    // página que o leitor consulta para julgar procedência.
+    //
+    // A regra é sobre as páginas de conteúdo. `Termos`, `Privacidade`, `DPO` e
+    // `Cookies` ficam de fora de propósito: identificar controlador e
+    // encarregado é exigência do Art. 41 da LGPD, não vaidade.
+    const CONTEUDO = [
+      "src/pages/public/Referencias.tsx",
+      "src/pages/public/AvisoMedico.tsx",
+      "src/pages/public/Medicos.tsx",
+    ].filter((p) => existsSync(p));
+    expect(CONTEUDO.length, "a lista de páginas de conteúdo esvaziou").toBeGreaterThan(0);
+
+    for (const caminho of CONTEUDO) {
+      const texto = readFileSync(caminho, "utf8");
+      // Só o que é RENDERIZADO: o comentário acima explica a regra e citaria a
+      // si mesmo. Comentários de bloco e de linha fora antes de olhar.
+      const visivel = texto
+        .replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n")
+        .filter((l) => !/^\s*\/\//.test(l))
+        .join("\n");
+      expect(
+        visivel,
+        `${caminho} credita uma pessoa pelo nome numa página de conteúdo`,
+      ).not.toMatch(/Augusto\s+Henrique/i);
+    }
   });
 
   it("a tela de administração só mostra o selo com CRM ao lado do nome", () => {
