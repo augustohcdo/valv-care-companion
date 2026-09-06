@@ -1,0 +1,163 @@
+{
+  "_o_que_e": "O rastro da segunda varredura de mercado brasileiro, em 06/09/2026. As 19 famílias que a primeira rodada deixou com `mercado_br` nulo — nulo quer dizer 'ninguém procurou'. Depois desta rodada, procurou-se; o que não mudou foi o resultado.",
+
+  "_por_que_um_arquivo_e_nao_um_update_no_banco": [
+    "Duas razões, e a segunda é a que pesa.",
+    "1) Nenhuma das 19 fechou com fonte que eu tenha CONSEGUIDO ABRIR. Gravar `confirmado` com registro ANVISA que veio de resumo de busca é exatamente o que produziu a citação `Arq Bras Cardiol. 2024;122(5):e20240001`, inventada, que esta sessão teve de arrancar da base.",
+    "2) Gravar `nao_confirmado` também não serve. Fui ver como a tela mostra esse valor antes de escrever, e encontrei em `CatalogoProteses.tsx` que os campos de mercado NÃO chegam à camada de tela de propósito: `nao_confirmado` significava 'não achei página brasileira' e a tela mostrava isso ao cardiologista como dúvida sobre próteses que ele implanta toda semana. Ausência de evidência virando evidência de ausência, publicada. O campo continua no banco e para antes da tela.",
+    "Então o que esta rodada produz de útil é ISTO: o registro de onde já se procurou, para a próxima tentativa não repetir o mesmo caminho morto."
+  ],
+
+  "_o_padrao_de_prova": "As 21 famílias confirmadas na primeira rodada saíram de página de distribuidor ou fabricante NO BRASIL, aberta e lida, com registro ANVISA quando a página o traz. Intermedical para Edwards, Medicicor para Medtronic, Abbott Brasil, e os sites próprios de Braile, Labcor e Cardioprótese.",
+
+  "_barreira_encontrada": {
+    "o_que": "Os alertas de Tecnovigilância da ANVISA respondem HTTP 403 a este ambiente (host antigo.anvisa.gov.br).",
+    "por_que_nao_forcei": "É proteção contra acesso automatizado, e contorná-la não está entre as coisas que este projeto faz. A consequência é honesta e fica registrada: duas das 19 têm evidência forte de presença no Brasil que eu NÃO consegui abrir, e por isso não entraram no banco.",
+    "quem_tiver_navegador": "Um humano abre esses dois links em segundos e a dúvida acaba."
+  },
+
+  "familias": [
+    {
+      "familia": "Corcym|Perceval Plus",
+      "onde_procurei": ["busca geral", "corcym.com", "busca restrita a domínios .br/.gov.br"],
+      "achado": "Alerta de Tecnovigilância da ANVISA (2026) cita a válvula Perceval S com registro 80483300010, classe IV, modelos PVS21/23/25/27, notificante LivaNova Canada Corp. Presença no Brasil seria comprovada por esse documento.",
+      "por_que_nao_gravei": "A página do alerta devolve 403. Não abri a fonte, então não gravo o registro. E o alerta é da Perceval S; a nossa linha é Perceval Plus — mesmo com a fonte aberta, faltaria confirmar se o registro cobre as duas.",
+      "link_para_um_humano_abrir": "http://antigo.anvisa.gov.br/alertas?tagsName=alcard",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Abbott|St. Jude Masters HP",
+      "onde_procurei": ["cardiovascular.abbott", "abbottbrasil.com.br", "busca restrita a gov.br"],
+      "achado": "Existe alerta da ANVISA sobre erro de rotulagem da válvula mecânica SJM Masters Series, notificado por ST. JUDE MEDICAL BRASIL LTDA — a existência da subsidiária brasileira distribuindo essa linha é o que o alerta demonstra.",
+      "por_que_nao_gravei": "Mesma barreira: 403 na página do alerta. E alerta de rotulagem antigo não prova que a linha continua comercializada hoje.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Edwards|Intuity Elite",
+      "onde_procurei": ["intermedicalbr.com/cirurgia-cardiaca (o distribuidor que confirmou as outras 6 Edwards)"],
+      "achado": "A página lista 6 produtos Edwards: Inspiris Resilia, Konect Resilia, Mitris Resilia, Perimount Magna Ease, Physio Flex e Physio II. Intuity Elite não está entre eles.",
+      "por_que_nao_gravei": "Ausência de UM distribuidor não é ausência do país. Edwards pode ter outro canal.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Edwards|Cosgrove-Edwards Band (4600)",
+      "onde_procurei": ["intermedicalbr.com/cirurgia-cardiaca"],
+      "achado": "Não consta da página do distribuidor.",
+      "por_que_nao_gravei": "Mesma razão da Intuity Elite.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Edwards|MC3 Tricuspid (4900)",
+      "onde_procurei": ["intermedicalbr.com/cirurgia-cardiaca"],
+      "achado": "Não consta da página do distribuidor.",
+      "por_que_nao_gravei": "Mesma razão da Intuity Elite.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Medtronic|Avalus Ultra",
+      "onde_procurei": ["medicicor.com.br, busca do próprio site"],
+      "achado": "0 produtos. O método foi validado antes de concluir: 'hancock' e 'mosaic' — que estão no catálogo confirmado — devolvem 11 produtos cada na mesma busca.",
+      "por_que_nao_gravei": "Distribuidor único não fecha o país. E a Avalus (sem 'Ultra') ESTÁ confirmada por essa mesma fonte, o que sugere lançamento ainda não distribuído aqui — sugestão, não prova.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Medtronic|Freestyle",
+      "onde_procurei": ["medicicor.com.br, busca do próprio site"],
+      "achado": "0 produtos, com o mesmo controle validado.",
+      "por_que_nao_gravei": "Ver acima.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Medtronic|Profile 3D",
+      "onde_procurei": ["medicicor.com.br, busca do próprio site"],
+      "achado": "0 produtos. O Contour 3D, anel da mesma família de produtos, ESTÁ confirmado pela mesma fonte.",
+      "por_que_nao_gravei": "Ver acima.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Medtronic|CG Future",
+      "onde_procurei": ["medicicor.com.br, busca do próprio site"],
+      "achado": "0 produtos, com o mesmo controle validado.",
+      "por_que_nao_gravei": "Ver acima.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Abbott|Epic Plus",
+      "onde_procurei": ["cardiovascular.abbott", "abbottbrasil.com.br"],
+      "achado": "Só páginas internacionais. A Epic Max está confirmada por press release da Abbott Brasil; Epic Plus e Epic Plus Supra não têm equivalente brasileiro localizável.",
+      "por_que_nao_gravei": "Sem página brasileira aberta.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Abbott|Epic Plus Supra",
+      "onde_procurei": ["cardiovascular.abbott", "abbottbrasil.com.br"],
+      "achado": "Idem Epic Plus.",
+      "por_que_nao_gravei": "Sem página brasileira aberta.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Abbott|St. Jude Regent",
+      "onde_procurei": ["cardiovascular.abbott", "abbottbrasil.com.br"],
+      "achado": "Só página internacional.",
+      "por_que_nao_gravei": "Sem página brasileira aberta.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Corcym|Crown PRT",
+      "onde_procurei": ["corcym.com", "busca por distribuidor brasileiro"],
+      "achado": "A Corcym não tem site brasileiro nem distribuidor localizável por busca. Nenhuma das 5 famílias Corcym fechou.",
+      "por_que_nao_gravei": "Sem fonte brasileira.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Corcym|Solo Smart",
+      "onde_procurei": ["corcym.com", "busca por distribuidor brasileiro"],
+      "achado": "Idem Crown PRT.",
+      "por_que_nao_gravei": "Sem fonte brasileira.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Corcym|Memo 3D",
+      "onde_procurei": ["corcym.com", "busca por distribuidor brasileiro"],
+      "achado": "Idem Crown PRT.",
+      "por_que_nao_gravei": "Sem fonte brasileira.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Corcym|Memo 4D",
+      "onde_procurei": ["corcym.com", "busca por distribuidor brasileiro"],
+      "achado": "Idem Crown PRT.",
+      "por_que_nao_gravei": "Sem fonte brasileira.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Meril|Dafodil",
+      "onde_procurei": ["merillife.com", "busca por Cardiomédica, distribuidor brasileiro da Meril"],
+      "achado": "A Cardiomédica aparece como distribuidora Meril no Brasil e anuncia a Myval THV com registro ANVISA 10360810058 — mas a Myval é TRANSCATETER, e o catálogo do ValvePath é só cirúrgico. Nada encontrado sobre Dafodil ou Miltonia no Brasil.",
+      "por_que_nao_gravei": "O registro achado é de outro produto. Usá-lo aqui seria emprestar prova de uma coisa para outra.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Meril|Miltonia",
+      "onde_procurei": ["merillife.com", "busca por Cardiomédica"],
+      "achado": "Idem Dafodil.",
+      "por_que_nao_gravei": "Sem fonte brasileira da linha cirúrgica.",
+      "estado": "nulo (inalterado)"
+    },
+    {
+      "familia": "Meril|Miltonia AP",
+      "onde_procurei": ["merillife.com", "busca por Cardiomédica"],
+      "achado": "Idem Dafodil.",
+      "por_que_nao_gravei": "Sem fonte brasileira da linha cirúrgica.",
+      "estado": "nulo (inalterado)"
+    }
+  ],
+
+  "_resultado": "0 das 19 fecharam com fonte aberta. Nenhuma linha do banco mudou, e o número da tela continua 21 de 40 — que é o número honesto.",
+
+  "_o_que_destravaria": [
+    "Abrir os dois alertas da ANVISA num navegador comum: fecharia Perceval e, possivelmente, a linha SJM Masters.",
+    "Perguntar aos representantes comerciais de Corcym e Meril no Brasil — informação que um cardiologista consegue por telefone e nenhuma busca entrega.",
+    "O portal de consulta de produtos da ANVISA, que responde a humano e não a este ambiente."
+  ]
+}
