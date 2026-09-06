@@ -52,20 +52,64 @@ const SAIDA = "scripts/catalogo/aplicar-no-supabase.sql";
  * metade. Quem entra aqui é escolhido a dedo e conferido como idempotente.
  */
 export const PENDENTES = [
-  // VAZIA, e isso é o estado correto.
-  //
   // Tudo o que veio antes saiu desta lista assim que foi aplicado — as seis do
   // catálogo e da diretriz 2025 em 03/09, as duas do encerramento e do mercado
   // em 04/09, e a do seed sem clique em 05/09, esta última pelo workflow
   // "Banco de dados" (a saída trouxe `segredo_criado: 1, seed_agendado: 1`).
   //
-  // "Pendente" tem de significar pendente. Enquanto a do seed continuou aqui
-  // depois de aplicada, o arquivo gerado pedia para reaplicá-la — inofensivo,
+  // "Pendente" tem de significar pendente. A do seed ficou aqui depois de
+  // aplicada e o arquivo gerado passou a pedir que a reaplicassem — inofensivo,
   // porque é idempotente, mas a palavra tinha deixado de servir. É o mesmo
   // defeito que esta lista já teve em 03/09.
   //
   // Todas continuam em supabase/migrations/ para quem reconstruir o banco.
+  "20260906160000_sbc_2020_confirmada_com_doi.sql",
 ];
+
+/**
+ * O texto e a conferência DESTA rodada — ao lado da lista, de propósito.
+ *
+ * Estavam soltos, em duas constantes lá embaixo. Ao trocar `PENDENTES` por uma
+ * migration nova, o arquivo gerado saía com o cabeçalho da rodada ANTERIOR
+ * ("Semear a base da IA deixa de depender de um clique") e, pior, com o `SELECT`
+ * de conferência da anterior — que provaria a coisa errada e ainda pareceria
+ * prova. Aconteceu comigo nesta mesma sessão, uma vez já corrigida.
+ *
+ * Aqui os três andam juntos: quem mexe na lista tropeça no texto e na
+ * conferência na mesma tela. Não impede o esquecimento, mas encurta a distância
+ * entre o que muda e o que precisa mudar junto.
+ */
+const RODADA = {
+  titulo: "A diretriz brasileira: confirmada como 2020, com DOI e link do artigo",
+  resumo: `-- A linha da SBC em \`knowledge_sources\` tinha o ano certo e uma URL inútil:
+-- apontava para \`https://abccardiol.org/\`, a home do periódico. Link que não
+-- leva ao documento não serve de fonte — quem clicasse para conferir caía numa
+-- lista de artigos.
+--
+-- A confirmação que o usuário pediu foi feita: quatro buscas independentes
+-- (SciELO, PubMed, o domínio do próprio periódico e o portal de diretrizes da
+-- SBC) e NENHUMA diretriz de valvopatias posterior a 2020. O portal lista
+-- diretrizes de 2025 e 2026 de outros temas. Um artigo chamado "Nova diretriz
+-- de valvopatias da SBC", que parecia contradizer tudo, é de 2011.
+--
+-- O DOI foi resolvido, não copiado: 10.36660/abc.20201047 leva a Tarasoutchi et
+-- al., Arq Bras Cardiol 2020;115(4):720-775 — confere com o que já estava
+-- gravado.`,
+  conferencia: `-- Esperado:
+--   ano .................. 2020
+--   citacao_tem_doi ...... true   ← sem o DOI ninguém confere a citação
+--   url_leva_ao_artigo ... true   ← a home do periódico não é fonte
+--   trechos_da_sbc ....... 12     ← o slug não mudou, então nenhum trecho se perdeu
+
+SELECT
+  year                                             AS ano,
+  citation LIKE '%10.36660/abc.20201047%'          AS citacao_tem_doi,
+  url LIKE '%doi.org/10.36660%'                    AS url_leva_ao_artigo,
+  (SELECT count(*) FROM public.knowledge_chunks c
+    WHERE c.source_id = s.id)                      AS trechos_da_sbc
+FROM public.knowledge_sources s
+WHERE slug = 'sbc-valvopatias-2024';`,
+};
 
 /**
  * Quando não há migration pendente, o arquivo não pode continuar descrevendo a
@@ -98,65 +142,28 @@ select 'nada pendente' as situacao,
 
 const CABECALHO = `-- ===========================================================================
 -- VALVEPATH — aplicação, ${new Date().toISOString().slice(0, 10)}
--- Semear a base da IA deixa de depender de um clique
+-- ${RODADA.titulo}
 -- ===========================================================================
 --
 -- Este arquivo é executado pelo workflow "Banco de dados" (Actions), com o
--- token que já está no cofre do GitHub. Não é mais preciso colar nada no
--- painel do Supabase.
+-- token que já está no cofre do GitHub. Não é preciso colar nada no painel.
 --
--- É SEGURO RODAR DUAS VEZES: o segredo só é criado se não existir, e o próprio
--- seed pula trecho que já está na base.
+-- É SEGURO RODAR DUAS VEZES: toda migration que entra nesta lista é conferida
+-- como idempotente antes de entrar.
 --
 -- O QUE ELE FAZ
 --
--- Sete trechos da ESC/EACTS 2025 estão no código e não estão na base que a IA
--- consulta. Entrariam com um clique em Administração → Base da IA e FHIR — e é
--- esse clique que sai de cena.
---
--- O banco passa a chamar a função \`knowledge-seed\` sozinho, por \`pg_net\`, com
--- um segredo lido de \`internal_secrets\` — o mesmo mecanismo que o backup
--- semanal e o resumo administrativo já usam. A função aceita esse segredo sem
--- perder o caminho do administrador logado.
---
--- A tarefa se desagenda depois de rodar: é uma vez só, não um agendamento
--- esquecido no banco.
---
--- O QUE CONFERIR
---
--- O SELECT do fim roda ANTES de o seed terminar, então ele prova o que dá para
--- provar agora: segredo criado, URL base presente, tarefa na fila. A prova de
--- que os trechos entraram é a contagem de \`knowledge_chunks\` alguns minutos
--- depois — ou a faixa verde na tela de administração.
+${RODADA.resumo}
 `;
 
 const RODAPE = `
-COMMIT;
-
 -- ===========================================================================
 -- CONFERÊNCIA — o resultado abaixo é o que prova que deu certo
 -- ===========================================================================
 --
 -- "Success. No rows returned" não é prova de nada. O SELECT abaixo é.
 --
--- Esperado:
---   segredo_criado ....... 1  ← sem ele o banco não consegue chamar a função
---   url_base_existe ...... 1  ← sem ela a chamada não tem para onde ir
---   seed_agendado ........ 1  ← a tarefa entrou na fila
---   trechos_agora ........ 11 ← ainda os antigos; o seed roda no minuto seguinte
---
--- \`trechos_agora\` é o número ANTES do seed. A prova de que os sete novos
--- entraram vem depois: 18 nesta mesma contagem, ou a faixa verde na tela de
--- administração. Rodar isto e ver 11 não é falha — é o retrato do instante.
-
-SELECT
-  (SELECT count(*) FROM public.internal_secrets
-    WHERE key = 'seed_cron_secret')              AS segredo_criado,
-  (SELECT count(*) FROM public.internal_secrets
-    WHERE key = 'functions_base_url')            AS url_base_existe,
-  (SELECT count(*) FROM cron.job
-    WHERE jobname = 'valvepath-seed-unico')      AS seed_agendado,
-  (SELECT count(*) FROM public.knowledge_chunks) AS trechos_agora;
+${RODADA.conferencia}
 `;
 
 // O corpo abaixo só roda quando o script é EXECUTADO. Importado — que é como o
