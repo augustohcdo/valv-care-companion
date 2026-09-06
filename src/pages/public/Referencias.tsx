@@ -76,6 +76,39 @@ const Referencias = () => {
             <strong>Nota metodológica:</strong> ValvePath não reproduz textualmente recomendações específicas com classes ou níveis de evidência. O conteúdo apresentado é educacional, orientado por essas referências, e serve para apoiar a discussão clínica entre o profissional, o paciente e o Heart Team. Recomendações detalhadas devem ser consultadas diretamente nos documentos originais.
           </p>
         </Card>
+
+        {/*
+          Quem responde pelo site, e o que ISSO significa.
+
+          O pedido foi "coloque meu nome como avaliador e gestor". Gestor é
+          verdade e vai aqui. Avaliador, no vocabulário desta base, é o selo de
+          REVISÃO MÉDICA — e ele exige CRM, que ele não tem. Um site que orienta
+          conduta valvar dizendo "revisado" sem médico por trás é a pior versão
+          do defeito que este projeto persegue, porque o leitor confia no selo
+          justamente quando não tem como conferir.
+
+          Então o bloco diz as duas coisas na mesma tela: quem cuida do site, e
+          que o conteúdo clínico ainda não passou por revisão médica. A segunda
+          frase protege quem lê e protege quem assina.
+        */}
+        <Card className="p-6 mt-6 border-l-4 border-l-accent">
+          <h2 className="font-display font-semibold text-lg text-foreground mb-2">
+            Responsável pelo site
+          </h2>
+          <p className="text-sm text-foreground/85 leading-relaxed">
+            <strong>Augusto Henrique</strong> — criação, curadoria e gestão do ValvePath.
+            Responde pela seleção das fontes, pela organização do conteúdo e pela manutenção
+            da plataforma.
+          </p>
+          <p className="text-sm text-foreground/85 leading-relaxed mt-3">
+            <strong>Revisão médica:</strong> o conteúdo clínico é organizado a partir das
+            diretrizes citadas acima e <strong>ainda não passou por revisão de médico
+            registrado no CRM</strong>. Onde a plataforma usa material gerado por IA — como
+            os trechos que alimentam as respostas do assistente clínico — isso vem sinalizado
+            como preliminar na própria resposta. Nenhum conteúdo aqui substitui avaliação
+            médica, decisão do Heart Team ou conduta individualizada.
+          </p>
+        </Card>
       </section>
     </>
   );

@@ -215,8 +215,15 @@ export const clinicalLibrary: ClinicalGuideline[] = [
         // Esta seção inteira era intitulada "(ESC 2021 / ACC 2020)" e ficou
         // assim mesmo depois de eu declarar a biblioteca alinhada à 2025 — eu
         // havia corrigido os `keyPoints` e passado direto pelas `sections`.
-        // Quem achou foi o usuário, cardiologista, abrindo a tela. Daí a
-        // varredura de `src/test/diretrizVigente.test.ts`.
+        // Quem achou foi o usuário, abrindo a tela. Daí a varredura de
+        // `src/test/diretrizVigente.test.ts`.
+        //
+        // (Este comentário dizia "o usuário, cardiologista". Era suposição
+        // minha, e em 06/09 ele informou que não tem CRM. Atribuir profissão a
+        // alguém é afirmação sobre uma pessoa real — e num projeto clínico ela
+        // muda o peso do que se pode carimbar. Corrigido aqui; a migration
+        // 20260904120000 repete o erro e fica como está, porque migration
+        // aplicada não se reescreve.)
         heading: "Indicações de intervenção (ESC/EACTS 2025)",
         bullets: [
           "Classe I: EA grave sintomática (dispneia, angina, síncope).",
