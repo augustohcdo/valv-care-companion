@@ -49,6 +49,26 @@
  * redirecionou (com o destino à vista), ou quebrou. Só o primeiro é prova sobre
  * aquela tela.
  *
+ * ## O que NÃO deu certo: sessão sintética
+ *
+ * Tentei cobrir as rotas de `/app/` plantando uma sessão inventada no
+ * `localStorage`. O redirecionamento parava, e o relatório passou a dizer
+ * "60 de 61 renderizaram" — mas a inversão não reprovava: pus um `throw` no topo
+ * de `MedicoHome`, conferi que a quebra estava no bundle SERVIDO, e a rota levou
+ * ✓ assim mesmo.
+ *
+ * Medindo com a tela íntegra: `/app/medico` fica DEZ SEGUNDOS no spinner e nunca
+ * mostra "Área médica". O cliente do Supabase não consegue resolver a sessão
+ * inventada, `useAuth.loading` nunca vira falso, o `ProtectedRoute` segura o
+ * spinner, e a tela protegida não chega a montar. As 39 "renderizadas" eram 39
+ * spinners.
+ *
+ * O modo foi removido. Ele parava o redirecionamento sem entregar a tela — e um
+ * verde que vem de não ter olhado é pior que um vermelho.
+ *
+ * Cobrir as 39 exige sessão de verdade: um usuário no banco e um login pelo
+ * fluxo normal. Fica anotado como o que falta, e não disfarçado de feito.
+ *
  * ## A lista de rotas vem do `smoke.mjs`, não daqui
  *
  * Lista paralela envelhece em silêncio; já aconteceu neste projeto com a lista
@@ -85,6 +105,7 @@ async function carregarPlaywright() {
 
 const { chromium } = await carregarPlaywright();
 const BASE = (process.argv[2] || "http://127.0.0.1:4173").replace(/\/$/, "");
+
 
 /** Texto do error boundary global, em `src/main.tsx`. */
 const TEXTO_DO_BOUNDARY = "Não foi possível carregar o ValvePath";
@@ -158,12 +179,37 @@ for (const rota of rotas) {
     }
   }
 
-  // O React monta depois do `domcontentloaded`. Sem esta espera, `#root` estaria
-  // vazio em toda rota e o verificador reprovaria o app inteiro.
+  // ESPERAR A TELA, E NÃO O SPINNER.
+  //
+  // A versão anterior esperava 500 ms fixos e olhava. As telas de `/app/` são
+  // carregadas em chunk separado (`MedicoHome-*.js` e companhia), então em 500 ms
+  // o que estava na página era o fallback de Suspense — um spinner. `#root`
+  // tinha conteúdo, não havia error boundary, e a rota levava ✓.
+  //
+  // Descobri isso porque a inversão não reprovou: pus um `throw` no topo de
+  // `MedicoHome`, conferi que a quebra estava no bundle servido, e o
+  // verificador aprovou a rota assim mesmo. Ele estava medindo spinner.
+  //
+  // Agora espera o carregamento SAIR: sem elemento `.animate-spin` na página, ou
+  // até 8 s. O spinner é a marca visual do projeto para "carregando" — tanto o
+  // fallback de rota quanto o das telas usam a mesma classe.
   let conteudoDoRoot = 0;
   let temBoundary = false;
+  let aindaCarregando = false;
   if (!naoAbriu) {
-    await pagina.waitForTimeout(500);
+    const limite = Date.now() + 8000;
+    for (;;) {
+      const carregando = await pagina.evaluate(
+        () => !!document.querySelector(".animate-spin"),
+      );
+      const jaQuebrou = await pagina.evaluate(
+        (marcador) => document.body.innerText.includes(marcador),
+        TEXTO_DO_BOUNDARY,
+      );
+      if (!carregando || jaQuebrou) { aindaCarregando = carregando && !jaQuebrou; break; }
+      if (Date.now() > limite) { aindaCarregando = true; break; }
+      await pagina.waitForTimeout(250);
+    }
     conteudoDoRoot = await pagina.evaluate(
       () => document.getElementById("root")?.innerText?.trim().length ?? 0,
     );
@@ -185,6 +231,9 @@ for (const rota of rotas) {
   if (excecoes.length) motivos.push(`exceção: ${excecoes[0].slice(0, 120)}`);
   if (!naoAbriu && temBoundary) motivos.push("o error boundary global apareceu");
   if (!naoAbriu && conteudoDoRoot === 0) motivos.push("#root vazio — o app não montou nada");
+  // Oito segundos no spinner não é a tela: é o carregamento que não terminou.
+  // Contar isso como renderizada seria repetir o defeito que este bloco corrige.
+  if (aindaCarregando) motivos.push("ainda carregando depois de 8s — a tela não chegou a aparecer");
   if (recursos.length) motivos.push(`recurso não carregou: ${recursos[0].slice(0, 120)}`);
 
   conferidas++;

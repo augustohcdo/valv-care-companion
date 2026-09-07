@@ -256,24 +256,31 @@ São três estados, e o resumo traz os três. Hoje, sem sessão:
 0 quebraram
 ```
 
-As 22 são as públicas. As 39 continuam **sem prova** de que suas telas montam —
-o redirecionamento é o app funcionando, mas quem renderizou foi o login. Cobrir
-as 39 exige sessão autenticada, que este script ainda não faz.
+As 22 são as públicas. As 39 sem sessão continuam sem prova de que suas telas
+montam — o redirecionamento é o app funcionando, mas quem renderizou foi o login.
 
-A lista de rotas vem do `smoke.mjs`, que a deriva do `App.tsx` — lista paralela
-envelhece em silêncio, como já aconteceu aqui com a lista de tabelas do backup.
+#### O que ainda falta: sessão de verdade
 
-Códigos de saída: `0` todas renderizaram, `1` alguma quebrou, `2` **não foi
-possível conferir** (sem Playwright, ou nem a primeira rota abriu — o servidor
-não está de pé). O 2 é distinto do 1 de propósito: "não olhei" não é "está
-certo".
+Tentei cobrir as 39 plantando uma sessão **sintética** no `localStorage`. O
+redirecionamento parava e o relatório passou a dizer "60 de 61 renderizaram" —
+mas a inversão não reprovava: um `throw` no topo de `MedicoHome`, conferido no
+bundle servido, e a rota levava ✓ assim mesmo.
 
-Contra o preview local, que é onde ele roda:
+Medindo com a tela íntegra: `/app/medico` fica **dez segundos no spinner** e
+nunca mostra "Área médica". O cliente do Supabase não resolve a sessão
+inventada, `useAuth.loading` nunca vira falso, o `ProtectedRoute` segura o
+spinner, e a tela protegida não chega a montar. As 39 "renderizadas" eram 39
+spinners.
 
-```bash
-npm run build && npx vite preview --port 4173 --host 127.0.0.1
-npm run rotas:renderizam -- http://127.0.0.1:4173
-```
+O modo foi removido. Cobrir as 39 exige sessão real — um usuário no banco e um
+login pelo fluxo normal —, e isso fica anotado como o que falta em vez de
+disfarçado de feito.
+
+Do episódio sobrou uma melhoria que fica: o script **espera a tela, não o
+spinner**. Antes ele olhava 500 ms depois do `domcontentloaded`, e as telas de
+`/app/` são carregadas em chunk separado — o que ele media era o fallback de
+Suspense. Agora espera o `.animate-spin` sumir, com teto de 8 s, e reprova a
+rota que continuar carregando.
 
 ### Layout mobile
 
