@@ -322,7 +322,7 @@ export default function NovoCaso() {
     if (draftLoadedRef.current) return;
     draftLoadedRef.current = true;
     (async () => {
-      const { data: draft } = await supabase
+      const { data: draft, error: erroRascunho } = await supabase
         .from("clinical_cases")
         .select("*")
         .is("deleted_at", null)
@@ -331,6 +331,20 @@ export default function NovoCaso() {
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+
+      // A leitura descartava o erro, e o formulário abria em branco. O médico
+      // que tinha um rascunho salvo não era avisado: começava do zero achando
+      // que o sistema não guardou nada, e o rascunho antigo continuava lá,
+      // agora concorrendo com o novo. Perda de trabalho por silêncio.
+      if (erroRascunho) {
+        toast.error("Não foi possível procurar rascunhos salvos", {
+          description:
+            "Se você tinha um caso em andamento, ele NÃO foi perdido — apenas não pôde ser " +
+            "carregado agora. Recarregue a página antes de digitar tudo de novo.",
+        });
+        setDraftLoaded(true);
+        return;
+      }
 
       if (draft) {
         draftIdRef.current = draft.id;

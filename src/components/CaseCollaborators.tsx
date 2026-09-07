@@ -61,9 +61,13 @@ export const CaseCollaborators = ({ caseId, isOwner }: Props) => {
       if (error) throw error;
 
       const docIds = [...new Set((collabs ?? []).map((c) => c.doctor_id))];
-      const { data: docs } = docIds.length
+      // Falhando, os colaboradores apareciam sem CRM e sem especialidade — a
+      // lista de quem tem acesso ao caso ficava anônima.
+      const rDocs = docIds.length
         ? await supabase.from("doctors").select("id, user_id, crm, crm_uf, specialty").in("id", docIds)
-        : { data: [] as any[] };
+        : { data: [] as any[], error: null };
+      if (rDocs.error) throw rDocs.error;
+      const docs = rDocs.data;
 
       // O nome vem por RPC. A consulta anterior lia `profiles` direto e voltava
       // vazia para todo colega — as policies de `profiles` são `auth.uid() =
@@ -106,12 +110,26 @@ export const CaseCollaborators = ({ caseId, isOwner }: Props) => {
     }
     setSaving(true);
     // Buscar médico pelo CRM
-    const { data: doc } = await supabase
+    const { data: doc, error: erroBusca } = await supabase
       .from("doctors")
       .select("id, user_id")
       .eq("crm", crm.trim())
       .eq("crm_uf", crmUf)
       .maybeSingle();
+
+    // A leitura descartava o erro e caía no `if (!doc)`, que responde "Médico
+    // não encontrado — verifique o CRM e a UF". Numa falha de leitura essa
+    // frase é FALSA em dois níveis: o colega existe, e ainda joga a culpa na
+    // digitação de quem está convidando. A pessoa confere o CRM três vezes,
+    // liga para o colega para confirmar, e o problema nunca esteve ali.
+    if (erroBusca) {
+      setSaving(false);
+      toast.error("Não foi possível consultar o CRM agora", {
+        description:
+          "Isto não quer dizer que o médico não exista — a busca não chegou ao servidor. Tente de novo.",
+      });
+      return;
+    }
 
     if (!doc) {
       setSaving(false);

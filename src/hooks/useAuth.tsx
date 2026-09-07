@@ -16,6 +16,15 @@ interface AuthContextValue {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
+  /**
+   * `true` quando a leitura do perfil FALHOU — diferente de `profile: null`,
+   * que quer dizer "não existe perfil para este usuário".
+   *
+   * A distinção não é acadêmica: com o perfil nulo por erro de rede, a interface
+   * trata a pessoa como conta sem cadastro. Quem consome o contexto precisa
+   * poder dizer "não consegui ler" em vez de agir como se não houvesse nada.
+   */
+  profileError: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -27,14 +36,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileError, setProfileError] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadProfile = async (userId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("user_id", userId)
       .maybeSingle();
+    if (error) {
+      // O perfil anterior NÃO é descartado: se já havia um carregado, apagá-lo
+      // por causa de uma releitura que falhou trocaria informação boa por
+      // nenhuma. Marca-se a falha e mantém-se o que se tinha.
+      console.error("falha ao ler o perfil", error);
+      setProfileError(true);
+      return;
+    }
+    setProfileError(false);
     setProfile(data as Profile | null);
   };
 
@@ -75,7 +94,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, profileError, loading, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

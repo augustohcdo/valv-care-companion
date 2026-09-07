@@ -24,18 +24,39 @@ export const PatientSymptomsViewer = ({ patientId }: Props) => {
   const [meds, setMeds] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  /** `null` = leu. Texto = não leu, e a tela não pode afirmar nada. */
+  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       const since = format(subDays(new Date(), 60), "yyyy-MM-dd");
-      const [{ data: e }, { data: m }, { data: l }] = await Promise.all([
+      // As três descartavam o erro, e esta é a leitura cega mais perigosa que
+      // sobrou no projeto. Falhando, a tela mostrava ao médico:
+      //
+      //   · "Registros (60d): 0" e "Sintomas relevantes (14d): 0";
+      //   · "Paciente ainda não registrou sintomas no diário.";
+      //   · e — o pior — o card "Alertas recentes" NÃO ERA DESENHADO. Um
+      //     paciente com dispneia ≥ 7, dor torácica ≥ 7 ou síncope nos últimos
+      //     14 dias aparecia como tela limpa.
+      //
+      // Em valvopatia, sintomático × assintomático é a variável que decide
+      // intervenção. Uma tela que transforma falha de rede em "assintomático"
+      // não está mostrando menos: está afirmando o contrário do que existe, no
+      // ponto exato onde a conduta muda.
+      const [rSintomas, rMeds, rLogs] = await Promise.all([
         supabase.from("symptom_entries").select("*").eq("patient_id", patientId).is("deleted_at", null).gte("entry_date", since).order("entry_date", { ascending: false }),
         supabase.from("medications").select("*").eq("patient_id", patientId).eq("active", true).order("name"),
         supabase.from("medication_logs").select("status, log_date").eq("patient_id", patientId).gte("log_date", format(subDays(new Date(), 30), "yyyy-MM-dd")),
       ]);
-      setEntries(e || []);
-      setMeds(m || []);
-      setLogs(l || []);
+      const falhou = rSintomas.error || rMeds.error || rLogs.error;
+      if (falhou) {
+        setErro(falhou.message);
+        setLoading(false);
+        return;
+      }
+      setEntries(rSintomas.data || []);
+      setMeds(rMeds.data || []);
+      setLogs(rLogs.data || []);
       setLoading(false);
     })();
   }, [patientId]);
@@ -70,6 +91,29 @@ export const PatientSymptomsViewer = ({ patientId }: Props) => {
 
   if (loading) {
     return <div className="grid place-items-center py-8"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>;
+  }
+
+  // No lugar do painel inteiro, e não ao lado dele: os três números e o gráfico
+  // seriam lidos como o quadro do paciente. Zerado, esse quadro diz
+  // "assintomático" — e é justamente o que não se sabe.
+  if (erro) {
+    return (
+      <Card className="border-destructive/40 bg-destructive/5">
+        <CardContent className="p-6 text-center">
+          <AlertTriangle className="h-7 w-7 text-destructive mx-auto mb-3" />
+          <p className="font-medium text-foreground">
+            Não foi possível carregar o diário de sintomas deste paciente.
+          </p>
+          <p className="text-sm text-foreground/85 max-w-md mx-auto leading-relaxed mt-2">
+            <strong>Isto não quer dizer que ele esteja sem sintomas.</strong> É uma falha
+            de leitura: pode haver registros, alertas e medicações que a tela não
+            conseguiu buscar. Não conclua ausência de sintomas a partir desta tela —
+            recarregue, e se continuar, pergunte ao paciente.
+          </p>
+          <p className="text-xs text-muted-foreground font-mono mt-3">{erro}</p>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (

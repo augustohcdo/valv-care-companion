@@ -42,15 +42,21 @@ export default function AdminIntegracoes() {
     enabled: !!user,
   });
 
-  const { data, isLoading: loadingLists } = useQuery({
+  const { data, isLoading: loadingLists, error: erroListas } = useQuery({
     queryKey: adminIntegrationsKey(),
     queryFn: async () => {
-      const [{ data: h }, { data: k }, { data: m }] = await Promise.all([
+      // Falhando, a tela de integrações mostrava zero hospitais, zero chaves
+      // de API e zero membros. Num painel administrativo isso convida ao pior
+      // ato possível: recriar o que já existe — hospital duplicado, segunda
+      // chave de API emitida para quem já tinha uma.
+      const [rHosp, rKeys, rMembros] = await Promise.all([
         supabase.from("hospitals").select("*").order("created_at", { ascending: false }),
         supabase.from("hospital_api_keys").select("*").order("created_at", { ascending: false }),
         supabase.from("hospital_members").select("*, hospitals(legal_name, trade_name)").order("created_at", { ascending: false }),
       ]);
-      return { hospitals: h ?? [], keys: k ?? [], members: m ?? [] };
+      const erro = rHosp.error || rKeys.error || rMembros.error;
+      if (erro) throw erro;
+      return { hospitals: rHosp.data ?? [], keys: rKeys.data ?? [], members: rMembros.data ?? [] };
     },
     enabled: isAdmin === true,
   });
@@ -136,7 +142,17 @@ export default function AdminIntegracoes() {
               </CardContent>
             </Card>
           ))}
-          {!hospitals.length && !loading && <p className="text-muted-foreground text-sm">Nenhum hospital cadastrado.</p>}
+          {erroListas ? (
+            /* "Nenhum hospital cadastrado" numa falha de leitura convida ao pior
+               ato possível neste painel: recadastrar o que já existe. Hospital
+               duplicado e segunda chave de API emitida para quem já tinha uma. */
+            <p className="text-sm text-destructive">
+              Não foi possível carregar a lista. <strong>Não cadastre nada agora</strong> — pode
+              já existir e você não está vendo. Recarregue a página.
+            </p>
+          ) : (
+            !hospitals.length && !loading && <p className="text-muted-foreground text-sm">Nenhum hospital cadastrado.</p>
+          )}
         </TabsContent>
 
         <TabsContent value="members" className="space-y-4">

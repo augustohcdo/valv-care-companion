@@ -84,7 +84,21 @@ const SEM_TOLERANCIA = [
  *            porque o `try/catch` que já existia nunca via falha (o cliente do
  *            Supabase não lança, devolve `{ data: null, error }`).
  */
-// 60 → 58 → 55 → 49 → 40 → 29 → 18. As duas últimas rodadas zeraram cinco
+// 60 → 58 → 55 → 49 → 40 → 29 → 18 → 2.
+//
+// ## As duas que sobraram são FALSOS POSITIVOS, e ficam
+//
+// `AdminUsuarios.tsx:88` e `:102` passam a chamada como argumento para o helper
+// `executar`, que faz `const { error } = await chamada` e mostra o erro em
+// toast. O erro É observado — uma função adiante. O detector não atravessa
+// fronteira de função, e não vai atravessar: tentar isso por texto é como o
+// detector já errou dos dois lados uma vez.
+//
+// Poderia zerar o número abrindo uma exceção nominal para esses dois. Não abri:
+// lista de exceção envelhece, e um zero comprado com isenção mente mais do que
+// um dois explicado. Fica 2, e fica escrito por quê.
+//
+// ## As três rodadas que trouxeram de 40 até aqui zeraram estes arquivos
 // arquivos, todos escolhidos por consequência e não por facilidade:
 //
 //   · `MedicoHome.tsx` (4) — a primeira tela depois de entrar. O `?? 0` fazia
@@ -125,7 +139,7 @@ const SEM_TOLERANCIA = [
 // número mede quantas leituras ignoram o erro POR COMPLETO. É o piso, não o
 // teto, e a inversão de cada conserto tem de tirar a desestruturação inteira
 // para valer alguma coisa.
-const DIVIDA_CONHECIDA = 18;
+const DIVIDA_CONHECIDA = 2;
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const nome of readdirSync(dir)) {

@@ -62,10 +62,14 @@ export function PrivacyPreferencesPanel() {
 
   // Consentimentos e trilha vêm juntos porque a tela sempre os mostra juntos e
   // uma mudança de consentimento invalida os dois ao mesmo tempo.
-  const { data, isLoading: loadingData } = useQuery({
+  const { data, isLoading: loadingData, error: erroPrivacidade } = useQuery({
     queryKey: privacyPreferencesKey(user?.id),
     queryFn: async () => {
-      const [{ data: c }, { data: a }] = await Promise.all([
+      // Falhando, a tela de privacidade mostrava NENHUM consentimento e trilha
+      // de auditoria vazia. Numa tela de LGPD isso não é só confuso: o titular
+      // lê que não concedeu nada e que não há histórico, quando o que houve foi
+      // uma leitura que não voltou. É afirmação sobre direitos.
+      const [rConsent, rAudit] = await Promise.all([
         supabase
           .from("user_consents")
           .select("consent_type, granted, granted_at, revoked_at, document_version, updated_at")
@@ -77,7 +81,12 @@ export function PrivacyPreferencesPanel() {
           .order("created_at", { ascending: false })
           .limit(30),
       ]);
-      return { consents: (c ?? []) as ConsentRow[], audit: (a ?? []) as AuditRow[] };
+      if (rConsent.error) throw rConsent.error;
+      if (rAudit.error) throw rAudit.error;
+      return {
+        consents: (rConsent.data ?? []) as ConsentRow[],
+        audit: (rAudit.data ?? []) as AuditRow[],
+      };
     },
     enabled: !!user,
   });
@@ -145,6 +154,22 @@ export function PrivacyPreferencesPanel() {
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
+            </div>
+          ) : erroPrivacidade ? (
+            /* Os controles NÃO são desenhados numa falha de leitura. Sem os
+               consentimentos lidos, cada chave apareceria desligada — a tela
+               afirmaria ao titular que ele não concedeu nada. E pior que
+               afirmar: ele poderia ligar uma que já estava ligada, gravando
+               consentimento novo por cima de um estado que ninguém conhecia. */
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm">
+              <p className="font-medium text-foreground">
+                Não foi possível carregar suas preferências de privacidade.
+              </p>
+              <p className="text-foreground/85 leading-relaxed mt-1">
+                <strong>Isto não quer dizer que você não tenha consentimentos registrados.</strong>{" "}
+                Os controles ficam ocultos até a leitura funcionar, para você não alterar
+                sem saber o estado atual. Recarregue a página.
+              </p>
             </div>
           ) : (
             <div className="space-y-4">

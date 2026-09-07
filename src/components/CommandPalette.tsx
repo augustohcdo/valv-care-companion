@@ -61,6 +61,8 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
+  /** `true` = a busca não chegou ao servidor. Diferente de "não achou nada". */
+  const [erroBusca, setErroBusca] = useState(false);
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const isDoctor = profile?.account_type === "medico";
@@ -89,10 +91,20 @@ export function CommandPalette() {
       return;
     }
     const t = setTimeout(async () => {
-      const { data } = await supabase.rpc("search_global", {
+      // Falhando, a busca devolvia lista vazia e a paleta dizia que não achou
+      // nada — para um termo que tem resultados. Quem procura um paciente pelo
+      // nome conclui que o cadastro não existe.
+      const { data, error } = await supabase.rpc("search_global", {
         _query: query.trim(),
         _user_id: user.id,
       });
+      if (error) {
+        console.error("falha na busca global", error);
+        setErroBusca(true);
+        setResults([]);
+        return;
+      }
+      setErroBusca(false);
       setResults((data as SearchResult[]) ?? []);
     }, 200);
     return () => clearTimeout(t);
@@ -131,7 +143,11 @@ export function CommandPalette() {
         onValueChange={setQuery}
       />
       <CommandList>
-        <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
+        <CommandEmpty>
+          {erroBusca
+            ? "A busca não chegou ao servidor. Isto não quer dizer que não exista — tente de novo."
+            : "Nenhum resultado encontrado."}
+        </CommandEmpty>
 
         {results.length > 0 && (
           <>

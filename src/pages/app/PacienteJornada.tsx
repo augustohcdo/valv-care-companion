@@ -57,7 +57,12 @@ export default function PacienteJornada() {
         // Esta pode falhar sozinha sem derrubar a tela: ela traz só o NOME do
         // médico, e `full_name` já sabe ser nulo. Perder o nome não é perder
         // a jornada.
-        const { data: meus } = await supabase.rpc("meus_medicos");
+        // Esta continua degradando de propósito — a decisão acima vale —, mas
+        // agora o erro é OBSERVADO e registrado. Falha silenciosa e falha
+        // tolerada não são a mesma coisa: a segunda alguém consegue diagnosticar
+        // depois, olhando o console.
+        const { data: meus, error: erroNomes } = await supabase.rpc("meus_medicos");
+        if (erroNomes) console.warn("nome dos médicos não pôde ser lido", erroNomes);
         const nomePorMedico = new Map<string, string | null>(
           (meus ?? []).map((m) => [m.doctor_id, m.full_name]),
         );

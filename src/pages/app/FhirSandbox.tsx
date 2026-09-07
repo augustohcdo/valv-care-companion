@@ -40,7 +40,18 @@ export default function FhirSandbox() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      // Falhando, `data` era `undefined` e `!!data` dava `false`: o
+      // administrador era informado de que não é administrador, e a tela negava
+      // acesso. Falha de leitura virando decisão de permissão.
+      const { data, error } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      if (error) {
+        console.error("falha ao verificar o papel de administrador", error);
+        toast.error("Não foi possível verificar suas permissões", {
+          description: "Isto não quer dizer que você não seja administrador. Recarregue a página.",
+        });
+        setIsAdmin(false);
+        return;
+      }
       setIsAdmin(!!data);
     })();
   }, [user]);

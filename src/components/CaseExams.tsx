@@ -171,12 +171,24 @@ export const CaseExams = ({ caseId, readOnly = false }: Props) => {
    * em silêncio o que ele digitou seria o oposto do que se quer aqui.
    */
   const oferecerLevarAoCaso = async (medidas: ExameMedidas) => {
-    const { data: caso } = await supabase
+    const { data: caso, error } = await supabase
       .from("clinical_cases")
       .select("ejection_fraction, mean_gradient, peak_gradient, valve_area, regurgitation_grade")
       .eq("id", caseId)
       .is("deleted_at", null)
       .maybeSingle();
+    // A leitura descartava o erro e caía no `if (!caso) return` logo abaixo: a
+    // oferta de levar as medidas ao caso simplesmente NÃO APARECIA. O médico
+    // subia o laudo, esperava a pergunta, e nada acontecia — sem como saber que
+    // houve falha. Ele conclui que a função não existe, ou que o exame não tinha
+    // medida aproveitável, e digita à mão o que o sistema já tinha lido.
+    if (error) {
+      toast.error(
+        "Não foi possível conferir quais campos do caso ainda estão vazios. " +
+          "As medidas do laudo continuam salvas — tente de novo para levá-las ao caso.",
+      );
+      return;
+    }
     if (!caso) return;
 
     const faltantes = medidasFaltantesNoCaso(caso, medidas);
