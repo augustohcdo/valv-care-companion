@@ -32,8 +32,22 @@
  *      deixa passar fonte do Google e Supabase, que não respondem neste
  *      ambiente e contaminariam tudo.
  *
- * Rota protegida redirecionando para o login CONTA como renderizada — o
- * redirecionamento é a tela funcionando, não falhando.
+ * ## Redirecionada NÃO é a mesma coisa que renderizada
+ *
+ * A primeira versão marcava ✓ em toda rota que não quebrasse — inclusive nas 40
+ * e tantas de `/app/*`, que sem sessão param todas em `/auth/login`. Ela abria a
+ * tela de login dezenas de vezes e relatava "61 de 61 renderizaram", e eu
+ * cheguei a dizer ao usuário que aquilo provava que as telas que eu tinha
+ * mexido no dia continuavam abrindo. Não provava: nenhuma delas chegou a montar.
+ *
+ * Um verificador construído para pegar "sucesso relatado sem o trabalho feito"
+ * fazendo exatamente isso. O redirecionamento É o app funcionando — mas o que
+ * renderizou foi o LOGIN, e o relatório tem de dizer qual das duas coisas
+ * aconteceu.
+ *
+ * Agora são três estados, e o resumo traz os três: renderizou a rota pedida,
+ * redirecionou (com o destino à vista), ou quebrou. Só o primeiro é prova sobre
+ * aquela tela.
  *
  * ## A lista de rotas vem do `smoke.mjs`, não daqui
  *
@@ -43,7 +57,8 @@
  *
  * ## Códigos de saída
  *
- *   0 — todas renderizaram
+ *   0 — nenhuma quebrou (as redirecionadas são listadas, não reprovadas: o
+ *       redirecionamento é comportamento correto, só não é prova sobre a tela)
  *   1 — alguma quebrou, com o motivo e a rota
  *   2 — **não foi possível conferir**: sem Playwright, ou o servidor não
  *       respondeu. Distinto do 1 de propósito: "não olhei" não é "está certo",
@@ -98,6 +113,8 @@ if (rotas.length === 0) {
 }
 
 const quebradas = [];
+const redirecionadas = [];
+const renderizadas = [];
 let conferidas = 0;
 
 // Uma aba só, reaproveitada. Abrir uma por rota custava caro o bastante para a
@@ -156,6 +173,13 @@ for (const rota of rotas) {
     );
   }
 
+  // Onde a navegação PAROU. Sem isto, `/app/medico` que caiu no login recebia o
+  // mesmo ✓ de `/termos`, que renderizou de verdade.
+  const parouEm = naoAbriu
+    ? null
+    : (await pagina.evaluate(() => location.pathname)) || rota;
+  const redirecionou = parouEm !== null && parouEm !== rota;
+
   const motivos = [];
   if (naoAbriu) motivos.push(`a rota não abriu em 15s: ${naoAbriu.slice(0, 100)}`);
   if (excecoes.length) motivos.push(`exceção: ${excecoes[0].slice(0, 120)}`);
@@ -168,7 +192,11 @@ for (const rota of rotas) {
     quebradas.push({ rota, motivos });
     console.log(`✗ ${rota}`);
     for (const m of motivos) console.log(`    ${m}`);
+  } else if (redirecionou) {
+    redirecionadas.push({ rota, parouEm });
+    console.log(`→ ${rota}  (redirecionou para ${parouEm} — esta tela NÃO foi aberta)`);
   } else {
+    renderizadas.push(rota);
     console.log(`✓ ${rota}`);
   }
 
@@ -177,7 +205,20 @@ for (const rota of rotas) {
 await pagina.close();
 await navegador.close();
 
-console.log(`\n${conferidas - quebradas.length} de ${conferidas} rotas renderizaram — ${BASE}`);
+console.log(
+  `\n${renderizadas.length} de ${conferidas} rotas renderizaram a tela pedida — ${BASE}\n` +
+  `${redirecionadas.length} redirecionaram (a tela pedida NÃO foi aberta)\n` +
+  `${quebradas.length} quebraram`,
+);
+
+if (redirecionadas.length) {
+  console.log(
+    "\nREDIRECIONADAS — o app funcionou, mas quem renderizou foi outra tela.\n" +
+    "Sem sessão, tudo sob /app/ para no login. Estas rotas continuam SEM prova\n" +
+    "de que suas telas montam:",
+  );
+  for (const r of redirecionadas) console.log(`  · ${r.rota} → ${r.parouEm}`);
+}
 
 if (quebradas.length) {
   console.error("\nQUEBRARAM:");

@@ -240,8 +240,25 @@ quebrar uma tela inteira com CI verde, smoke verde e quase mil testes passando.
 Quatro reprovações distintas, porque cada uma aponta para causa diferente:
 exceção não tratada; o error boundary global aparecendo (o pior de detectar — a
 tela fica bonita, com texto educado, e o HTTP continua 200); `#root` vazio; e
-recurso nosso que não carregou. Rota protegida que redireciona para o login
-**conta como renderizada**: o redirecionamento é a tela funcionando.
+recurso nosso que não carregou.
+
+**Redirecionada não é renderizada.** A primeira versão marcava ✓ em toda rota
+que não quebrasse — inclusive nas 39 de `/app/*`, que sem sessão param todas em
+`/auth/login`. Ela abria a tela de login dezenas de vezes e relatava "61 de 61
+renderizaram". Um verificador feito para pegar "sucesso relatado sem o trabalho
+feito" fazendo exatamente isso.
+
+São três estados, e o resumo traz os três. Hoje, sem sessão:
+
+```
+22 de 61 rotas renderizaram a tela pedida
+39 redirecionaram (a tela pedida NÃO foi aberta)
+0 quebraram
+```
+
+As 22 são as públicas. As 39 continuam **sem prova** de que suas telas montam —
+o redirecionamento é o app funcionando, mas quem renderizou foi o login. Cobrir
+as 39 exige sessão autenticada, que este script ainda não faz.
 
 A lista de rotas vem do `smoke.mjs`, que a deriva do `App.tsx` — lista paralela
 envelhece em silêncio, como já aconteceu aqui com a lista de tabelas do backup.
