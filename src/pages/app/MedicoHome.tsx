@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Stethoscope,
   AlertCircle,
+  AlertTriangle,
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,17 +28,34 @@ export default function MedicoHome() {
 
   const { data: doctor, isLoading: loadingDoctor } = useDoctor();
 
-  const { data: dashboard, isLoading: loadingDashboard } = useQuery({
+  const { data: dashboard, isLoading: loadingDashboard, error: erroDashboard } = useQuery({
     queryKey: doctorDashboardKey(doctor?.id),
     queryFn: async () => {
-      const [{ count: pc }, { count: cc }, { count: ac }, { data: caseRows }] = await Promise.all([
+      // As quatro descartavam o erro, e o `?? 0` logo abaixo fazia o resto: a
+      // primeira tela que o médico vê depois de entrar dizia "0 pacientes, 0
+      // casos, 0 em acompanhamento" e listava caso nenhum. Não é tela vazia —
+      // é a tela AFIRMANDO que ele não tem nada, quando o que houve foi uma
+      // leitura que não voltou.
+      //
+      // `throw` porque estamos dentro do `queryFn`: o erro sobe para o
+      // `useQuery` e a tela mostra a faixa de falha, com o mesmo texto que a
+      // `ListaCasos` já usa — "isto é uma falha de leitura, não a ausência de
+      // casos. Nada foi apagado."
+      const [rPac, rCasos, rAtivos, rLinhas] = await Promise.all([
         supabase.from("patients").select("id", { count: "exact", head: true }).is("deleted_at", null).eq("linked_doctor_id", doctor!.id),
         supabase.from("clinical_cases").select("id", { count: "exact", head: true }).is("deleted_at", null).eq("doctor_id", doctor!.id).neq("status", "draft" as any),
         supabase.from("clinical_cases").select("id", { count: "exact", head: true }).is("deleted_at", null)
           .eq("doctor_id", doctor!.id).in("status", ["avaliacao_inicial", "em_seguimento", "pre_intervencao"]),
         supabase.from("clinical_cases").select("id, created_at, valve_type, severity, status, nyha").is("deleted_at", null).eq("doctor_id", doctor!.id).neq("status", "draft" as any),
       ]);
-      return { patientCount: pc ?? 0, caseCount: cc ?? 0, activeCount: ac ?? 0, cases: caseRows ?? [] };
+      const erro = rPac.error || rCasos.error || rAtivos.error || rLinhas.error;
+      if (erro) throw erro;
+      return {
+        patientCount: rPac.count ?? 0,
+        caseCount: rCasos.count ?? 0,
+        activeCount: rAtivos.count ?? 0,
+        cases: rLinhas.data ?? [],
+      };
     },
     enabled: !!doctor?.id,
   });
@@ -52,6 +70,31 @@ export default function MedicoHome() {
     return (
       <div className="flex justify-center py-20">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // A faixa vem ANTES do painel, e no lugar dele. Mostrar os números zerados
+  // com um aviso ao lado seria pior que não mostrar nada: o olho lê o número
+  // grande e ignora a faixa — e o número grande está errado.
+  if (erroDashboard) {
+    return (
+      <div className="max-w-6xl">
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="p-8 text-center">
+            <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-3" />
+            <h3 className="font-serif text-lg text-foreground mb-2">
+              Não foi possível carregar seu painel
+            </h3>
+            <p className="text-sm text-foreground/85 max-w-md mx-auto leading-relaxed">
+              Isto é uma falha de leitura, não a ausência de pacientes ou casos.
+              Nada foi apagado. Recarregue a página; se continuar, avise o suporte.
+            </p>
+            <p className="text-xs text-muted-foreground font-mono mt-3">
+              {erroDashboard instanceof Error ? erroDashboard.message : String(erroDashboard)}
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }

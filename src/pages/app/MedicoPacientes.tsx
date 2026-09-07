@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Search, Users, FileText, MapPin } from "lucide-react";
+import { Search, Users, FileText, MapPin, AlertTriangle } from "lucide-react";
 import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -17,18 +17,28 @@ export default function MedicoPacientes() {
 
   const { data: doctor, isLoading: loadingDoctor } = useDoctor();
 
-  const { data: items = [], isLoading: loadingPatients } = useQuery({
+  const { data: items = [], isLoading: loadingPatients, error: erroPacientes } = useQuery({
     queryKey: doctorPatientsKey(doctor?.id),
     queryFn: async (): Promise<any[]> => {
-      const [{ data: patients }, { data: cases }] = await Promise.all([
+      // As três leituras descartavam o erro. A de `patients` falhando fazia a
+      // tela dizer que o médico não tem paciente vinculado nenhum; a de
+      // `clinical_cases`, que todo paciente tem zero casos; e a do RPC de nomes
+      // devolvia a lista inteira como "Paciente", sem distinguir um do outro —
+      // que é o defeito que esse RPC foi criado para consertar.
+      const [rPacientes, rCasos] = await Promise.all([
         supabase.from("patients").select("id, user_id, sex, city, uf, comorbidities, linked_at").is("deleted_at", null).eq("linked_doctor_id", doctor!.id),
         supabase.from("clinical_cases").select("id, patient_id").is("deleted_at", null).eq("doctor_id", doctor!.id).neq("status", "draft" as any),
       ]);
+      if (rPacientes.error) throw rPacientes.error;
+      if (rCasos.error) throw rCasos.error;
+      const patients = rPacientes.data;
+      const cases = rCasos.data;
 
       // Pelo RPC: ler `profiles` de outra pessoa volta vazio pela policy, e a
       // lista mostraria **todos os pacientes chamados "Paciente"** — o médico
       // não distinguiria um do outro.
-      const { data: meus } = await supabase.rpc("meus_pacientes");
+      const { data: meus, error: erroNomes } = await supabase.rpc("meus_pacientes");
+      if (erroNomes) throw erroNomes;
       const porPaciente = new Map((meus ?? []).map((m) => [m.patient_id, m]));
 
       return (patients || []).map((p) => {
@@ -62,6 +72,25 @@ export default function MedicoPacientes() {
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
+      ) : erroPacientes ? (
+        /* Sem isto a falha caía no `filtered.length === 0` abaixo, e a tela
+           dizia "Nenhum paciente vinculado" — com o convite a divulgar o CRM —
+           a um médico que TEM pacientes e não conseguiu vê-los. */
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="p-8 text-center">
+            <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-3" />
+            <h3 className="font-serif text-lg text-foreground mb-2">
+              Não foi possível carregar seus pacientes
+            </h3>
+            <p className="text-sm text-foreground/85 max-w-md mx-auto leading-relaxed">
+              Isto é uma falha de leitura, não a ausência de vínculos. Nada foi
+              apagado. Recarregue a página; se continuar, avise o suporte.
+            </p>
+            <p className="text-xs text-muted-foreground font-mono mt-3">
+              {erroPacientes instanceof Error ? erroPacientes.message : String(erroPacientes)}
+            </p>
+          </CardContent>
+        </Card>
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Users}

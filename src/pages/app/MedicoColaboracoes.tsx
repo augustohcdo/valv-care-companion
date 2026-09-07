@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Users, Inbox, ChevronRight, Check, X, Loader2 } from "lucide-react";
+import { Users, Inbox, ChevronRight, Check, X, Loader2, AlertTriangle } from "lucide-react";
 import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -20,34 +20,43 @@ export default function MedicoColaboracoes() {
   const queryClient = useQueryClient();
   const { data: doctor, isLoading: loadingDoctor } = useDoctor();
 
-  const { data: items = [], isLoading: loadingItems } = useQuery({
+  const { data: items = [], isLoading: loadingItems, error: erroColaboracoes } = useQuery({
     queryKey: doctorCollaborationsKey(doctor?.id),
     queryFn: async (): Promise<any[]> => {
-      const { data: collabs } = await supabase
+      // As quatro leituras descartavam o erro, e a consequência é a mesma em
+      // todas: caso compartilhado por um colega SOME da lista, sem uma palavra.
+      // O médico convidado conclui que o convite não chegou, ou foi retirado.
+      const { data: collabs, error: erroCollabs } = await supabase
         .from("case_collaborators")
         .select("*")
         .eq("doctor_id", doctor!.id)
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
+      if (erroCollabs) throw erroCollabs;
 
       const caseIds = [...new Set((collabs || []).map((c) => c.case_id))];
-      const { data: cases } = caseIds.length
+      const rCases = caseIds.length
         ? await supabase.from("clinical_cases").select("*").is("deleted_at", null).in("id", caseIds).neq("status", "draft" as any)
-        : { data: [] as any[] };
+        : { data: [] as any[], error: null };
+      if (rCases.error) throw rCases.error;
+      const cases = rCases.data;
 
       // Médico responsável de cada caso
       const docIds = [...new Set((cases || []).map((c: any) => c.doctor_id))];
-      const { data: owners } = docIds.length
+      const rOwners = docIds.length
         ? await supabase.from("doctors").select("id, user_id, crm, crm_uf").in("id", docIds)
-        : { data: [] as any[] };
+        : { data: [] as any[], error: null };
+      if (rOwners.error) throw rOwners.error;
+      const owners = rOwners.data;
       // Um RPC por caso, e não uma leitura de `profiles`: a consulta antiga
       // voltava vazia pela policy e o médico via os casos compartilhados com
       // ele sem saber de quem eram. São poucos itens por tela.
       const nomeDoDono = new Map<string, string | null>();
       await Promise.all(
         (collabs || []).map(async (c) => {
-          const { data: participantes } = await supabase
+          const { data: participantes, error: erroParticipantes } = await supabase
             .rpc("participantes_do_caso", { _case_id: c.case_id });
+          if (erroParticipantes) throw erroParticipantes;
           const cs = cases?.find((x: any) => x.id === c.case_id);
           const owner = cs ? owners?.find((o: any) => o.id === cs.doctor_id) : null;
           if (owner) {
@@ -103,6 +112,25 @@ export default function MedicoColaboracoes() {
         <div className="grid place-items-center min-h-[30vh]">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
+      ) : erroColaboracoes ? (
+        /* Sem isto a falha caía no `items.length === 0` e a tela dizia "Nenhum
+           convite ainda" a quem TEM convite — o médico conclui que o colega não
+           o chamou, ou que o convite foi retirado. */
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="p-8 text-center">
+            <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-3" />
+            <h3 className="font-serif text-lg text-foreground mb-2">
+              Não foi possível carregar suas colaborações
+            </h3>
+            <p className="text-sm text-foreground/85 max-w-md mx-auto leading-relaxed">
+              Isto é uma falha de leitura, não a ausência de convites. Nada foi
+              apagado nem retirado. Recarregue a página; se continuar, avise o suporte.
+            </p>
+            <p className="text-xs text-muted-foreground font-mono mt-3">
+              {erroColaboracoes instanceof Error ? erroColaboracoes.message : String(erroColaboracoes)}
+            </p>
+          </CardContent>
+        </Card>
       ) : items.length === 0 ? (
         <EmptyState
           icon={Users}

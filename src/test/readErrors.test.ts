@@ -84,7 +84,17 @@ const SEM_TOLERANCIA = [
  *            porque o `try/catch` que já existia nunca via falha (o cliente do
  *            Supabase não lança, devolve `{ data: null, error }`).
  */
-// 60 → 58 → 55 → 49 → 40 → 29. Esta rodada zerou duas origens inteiras:
+// 60 → 58 → 55 → 49 → 40 → 29 → 18. As duas últimas rodadas zeraram cinco
+// arquivos, todos escolhidos por consequência e não por facilidade:
+//
+//   · `MedicoHome.tsx` (4) — a primeira tela depois de entrar. O `?? 0` fazia
+//     ela dizer "0 pacientes, 0 casos, 0 em acompanhamento" a quem tem;
+//   · `MedicoPacientes.tsx` (3) — "Nenhum paciente vinculado", com o convite a
+//     divulgar o CRM, a um médico cujos vínculos não puderam ser lidos;
+//   · `MedicoColaboracoes.tsx` (4) — "Nenhum convite ainda" a quem foi
+//     convidado: o colega parece não ter chamado, ou ter retirado o convite.
+//
+// E antes delas:
 //
 //   · `CasoDetalhe.tsx` (7) — a pior era o `handleExport`. Quatro leituras num
 //     `Promise.all` sem observar erro, e o `|| []` logo abaixo transformava
@@ -115,7 +125,7 @@ const SEM_TOLERANCIA = [
 // número mede quantas leituras ignoram o erro POR COMPLETO. É o piso, não o
 // teto, e a inversão de cada conserto tem de tirar a desestruturação inteira
 // para valer alguma coisa.
-const DIVIDA_CONHECIDA = 29;
+const DIVIDA_CONHECIDA = 18;
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const nome of readdirSync(dir)) {
