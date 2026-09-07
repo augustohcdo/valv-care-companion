@@ -50,6 +50,17 @@ const SEM_TOLERANCIA = [
   "src/pages/app/MedicoPacienteDetalhe.tsx",  // alimenta o PDF do prontuário
   "src/pages/app/PacienteIntegracoes.tsx",    // quem tem acesso aos meus dados
   "src/pages/app/HospitalPortal.tsx",         // o outro lado do mesmo consentimento
+
+  // Promovidos em 06/09, depois de zerados. A razão de promover, e não deixar
+  // sob o contador: o contador impede a dívida de CRESCER, mas quem topar com
+  // ele tem uma saída — subir `DIVIDA_CONHECIDA` em um. Nestes arquivos essa
+  // saída não pode existir, porque aqui a falha de leitura não deixa a tela
+  // incompleta: deixa a tela AFIRMANDO o contrário do que existe.
+  "src/components/PatientSymptomsViewer.tsx", // "sem sintomas" decide intervenção
+  "src/pages/app/CasoDetalhe.tsx",            // o PDF do caso e quem pode comentar
+  "src/lib/homeDoUsuario.ts",                 // para qual área a pessoa vai ao entrar
+  "src/components/PrivacyPreferencesPanel.tsx", // o que o titular consentiu
+  "src/components/CaseCollaborators.tsx",     // "médico não encontrado" quando existe
 ];
 
 /**
