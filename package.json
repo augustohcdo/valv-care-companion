@@ -23,6 +23,7 @@
     "publicacao": "node scripts/conferir-publicacao.mjs",
     "revisao:biblioteca": "node scripts/gerar-revisao-biblioteca.mjs",
     "smoke": "node scripts/smoke.mjs",
+    "rotas:renderizam": "node scripts/rotas-renderizam.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit",

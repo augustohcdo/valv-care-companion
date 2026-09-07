@@ -1,0 +1,190 @@
+#!/usr/bin/env node
+/**
+ * Abre CADA rota do app num navegador de verdade e falha nas que não renderizam.
+ *
+ * ## O buraco que isto fecha
+ *
+ * O `npm run smoke` confere que cada rota devolve o **shell** do app — e é
+ * honesto sobre isso: nasceu para pegar o fallback de SPA que faltava no
+ * `vercel.json`. Mas o shell é o mesmo `index.html` para as 61 rotas. Uma tela
+ * que estoura ao montar devolve exatamente esse shell, com HTTP 200, e o smoke
+ * passa.
+ *
+ * O resto da rede de segurança também não pega: os testes de unidade cobrem
+ * funções e alguns componentes isolados, e o `ferramentas-verificar` dirige
+ * DUAS rotas. As outras 59 nunca são abertas por nada automático. Quer dizer
+ * que hoje dá para quebrar uma tela inteira com CI verde, smoke verde e 967
+ * testes passando.
+ *
+ * Isso não é hipótese confortável: eu mexi hoje em nove telas, e a única prova
+ * de que continuam abrindo seria alguém abrir uma por uma.
+ *
+ * ## O que conta como "renderizou"
+ *
+ * Quatro reprovações distintas, porque cada uma aponta para uma causa:
+ *
+ *   1. **exceção não tratada** — o React estourou;
+ *   2. **o error boundary global apareceu** — estourou e foi capturado, o que é
+ *      pior de detectar: a tela fica bonita, com um texto educado, e o HTTP
+ *      continua 200;
+ *   3. **`#root` vazio** — o app montou nada;
+ *   4. **erro de rede num recurso nosso** — chunk que não carregou. O filtro
+ *      deixa passar fonte do Google e Supabase, que não respondem neste
+ *      ambiente e contaminariam tudo.
+ *
+ * Rota protegida redirecionando para o login CONTA como renderizada — o
+ * redirecionamento é a tela funcionando, não falhando.
+ *
+ * ## A lista de rotas vem do `smoke.mjs`, não daqui
+ *
+ * Lista paralela envelhece em silêncio; já aconteceu neste projeto com a lista
+ * de tabelas do backup, que cobria 22 de 37 e dizia estar completa. O
+ * `smoke.mjs` deriva as rotas do `App.tsx` e agora exporta essa função.
+ *
+ * ## Códigos de saída
+ *
+ *   0 — todas renderizaram
+ *   1 — alguma quebrou, com o motivo e a rota
+ *   2 — **não foi possível conferir**: sem Playwright, ou o servidor não
+ *       respondeu. Distinto do 1 de propósito: "não olhei" não é "está certo",
+ *       e é a mesma convenção do `conferir-migrations` e do
+ *       `ferramentas-verificar`.
+ *
+ * Uso:
+ *   npm run build && npx vite preview --port 4173 --host 127.0.0.1
+ *   node scripts/rotas-renderizam.mjs http://127.0.0.1:4173
+ */
+import { execSync } from "node:child_process";
+import { rotasDoApp } from "./smoke.mjs";
+
+async function carregarPlaywright() {
+  for (const alvo of ["playwright", "@playwright/test"]) {
+    try { return await import(alvo); } catch { /* tenta o próximo */ }
+  }
+  try {
+    return await import(`${execSync("npm root -g", { encoding: "utf8" }).trim()}/playwright/index.mjs`);
+  } catch { /* cai no erro abaixo */ }
+  console.error("NÃO CONFERIDO: Playwright não encontrado. `npm i -g playwright`.");
+  process.exit(2);
+}
+
+const { chromium } = await carregarPlaywright();
+const BASE = (process.argv[2] || "http://127.0.0.1:4173").replace(/\/$/, "");
+
+/** Texto do error boundary global, em `src/main.tsx`. */
+const TEXTO_DO_BOUNDARY = "Não foi possível carregar o ValvePath";
+
+/**
+ * O que não conta como falha de recurso.
+ *
+ * A fonte do Google e o Supabase não respondem de dentro deste contêiner. Sem
+ * este filtro, TODAS as rotas reprovariam por um motivo que não é do app — e um
+ * verificador que reprova tudo é tão inútil quanto um que aprova tudo, com o
+ * agravante de alguém desligá-lo.
+ */
+const RUIDO = /fonts\.(googleapis|gstatic)|favicon|manifest|supabase\.co|\/~flock/;
+
+const PROXY = process.env["HTTPS_PROXY"] || process.env["https_proxy"];
+const navegador = await chromium.launch({
+  executablePath: process.env["PW_CHROMIUM"] || "/opt/pw-browsers/chromium",
+  ...(PROXY ? { proxy: { server: PROXY, bypass: "127.0.0.1,localhost" } } : {}),
+});
+
+const rotas = rotasDoApp();
+if (rotas.length === 0) {
+  console.error("NÃO CONFERIDO: nenhuma rota saiu de src/App.tsx — o parser quebrou, não o site.");
+  await navegador.close();
+  process.exit(2);
+}
+
+const quebradas = [];
+let conferidas = 0;
+
+// Uma aba só, reaproveitada. Abrir uma por rota custava caro o bastante para a
+// varredura das 61 não terminar em tempo razoável — e o objetivo é que ela seja
+// rodada, não que seja elegante. Os coletores são zerados a cada rota, que é o
+// que o isolamento exigia de verdade.
+const pagina = await navegador.newPage({ viewport: { width: 1280, height: 900 } });
+let excecoes = [];
+let recursos = [];
+pagina.on("pageerror", (e) => excecoes.push(String(e).split("\n")[0]));
+pagina.on("requestfailed", (r) => {
+  if (!RUIDO.test(r.url())) recursos.push(`${r.failure()?.errorText} ${r.url()}`);
+});
+
+for (const rota of rotas) {
+  excecoes = [];
+  recursos = [];
+
+  // Distinção que a primeira versão deste script errava: ela abortava a
+  // varredura INTEIRA com código 2 na primeira rota que não abrisse. Uma rota
+  // lenta apagava o resultado das outras sessenta, e o relatório dizia "não
+  // conferi" quando sessenta tinham sido conferidas.
+  //
+  // Agora só o PRIMEIRO caso vale como "não conferi", e por um motivo real: se
+  // nem a rota inicial abre, o servidor não está de pé e as sessenta seguintes
+  // reprovariam por isso. Depois disso, rota que não abre é falha DELA.
+  let naoAbriu = null;
+  try {
+    await pagina.goto(BASE + rota, { waitUntil: "domcontentloaded", timeout: 15000 });
+  } catch (e) {
+    naoAbriu = String(e?.message ?? e).split("\n")[0];
+    if (conferidas === 0) {
+      console.error(
+        `\nNÃO CONFERIDO — nem a primeira rota (${rota}) abriu.\n` +
+        `  ${naoAbriu}\n\n` +
+        "O servidor não está de pé. Suba o preview antes:\n" +
+        "  npm run build && npx vite preview --port 4173 --host 127.0.0.1\n",
+      );
+      await navegador.close();
+      process.exit(2);
+    }
+  }
+
+  // O React monta depois do `domcontentloaded`. Sem esta espera, `#root` estaria
+  // vazio em toda rota e o verificador reprovaria o app inteiro.
+  let conteudoDoRoot = 0;
+  let temBoundary = false;
+  if (!naoAbriu) {
+    await pagina.waitForTimeout(500);
+    conteudoDoRoot = await pagina.evaluate(
+      () => document.getElementById("root")?.innerText?.trim().length ?? 0,
+    );
+    temBoundary = await pagina.evaluate(
+      (marcador) => document.body.innerText.includes(marcador),
+      TEXTO_DO_BOUNDARY,
+    );
+  }
+
+  const motivos = [];
+  if (naoAbriu) motivos.push(`a rota não abriu em 15s: ${naoAbriu.slice(0, 100)}`);
+  if (excecoes.length) motivos.push(`exceção: ${excecoes[0].slice(0, 120)}`);
+  if (!naoAbriu && temBoundary) motivos.push("o error boundary global apareceu");
+  if (!naoAbriu && conteudoDoRoot === 0) motivos.push("#root vazio — o app não montou nada");
+  if (recursos.length) motivos.push(`recurso não carregou: ${recursos[0].slice(0, 120)}`);
+
+  conferidas++;
+  if (motivos.length) {
+    quebradas.push({ rota, motivos });
+    console.log(`✗ ${rota}`);
+    for (const m of motivos) console.log(`    ${m}`);
+  } else {
+    console.log(`✓ ${rota}`);
+  }
+
+}
+
+await pagina.close();
+await navegador.close();
+
+console.log(`\n${conferidas - quebradas.length} de ${conferidas} rotas renderizaram — ${BASE}`);
+
+if (quebradas.length) {
+  console.error("\nQUEBRARAM:");
+  for (const q of quebradas) console.error(`  · ${q.rota} — ${q.motivos.join("; ")}`);
+  console.error(
+    "\nHTTP 200 e shell servido não provam que a tela abre. É esta diferença que\n" +
+    "este script existe para medir.",
+  );
+  process.exit(1);
+}

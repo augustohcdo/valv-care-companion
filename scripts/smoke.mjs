@@ -35,7 +35,7 @@ const MARCADOR = '<div id="root">';
  * `*` ficam de fora porque não têm um caminho concreto para pedir; o catch-all
  * é exercitado pelo teste de rota inexistente abaixo.
  */
-function rotasDoApp() {
+export function rotasDoApp() {
   const fonte = readFileSync(join(raiz, "src/App.tsx"), "utf8");
   const achadas = [...fonte.matchAll(/<Route\s+path="([^"]+)"/g)].map((m) => m[1]);
   const concretas = achadas.filter((p) => p.startsWith("/") && !p.includes(":") && !p.includes("*"));
@@ -109,6 +109,14 @@ async function sondarAssetInexistente() {
 }
 
 const rotas = rotasDoApp();
+// O corpo abaixo só roda quando o script é EXECUTADO. Importado — que é como o
+// `rotas-renderizam.mjs` pega a lista de rotas — ele não pode sondar nada: um
+// `import` que dispara sessenta requisições de rede é armadilha, e a lista tem
+// de vir de um lugar só. Mesmo padrão do `gerar-sql-de-aplicacao.mjs`.
+const executando = process.argv[1]?.endsWith("smoke.mjs");
+
+if (executando) {
+
 if (rotas.length === 0) {
   console.error("Nenhuma rota encontrada em src/App.tsx — o parser quebrou, não o site.");
   process.exit(2);
@@ -138,3 +146,5 @@ console.log(
   `✓ as ${resultados.length - 1} rotas devolvem o shell do app, ` +
   "e o asset inexistente não é engolido pelo rewrite.",
 );
+
+} // fim do bloco `executando`

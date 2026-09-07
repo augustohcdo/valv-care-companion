@@ -225,6 +225,39 @@ Os *rewrites* são aplicados **depois** da checagem de arquivos, então
 quebradas — é a verificação que faltava, já que `npm run dev` tem o fallback
 embutido e por isso nunca reproduz esse defeito localmente.
 
+### As rotas renderizam, e não só respondem
+
+`npm run rotas:renderizam` abre **cada uma das 61 rotas num navegador de
+verdade** e falha nas que não montam.
+
+Existe porque o `smoke` acima confere o *shell* — e o shell é o mesmo
+`index.html` para as 61. Uma tela que estoura ao montar devolve exatamente esse
+shell, com HTTP 200, e o smoke passa. O resto da rede também não pega: os testes
+de unidade cobrem funções e componentes isolados, e o `ferramentas:verificar`
+dirige duas rotas. As outras 59 não eram abertas por nada automático — dava para
+quebrar uma tela inteira com CI verde, smoke verde e quase mil testes passando.
+
+Quatro reprovações distintas, porque cada uma aponta para causa diferente:
+exceção não tratada; o error boundary global aparecendo (o pior de detectar — a
+tela fica bonita, com texto educado, e o HTTP continua 200); `#root` vazio; e
+recurso nosso que não carregou. Rota protegida que redireciona para o login
+**conta como renderizada**: o redirecionamento é a tela funcionando.
+
+A lista de rotas vem do `smoke.mjs`, que a deriva do `App.tsx` — lista paralela
+envelhece em silêncio, como já aconteceu aqui com a lista de tabelas do backup.
+
+Códigos de saída: `0` todas renderizaram, `1` alguma quebrou, `2` **não foi
+possível conferir** (sem Playwright, ou nem a primeira rota abriu — o servidor
+não está de pé). O 2 é distinto do 1 de propósito: "não olhei" não é "está
+certo".
+
+Contra o preview local, que é onde ele roda:
+
+```bash
+npm run build && npx vite preview --port 4173 --host 127.0.0.1
+npm run rotas:renderizam -- http://127.0.0.1:4173
+```
+
 ### Layout mobile
 
 `npm run mobile` abre um conjunto de páginas num viewport de celular (via
