@@ -46,12 +46,47 @@ export function homeDoUsuario(ctx: ContextoDeConta): string {
  * idas ao servidor entre o clique em "Entrar" e a primeira tela.
  */
 export async function resolverHome(userId: string): Promise<string> {
+  // As quatro leituras descartavam o `error`, e cada uma falhando mandava a
+  // pessoa para a área errada — em silêncio, no primeiro clique depois de
+  // "Entrar":
+  //
+  //   · `profiles` falha  → `account_type` nulo → MÉDICO CAI NA ÁREA DO
+  //     PACIENTE. Ele vê "seu médico responsável" e nenhum dos seus casos, e a
+  //     conclusão natural é que o sistema perdeu o cadastro dele;
+  //   · `has_role` falha  → `ehAdmin` falso → a conta administrativa aterrissa
+  //     no painel de médico vazio pedindo um cadastro clínico que ela nunca vai
+  //     ter. É exatamente o estado que o desvio desta função existe para evitar;
+  //   · `doctors`/`patients` falham → `temRegistroClinico` falso → muda o
+  //     destino de quem é admin.
+  //
+  // Nenhum desses erros tem correção pela metade: não existe destino seguro
+  // para adivinhar. Então a função recusa, e quem chama diz que não deu para
+  // entrar em vez de despejar a pessoa numa área que não é a dela.
+  //
+  // A checagem vem colada no `Promise.all` de propósito: a varredura de
+  // `readErrors` só olha oito linhas depois do statement, e a primeira versão
+  // desta correção pôs este comentário no meio — a leitura continuou contando
+  // como cega, com o conserto já feito logo abaixo. Explicação antes do código,
+  // checagem junto dele.
   const [perfil, admin, medico, paciente] = await Promise.all([
     supabase.from("profiles").select("account_type").eq("user_id", userId).maybeSingle(),
     supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
     supabase.from("doctors").select("id").eq("user_id", userId).maybeSingle(),
     supabase.from("patients").select("id").is("deleted_at", null).eq("user_id", userId).maybeSingle(),
   ]);
+  const falhou = [
+    perfil.error && "perfil",
+    admin.error && "permissões",
+    medico.error && "registro médico",
+    paciente.error && "registro de paciente",
+  ].filter(Boolean) as string[];
+
+  if (falhou.length > 0) {
+    throw new Error(
+      `Não foi possível carregar ${falhou.join(", ")}. ` +
+        "Sem isso não dá para saber qual é a sua área — tente entrar de novo.",
+    );
+  }
 
   return homeDoUsuario({
     accountType: perfil.data?.account_type ?? null,

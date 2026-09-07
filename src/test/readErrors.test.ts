@@ -84,7 +84,38 @@ const SEM_TOLERANCIA = [
  *            porque o `try/catch` que já existia nunca via falha (o cliente do
  *            Supabase não lança, devolve `{ data: null, error }`).
  */
-const DIVIDA_CONHECIDA = 40;
+// 60 → 58 → 55 → 49 → 40 → 29. Esta rodada zerou duas origens inteiras:
+//
+//   · `CasoDetalhe.tsx` (7) — a pior era o `handleExport`. Quatro leituras num
+//     `Promise.all` sem observar erro, e o `|| []` logo abaixo transformava
+//     falha em seção vazia: o PDF do caso saía COM CARA DE COMPLETO. Um caso
+//     sem eventos e um caso cujos eventos não puderam ser lidos viravam o mesmo
+//     documento — e PDF é impresso, anexado, mandado ao colega. Agora não
+//     exporta: documento clínico incompleto é pior que documento nenhum.
+//   · `homeDoUsuario.ts` (4) — as quatro decidem PARA ONDE a pessoa vai depois
+//     de "Entrar". `profiles` falhando mandava MÉDICO PARA A ÁREA DO PACIENTE,
+//     onde ele não vê nenhum caso seu e conclui que perdeu o cadastro.
+//
+// E uma lição sobre a própria varredura: a primeira versão do conserto do
+// `homeDoUsuario` pôs um comentário de quinze linhas entre a leitura e a
+// checagem. A varredura olha oito linhas depois do statement, então continuou
+// contando como cega — com o conserto já escrito logo abaixo. Explicação antes
+// do código, checagem colada nele.
+// ## O que este número NÃO garante
+//
+// Descoberto invertendo esta rodada: apaguei o `if (erroPaciente) throw` de uma
+// leitura já corrigida e a guarda continuou verde. O detector cobra que o
+// `error` seja DESESTRUTURADO junto da chamada — observado —, não que alguém
+// faça algo com ele. Tirar a ação e deixar a observação passa.
+//
+// Não é frouxidão a corrigir aqui: separar "leu o erro e tratou" de "leu o erro
+// e engoliu" exige entender o fluxo depois da leitura, e um detector que tenta
+// isso por texto erra dos dois lados — que é o defeito que estes testes já
+// tiveram uma vez. O que dá para fazer é dizer a verdade sobre o alcance: este
+// número mede quantas leituras ignoram o erro POR COMPLETO. É o piso, não o
+// teto, e a inversão de cada conserto tem de tirar a desestruturação inteira
+// para valer alguma coisa.
+const DIVIDA_CONHECIDA = 29;
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const nome of readdirSync(dir)) {

@@ -73,20 +73,39 @@ export default function CasoDetalhe() {
       const isOwner = !!doctor && doctor.id === caso.doctor_id;
       let canComment = isOwner;
       if (!isOwner && doctor) {
-        const { data: collab } = await supabase
+        // A falha aqui virava NEGAÇÃO DE PERMISSÃO. `collab` nulo por erro de
+        // leitura e `collab` nulo por não haver colaboração davam o mesmo
+        // `canComment = false`: o colega convidado abria o caso e não entendia
+        // por que não conseguia comentar — nem tinha como saber que o problema
+        // era de rede, não de acesso.
+        //
+        // `throw` porque esta leitura está dentro do `queryFn`: o erro sobe para
+        // o `error` do `useQuery`, e a tela já sabe mostrar falha de carga. Ficar
+        // em silêncio aqui é que não era opção.
+        const { data: collab, error: erroColab } = await supabase
           .from("case_collaborators")
           .select("access_level, status")
           .eq("case_id", id!)
           .eq("doctor_id", doctor.id)
           .is("deleted_at", null)
           .maybeSingle();
+        if (erroColab) throw erroColab;
         canComment = collab?.status === "aceito" && collab?.access_level === "comentar";
       }
 
       let patientUserId: string | null = null;
       if (caso.patient_id) {
-        const { data: pat } = await supabase
+        // O caso DIZ que tem paciente (`caso.patient_id` existe). Se a leitura
+        // falha, `patientUserId` fica nulo e o `CaseExternalData` passa a se
+        // comportar como se o paciente não tivesse conta — some do médico o
+        // canal de dados que o próprio paciente alimenta.
+        //
+        // Nulo continua sendo resposta válida (paciente cadastrado pelo médico,
+        // sem conta própria). O que não pode é falha de leitura se disfarçar
+        // dessa resposta.
+        const { data: pat, error: erroPaciente } = await supabase
           .from("patients").select("user_id").is("deleted_at", null).eq("id", caso.patient_id).maybeSingle();
+        if (erroPaciente) throw erroPaciente;
         patientUserId = pat?.user_id ?? null;
       }
 
@@ -161,21 +180,63 @@ export default function CasoDetalhe() {
   const handleExport = async () => {
     if (!caso) return;
     toast.info("Gerando PDF...");
-    // Buscar dados relacionados
-    const [{ data: events }, { data: appts }, { data: docs }, { data: doctor }] = await Promise.all([
+
+    // As quatro leituras que compõem o documento.
+    //
+    // Antes elas descartavam o `error`, e a consequência era a pior desta
+    // família de defeito: o `|| []` mais abaixo transformava falha de leitura em
+    // seção vazia, e o PDF saía COM CARA DE COMPLETO. Um caso sem nenhum evento
+    // e um caso cujos eventos não puderam ser lidos viravam o mesmo documento.
+    //
+    // E PDF não é tela. Tela o médico recarrega; PDF é impresso, anexado ao
+    // prontuário, mandado por e-mail ao colega. O erro sai do sistema junto com
+    // o papel e não volta.
+    //
+    // Por isso aqui não há degradação graciosa: se qualquer parte falhou, não se
+    // exporta. Documento clínico incompleto é pior que documento nenhum.
+    const [rEvents, rAppts, rDocs, rDoctor] = await Promise.all([
       supabase.from("case_events").select("*").eq("case_id", caso.id).is("deleted_at", null).order("event_date", { ascending: false }),
       supabase.from("appointments").select("*").eq("case_id", caso.id).is("deleted_at", null).order("scheduled_at"),
       supabase.from("case_documents").select("*").eq("case_id", caso.id).is("deleted_at", null).order("created_at", { ascending: false }),
       supabase.from("doctors").select("*").eq("id", caso.doctor_id).maybeSingle(),
     ]);
 
+    const falhas = [
+      rEvents.error && "evolução do caso",
+      rAppts.error && "consultas",
+      rDocs.error && "documentos",
+      rDoctor.error && "dados do médico responsável",
+    ].filter(Boolean) as string[];
+
+    if (falhas.length > 0) {
+      toast.error(
+        `Não foi possível ler: ${falhas.join(", ")}. O PDF não foi gerado — ` +
+          "sairia incompleto sem indicar o que faltou. Tente de novo.",
+      );
+      return;
+    }
+
+    const events = rEvents.data;
+    const appts = rAppts.data;
+    const docs = rDocs.data;
+    const doctor = rDoctor.data;
+
     let doctorInfo: any = undefined;
     if (doctor) {
       // Pelo RPC: ler `profiles` de outro médico volta vazio pela policy, e o
       // PDF de um caso exportado por um colaborador saía com "Dr(a). —" no
       // lugar do autor. Documento clínico sem autor identificado.
-      const { data: participantes } = await supabase
+      const { data: participantes, error: erroParticipantes } = await supabase
         .rpc("participantes_do_caso", { _case_id: caso.id });
+      if (erroParticipantes) {
+        // Mesma regra: o autor é parte do documento, não enfeite. Sem ele o PDF
+        // volta a sair com "Dr(a). —", que foi o defeito que este RPC corrigiu.
+        toast.error(
+          "Não foi possível identificar o autor do caso. O PDF não foi gerado — " +
+            "documento clínico sem autor identificado não deve circular.",
+        );
+        return;
+      }
       const dono = (participantes ?? []).find((x) => x.user_id === doctor.user_id);
       doctorInfo = {
         full_name: dono?.full_name ?? null,

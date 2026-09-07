@@ -54,8 +54,17 @@ export default function Login() {
     if (!user) return;
     // A regra de destino é uma só, em `homeDoUsuario` — antes existia aqui, no
     // `AuthCallback` e no `ProtectedRoute`, em três versões que discordavam.
-    const dest = fromPath ?? (await resolverHome(user.id));
-    navigate(dest, { replace: true });
+    //
+    // `resolverHome` agora RECUSA quando não consegue ler o perfil ou as
+    // permissões, em vez de chutar a área do paciente. Aqui isso vira mensagem
+    // e o usuário fica onde está: melhor repetir o login do que abrir a tela
+    // errada e concluir que o cadastro sumiu.
+    try {
+      const dest = fromPath ?? (await resolverHome(user.id));
+      navigate(dest, { replace: true });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível carregar sua conta.");
+    }
   };
 
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
