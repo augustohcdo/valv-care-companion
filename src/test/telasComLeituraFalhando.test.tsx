@@ -82,6 +82,7 @@ import MedicoPacientes from "@/pages/app/MedicoPacientes";
 import MedicoColaboracoes from "@/pages/app/MedicoColaboracoes";
 import { PrivacyPreferencesPanel } from "@/components/PrivacyPreferencesPanel";
 import NovoCaso from "@/pages/app/NovoCaso";
+import FhirSandbox from "@/pages/app/FhirSandbox";
 import { toast } from "sonner";
 
 // `MemoryRouter` porque as telas de lista usam `<Link>`. Sem ele o React quebra
@@ -232,5 +233,28 @@ describe("rascunho do caso novo com a leitura falhando", () => {
     expect(String(chamada[0])).toMatch(/rascunhos salvos/i);
     expect(String(chamada[1]?.description ?? "")).toMatch(/NÃO foi perdido/i);
     expect(String(chamada[1]?.description ?? "")).toMatch(/antes de digitar tudo de novo/i);
+  });
+});
+
+describe("sandbox FHIR com a verificação de permissão falhando", () => {
+  /**
+   * `!!data` sobre `undefined` dá `false`: a falha na verificação de papel
+   * dizia ao ADMINISTRADOR que ele não é administrador, e a tela negava acesso.
+   * Falha de leitura virando decisão de permissão.
+   *
+   * O redirecionamento continua acontecendo — não dá para abrir uma tela
+   * administrativa sem confirmar o papel. O que mudou é que a pessoa fica
+   * sabendo POR QUE, em vez de concluir que perdeu o acesso.
+   */
+  it("avisa que não conseguiu verificar, em vez de negar em silêncio", async () => {
+    render(<FhirSandbox />, { wrapper });
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    const [titulo, opcoes] = (toast.error as any).mock.calls[0];
+
+    expect(String(titulo)).toMatch(/não foi possível verificar suas permissões/i);
+    expect(String(opcoes?.description ?? "")).toMatch(
+      /não quer dizer que você não seja administrador/i,
+    );
   });
 });
