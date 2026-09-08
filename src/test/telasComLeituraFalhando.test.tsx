@@ -80,6 +80,9 @@ import { PatientSymptomsViewer } from "@/components/PatientSymptomsViewer";
 import MedicoHome from "@/pages/app/MedicoHome";
 import MedicoPacientes from "@/pages/app/MedicoPacientes";
 import MedicoColaboracoes from "@/pages/app/MedicoColaboracoes";
+import { PrivacyPreferencesPanel } from "@/components/PrivacyPreferencesPanel";
+import NovoCaso from "@/pages/app/NovoCaso";
+import { toast } from "sonner";
 
 // `MemoryRouter` porque as telas de lista usam `<Link>`. Sem ele o React quebra
 // no roteador antes de chegar à faixa de erro — e o teste reprovaria pelo motivo
@@ -177,5 +180,57 @@ describe("painel do médico com a leitura falhando", () => {
     // número grande.
     expect(screen.queryByText(/casos ativos/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/total de casos/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("preferências de privacidade com a leitura falhando", () => {
+  /**
+   * Aqui a falha não é só confusa: é afirmação sobre DIREITOS.
+   *
+   * Sem os consentimentos lidos, cada chave aparecia desligada — a tela dizia ao
+   * titular que ele não concedeu nada, e a trilha de auditoria vinha vazia. Pior
+   * que dizer: ele podia ligar uma chave que já estava ligada, gravando
+   * consentimento novo por cima de um estado que ninguém conhecia.
+   *
+   * Por isso os CONTROLES somem, e não só ganham um aviso ao lado. Chave visível
+   * é chave que alguém mexe.
+   */
+  it("esconde os controles e explica, em vez de mostrar tudo desligado", async () => {
+    render(<PrivacyPreferencesPanel />, { wrapper });
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/não foi possível carregar suas preferências de privacidade/i),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText(/não quer dizer que você não tenha consentimentos registrados/i),
+    ).toBeInTheDocument();
+
+    // Nenhum interruptor na tela: é o que impede a alteração às cegas.
+    expect(screen.queryAllByRole("switch")).toHaveLength(0);
+  });
+});
+
+describe("rascunho do caso novo com a leitura falhando", () => {
+  /**
+   * Este não mente na tela — ele some. A busca pelo rascunho salvo falhava, o
+   * formulário abria em branco, e o médico que tinha um caso em andamento
+   * concluía que o sistema não guardou nada. Redigitava tudo, e o rascunho
+   * antigo continuava lá, agora concorrendo com o novo.
+   *
+   * Perda de trabalho por silêncio. O aviso precisa dizer as duas coisas: que
+   * falhou, e que o rascunho NÃO foi perdido — senão a reação natural é digitar
+   * de novo, que é justamente o que se quer evitar.
+   */
+  it("avisa que o rascunho não foi perdido, em vez de abrir em branco calado", async () => {
+    render(<NovoCaso />, { wrapper });
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+
+    const chamada = (toast.error as any).mock.calls[0];
+    expect(String(chamada[0])).toMatch(/rascunhos salvos/i);
+    expect(String(chamada[1]?.description ?? "")).toMatch(/NÃO foi perdido/i);
+    expect(String(chamada[1]?.description ?? "")).toMatch(/antes de digitar tudo de novo/i);
   });
 });

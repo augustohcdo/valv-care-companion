@@ -26,6 +26,12 @@ const PARTICIPANTES = [
   { user_id: "u8", full_name: "Carla Dias", crm: "333333", crm_uf: "MG", specialty: "Cardiologia" },
 ];
 
+/**
+ * Liga a falha na busca por CRM. Fora deste teste ela fica desligada, para não
+ * contaminar os outros.
+ */
+let buscaDeCrmFalha = false;
+
 let collabs = [...COLLABS];
 let participantes: unknown[] = [...PARTICIPANTES];
 const updateSpy = vi.fn();
@@ -62,7 +68,12 @@ vi.mock("@/integrations/supabase/client", () => ({
           in: () =>
             Promise.resolve({ data: table === "doctors" ? DOCTORS : [], error: null }),
           order: () => Promise.resolve({ data: collabs, error: null }),
-          maybeSingle: () => Promise.resolve({ data: null, error: null }),
+          maybeSingle: () =>
+            Promise.resolve(
+              buscaDeCrmFalha
+                ? { data: null, error: { message: "network error" } }
+                : { data: null, error: null },
+            ),
         };
         return chain;
       },
@@ -87,6 +98,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { CaseCollaborators } from "./CaseCollaborators";
 import { logAudit } from "@/lib/auditLog";
+import { toast } from "sonner";
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
@@ -101,6 +113,7 @@ describe("CaseCollaborators", () => {
     collabs = [...COLLABS];
     participantes = [...PARTICIPANTES];
     updateSpy.mockClear();
+    buscaDeCrmFalha = false;
     vi.clearAllMocks();
     vi.spyOn(window, "confirm").mockReturnValue(true);
   });
@@ -178,5 +191,41 @@ describe("CaseCollaborators", () => {
     ).toHaveLength(0);
     // mas continua podendo responder ao próprio convite
     expect(screen.getByRole("button", { name: /Aceitar/i })).toBeInTheDocument();
+  });
+});
+
+/**
+ * A busca por CRM quando a leitura falha.
+ *
+ * A consulta descartava o `error` e caía no `if (!doc)`, que responde "Médico
+ * não encontrado. Verifique o CRM e a UF". Numa falha de leitura essa frase é
+ * falsa em dois níveis: o colega EXISTE, e a culpa ainda vai para a digitação de
+ * quem está convidando. A pessoa confere o CRM três vezes, liga para o colega
+ * para confirmar, e o problema nunca esteve ali.
+ */
+describe("CaseCollaborators — busca por CRM com a leitura falhando", () => {
+  beforeEach(() => {
+    collabs = [...COLLABS];
+    participantes = [...PARTICIPANTES];
+    buscaDeCrmFalha = true;
+    vi.clearAllMocks();
+  });
+
+  it("não diz que o médico não existe quando a consulta é que não chegou", async () => {
+    renderComp();
+    // O formulário mora num diálogo: primeiro o gatilho, depois os campos.
+    fireEvent.click(await screen.findByRole("button", { name: /convidar/i }));
+    const campoCrm = await screen.findByPlaceholderText("123456");
+    fireEvent.change(campoCrm, { target: { value: "222222" } });
+    const botoes = screen.getAllByRole("button", { name: /convidar|enviar/i });
+    fireEvent.click(botoes[botoes.length - 1]);
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    const [titulo, opcoes] = (toast.error as any).mock.calls[0];
+
+    expect(String(titulo)).toMatch(/não foi possível consultar o crm/i);
+    expect(String(titulo)).not.toMatch(/médico não encontrado/i);
+    // E precisa desmentir a leitura de ausência, não só relatar erro.
+    expect(String(opcoes?.description ?? "")).toMatch(/não quer dizer que o médico não exista/i);
   });
 });
