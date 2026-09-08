@@ -83,6 +83,7 @@ import MedicoColaboracoes from "@/pages/app/MedicoColaboracoes";
 import { PrivacyPreferencesPanel } from "@/components/PrivacyPreferencesPanel";
 import NovoCaso from "@/pages/app/NovoCaso";
 import FhirSandbox from "@/pages/app/FhirSandbox";
+import { CommandPalette } from "@/components/CommandPalette";
 import { toast } from "sonner";
 
 // `MemoryRouter` porque as telas de lista usam `<Link>`. Sem ele o React quebra
@@ -258,3 +259,25 @@ describe("sandbox FHIR com a verificação de permissão falhando", () => {
     );
   });
 });
+
+/**
+ * A paleta de busca ficou de fora, e o motivo fica registrado.
+ *
+ * A correção dela existe: a busca que falha passou a dizer "a busca não chegou
+ * ao servidor" em vez de "Nenhum resultado encontrado" — e essa diferença
+ * importa, porque quem procura um paciente pelo nome e lê "nenhum resultado"
+ * conclui que o cadastro não existe e vai criar de novo.
+ *
+ * O teste, porém, PENDURA a suíte. A paleta é um diálogo do `cmdk` com debounce
+ * na busca, e no jsdom a combinação não resolve — o arquivo inteiro passou de
+ * 300 s sem terminar, isolado inclusive.
+ *
+ * Deixar um teste que trava é pior que não ter teste: ele para a CI de todo
+ * mundo e a reação natural é desligá-lo, levando junto os que funcionam. Fica a
+ * ausência declarada, e não um teste que alguém vai remover às pressas achando
+ * que é chatice.
+ *
+ * Coberto hoje pelo contador de `readErrors` (a leitura observa o erro) e pela
+ * varredura de rotas, que abre `/` num navegador de verdade — onde a paleta é
+ * montada. O que falta é a asserção sobre a frase.
+ */
