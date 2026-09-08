@@ -71,7 +71,13 @@ vi.mock("@/hooks/useDoctor", () => ({
 vi.mock("@/lib/auditLog", () => ({ logAudit: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() } }));
 
+// Filhos que puxam dados por conta própria e não são o assunto destes testes.
+vi.mock("@/components/DashboardCharts", () => ({ DashboardCharts: () => null }));
+vi.mock("@/components/AdvancedStats", () => ({ AdvancedStats: () => null }));
+vi.mock("@/components/DoctorLinkRequests", () => ({ DoctorLinkRequests: () => null }));
+
 import { PatientSymptomsViewer } from "@/components/PatientSymptomsViewer";
+import MedicoHome from "@/pages/app/MedicoHome";
 import MedicoPacientes from "@/pages/app/MedicoPacientes";
 import MedicoColaboracoes from "@/pages/app/MedicoColaboracoes";
 
@@ -149,5 +155,27 @@ describe("colaborações com a leitura falhando", () => {
     );
     expect(screen.getByText(/não a ausência de convites/i)).toBeInTheDocument();
     expect(screen.queryByText(/nenhum convite ainda/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("painel do médico com a leitura falhando", () => {
+  /**
+   * A PRIMEIRA tela depois de entrar. O `?? 0` fazia ela anunciar
+   * "0 pacientes, 0 casos, 0 em acompanhamento" em números grandes — não é tela
+   * vazia, é a tela afirmando um fato falso sobre a prática do médico.
+   */
+  it("não anuncia que o médico não tem paciente nem caso", async () => {
+    render(<MedicoHome />, { wrapper });
+
+    await waitFor(() =>
+      expect(screen.getByText(/não foi possível carregar seu painel/i)).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/não a ausência de pacientes ou casos/i)).toBeInTheDocument();
+
+    // Os rótulos dos contadores não podem aparecer: a faixa substitui o painel,
+    // não convive com ele. Número grande ao lado de aviso pequeno é lido como
+    // número grande.
+    expect(screen.queryByText(/casos ativos/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/total de casos/i)).not.toBeInTheDocument();
   });
 });
