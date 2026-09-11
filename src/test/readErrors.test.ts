@@ -1,8 +1,10 @@
 // Este teste lê o disco; tsconfig.app.json restringe `types`, daí a referência.
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { statSync } from "node:fs";
+import {
+  encontrarCegas, padraoDeDestino, arrayObservaTodosOsErros, itensDoArray,
+} from "./detectorDeLeituraCega";
 
 /**
  * Guarda contra falha de LEITURA lida como conclusão.
@@ -152,162 +154,16 @@ const SEM_TOLERANCIA = [
 // para valer alguma coisa.
 const DIVIDA_CONHECIDA = 2;
 
-function walk(dir: string, out: string[] = []): string[] {
-  for (const nome of readdirSync(dir)) {
-    if (nome === "node_modules" || nome === "dist") continue;
-    const full = join(dir, nome);
-    if (statSync(full).isDirectory()) walk(full, out);
-    else if (/\.tsx?$/.test(nome)) out.push(full);
-  }
-  return out;
-}
-
 /**
- * As leituras que descartam o erro.
+ * A varredura em si mora em `detectorDeLeituraCega.ts`, compartilhada com a
+ * guarda das edge functions. Duas cópias divergem — esta base já pagou por isso.
  *
- * ## Por que não basta procurar a palavra `error` por perto
- *
- * A primeira versão desta varredura fazia isso, e a inversão a reprovou: eu
- * devolvi a leitura cega na tela de LGPD e **a guarda continuou verde**. O
- * motivo estava seis linhas acima da consulta —
- *
- *     const { data, isFetching: loading, error } = useQuery({
- *
- * — o `error` do `useQuery`, que não diz nada sobre a leitura lá dentro. Palavra
- * solta na vizinhança é coincidência, não checagem.
- *
- * Então o `error` precisa estar **amarrado à variável que recebe a chamada**:
- * ou desestruturado do próprio resultado, ou lido como `<variável>.error`.
- *
- * A folga de algumas linhas depois do statement não é frouxidão: num
- * `Promise.all` as chamadas ficam dentro do array e a checagem só pode vir
- * depois do `]);`. Sem ela, a varredura acusaria justamente o código corrigido
- * — e guarda que pune quem fez certo é guarda que alguém desliga.
+ * Em `src` o cliente é sempre `supabase`, importado de um módulo só, então o
+ * nome é fixo. Nas functions ele se chama `admin` na maioria dos arquivos, e lá
+ * a descoberta é pelo `createClient`.
  */
-/**
- * O padrão de destino da ÚLTIMA declaração do texto: o que vem entre
- * `const`/`let`/`var` e o `=`, com colchetes e chaves equilibrados, atravessando
- * quebras de linha. Devolve `null` quando não há declaração nenhuma.
- */
-function padraoDeDestino(texto: string): string | null {
-  const decls = [...texto.matchAll(/\b(?:const|let|var)\s+/g)];
-  for (const d of decls.reverse()) {
-    let k = d.index! + d[0].length;
-    const abre: Record<string, string> = { "[": "]", "{": "}", "(": ")" };
-    const pilha: string[] = [];
-    const comeco = k;
-    while (k < texto.length) {
-      const c = texto[k];
-      if (abre[c]) pilha.push(abre[c]);
-      else if (pilha.length && c === pilha[pilha.length - 1]) pilha.pop();
-      else if (pilha.length === 0 && (c === "=" || c === ";" || c === "\n")) break;
-      k++;
-    }
-    if (texto[k] !== "=") continue; // `const x;` ou fim de linha: não é atribuição
-    const padrao = texto.slice(comeco, k).trim();
-    if (padrao) return padrao;
-  }
-  return null;
-}
+const cegas = encontrarCegas({ raiz: RAIZ, nomesDoCliente: () => ["supabase"] });
 
-/** Os itens de primeiro nível de um padrão `[a, b, c]`. */
-function itensDoArray(padrao: string): string[] {
-  const dentro = padrao.slice(1, -1);
-  const itens: string[] = [];
-  let profundidade = 0;
-  let atual = "";
-  for (const c of dentro) {
-    if ("[{(".includes(c)) profundidade++;
-    if ("]})".includes(c)) profundidade--;
-    if (c === "," && profundidade === 0) { itens.push(atual.trim()); atual = ""; continue; }
-    atual += c;
-  }
-  if (atual.trim()) itens.push(atual.trim());
-  return itens.filter((x) => x.length > 0);
-}
-
-/**
- * `[{ data, error }, { data, error }] = await Promise.all([…])` — absolve?
- *
- * Só quando TODOS os itens observam o erro. Um item cego entre dois corretos é
- * justamente a leitura que fica sem dono, e "algum deles confere" é a regra
- * frouxa que deixaria essa passar.
- */
-function arrayObservaTodosOsErros(padrao: string): boolean {
-  const itens = itensDoArray(padrao);
-  const objetos = itens.filter((x) => x.startsWith("{"));
-  return objetos.length > 0 && objetos.length === itens.length &&
-    objetos.every((o) => /\berror\b/.test(o));
-}
-
-function encontrarCegas(): string[] {
-  const achados: string[] = [];
-
-  for (const arquivo of walk(RAIZ)) {
-    const rel = arquivo.replace(/\\/g, "/");
-    if (/\.test\.tsx?$/.test(rel)) continue;
-
-    const linhas = readFileSync(arquivo, "utf8").split("\n");
-    for (let i = 0; i < linhas.length; i++) {
-      if (!/supabase\s*$|supabase\./.test(linhas[i])) continue;
-
-      // O statement: daqui até o `;` que fecha, com um teto para não varrer o
-      // arquivo inteiro quando falta ponto e vírgula.
-      let fim = i;
-      while (fim < linhas.length - 1 && fim < i + 12 && !/;\s*$/.test(linhas[fim])) fim++;
-      const statement = linhas.slice(i, fim + 1).join("\n");
-
-      // Escrita é assunto do writeErrors.test.ts.
-      if (/\.(insert|update|upsert|delete)\(/.test(statement)) continue;
-      if (!/\.select\(|\.rpc\(/.test(statement)) continue;
-
-      // Quem recebe o resultado? A atribuição pode estar acima, quando a
-      // chamada é um item de `Promise.all`, e o padrão pode ocupar VÁRIAS
-      // linhas — daí a busca ser sobre o texto junto, e não linha a linha.
-      //
-      // A versão anterior usava `/(?:const|let|var)\s+(\[[^\]]*\]|\{[^}]*\}|\w+)\s*=/`
-      // em cada linha isolada, e errava dos dois lados:
-      //
-      //   · `const [{ data: a, error: eA }, { data: b, error: eB }] = ...`
-      //     — código CORRETO — era acusado, porque a regra 1 exigia que o
-      //     padrão começasse com `{` e este começa com `[`. Guarda que pune
-      //     quem fez certo é guarda que alguém desliga;
-      //   · `const [\n  { data: a },\n ...\n] = ...` — código CEGO — era
-      //     ABSOLVIDO, porque nenhuma linha sozinha casava e a varredura
-      //     concluía "resultado descartado de propósito". Falso negativo, que é
-      //     o defeito grave.
-      const contexto = linhas.slice(Math.max(0, i - 6), fim + 1).join("\n");
-      const alvo = padraoDeDestino(contexto);
-      if (!alvo) continue; // resultado descartado de propósito (fire-and-forget)
-
-      const depois = Math.min(linhas.length, fim + 8);
-      const regiao = linhas.slice(i, depois).join("\n");
-
-      // 1) `{ data, error } = ...` — desestruturado do próprio resultado.
-      if (/^\{/.test(alvo) && /\berror\b/.test(alvo)) continue;
-      // 1b) `[{ data, error }, { data, error }] = await Promise.all([...])` —
-      //     cada item do array recebe o resultado de UMA das chamadas. Só
-      //     absolve quando TODOS observam o erro: um item cego entre dois
-      //     corretos é exatamente a leitura que fica sem dono.
-      if (/^\[/.test(alvo) && arrayObservaTodosOsErros(alvo)) continue;
-      // 2) `const r = ...` / `const [r, g] = ...` — cobra `<nome>.error` depois.
-      const nomes = alvo.replace(/^[[{]|[\]}]$/g, "")
-        .split(",")
-        .map((p) => p.split(":").pop()!.trim())
-        .filter((n) => /^\w+$/.test(n));
-      if (nomes.some((n) => new RegExp(`\\b${n}\\.error\\b`).test(regiao))) continue;
-      // Não há regra 3. Eu tinha escrito uma — "um `throw` na região absolve" —
-      // e ela reabria o mesmo buraco: o `throw` de uma leitura vizinha
-      // absolvia esta. Quem confere o próprio erro já passa pela regra 1, que
-      // reconhece tanto `{ data, error }` quanto `{ data: x, error: e }`.
-
-      achados.push(`${rel}:${i + 1}`);
-    }
-  }
-  return achados;
-}
-
-const cegas = encontrarCegas();
 const foraDaLista = cegas.filter((c) => !SEM_TOLERANCIA.includes(c.split(":")[0]));
 const naLista = cegas.filter((c) => SEM_TOLERANCIA.includes(c.split(":")[0]));
 
