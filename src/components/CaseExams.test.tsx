@@ -18,8 +18,22 @@ const EXAMS = [
 
 let rows: any[] = [...EXAMS];
 const updateSpy = vi.fn();
+const insertSpy = vi.fn();
 /** Permite encenar uma recusa do banco (RLS, constraint, rede). */
 let updateResult: { error: { message: string } | null } = { error: null };
+/** O gravar do exame em si. Separado do update porque falham por motivos diferentes. */
+let insertResult: { error: { message: string } | null } = { error: null };
+
+/**
+ * A leitura de `clinical_cases` que a oferta de "levar ao caso" faz depois de
+ * salvar. Ligada por teste: é o ponto em que a falha era engolida.
+ */
+let leituraDoCasoFalha = false;
+/** Os achados do caso como estão hoje. Tudo vazio = toda medida do exame é lacuna. */
+let casoAtual: Record<string, unknown> = {
+  ejection_fraction: null, mean_gradient: null, peak_gradient: null,
+  valve_area: null, regurgitation_grade: null,
+};
 
 
 /**
@@ -36,19 +50,32 @@ function escrita(resultado: { error: { message: string } | null }) {
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    from: () => ({
+    from: (tabela: string) => ({
       select: () => {
         const chain: any = {
           eq: () => chain,
           is: () => chain,
           order: () => Promise.resolve({ data: rows, error: null }),
+          // Só `clinical_cases` termina em `maybeSingle` neste componente.
+          maybeSingle: () =>
+            Promise.resolve(
+              leituraDoCasoFalha
+                ? { data: null, error: { message: "network error" } }
+                : { data: casoAtual, error: null },
+            ),
         };
         return chain;
+      },
+      insert: (values: any) => {
+        insertSpy(values);
+        return Promise.resolve(insertResult);
       },
       update: (values: any) => ({
         eq: (col: string, val: any) => {
           updateSpy(values, col, val);
-          if (!updateResult.error) rows = rows.filter((r) => r.id !== val);
+          if (tabela === "case_exams" && !updateResult.error) {
+            rows = rows.filter((r) => r.id !== val);
+          }
           return escrita(updateResult);
         },
       }),
@@ -79,7 +106,14 @@ describe("CaseExams", () => {
   beforeEach(() => {
     rows = [...EXAMS];
     updateResult = { error: null };
+    insertResult = { error: null };
+    leituraDoCasoFalha = false;
+    casoAtual = {
+      ejection_fraction: null, mean_gradient: null, peak_gradient: null,
+      valve_area: null, regurgitation_grade: null,
+    };
     updateSpy.mockClear();
+    insertSpy.mockClear();
     vi.clearAllMocks();
     vi.spyOn(window, "confirm").mockReturnValue(true);
   });
@@ -203,5 +237,105 @@ describe("CaseExams", () => {
 
     const badge = await screen.findByText("-10.0");
     expect(badge.className).toContain("text-warning");
+  });
+
+  /**
+   * A oferta de levar as medidas do laudo para os achados do caso.
+   *
+   * ## O defeito
+   *
+   * `oferecerLevarAoCaso` lia `clinical_cases` e descartava o `error`. Falhando
+   * a leitura, `caso` vinha `null` e o `if (!caso) return` logo abaixo engolia
+   * tudo: **a oferta simplesmente não aparecia**. O médico salvava o laudo,
+   * esperava a pergunta e nada acontecia — indistinguível de "este exame não
+   * tinha medida aproveitável". Ele conclui que a função não existe e digita à
+   * mão o número que o sistema acabara de ler.
+   *
+   * É a forma mais silenciosa desta série: nem tela errada, nem toast mentindo.
+   * Uma funcionalidade que some sem deixar rastro, e cujo prejuízo — redigitar
+   * uma FE — é exatamente onde um erro de digitação entra no prontuário.
+   *
+   * ## Por que precisa do fluxo inteiro
+   *
+   * `oferecerLevarAoCaso` não é exportada: ela só roda no fim do `submit`. Para
+   * chegar nela é preciso abrir o diálogo, preencher e salvar — e é bom que
+   * seja assim, porque o que se quer verificar é o que o médico vê depois de
+   * salvar, não a função isolada.
+   */
+  describe("a oferta de levar as medidas ao caso", () => {
+    const abrirFormulario = async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Novo exame/i }));
+      await screen.findByText(/Registrar novo exame/i);
+    };
+
+    /** FE é o primeiro dos dez campos numéricos, na ordem de `numericFields`. */
+    const preencherFE = (valor: string) =>
+      fireEvent.change(screen.getAllByRole("spinbutton")[0], { target: { value: valor } });
+
+    const salvar = () => fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    /** Só os textos dos `toast.success` — é por lá que a oferta aparece. */
+    const sucessos = () => (toast.success as any).mock.calls.map((c: any[]) => String(c[0]));
+
+    /** Abre, preenche FE e salva. Devolve quando o insert já aconteceu. */
+    const salvarExameComFE = async (valor = "40") => {
+      renderComp();
+      await waitFor(() => expect(screen.getByText("ECO controle")).toBeInTheDocument());
+      await abrirFormulario();
+      preencherFE(valor);
+      salvar();
+      await waitFor(() => expect(insertSpy).toHaveBeenCalled());
+    };
+
+    it("a leitura do caso falhando: avisa, em vez de sumir com a oferta", async () => {
+      leituraDoCasoFalha = true;
+      await salvarExameComFE();
+
+      await waitFor(() => expect(toast.error).toHaveBeenCalled());
+      const mensagem = String((toast.error as any).mock.calls[0][0]);
+      expect(mensagem).toMatch(/não foi possível conferir quais campos do caso ainda estão vazios/i);
+
+      // E a oferta, que é o que falhou, não pode ter sido dada às escuras.
+      expect(sucessos().some((t: string) => /achados do caso estão sem/i.test(t))).toBe(false);
+    });
+
+    it("e diz que o laudo continua salvo, porque ele continua", async () => {
+      // Sem essa frase, o aviso faria o médico achar que perdeu o exame inteiro
+      // e salvar de novo — duplicando o laudo por causa de uma leitura que
+      // falhou depois da gravação. O exame FOI gravado; só a conferência não.
+      leituraDoCasoFalha = true;
+      await salvarExameComFE();
+
+      await waitFor(() => expect(toast.error).toHaveBeenCalled());
+      expect(String((toast.error as any).mock.calls[0][0])).toMatch(
+        /as medidas do laudo continuam salvas/i,
+      );
+      expect(sucessos()).toContain("Exame registrado");
+    });
+
+    it("com o caso lido e vazio, a oferta APARECE", async () => {
+      // Contraprova indispensável: sem ela os dois testes acima passariam com a
+      // oferta removida do componente, que é justamente o estado que o defeito
+      // produzia na prática.
+      await salvarExameComFE();
+
+      await waitFor(() =>
+        expect(sucessos().some((t: string) => /achados do caso estão sem 1 dessas medidas/i.test(t)))
+          .toBe(true),
+      );
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it("com o caso já preenchido, não oferece nada nem acusa erro", async () => {
+      // O terceiro estado, que separa "não ofereceu porque falhou" de "não
+      // ofereceu porque não havia o que oferecer" — a distinção que o `error`
+      // descartado apagava.
+      casoAtual = { ...casoAtual, ejection_fraction: 40 };
+      await salvarExameComFE("40");
+
+      await waitFor(() => expect(sucessos()).toContain("Exame registrado"));
+      expect(sucessos().some((t: string) => /achados do caso estão sem/i.test(t))).toBe(false);
+      expect(toast.error).not.toHaveBeenCalled();
+    });
   });
 });

@@ -83,7 +83,6 @@ import MedicoColaboracoes from "@/pages/app/MedicoColaboracoes";
 import { PrivacyPreferencesPanel } from "@/components/PrivacyPreferencesPanel";
 import NovoCaso from "@/pages/app/NovoCaso";
 import FhirSandbox from "@/pages/app/FhirSandbox";
-import { CommandPalette } from "@/components/CommandPalette";
 import { toast } from "sonner";
 
 // `MemoryRouter` porque as telas de lista usam `<Link>`. Sem ele o React quebra
