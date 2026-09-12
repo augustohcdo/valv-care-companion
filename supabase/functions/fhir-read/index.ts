@@ -42,12 +42,16 @@ Deno.serve(async (req) => {
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-  const { data: keyRow } = await admin
+  const { data: keyRow, error: erroChave } = await admin
     .from("hospital_api_keys")
     .select("id, hospital_id, key_hash, scopes, ip_allowlist, revoked_at, expires_at")
     .eq("key_prefix", m[1])
     .maybeSingle();
 
+  // Recusar sem conseguir conferir a chave é a direção certa. Chamar isso de
+  // "unauthorized" manda o hospital caçar problema na credencial dele —
+  // revogar, emitir outra, abrir chamado — por causa de uma leitura que caiu.
+  if (erroChave) return json({ error: "key_check_failed", detail: erroChave.message }, 503);
   if (!keyRow || keyRow.key_hash !== hash) return json({ error: "unauthorized" }, 401);
   if (keyRow.revoked_at) return json({ error: "key_revoked" }, 401);
   if (new Date(keyRow.expires_at) < new Date()) return json({ error: "key_expired" }, 401);
@@ -55,7 +59,7 @@ Deno.serve(async (req) => {
   if (keyRow.ip_allowlist?.length && ip && !keyRow.ip_allowlist.includes(ip))
     return json({ error: "ip_not_allowed" }, 403);
 
-  const { data: grant } = await admin
+  const { data: grant, error: erroGrant } = await admin
     .from("data_access_grants")
     .select("id, resource_scopes, direction")
     .eq("hospital_id", keyRow.hospital_id)
@@ -64,6 +68,14 @@ Deno.serve(async (req) => {
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();
 
+  // "Não consegui ler a autorização" virava `no_active_grant`, que é uma
+  // afirmação sobre a VONTADE DO PACIENTE: o hospital lê que o consentimento
+  // não existe ou foi revogado. Registrar isso na trilha de integração como
+  // recusa por falta de autorização seria pior ainda — a trilha passaria a
+  // dizer que não havia consentimento numa noite em que havia.
+  if (erroGrant) {
+    return json({ error: "grant_check_failed", detail: erroGrant.message }, 503);
+  }
   if (!grant) {
     await admin.rpc("log_integration_event", {
       _hospital_id: keyRow.hospital_id, _patient_id: patientId, _actor: null, _api_key: keyRow.id,
@@ -77,10 +89,58 @@ Deno.serve(async (req) => {
   const allowed = resolveAllowedTypes(types, grant.resource_scopes);
   const entries: any[] = [];
 
+  /**
+   * O que não pôde ser lido. Enquanto tiver item, não sai bundle.
+   *
+   * ## Por que aqui a falha aborta em vez de degradar
+   *
+   * Este endpoint entrega dado clínico ao SISTEMA DE UM HOSPITAL, de máquina
+   * para máquina. Cada leitura daqui terminava em `?? []` com o `error` no
+   * chão, e o resultado era um FHIR Bundle bem formado, com `total` coerente,
+   * HTTP 200 — e uma seção faltando.
+   *
+   * O caso que decide a questão é `MedicationStatement`: uma falha de leitura
+   * em `medications` entregava um paciente **sem anticoagulante nenhum**. Quem
+   * tem prótese mecânica e usa varfarina chega ao outro lado como quem não usa
+   * nada. Do lado de lá não há como distinguir isso de um paciente que
+   * realmente não toma medicação, e ninguém recarrega a página — não há
+   * página.
+   *
+   * `Condition` é do mesmo tamanho: estenose aórtica importante vira paciente
+   * sem valvopatia registrada.
+   *
+   * Bundle incompleto que se apresenta como completo é pior que erro: o erro o
+   * hospital repete; o bundle ele arquiva.
+   */
+  const falhas: string[] = [];
+
+  /**
+   * O `patients.id` do titular, lido UMA vez.
+   *
+   * Antes esta mesma consulta aparecia três vezes, e uma delas com o pior
+   * padrão do arquivo:
+   *
+   *     .eq("patient_id", (await admin.from("patients")…).data?.id
+   *                        ?? "00000000-0000-0000-0000-000000000000")
+   *
+   * O sentinela de UUID zero transformava falha de leitura numa consulta
+   * perfeitamente válida que não casa com nada — e devolve zero linhas, sem
+   * erro, sem aviso. Não é ausência de dado lida como vazio: é um valor
+   * INVENTADO no lugar do que não foi possível ler, produzindo uma resposta
+   * limpa e plausível. É a forma mais difícil de perceber que esta sessão
+   * encontrou.
+   */
+  const { data: pacienteRow, error: erroPaciente } = await admin
+    .from("patients").select("id").is("deleted_at", null).eq("user_id", patientId).maybeSingle();
+  if (erroPaciente) falhas.push(`patients: ${erroPaciente.message}`);
+  const pacienteId = pacienteRow?.id ?? null;
+
   // Nome e data de nascimento são dado pessoal, e "Patient" é um escopo como
   // qualquer outro: só sai se o paciente tiver autorizado explicitamente.
   if (allowed.includes("Patient")) {
-    const { data: profile } = await admin.from("profiles").select("full_name, birth_date").eq("user_id", patientId).maybeSingle();
+    const { data: profile, error: erroPerfil } = await admin
+      .from("profiles").select("full_name, birth_date").eq("user_id", patientId).maybeSingle();
+    if (erroPerfil) falhas.push(`profiles: ${erroPerfil.message}`);
     if (profile) {
       entries.push({
         resource: {
@@ -95,11 +155,14 @@ Deno.serve(async (req) => {
 
   // Conditions ← clinical_cases
   if (allowed.includes("Condition")) {
-    const { data: cases } = await admin
-      .from("clinical_cases")
-      .select("id, valve_type, valve_disease, severity, status, created_at")
-      .is("deleted_at", null)
-      .eq("patient_id", (await admin.from("patients").select("id").is("deleted_at", null).eq("user_id", patientId).maybeSingle()).data?.id ?? "00000000-0000-0000-0000-000000000000");
+    const { data: cases, error: erroCasos } = pacienteId
+      ? await admin
+          .from("clinical_cases")
+          .select("id, valve_type, valve_disease, severity, status, created_at")
+          .is("deleted_at", null)
+          .eq("patient_id", pacienteId)
+      : { data: [], error: null };
+    if (erroCasos) falhas.push(`clinical_cases: ${erroCasos.message}`);
     for (const c of cases ?? []) {
       entries.push({
         resource: {
@@ -116,15 +179,15 @@ Deno.serve(async (req) => {
 
   // Observations ← symptom_entries (últimos 30)
   if (allowed.includes("Observation")) {
-    const patient = (await admin.from("patients").select("id").is("deleted_at", null).eq("user_id", patientId).maybeSingle()).data;
-    if (patient) {
-      const { data: syms } = await admin
+    if (pacienteId) {
+      const { data: syms, error: erroSintomas } = await admin
         .from("symptom_entries")
         .select("entry_date, dyspnea, fatigue, chest_pain, weight_kg, bp_systolic, bp_diastolic")
-        .eq("patient_id", patient.id)
+        .eq("patient_id", pacienteId)
         .is("deleted_at", null)
         .order("entry_date", { ascending: false })
         .limit(30);
+      if (erroSintomas) falhas.push(`symptom_entries: ${erroSintomas.message}`);
       for (const s of syms ?? []) {
         entries.push({
           resource: {
@@ -149,13 +212,15 @@ Deno.serve(async (req) => {
 
   // MedicationStatement ← medications ativas
   if (allowed.includes("MedicationStatement")) {
-    const patient = (await admin.from("patients").select("id").is("deleted_at", null).eq("user_id", patientId).maybeSingle()).data;
-    if (patient) {
-      const { data: meds } = await admin
+    if (pacienteId) {
+      const { data: meds, error: erroMeds } = await admin
         .from("medications")
         .select("name, dose, frequency, start_date, active")
-        .eq("patient_id", patient.id)
+        .eq("patient_id", pacienteId)
         .eq("active", true);
+      // A pior deste arquivo: sem isto, um paciente com prótese mecânica em
+      // varfarina chegava ao hospital sem anticoagulante nenhum.
+      if (erroMeds) falhas.push(`medications: ${erroMeds.message}`);
       for (const m of meds ?? []) {
         entries.push({
           resource: {
@@ -169,6 +234,30 @@ Deno.serve(async (req) => {
         });
       }
     }
+  }
+
+  // Antes de montar o bundle: alguma das leituras falhou?
+  //
+  // Se sim, o que sairia daqui é um documento clínico com seção faltando e sem
+  // nada que o denuncie — `total` bate com `entry`, o JSON é válido, o HTTP é
+  // 200. Do lado do hospital não há como distinguir isso de um paciente que
+  // realmente não tem aquilo.
+  //
+  // A recusa fica registrada na trilha de integração com o motivo, e não como
+  // se fosse falta de autorização: as duas coisas aparecem no mesmo lugar e
+  // quem for auditar depois precisa saber qual foi.
+  if (falhas.length) {
+    await admin.rpc("log_integration_event", {
+      _hospital_id: keyRow.hospital_id, _patient_id: patientId, _actor: null, _api_key: keyRow.id,
+      _action: "fhir_read_incomplete", _resource_type: null, _resource_id: null,
+      _success: false, _error: falhas.join(" | "), _ip: ip, _ua: ua, _meta: null,
+    });
+    return json({
+      error: "incomplete_read",
+      detail: "Uma ou mais fontes não puderam ser lidas; o bundle não foi emitido " +
+        "porque sairia incompleto sem indicar o que faltou.",
+      sources: falhas,
+    }, 503);
   }
 
   const bundle = {

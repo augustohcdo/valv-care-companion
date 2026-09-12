@@ -69,6 +69,12 @@ const SEM_TOLERANCIA = [
   // O vigia. Uma leitura cega aqui é a forma mais pura do problema: ele relata
   // calmaria sem ter olhado, e é justamente ele que deveria avisar.
   "supabase/functions/job-watchdog/index.ts",
+  // O FHIR que sai para o sistema de um hospital. Bundle bem formado, `total`
+  // coerente, 200 — e uma seção faltando. `MedicationStatement` cego entregava
+  // paciente com prótese mecânica SEM anticoagulante; `Condition` cego, estenose
+  // importante como quem não tem valvopatia. Não há página para recarregar do
+  // lado de lá: o hospital arquiva.
+  "supabase/functions/fhir-read/index.ts",
 ];
 
 /**
@@ -99,8 +105,18 @@ const SEM_TOLERANCIA = [
  *          conseguir ler o segredo do cron parava a cópia de segurança com um
  *          401 e SEM registro em `job_runs` — silêncio que o vigia só notaria
  *          dias depois.
+ * 33 → 24: `fhir-read` (9) zerado e promovido acima. Nele estava o padrão mais
+ *          difícil de perceber da sessão inteira:
+ *
+ *              .eq("patient_id", (await admin.from("patients")…).data?.id
+ *                                 ?? "00000000-0000-0000-0000-000000000000")
+ *
+ *          Não é ausência lida como vazio — é um valor INVENTADO no lugar do
+ *          que não deu para ler. A consulta fica válida, não casa com nada,
+ *          devolve zero linhas e **nenhum erro**. O resultado é uma resposta
+ *          limpa, plausível e falsa.
  */
-const DIVIDA_CONHECIDA = 33;
+const DIVIDA_CONHECIDA = 24;
 
 const cegas = encontrarCegas({ raiz: RAIZ, nomesDoCliente: clientesCriadosNoArquivo });
 const foraDaLista = cegas.filter((c) => !SEM_TOLERANCIA.includes(c.split(":")[0]));
