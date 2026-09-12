@@ -20,7 +20,8 @@ type Mode = ModoPainel;
 /** Camada externa: artigo indexado, com o desenho do estudo à vista. */
 type Artigo = { pmid: string; titulo: string; revista: string; ano: string; tipos: string[]; url: string };
 type MotivoPesquisa =
-  | "sem_fonte_automatica" | "sem_termo" | "sem_resultado" | "servico_indisponivel";
+  | "sem_fonte_automatica" | "sem_termo" | "sem_resultado" | "servico_indisponivel"
+  | "fontes_ilegiveis";
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
 interface Props {
@@ -363,6 +364,14 @@ const MOTIVO_TEXTO: Record<MotivoPesquisa, string> = {
   servico_indisponivel:
     "A base de literatura (PubMed) não respondeu agora. A resposta acima veio sem esse " +
     "reforço — vale repetir a consulta mais tarde.",
+  // O quinto estado. Antes ele chegava aqui disfarçado de "desligada", porque a
+  // leitura da lista de fontes ignorava o erro e a lista vazia dizia a mesma
+  // coisa que "nenhuma fonte ativa". A diferença importa para quem lê: uma é
+  // ajuste de administrador, a outra passa sozinha.
+  fontes_ilegiveis:
+    "Não foi possível ler a lista de fontes de literatura agora, então a consulta não " +
+    "chegou a ser feita. Isso NÃO quer dizer que a busca esteja desligada nem que não " +
+    "exista artigo — tente de novo daqui a pouco.",
 };
 
 function ArtigosList({
@@ -370,7 +379,10 @@ function ArtigosList({
 }: { artigos: Artigo[]; pediu: boolean; motivo: MotivoPesquisa | null }) {
   if (!pediu) return null;
   if (!artigos.length) {
-    const desligada = motivo === "sem_fonte_automatica";
+    // Os dois estados que pedem AÇÃO de alguém ficam em amarelo; os que são
+    // resultado legítimo da busca ficam discretos. "Não consegui ler a lista"
+    // é do primeiro grupo: ninguém procurou nada.
+    const desligada = motivo === "sem_fonte_automatica" || motivo === "fontes_ilegiveis";
     return (
       <p
         className={`text-[11px] rounded-lg p-2.5 border ${

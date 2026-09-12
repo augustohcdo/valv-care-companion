@@ -75,6 +75,12 @@ const SEM_TOLERANCIA = [
   // importante como quem não tem valvopatia. Não há página para recarregar do
   // lado de lá: o hospital arquiva.
   "supabase/functions/fhir-read/index.ts",
+  // A IA clínica. O contexto com que o modelo raciocina: exames seriados,
+  // diário de sintomas, evolução, prótese planejada. Cada um sumindo em
+  // silêncio fazia a IA responder com a confiança de sempre sobre dados que
+  // não estavam lá — e em valvopatia a progressão entre dois ecos é o que
+  // separa vigiar de operar.
+  "supabase/functions/clinical-ai/index.ts",
 ];
 
 /**
@@ -115,8 +121,25 @@ const SEM_TOLERANCIA = [
  *          que não deu para ler. A consulta fica válida, não casa com nada,
  *          devolve zero linhas e **nenhum erro**. O resultado é uma resposta
  *          limpa, plausível e falsa.
+ * 24 → 13: `clinical-ai` (10) zerado e promovido acima, e três achados dele
+ *          merecem nome próprio:
+ *
+ *            · a trava de rajada falhava ABERTA e calada. `count` nulo por erro
+ *              caía no `?? 0`, e `0 >= limite` é falso: a trava deixava de
+ *              existir exatamente quando o banco está sob pressão. Agora deixa
+ *              passar e REGISTRA — é válvula contra automação, não fronteira de
+ *              segurança, e negar IA a todos os médicos custaria mais; o que
+ *              não dá é ninguém jamais saber que ela parou de funcionar;
+ *            · o consentimento de IA cego dizia ao médico que o paciente não
+ *              consentiu. Ausência de linha é recusa e continua sendo; falha de
+ *              leitura não é ausência de linha;
+ *            · a lista de fontes de literatura cega caía em
+ *              `sem_fonte_automatica` — "a busca está DESLIGADA". O comentário
+ *              três linhas abaixo já dizia que desligada e "não achei nada" são
+ *              estados diferentes, e a linha acima dele cometia o erro. Entrou
+ *              o quinto estado, `fontes_ilegiveis`, até a tela do médico.
  */
-const DIVIDA_CONHECIDA = 24;
+const DIVIDA_CONHECIDA = 13;
 
 const cegas = encontrarCegas({ raiz: RAIZ, nomesDoCliente: clientesCriadosNoArquivo });
 const foraDaLista = cegas.filter((c) => !SEM_TOLERANCIA.includes(c.split(":")[0]));

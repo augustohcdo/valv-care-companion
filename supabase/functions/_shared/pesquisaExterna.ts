@@ -226,7 +226,17 @@ export type MotivoSemLiteratura =
   /** A busca rodou e não achou artigo com resumo. */
   | "sem_resultado"
   /** O serviço do NCBI não respondeu. */
-  | "servico_indisponivel";
+  | "servico_indisponivel"
+  /**
+   * A LISTA de fontes não pôde ser lida — não se sabe se há fonte ativa.
+   *
+   * Sem este quinto estado, a falha de leitura caía em `sem_fonte_automatica`,
+   * que afirma outra coisa: que a busca está desligada. O comentário do próprio
+   * `clinical-ai` já dizia que "desligada" e "não encontrei nada" são estados
+   * diferentes e confundi-los é o `ok: true, sent: 0` do digest — e a linha
+   * imediatamente acima dele cometia exatamente esse erro.
+   */
+  | "fontes_ilegiveis";
 
 export interface ResultadoBusca {
   artigos: ArtigoEncontrado[];

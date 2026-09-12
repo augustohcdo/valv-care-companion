@@ -343,12 +343,25 @@ Deno.serve(async (req) => {
     // A leitura usa o cliente do próprio usuário, então a RLS garante que ele
     // só enxergue o próprio consentimento — e ausência de linha é recusa.
     // ============================================================
-    const { data: consentimento } = await supabase
+    const { data: consentimento, error: erroConsentimento } = await supabase
       .from("user_consents")
       .select("granted, revoked_at")
       .eq("user_id", userId)
       .eq("consent_type", "ai_processing")
       .maybeSingle();
+    // Ausência de linha é recusa, e continua sendo — é a regra certa. Mas
+    // FALHA DE LEITURA não é ausência de linha: sem observar o erro, quem
+    // consentiu era informado de que não consentiu, e o médico ia procurar na
+    // tela de privacidade do paciente uma revogação que nunca houve.
+    if (erroConsentimento) {
+      return new Response(
+        JSON.stringify({
+          error: "Não foi possível conferir o consentimento para uso de IA. " +
+            "Isto NÃO quer dizer que o consentimento não exista — tente de novo.",
+        }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     if (!consentimento || consentimento.granted !== true || consentimento.revoked_at) {
       return new Response(JSON.stringify({
@@ -366,12 +379,32 @@ Deno.serve(async (req) => {
     if (SERVICE_ROLE_RL) {
       const admin = createClient(SUPABASE_URL, SERVICE_ROLE_RL);
       const umMinutoAtras = new Date(Date.now() - 60 * 1000).toISOString();
-      const { count } = await admin
+      const { count, error: erroContagem } = await admin
         .from("audit_logs")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
         .eq("action", "clinical_ai_call")
         .gte("timestamp", umMinutoAtras);
+      // Esta falhava ABERTO, e em silêncio. `count` nulo por erro de leitura
+      // caía no `?? 0`, e `0 >= RAJADA_POR_MINUTO` é falso: a trava deixava de
+      // existir exatamente quando o banco está sob pressão — que é quando ela
+      // mais serve.
+      //
+      // A escolha é deixar passar e AVISAR, e não recusar. Esta trava é válvula
+      // contra automação descontrolada, não fronteira de segurança: a chamada
+      // já passou por autenticação e por consentimento. Negar IA clínica a
+      // todos os médicos porque `audit_logs` tropeçou custaria mais do que um
+      // minuto sem limitar rajada.
+      //
+      // O que não dá é ficar calado. Sem esta linha, ninguém jamais saberia que
+      // a trava parou de funcionar — nem depois, olhando o histórico.
+      if (erroContagem) {
+        await logError({
+          source: "edge_function", context: "clinical-ai",
+          message: `trava de rajada NÃO foi aplicada nesta chamada: não consegui contar ` +
+            `as chamadas do último minuto (${erroContagem.message})`,
+        });
+      }
       if ((count ?? 0) >= RAJADA_POR_MINUTO) {
         return new Response(
           JSON.stringify({
@@ -403,12 +436,23 @@ Deno.serve(async (req) => {
       // depois de a RLS devolver a linha é que o service_role toca no bucket —
       // se ela devolver vazio, o download nunca acontece.
       if (!raw && !arquivo && body.documentId) {
-        const { data: doc } = await supabase
+        const { data: doc, error: erroDoc } = await supabase
           .from("case_documents")
           .select("storage_path, mime_type, file_name, file_size")
           .eq("id", body.documentId)
           .is("deleted_at", null)
           .maybeSingle();
+        // "Documento não encontrado" sobre um laudo que o médico acabou de
+        // subir: ele conclui que o upload não gravou e sobe de novo, e o caso
+        // fica com o mesmo laudo duas vezes.
+        if (erroDoc) {
+          return new Response(JSON.stringify({
+            error: "Não foi possível ler o documento agora. Isto NÃO quer dizer " +
+              "que ele não exista — não suba de novo; tente daqui a pouco.",
+          }), {
+            status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         if (!doc) {
           return new Response(JSON.stringify({ error: "documento não encontrado" }), {
             status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -612,11 +656,22 @@ ${raw
       const suggestFor = async (diameter: number, valve: "mitral" | "tricuspide") => {
         if (!SERVICE_ROLE_EX) return [] as any[];
         const admin = createClient(SUPABASE_URL, SERVICE_ROLE_EX);
-        const base = admin.from("prosthesis_catalog")
+        // Montada e aguardada no mesmo statement, de propósito. Antes a consulta
+        // ia para uma variável `base` e o `await` vinha na linha seguinte — o
+        // erro era observado, mas por outra variável, e nem a varredura nem
+        // quem lê consegue ver a checagem junto da leitura daqui.
+        const { data: rings, error: erroAneis } = await admin.from("prosthesis_catalog")
           .select("id, manufacturer, model_name, size, annulus_min_mm, annulus_max_mm, reference_url")
           .eq("type", "anel_anuloplastia").eq("active", true).not("size", "is", null)
           .eq("valve_position", valve);
-        const { data: rings } = await base;
+        // Catálogo ilegível devolvia "nenhum anel serve para este diâmetro",
+        // que é uma afirmação sobre o catálogo. Devolver vazio aqui já era o
+        // comportamento para o caso legítimo; o que faltava era não confundir
+        // os dois — o erro fica registrado para alguém poder diagnosticar.
+        if (erroAneis) {
+          console.error("catálogo de anéis não pôde ser lido", erroAneis.message);
+          return [];
+        }
         if (!rings) return [];
         return rings.map((r: any) => {
           const min = Number(r.annulus_min_mm ?? r.size);
@@ -658,16 +713,42 @@ ${raw
       });
     }
 
-    const { data: exams } = await supabase
+    /**
+     * O que não pôde ser lido do caso. Enquanto tiver item, a IA não responde.
+     *
+     * ## Por que abortar, e não responder com o que deu
+     *
+     * Estas leituras são o CONTEXTO com que o modelo raciocina. Sem observar o
+     * erro, uma falha em `case_exams` fazia a IA opinar sobre um paciente como
+     * se ele não tivesse exame seriado nenhum — e responder com a mesma
+     * confiança de sempre. O médico lê uma conduta construída sobre dados que
+     * silenciosamente faltaram, sem nada na resposta que denuncie.
+     *
+     * Em valvopatia isso decide intervenção: a progressão entre dois ecos é
+     * justamente o que separa vigiar de operar. Um gradiente que subiu de 30
+     * para 45 mmHg não estar no contexto não é "resposta menos completa" — é
+     * outra resposta.
+     *
+     * Mesma decisão que esta sessão já tomou no PDF do caso: documento clínico
+     * incompleto é pior que documento nenhum, porque o incompleto não avisa.
+     */
+    const contextoFaltando: string[] = [];
+
+    const { data: exams, error: erroExames } = await supabase
       .from("case_exams").select("*").eq("case_id", caseId).is("deleted_at", null)
       .order("exam_date", { ascending: true });
+    if (erroExames) contextoFaltando.push(`exames seriados do caso (${erroExames.message})`);
 
     let symptomCtx = "";
     if (caso.patient_id) {
-      const { data: syms } = await supabase
+      const { data: syms, error: erroSintomas } = await supabase
         .from("symptom_entries").select("*")
         .eq("patient_id", caso.patient_id).is("deleted_at", null)
         .order("entry_date", { ascending: false }).limit(14);
+      // Sintomático × assintomático é a outra metade da decisão. O diário
+      // sumindo em silêncio faz a IA raciocinar sobre um paciente assintomático
+      // que pode não ser.
+      if (erroSintomas) contextoFaltando.push(`diário de sintomas (${erroSintomas.message})`);
       if (syms && syms.length) {
         symptomCtx = `\nDIÁRIO DE SINTOMAS (últimos ${syms.length} registros):\n` +
           syms.map((s: any) =>
@@ -732,10 +813,14 @@ Cite guideline e classe/nível de evidência em cada recomendação.`;
       // Busca prótese planejada se houver
       let prosthesisTxt = "não informada";
       if ((caso as any).prosthesis_id) {
-        const { data: pros } = await supabase
+        const { data: pros, error: erroProtese } = await supabase
           .from("prosthesis_catalog")
           .select("manufacturer, model_name, type, size")
           .eq("id", (caso as any).prosthesis_id).maybeSingle();
+        // O caso TEM prótese planejada (`prosthesis_id` está preenchido). Se a
+        // leitura falha, o texto continua "não informada" e a IA raciocina
+        // sobre uma cirurgia sem prótese definida — quando ela está definida.
+        if (erroProtese) contextoFaltando.push(`prótese planejada (${erroProtese.message})`);
         if (pros) prosthesisTxt = `${pros.manufacturer} ${pros.model_name}${pros.size ? ` ${pros.size}mm` : ""} (${pros.type})`;
       }
       userPrompt = `Você está gerando ORIENTAÇÃO DE ALTA em linguagem LEIGA e acolhedora para um paciente brasileiro que fez um procedimento valvar.
@@ -751,17 +836,23 @@ Gere EXATAMENTE 3 bullet points curtos (máx. 2 linhas cada), em português clar
       mode === "postop_note" || mode === "discharge_summary"
     ) {
       // Carrega dados de suporte estritamente do caso — timeline, consultas, prótese
-      const [{ data: events }, { data: appts }] = await Promise.all([
-        supabase.from("case_events").select("event_date, event_type, title, description")
-          .eq("case_id", caseId).is("deleted_at", null).order("event_date", { ascending: true }),
-        supabase.from("appointments").select("scheduled_at, appointment_type, status, location, notes")
-          .eq("case_id", caseId).is("deleted_at", null).order("scheduled_at", { ascending: true }),
-      ]);
+      const [{ data: events, error: erroEventos }, { data: appts, error: erroConsultas }] =
+        await Promise.all([
+          supabase.from("case_events").select("event_date, event_type, title, description")
+            .eq("case_id", caseId).is("deleted_at", null).order("event_date", { ascending: true }),
+          supabase.from("appointments").select("scheduled_at, appointment_type, status, location, notes")
+            .eq("case_id", caseId).is("deleted_at", null).order("scheduled_at", { ascending: true }),
+        ]);
+      // Mesma regra dos exames: evolução clínica que sumiu do contexto faz a IA
+      // opinar sobre um caso parado que talvez não esteja parado.
+      if (erroEventos) contextoFaltando.push(`evolução do caso (${erroEventos.message})`);
+      if (erroConsultas) contextoFaltando.push(`consultas do caso (${erroConsultas.message})`);
       let prosthesisTxt = "não registrada no caso";
       if ((caso as any).prosthesis_id) {
-        const { data: pros } = await supabase.from("prosthesis_catalog")
+        const { data: pros, error: erroProtese } = await supabase.from("prosthesis_catalog")
           .select("manufacturer, model_name, type, size, description, reference_url")
           .eq("id", (caso as any).prosthesis_id).maybeSingle();
+        if (erroProtese) contextoFaltando.push(`prótese registrada no caso (${erroProtese.message})`);
         if (pros) prosthesisTxt = `${pros.manufacturer} ${pros.model_name}${pros.size ? ` ${pros.size}mm` : ""} (${pros.type})` +
           (pros.description ? ` — ${pros.description}` : "") +
           (pros.reference_url ? ` [ref: ${pros.reference_url}]` : "");
@@ -865,6 +956,35 @@ ${commonRules}`;
     }
 
     // ============================================================
+    // Faltou contexto? Então a IA não responde.
+    // ============================================================
+    //
+    // Este é o ponto de junção: todos os modos passam por aqui antes de o
+    // modelo ser chamado. Acima, cada leitura do caso registra a própria falha
+    // em `contextoFaltando` em vez de deixar o `?? []` responder por ela.
+    //
+    // Responder "com o que deu" seria o pior dos dois mundos: a resposta sai
+    // com a confiança de sempre, e o que faltou não aparece em lugar nenhum
+    // dela. O médico não tem como saber que a conduta foi construída sem os
+    // exames seriados — e é a progressão entre dois ecos que separa vigiar de
+    // operar.
+    if (contextoFaltando.length) {
+      await logError({
+        source: "edge_function", context: "clinical-ai",
+        message: `resposta recusada — contexto incompleto: ${contextoFaltando.join(" | ")}`,
+      });
+      return new Response(JSON.stringify({
+        error:
+          "Não foi possível ler parte do caso: " + contextoFaltando.join("; ") + ". " +
+          "A análise NÃO foi gerada, porque sairia sem esses dados e sem indicar " +
+          "o que faltou. Tente de novo.",
+        contexto_faltando: contextoFaltando,
+      }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ============================================================
     // RAG: recupera trechos relevantes da base ValvePath
     // ============================================================
     const topic = topicFromCase(caso.valve_type, caso.valve_disease);
@@ -921,7 +1041,7 @@ ${commonRules}`;
     let literatura: ArtigoEncontrado[] = [];
     let motivoPesquisa: MotivoSemLiteratura | null = null;
     if (body.pesquisar && mode !== "patient_discharge") {
-      const { data: fontes } = await supabase
+      const { data: fontes, error: erroFontes } = await supabase
         .from("trusted_sources")
         .select("domain, name, category, citable_for, never_for, consulta")
         .eq("enabled", true);
@@ -933,7 +1053,13 @@ ${commonRules}`;
       // nada" são estados diferentes, e confundi-los é o `ok: true, sent: 0`
       // do digest, que escondeu por semanas que ninguém recebia o resumo.
       const automaticas = permitidas.filter((f) => f.consulta === "automatica");
-      if (automaticas.length === 0) {
+      // O comentário acima está certo e a linha que o precedia o contrariava: a
+      // leitura cega devolvia lista vazia, `automaticas.length === 0`, e a
+      // resposta dizia que a busca está DESLIGADA. São três estados, não dois —
+      // desligada, sem resultado, e "não consegui ler a lista".
+      if (erroFontes) {
+        motivoPesquisa = "fontes_ilegiveis";
+      } else if (automaticas.length === 0) {
         motivoPesquisa = "sem_fonte_automatica";
       } else {
         const resultado = await buscarLiteratura(
