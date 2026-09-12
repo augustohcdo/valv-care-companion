@@ -31,8 +31,21 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { data: secretRow } = await supabase
+    const { data: secretRow, error: erroSegredo } = await supabase
       .from("internal_secrets").select("value").eq("key", "export_cron_secret").maybeSingle();
+    // Mesma distinção das outras tarefas agendadas: não conseguir LER o segredo
+    // não é o segredo estar errado, e o 401 sai antes de registrar execução.
+    if (erroSegredo) {
+      await recordJobRun({
+        job: JOB, startedAt, ok: false,
+        error: `não foi possível ler o segredo do cron: ${erroSegredo.message}`,
+        triggeredBy,
+      });
+      return new Response(
+        JSON.stringify({ error: "secret_read_failed", detail: erroSegredo.message }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
     const cronHeader = req.headers.get("x-cron-secret");
     triggeredBy = quemDisparou(await req.json().catch(() => ({})), !!cronHeader);
     if (!secretRow?.value || cronHeader !== secretRow.value) {
@@ -56,6 +69,15 @@ Deno.serve(async (req) => {
 
     const agora = Date.now();
     const tarefas: SaudeTarefa[] = [];
+    /**
+     * Tarefas cujo histórico não deu para ler.
+     *
+     * Terceiro estado, distinto de "saudável" e de "atrasada". Sem ele, uma
+     * leitura falha aparecia no e-mail do administrador como tarefa que nunca
+     * concluiu — e alarme falso repetido é como se ensina alguém a parar de ler
+     * o e-mail. Quando o alarme verdadeiro vier, já não há leitor.
+     */
+    const naoConferidas: string[] = [];
     for (const v of vigiadas ?? []) {
       // Ele mesmo fica de fora. Na primeira execução a linha de sucesso ainda
       // não existe (é gravada no fim), então o resumo abriria com "resumo
@@ -63,10 +85,18 @@ Deno.serve(async (req) => {
       // tarefa concluiu. Um alarme que se contradiz treina quem lê a ignorar
       // todos os outros. Quem vigia esta tarefa é o `job-watchdog`, de fora.
       if (v.job === JOB) continue;
-      const { data: ultima } = await supabase
+      const { data: ultima, error: erroUltima } = await supabase
         .from("job_runs").select("finished_at")
         .eq("job", v.job).eq("ok", true)
         .order("finished_at", { ascending: false }).limit(1).maybeSingle();
+      // Sem observar o erro, uma leitura que falha vira `ultima` nulo e o
+      // resumo do administrador afirma que a tarefa nunca concluiu. Alarme
+      // falso no e-mail semanal é como se ensina alguém a não ler o e-mail
+      // semanal — e aí o alarme verdadeiro morre junto.
+      if (erroUltima) {
+        naoConferidas.push(`${v.label} (${v.job}): ${erroUltima.message}`);
+        continue;
+      }
       tarefas.push({
         job: v.job,
         label: v.label,
@@ -78,6 +108,30 @@ Deno.serve(async (req) => {
     }
 
     const resumo = montarResumo(m, tarefas);
+
+    /**
+     * "Tudo em dia" é a frase que não pode sair quando ninguém olhou.
+     *
+     * Tarefa cujo histórico não pôde ser lido não entra em `tarefas`, então não
+     * vira pendência — e o resumo saía anunciando calmaria sobre o que não
+     * conferiu. É o mesmo defeito do vigia, aqui no canal que o administrador
+     * de fato lê.
+     */
+    if (naoConferidas.length) {
+      resumo.pendencias += naoConferidas.length;
+      resumo.assunto = `[ValvePath] Resumo semanal — ${naoConferidas.length} verificação(ões) NÃO REALIZADA(S)`;
+      resumo.resumoCurto =
+        `${naoConferidas.length} tarefa(s) não puderam ser conferidas. ` + resumo.resumoCurto;
+      resumo.corpo += [
+        "",
+        "O QUE ESTE RESUMO NÃO CONSEGUIU CONFERIR:",
+        "",
+        ...naoConferidas.map((t) => `- ${t}`),
+        "",
+        "Isto NÃO quer dizer que essas tarefas estejam bem — quer dizer que o",
+        "histórico delas não pôde ser lido. Confira à mão no painel.",
+      ].join("\n");
+    }
 
     // Quem recebe. O e-mail vai para os administradores de verdade, não para um
     // endereço fixo: se alguém deixar de ser admin, deixa de receber o resumo

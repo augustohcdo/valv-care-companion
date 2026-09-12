@@ -217,11 +217,19 @@ Deno.serve(async (req) => {
     // `job-watchdog` já usam para serem chamados pelo pg_cron. Nada de novo em
     // superfície de ataque: quem consegue ler `internal_secrets` já é
     // service_role, e com isso escreve na tabela direto.
-    const { data: linhaSegredo } = await admin
+    const { data: linhaSegredo, error: erroSegredo } = await admin
       .from("internal_secrets")
       .select("value")
       .eq("key", "seed_cron_secret")
       .maybeSingle();
+    // Sem observar o erro, "não consegui ler o segredo" virava "segredo não
+    // cadastrado", e a função recusava dizendo o motivo errado.
+    if (erroSegredo) {
+      return new Response(
+        JSON.stringify({ error: "secret_read_failed", detail: erroSegredo.message }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
     const SEGREDO_CRON = linhaSegredo?.value ?? null;
     const cabecalhoCron = req.headers.get("x-cron-secret");
 
@@ -239,7 +247,14 @@ Deno.serve(async (req) => {
       const { data: userRes } = await userClient.auth.getUser();
       if (!userRes?.user) return naoAutorizado();
 
-      const { data: isAdmin } = await admin.rpc("has_role", { _user_id: userRes.user.id, _role: "admin" });
+      const { data: isAdmin, error: erroPapel } = await admin.rpc("has_role", { _user_id: userRes.user.id, _role: "admin" });
+      // Quem escreve na base que a IA cita como diretriz precisa ser
+      // administrador. Negar sem conseguir confirmar está certo; chamar isso de
+      // "admin only" faz o administrador achar que perdeu o papel.
+      if (erroPapel) return new Response(
+        JSON.stringify({ error: "role_check_failed", detail: erroPapel.message }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
       if (!isAdmin) return new Response(JSON.stringify({ error: "admin only" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       autorizado = true;
     }
@@ -275,17 +290,35 @@ Deno.serve(async (req) => {
     );
 
     let inserted = 0, skipped = 0;
+    /**
+     * Trechos que NÃO foi possível conferir — distinto de `skipped`.
+     *
+     * `skipped` significa "já existe, não precisa inserir": é sucesso. Somar
+     * aqui uma leitura que falhou faria a resposta dizer `ok: true` com o
+     * trecho contado como pulado, quando ninguém sabe se ele está lá. É o
+     * mesmo `ok: true, inserted: 0` que esta função já produziu uma vez, com
+     * outro nome.
+     */
+    const naoConferidos: string[] = [];
     for (const chunk of SEED) {
       const source_id = slugToId[chunk.source_slug];
       if (!source_id) { skipped++; continue; }
 
       // Idempotência: se já existir chunk com essa section para essa fonte, pula
-      const { data: existing } = await admin
+      const { data: existing, error: erroExisting } = await admin
         .from("knowledge_chunks")
         .select("id")
         .eq("source_id", source_id)
         .eq("section", chunk.section)
         .maybeSingle();
+      // A checagem de idempotência falhando ABRIA: `existing` nulo e o trecho
+      // era inserido de novo. O resultado é diretriz DUPLICADA na base que a IA
+      // cita — e ela passaria a citar o mesmo trecho duas vezes, como se
+      // fossem duas fontes concordando.
+      if (erroExisting) {
+        naoConferidos.push(`${chunk.source_slug}/${chunk.section}: ${erroExisting.message}`);
+        continue;
+      }
       if (existing) { skipped++; continue; }
 
       const embedding = await embedText(GEMINI_API_KEY, `${chunk.section}\n\n${chunk.content}`);
@@ -306,7 +339,19 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        ok: true, inserted, skipped, total: SEED.length,
+        // `ok` deixa de ser constante. Esta função já respondeu `ok: true,
+        // inserted: 0` uma vez, com a leitura das fontes falhando e todo trecho
+        // caindo no "pulado" — sucesso relatado sem o trabalho feito, dentro do
+        // próprio seed. Um trecho que não deu para conferir não é pulado: é
+        // desconhecido, e a resposta tem de dizer isso.
+        ok: naoConferidos.length === 0,
+        inserted, skipped, total: SEED.length,
+        nao_conferidos: naoConferidos,
+        ...(naoConferidos.length > 0 && {
+          atencao_leitura:
+            `${naoConferidos.length} trecho(s) não puderam ser conferidos contra a base — ` +
+            "não se sabe se já estavam lá. Rode de novo; o seed é idempotente.",
+        }),
         fontes_nao_cadastradas: fontesFaltando,
         ...(fontesFaltando.length > 0 && {
           atencao:

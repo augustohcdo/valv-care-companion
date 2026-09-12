@@ -59,8 +59,21 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { data: secretRow } = await supabase
+    const { data: secretRow, error: erroSegredo } = await supabase
       .from("internal_secrets").select("value").eq("key", "export_cron_secret").maybeSingle();
+    // Falha de leitura e segredo errado davam o mesmo 401, e o 401 sai antes de
+    // registrar execução. O e-mail de boas-vindas parava de sair sem deixar
+    // rastro de por quê.
+    if (erroSegredo) {
+      await recordJobRun({
+        job: JOB, startedAt, ok: false,
+        error: `não foi possível ler o segredo do cron: ${erroSegredo.message}`,
+        triggeredBy,
+      });
+      return new Response(JSON.stringify({ error: "secret_read_failed" }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const cronHeader = req.headers.get("x-cron-secret");
     const body = await req.json().catch(() => ({})) as { user_id?: string; source?: string };
     triggeredBy = body.source === "trigger" ? "trigger" : quemDisparou(body, !!cronHeader);
@@ -80,9 +93,14 @@ Deno.serve(async (req) => {
       const { data: u, error: uErr } = await supabase.auth.admin.getUserById(body.user_id);
       if (uErr) throw uErr;
       if (u?.user?.email_confirmed_at) {
-        const { data: perfil } = await supabase
+        const { data: perfil, error: erroPerfil } = await supabase
           .from("profiles").select("account_type, full_name")
           .eq("user_id", body.user_id).maybeSingle();
+        // Perfil ilegível faz a boas-vindas sair sem nome e sem tipo de conta —
+        // um e-mail genérico para quem acabou de se cadastrar. Melhor não
+        // enviar agora: a pessoa recebe uma vez, e essa vez é a primeira
+        // impressão do produto.
+        if (erroPerfil) throw erroPerfil;
         candidatos.push({
           user_id: body.user_id,
           email: u.user.email ?? null,
@@ -112,11 +130,16 @@ Deno.serve(async (req) => {
     const ids = candidatos.map((c) => c.user_id);
     const jaEntregue = new Map<string, { id: string; email_sent: boolean }>();
     if (ids.length) {
-      const { data: existentes } = await supabase
+      const { data: existentes, error: erroExistentes } = await supabase
         .from("notifications")
         .select("id, user_id, metadata")
         .in("user_id", ids)
         .eq("metadata->>kind", "welcome");
+      // Esta falhava ABRINDO, e o estrago sai do sistema: sem observar o erro,
+      // `jaEntregue` ficava vazio e a boas-vindas era REENVIADA a quem já
+      // recebeu. E-mail não se desenvia. Entre não mandar agora e mandar duas
+      // vezes, a primeira se conserta na próxima execução.
+      if (erroExistentes) throw erroExistentes;
       for (const n of existentes ?? []) {
         const meta = (n.metadata ?? {}) as Record<string, unknown>;
         jaEntregue.set(n.user_id as string, {

@@ -30,7 +30,7 @@ export async function logError(opts: {
     const message = opts.message.slice(0, 4000);
     const desde = new Date(Date.now() - JANELA_MS).toISOString();
 
-    const { data: recente } = await admin
+    const { data: recente, error: erroBusca } = await admin
       .from("client_errors")
       .select("id, occurrences")
       .eq("source", opts.source)
@@ -40,6 +40,31 @@ export async function logError(opts: {
       .order("last_seen_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    /**
+     * A única leitura desta base que DEVE degradar em silêncio — quase.
+     *
+     * `logError` é quem todas as outras funções chamam para relatar falha. Se
+     * ela recusar, lançar ou responder com erro, o problema original some junto:
+     * o registro do incêndio pegaria fogo. Por isso ela "nunca lança", e isso
+     * está certo.
+     *
+     * O que esta leitura decide é só se a repetição soma numa linha existente ou
+     * cria outra. Falhando, o caminho de baixo insere — o erro CONTINUA sendo
+     * registrado, e o preço é uma linha duplicada em vez de um contador. Entre
+     * perder o registro e duplicá-lo, duplicar é obviamente melhor.
+     *
+     * Mas tolerada não é silenciosa, e o canal aqui não pode ser `logError`
+     * (seria ela chamando a si mesma em cima de uma falha dela). Fica o
+     * `console.error`, que é o que sobra e é suficiente: quem for investigar a
+     * tabela cheia de duplicatas acha a causa no log da função.
+     */
+    if (erroBusca) {
+      console.error(
+        "logError: não consegui agrupar repetições (vai inserir linha nova)",
+        erroBusca.message,
+      );
+    }
 
     if (recente) {
       await admin

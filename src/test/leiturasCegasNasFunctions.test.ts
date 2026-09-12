@@ -54,13 +54,14 @@ import { encontrarCegas, clientesCriadosNoArquivo } from "./detectorDeLeituraCeg
 const RAIZ = "supabase/functions";
 
 /**
- * Funções onde a leitura cega vira afirmação que SAI do sistema — documento
- * legal, alarme de segurança, cópia de segurança. Zero leituras cegas, sempre.
+ * As quatro funções que foram zeradas primeiro, e por quê.
  *
- * Entram aqui depois de zeradas, nunca antes: lista com dívida dentro é lista
- * que não significa nada.
+ * A lista nasceu como exigência separada, enquanto o resto do diretório ainda
+ * tinha dívida sob catraca. Hoje a exigência vale para `supabase/functions`
+ * inteiro e ela não decide mais nada — mas fica, porque diz onde o defeito
+ * doía mais. Um zero sem memória volta a subir sem ninguém entender por quê.
  */
-const SEM_TOLERANCIA = [
+const PIORES = [
   // O documento de acesso/portabilidade da LGPD. Cada `?? []` transformava
   // falha de leitura numa tabela vazia dentro do JSON entregue ao titular como
   // "seus dados completos" — e o `audit_logs` registrava a tabela como
@@ -84,10 +85,11 @@ const SEM_TOLERANCIA = [
 ];
 
 /**
- * Quantas leituras cegas as outras funções ainda têm.
+ * A queda, para o número não virar folclore.
  *
- * Só pode cair — mesma catraca de `readErrors.test.ts`, mesma confissão: o
- * número é dívida declarada, com a lista de onde ela está na mensagem do teste.
+ * Começou em 54 e chegou a 0. A catraca saiu junto: enquanto havia dívida, o
+ * número era confissão; com ela zerada, a exigência é o diretório inteiro, e
+ * uma leitura cega nova reprova sem precisar de constante para comparar.
  *
  * 54 → 42: `dpo-export` (8) e `job-watchdog` (4) zerados e promovidos acima.
  * 42 → 33: as leituras de AUTORIZAÇÃO e de EXISTÊNCIA, em nove funções. Elas
@@ -138,49 +140,77 @@ const SEM_TOLERANCIA = [
  *              três linhas abaixo já dizia que desligada e "não achei nada" são
  *              estados diferentes, e a linha acima dele cometia o erro. Entrou
  *              o quinto estado, `fontes_ilegiveis`, até a tela do médico.
+ * 13 →  0: o resto. Três delas falhavam ABRINDO, e o estrago sai do sistema:
+ *          o `welcome-email` REENVIAVA a boas-vindas a quem já recebeu (e-mail
+ *          não se desenvia); o `knowledge-seed` reinseria o trecho de diretriz,
+ *          deixando a base que a IA cita com a mesma recomendação duplicada,
+ *          como se fossem duas fontes concordando; e o `access-request` já
+ *          tinha sido corrigido na rodada anterior pelo mesmo motivo.
+ *
+ *          O `admin-digest` anunciava "tudo em dia" sobre tarefa cujo histórico
+ *          não conseguiu ler — a frase que não pode sair quando ninguém olhou,
+ *          no canal que o administrador de fato lê.
+ *
+ *          E o `logError`: a ÚNICA que degrada de propósito. Ela é quem as
+ *          outras chamam para relatar falha; se recusar, o problema original
+ *          some junto. Falhando, o erro continua sendo registrado — só perde o
+ *          agrupamento. Tolerada, mas não silenciosa: vai para `console.error`,
+ *          que é o canal que sobra quando `logError` é quem falhou.
  */
-const DIVIDA_CONHECIDA = 13;
 
 const cegas = encontrarCegas({ raiz: RAIZ, nomesDoCliente: clientesCriadosNoArquivo });
-const foraDaLista = cegas.filter((c) => !SEM_TOLERANCIA.includes(c.split(":")[0]));
-const naLista = cegas.filter((c) => SEM_TOLERANCIA.includes(c.split(":")[0]));
+
 
 describe("leituras cegas nas edge functions", () => {
-  it("nas funções que produzem documento legal ou alarme, nenhuma ignora o erro", () => {
+  it("NENHUMA leitura das edge functions ignora o erro", () => {
     expect(
-      naLista,
-      `\n${naLista.join("\n")}\n\n` +
-        "Nestas funções a falha de leitura vira 200 OK com corpo incompleto:\n" +
-        "um export de LGPD sem uma tabela, um vigia que não viu o que não leu.\n" +
-        "Observe o `error` e responda com falha — nunca deixe o `?? []` responder.",
+      cegas,
+      `\n${cegas.join("\n")}\n\n` +
+        "Do lado do servidor a falha de leitura vira 200 OK com corpo incompleto:\n" +
+        "um export de LGPD sem uma tabela, um bundle FHIR sem as medicações do\n" +
+        "paciente, um vigia que não viu o que não leu, um e-mail dizendo que está\n" +
+        "tudo em dia. Ninguém recarrega, porque ninguém viu falha.\n\n" +
+        "Observe o `error` e responda com falha — nunca deixe o `?? []` responder.\n" +
+        "E ponha a checagem COLADA na leitura: passar a consulta como argumento\n" +
+        "para um ajudante tira o erro do alcance de quem escreveu a linha.",
     ).toEqual([]);
   });
 
-  it("a dívida das demais funções não cresce", () => {
-    expect(
-      foraDaLista.length,
-      `\nLeituras cegas fora da lista sem tolerância: ${foraDaLista.length} ` +
-        `(conhecidas: ${DIVIDA_CONHECIDA})\n\n` +
-        foraDaLista.join("\n") +
-        "\n\nSe o número SUBIU, uma leitura nova está descartando o erro.\n" +
-        "Se CAIU, baixe DIVIDA_CONHECIDA para o novo valor.",
-    ).toBeLessThanOrEqual(DIVIDA_CONHECIDA);
-  });
-
-  it("a lista sem tolerância aponta para arquivos que existem", () => {
-    // Sem isto, renomear uma função esvaziaria a exigência em silêncio.
-    for (const caminho of SEM_TOLERANCIA) {
-      expect(() => statSync(caminho), `SEM_TOLERANCIA aponta para ${caminho}`).not.toThrow();
+  it("as quatro piores continuam existindo com esse nome", () => {
+    // Sem isto, renomear uma delas apagaria a memória de onde o defeito doeu
+    // mais — e a exigência do diretório continuaria passando, sem ninguém notar
+    // que a história se perdeu.
+    for (const caminho of PIORES) {
+      expect(() => statSync(caminho), `PIORES aponta para ${caminho}`).not.toThrow();
     }
   });
 
-  it("a varredura enxerga leitura cega de verdade nas functions", () => {
-    // Contraprova do mecanismo. Sem ela, um detector quebrado — que não achasse
-    // NADA — passaria nos dois testes acima e diria que o servidor está limpo.
-    expect(
-      cegas.length,
-      "a varredura não achou nenhuma leitura cega nas functions — o detector provavelmente quebrou",
-    ).toBeGreaterThan(0);
+  it("a varredura ainda enxerga leitura cega de verdade", () => {
+    // A contraprova, e agora ela é a única coisa entre um detector quebrado e um
+    // "zero" que não significa nada. Com a dívida em zero, o teste de cima passa
+    // tanto com o servidor limpo quanto com a varredura achando nada.
+    //
+    // Então o mecanismo é exercitado sobre um caso construído: uma leitura cega
+    // de verdade, num cliente que se chama `admin`, tem de ser encontrada.
+    const texto = [
+      'const admin = createClient(URL, KEY);',
+      'const { data } = await admin.from("pacientes").select("*").eq("id", x);',
+      'return data ?? [];',
+    ].join("\n");
+    const { mkdtempSync, writeFileSync, rmSync } = require("node:fs") as typeof import("node:fs");
+    const { tmpdir } = require("node:os") as typeof import("node:os");
+    const { join } = require("node:path") as typeof import("node:path");
+    const dir = mkdtempSync(join(tmpdir(), "cegas-"));
+    try {
+      writeFileSync(join(dir, "index.ts"), texto);
+      const achadas = encontrarCegas({ raiz: dir, nomesDoCliente: clientesCriadosNoArquivo });
+      expect(
+        achadas.length,
+        "a varredura não achou uma leitura cega evidente — o detector quebrou",
+      ).toBe(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

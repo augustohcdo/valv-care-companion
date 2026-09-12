@@ -42,11 +42,15 @@ Deno.serve(async (req) => {
   const secret = m[2];
   const hash = await sha256Hex(secret);
 
-  const { data: keyRow } = await admin
+  const { data: keyRow, error: erroChave } = await admin
     .from("hospital_api_keys")
     .select("id, hospital_id, key_hash, scopes, ip_allowlist, revoked_at, expires_at")
     .eq("key_prefix", prefix)
     .maybeSingle();
+  // Mesma distinção do `fhir-read`: recusar sem conseguir conferir a chave está
+  // certo; chamar de "unauthorized" manda o hospital revogar e emitir outra por
+  // causa de uma leitura que caiu.
+  if (erroChave) return json({ error: "key_check_failed", detail: erroChave.message }, 503);
 
   if (!keyRow || keyRow.key_hash !== hash) return json({ error: "unauthorized" }, 401);
   if (keyRow.revoked_at) return json({ error: "key_revoked" }, 401);
@@ -79,7 +83,7 @@ Deno.serve(async (req) => {
     if (!patientId) { results.push({ ok: false, error: "missing_or_invalid_patient_reference" }); continue; }
 
     // Verifica grant ativo
-    const { data: grant } = await admin
+    const { data: grant, error: erroGrant } = await admin
       .from("data_access_grants")
       .select("id, resource_scopes, direction, expires_at, revoked_at")
       .eq("hospital_id", keyRow.hospital_id)
@@ -88,6 +92,19 @@ Deno.serve(async (req) => {
       .gt("expires_at", new Date().toISOString())
       .maybeSingle();
 
+    // "Não consegui ler a autorização" virava `no_active_grant`, que afirma
+    // algo sobre a VONTADE DO PACIENTE — e ia para a trilha de integração com
+    // essa palavra. A trilha passaria a dizer que não havia consentimento numa
+    // noite em que havia, e é dela que sai a prova em auditoria de LGPD.
+    if (erroGrant) {
+      await admin.rpc("log_integration_event", {
+        _hospital_id: keyRow.hospital_id, _patient_id: patientId, _actor: null, _api_key: keyRow.id,
+        _action: "fhir_ingest_denied", _resource_type: rt, _resource_id: null,
+        _success: false, _error: `grant_check_failed: ${erroGrant.message}`,
+        _ip: ip, _ua: ua, _meta: { fhir_id: r.id ?? null },
+      });
+      results.push({ ok: false, error: "grant_check_failed", patientId }); continue;
+    }
     if (!grant) {
       await admin.rpc("log_integration_event", {
         _hospital_id: keyRow.hospital_id, _patient_id: patientId, _actor: null, _api_key: keyRow.id,
