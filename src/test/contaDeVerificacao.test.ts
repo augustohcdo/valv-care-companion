@@ -99,6 +99,54 @@ describe("o workflow que abre as telas protegidas", () => {
     );
   });
 
+  /**
+   * A `service_role` ignora toda a RLS: com ela se lê o prontuário de qualquer
+   * paciente da base. Ela entrou neste workflow por escolha deliberada — é o
+   * caminho oficial para criar e apagar a conta — e o risco que essa escolha
+   * cria fica aqui, cobrado.
+   *
+   * O caminho do estrago é curto: o Vite embute no bundle **tudo** que tenha
+   * prefixo `VITE_`. Basta alguém pôr a chave no `.env` do build, ou no `env:`
+   * do passo que constrói, e ela passa a ser servida a cada visita ao site.
+   * Não é hipótese exótica: é uma linha, e a linha parece inofensiva.
+   */
+  it("a service_role NÃO chega ao passo de build", () => {
+    const passos = yml.split(/\n {6}- name: /);
+    for (const passo of passos) {
+      const nome = passo.split("\n")[0].trim();
+      const temChave = /SUPABASE_SERVICE_ROLE_KEY/.test(passo);
+      const podeTer = /Recusar sem as credenciais|Criar a conta|Apagar a conta/.test(nome);
+      if (temChave && !podeTer) {
+        throw new Error(
+          `a service_role aparece no passo "${nome}", que não cria nem apaga conta. ` +
+          "Se ela alcançar o build, vai embutida no bundle.",
+        );
+      }
+    }
+    // E a contraprova: ela precisa estar nos dois que de fato precisam dela,
+    // senão este teste passaria com o workflow inteiro sem a chave.
+    const criar = passos.find((p) => /^Criar a conta/.test(p.trim()));
+    const apagar = passos.find((p) => /^Apagar a conta/.test(p.trim()));
+    expect(criar, "não achei o passo de criação").toBeTruthy();
+    expect(criar!).toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
+    expect(apagar, "não achei o passo de remoção").toBeTruthy();
+    expect(apagar!).toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
+  });
+
+  it("o .env do build carrega só a chave PÚBLICA", () => {
+    // O `.env` é escrito por `envDoBuild`. Ele monta três linhas, e nenhuma
+    // delas pode ser a chave secreta — com prefixo `VITE_` ou sem.
+    const js = readFileSync(SCRIPT, "utf8");
+    const corpo = js.slice(
+      js.indexOf("async function envDoBuild("),
+      js.indexOf("// --------------------------------------------------------------- criar"),
+    );
+    expect(corpo.length, "não achei o corpo de envDoBuild").toBeGreaterThan(300);
+    expect(corpo, "o .env do build menciona a chave secreta").not.toMatch(/service_role|SERVICE_ROLE/);
+    expect(corpo, "o .env do build deve usar a chave publishable/anon")
+      .toMatch(/publishable|anon/);
+  });
+
   it("a sessão não vira artefato", () => {
     // O arquivo carrega um access_token válido. Artefato de workflow fica
     // baixável por quem tem acesso ao repositório, por dias.

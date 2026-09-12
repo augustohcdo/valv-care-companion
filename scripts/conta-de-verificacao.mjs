@@ -94,16 +94,47 @@ async function sql(query) {
   return JSON.parse(texto);
 }
 
+/**
+ * A chave `service_role`, necessária só para CRIAR e APAGAR a conta.
+ *
+ * Ela pode vir de duas origens, nesta ordem:
+ *
+ *   1. `SUPABASE_SERVICE_ROLE_KEY` no ambiente, quando alguém a cadastrou;
+ *   2. a API de gestão, com `reveal=true`, quando o token tem essa permissão.
+ *
+ * O caminho 2 é o que o `demo-seed.mjs` usa e funciona com um token pessoal.
+ * O token cadastrado na CI deste repositório respondeu **403** — ele executa
+ * SQL, mas não revela chave. Daí o caminho 1 existir: é o que permite rodar
+ * sem alargar um token que é root sobre a conta inteira do Supabase.
+ *
+ * `--env-do-build` NÃO passa por aqui: a chave pública se lê sem `reveal`.
+ */
 let SERVICE_ROLE;
 async function chaves() {
+  const doAmbiente = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (doAmbiente) {
+    SERVICE_ROLE = doAmbiente;
+    console.log("Chave service_role: veio do ambiente (não pedi à API de gestão).");
+    return;
+  }
+
   const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/api-keys?reveal=true`, {
     headers: { Authorization: `Bearer ${TOKEN}` },
   });
-  if (!r.ok) throw new Error(`não consegui ler as chaves do projeto (${r.status})`);
+  if (!r.ok) {
+    throw new Error(
+      `não consegui obter a chave service_role (a API de gestão respondeu ${r.status}).\n` +
+      "  Duas saídas, e a primeira é a menor:\n" +
+      "  · cadastre SUPABASE_SERVICE_ROLE_KEY nos segredos do repositório; ou\n" +
+      "  · use um token da API de gestão com permissão de leitura de chaves.\n" +
+      "  Alargar o token é o caminho maior: ele é root sobre a conta inteira.",
+    );
+  }
   const achada = (await r.json()).find((k) => k.name === "service_role");
-  if (!achada) throw new Error("o projeto não expôs uma chave service_role");
+  if (!achada?.api_key) throw new Error("o projeto não expôs uma chave service_role com valor");
   SERVICE_ROLE = achada.api_key;
 }
+
 
 const cabecalhos = () => ({
   apikey: SERVICE_ROLE,
@@ -142,11 +173,27 @@ async function envDoBuild(saida) {
     console.error("NÃO CONFERIDO: falta --saida <arquivo> para o .env do build.");
     process.exit(2);
   }
-  const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/api-keys?reveal=true`, {
-    headers: { Authorization: `Bearer ${TOKEN}` },
-  });
-  if (!r.ok) throw new Error(`não consegui ler as chaves do projeto (${r.status})`);
-  const todas = await r.json();
+  // SEM `reveal=true` primeiro, de propósito.
+  //
+  // O `reveal` existe para expor as chaves SECRETAS, e exige permissão que um
+  // token estreito não tem — na primeira execução deste workflow a API
+  // respondeu 403 por causa dele. Mas a chave que o build precisa é a PÚBLICA,
+  // e para ela o `reveal` não é necessário. Pedir mais permissão do que se usa
+  // é o erro que transforma "não consegui montar o .env" numa conversa sobre
+  // token root.
+  let todas = null;
+  for (const sufixo of ["", "?reveal=true"]) {
+    const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/api-keys${sufixo}`, {
+      headers: { Authorization: `Bearer ${TOKEN}` },
+    });
+    if (r.ok) { todas = await r.json(); break; }
+    if (sufixo === "?reveal=true") {
+      throw new Error(
+        `não consegui ler as chaves do projeto (${r.status}). O token da API de gestão ` +
+        "provavelmente não tem permissão de leitura das chaves deste projeto.",
+      );
+    }
+  }
   // Projetos novos chamam de `publishable`; os antigos, de `anon`. Aceitar os
   // dois nomes, e falhar dizendo o que existe — em vez de gravar `undefined` e
   // deixar o erro aparecer três passos adiante, no navegador.
@@ -154,6 +201,12 @@ async function envDoBuild(saida) {
   if (!publica) {
     throw new Error(
       `o projeto não expôs chave publishable nem anon (achei: ${todas.map((k) => k.name).join(", ")})`,
+    );
+  }
+  if (!publica.api_key) {
+    throw new Error(
+      `a chave ${publica.name} veio sem valor — a API listou a chave mas não o conteúdo dela. ` +
+      "Isso acontece quando o token não tem permissão para ler o valor.",
     );
   }
   writeFileSync(saida, [
@@ -344,12 +397,16 @@ async function apagar(id) {
 // ---------------------------------------------------------------- main
 
 try {
-  await chaves();
+  // `--env-do-build` precisa só da chave PÚBLICA, e ela se lê sem `reveal`.
+  // Chamar `chaves()` aqui exigiria a `service_role` para montar um `.env` que
+  // não a usa — foi exatamente assim que a primeira execução do workflow morreu.
   if (temFlag("--env-do-build")) {
     await envDoBuild(valorFlag("--saida"));
   } else if (temFlag("--criar")) {
+    await chaves();
     await criar(valorFlag("--tipo") ?? "medico", valorFlag("--saida"));
   } else if (temFlag("--apagar")) {
+    await chaves();
     await apagar(valorFlag("--id"));
   } else {
     console.error(

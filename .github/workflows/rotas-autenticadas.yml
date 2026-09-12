@@ -65,14 +65,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Recusar sem o token
+      - name: Recusar sem as credenciais
         env:
           TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SERVICE: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
+          faltou=0
           if [ -z "$TOKEN" ]; then
-            echo "::error::Falta o segredo SUPABASE_ACCESS_TOKEN."
-            exit 1
+            echo "::error::Falta o segredo SUPABASE_ACCESS_TOKEN (usado para ler a chave pública e conferir a remoção por SQL)."
+            faltou=1
           fi
+          if [ -z "$SERVICE" ]; then
+            echo "::error::Falta o segredo SUPABASE_SERVICE_ROLE_KEY (usado para CRIAR e APAGAR a conta temporária pela API de administração)."
+            echo "::error::Cadastre em Settings → Secrets and variables → Actions."
+            faltou=1
+          fi
+          # Recusar aqui, e não deixar falhar adiante: sem esta parada, a
+          # ausência do segredo apareceria como um 403 da API de gestão, e a
+          # conclusão provável seria "problema do Supabase" em vez de "falta
+          # cadastrar o segredo". Foi o que aconteceu na primeira execução.
+          [ "$faltou" = 0 ] || exit 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -121,9 +133,15 @@ jobs:
       # A conta nasce aqui. O id vai para /tmp/sessao.json.id ANTES de qualquer
       # conferência, para o passo de remoção achá-la mesmo se este passo falhar
       # no meio.
+      # A `service_role` entra AQUI e no passo de remoção, e em lugar nenhum
+      # mais. Ela NÃO pode chegar ao passo de build: o Vite embute no bundle
+      # tudo que tenha prefixo `VITE_`, e um deslize ali publicaria a chave que
+      # ignora toda a RLS em cada visita ao site. O `.env` do build é montado
+      # com a chave PÚBLICA, que é pública por construção.
       - name: Criar a conta temporária
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           node scripts/conta-de-verificacao.mjs \
             --criar --tipo "${{ matrix.tipo }}" --saida /tmp/sessao.json
@@ -148,6 +166,7 @@ jobs:
         if: always()
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           if [ ! -f /tmp/sessao.json.id ]; then
             echo "Nenhuma conta foi criada nesta execução — nada a apagar."
