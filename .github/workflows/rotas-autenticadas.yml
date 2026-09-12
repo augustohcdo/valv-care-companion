@@ -154,6 +154,18 @@ jobs:
           ROTAS_SUPABASE_URL: https://qwiojyfxzvdcfbbexyxg.supabase.co
           ROTAS_PROVA: ${{ matrix.prova }}
         run: |
+          # `pipefail`, e não é detalhe de estilo: o GitHub roda os passos com
+          # `bash -e`, sem ele. Numa cadeia `node … | tee …` o bash devolve o
+          # status do ÚLTIMO comando — o `tee`, que sempre dá 0. Sem esta linha,
+          # a varredura podia sair 1 (rota quebrada) ou 2 (não conferido) e o
+          # passo ficava VERDE assim mesmo.
+          #
+          # É o defeito que este workflow inteiro existe para caçar, dentro dele
+          # próprio: sucesso relatado sem o trabalho ter dado certo. Achado
+          # relendo o log da primeira execução bem sucedida, porque 16 segundos
+          # para 61 rotas me pareceu rápido demais — e era só a CI sendo rápida,
+          # mas a dúvida valeu o achado.
+          set -o pipefail
           echo "::add-mask::$(node -e 'console.log(JSON.parse(require("fs").readFileSync("/tmp/sessao.json","utf8")).access_token)')"
           ROTAS_SESSAO="$(cat /tmp/sessao.json)" \
             node scripts/rotas-renderizam.mjs http://127.0.0.1:4173 \
