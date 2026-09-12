@@ -121,11 +121,25 @@ Deno.serve(async (req) => {
   );
 
   // Read the shared cron secret from the locked internal_secrets table.
-  const { data: secretRow } = await supabase
+  const { data: secretRow, error: erroSegredo } = await supabase
     .from("internal_secrets")
     .select("value")
     .eq("key", "export_cron_secret")
     .maybeSingle();
+  // Sem observar o erro, falha de leitura e segredo ausente viravam a mesma
+  // coisa: `CRON_SECRET = null`, `authorized = false`, 401 — e o backup semanal
+  // parava sem uma linha em `job_runs` dizendo por quê.
+  if (erroSegredo) {
+    await recordJobRun({
+      job: JOB, startedAt, ok: false,
+      error: `não foi possível ler o segredo do cron: ${erroSegredo.message}`,
+      triggeredBy,
+    });
+    return new Response(
+      JSON.stringify({ error: "secret_read_failed", detail: erroSegredo.message }),
+      { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
   const CRON_SECRET = secretRow?.value ?? null;
 
   // Auth: allow (a) valid cron secret via header, or (b) authenticated admin JWT.
@@ -142,12 +156,19 @@ Deno.serve(async (req) => {
       const { data } = await supabase.auth.getUser(token);
       const uid = data?.user?.id;
       if (uid) {
-        const { data: role } = await supabase
+        const { data: role, error: erroPapel } = await supabase
           .from("user_roles")
           .select("role")
           .eq("user_id", uid)
           .eq("role", "admin")
           .maybeSingle();
+        // `!!role` sobre null por falha de leitura nega o acesso — direção
+        // certa — mas dizia ao administrador "unauthorized", que ele lê como
+        // "perdi meu papel". O erro fica registrado e a resposta diz o que
+        // realmente aconteceu.
+        if (erroPapel) {
+          console.error("não foi possível conferir o papel de admin", erroPapel.message);
+        }
         authorized = !!role;
       }
     }

@@ -35,7 +35,13 @@ Deno.serve(async (req) => {
     const adminUserId = userData?.user?.id;
     if (!adminUserId) return json({ error: "unauthorized" }, 401);
 
-    const { data: isAdmin } = await admin.rpc("has_role", { _user_id: adminUserId, _role: "admin" });
+    const { data: isAdmin, error: erroPapel } = await admin.rpc("has_role", {
+      _user_id: adminUserId, _role: "admin",
+    });
+    // Negar sem confirmar o papel está certo. Dizer "forbidden" quando o que
+    // houve foi falha de leitura, não: o administrador de verdade conclui que
+    // perdeu o acesso e vai procurar o problema na conta dele.
+    if (erroPapel) return json({ error: "role_check_failed", detail: erroPapel.message }, 503);
     if (!isAdmin) return json({ error: "forbidden" }, 403);
 
     const body = await req.json().catch(() => ({}));
@@ -45,8 +51,16 @@ Deno.serve(async (req) => {
     if (!id) return json({ error: "id obrigatório" }, 400);
     if (!aprovar && !motivo) return json({ error: "recusa exige motivo" }, 400);
 
-    const { data: pedido } = await admin
+    const { data: pedido, error: erroPedido } = await admin
       .from("access_requests").select("*").eq("id", id).maybeSingle();
+    // A leitura falhando dizia ao administrador "solicitação não encontrada" —
+    // sobre um pedido que ESTÁ lá. Falso em dois níveis, como o "médico não
+    // encontrado" que esta base já tinha: o pedido existe, e a culpa some para
+    // o lado de quem clicou. Aqui o pedido é de acesso a dados pelo titular;
+    // concluir que ele sumiu da fila é concluir que alguém o apagou.
+    if (erroPedido) {
+      return json({ error: "leitura_falhou", detail: erroPedido.message }, 503);
+    }
     if (!pedido) return json({ error: "solicitação não encontrada" }, 404);
     if (pedido.status === "aprovado" || pedido.status === "recusado") {
       return json({ error: `solicitação já ${pedido.status}` }, 409);

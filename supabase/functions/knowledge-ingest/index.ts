@@ -83,10 +83,14 @@ Deno.serve(async (req) => {
     const { data: userData } = await admin.auth.getUser(authHeader.replace("Bearer ", ""));
     if (!userData?.user) return json({ error: "unauthorized" }, 401);
 
-    const { data: isAdmin } = await admin.rpc("has_role", {
+    const { data: isAdmin, error: erroPapel } = await admin.rpc("has_role", {
       _user_id: userData.user.id,
       _role: "admin",
     });
+    // Quem escreve na base que a IA cita como diretriz precisa ser
+    // administrador. Negar sem conseguir confirmar está certo; chamar isso de
+    // "forbidden" não está.
+    if (erroPapel) return json({ error: "role_check_failed", detail: erroPapel.message }, 503);
     if (!isAdmin) return json({ error: "forbidden" }, 403);
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");

@@ -39,10 +39,24 @@ Deno.serve(async (req) => {
   );
 
   try {
-    const { data: secretRow } = await supabase
+    const { data: secretRow, error: erroSegredo } = await supabase
       .from("internal_secrets").select("value").eq("key", "export_cron_secret").maybeSingle();
     const cronHeader = req.headers.get("x-cron-secret");
     triggeredBy = quemDisparou(await req.json().catch(() => ({})), !!cronHeader);
+    // "Não consegui LER o segredo" e "o segredo está errado" davam o mesmo 401,
+    // e o 401 sai antes de registrar execução nenhuma. Quer dizer que uma falha
+    // de leitura aqui parava a CÓPIA DE SEGURANÇA sem deixar rastro em
+    // `job_runs` — e o vigia só notaria dias depois, pelo silêncio.
+    //
+    // Com o registro de falha, a tarefa aparece vermelha no painel na hora.
+    if (erroSegredo) {
+      await recordJobRun({
+        job: JOB, startedAt, ok: false,
+        error: `não foi possível ler o segredo do cron: ${erroSegredo.message}`,
+        triggeredBy,
+      });
+      return json({ error: "secret_read_failed", detail: erroSegredo.message }, 503);
+    }
     if (!secretRow?.value || cronHeader !== secretRow.value) {
       return json({ error: "unauthorized" }, 401);
     }

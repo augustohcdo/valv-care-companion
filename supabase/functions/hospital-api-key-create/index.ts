@@ -43,7 +43,14 @@ Deno.serve(async (req) => {
   if (!userId) return json({ error: "unauthorized" }, 401);
 
   const admin = createClient(SUPABASE_URL, SERVICE, { auth: { persistSession: false } });
-  const { data: isAdmin } = await admin.rpc("has_role", { _user_id: userId, _role: "admin" });
+  const { data: isAdmin, error: erroPapel } = await admin.rpc("has_role", {
+    _user_id: userId, _role: "admin",
+  });
+  // Esta função EMITE chave de API de hospital. Negar sem confirmar o papel é a
+  // direção certa da falha — mas o motivo tem de ser verdadeiro, senão quem
+  // tenta de novo em cima de "forbidden" procura o problema na permissão dele
+  // em vez de na leitura que caiu.
+  if (erroPapel) return json({ error: "role_check_failed", detail: erroPapel.message }, 503);
   if (!isAdmin) return json({ error: "forbidden" }, 403);
 
   let body: any;

@@ -47,7 +47,13 @@ Deno.serve(async (req) => {
       body = {};
     }
 
-    const { data: ehAdmin } = await admin.rpc("has_role", { _user_id: ator, _role: "admin" });
+    const { data: ehAdmin, error: erroPapel } = await admin.rpc("has_role", {
+      _user_id: ator, _role: "admin",
+    });
+    // Encerrar conta alheia exige papel de administrador, e negar sem conseguir
+    // confirmar o papel está certo. Mas "forbidden" faz o administrador
+    // concluir que perdeu o acesso, quando o que houve foi falha de leitura.
+    if (erroPapel) return json({ error: "role_check_failed", detail: erroPapel.message }, 503);
     const alvo = typeof body.user_id === "string" && body.user_id ? body.user_id : ator;
 
     // O corpo só pode apontar para outra pessoa se quem pede for administrador.

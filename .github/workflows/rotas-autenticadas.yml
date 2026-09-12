@@ -1,0 +1,181 @@
+name: Rotas autenticadas
+
+# ---------------------------------------------------------------------------
+# Por que existe
+# ---------------------------------------------------------------------------
+#
+# 39 das 61 rotas do app ficam sob `/app/` e, sem sessão, todas param no login.
+# Quer dizer que dá para quebrar qualquer uma delas com a CI verde: os testes
+# cobrem componentes isolados, o `smoke` confere o shell — que é o MESMO
+# `index.html` para as 61 — e o `rotas-renderizam` sem sessão relata, com
+# honestidade, 39 redirecionamentos.
+#
+# Nenhuma dessas telas é aberta por nada automático hoje. Este workflow abre.
+#
+# ---------------------------------------------------------------------------
+# Por que não roda sozinho a cada push
+# ---------------------------------------------------------------------------
+#
+# Porque ele cria uma conta capaz de entrar na base de PRODUÇÃO. É pouca coisa
+# — conta sem vínculo nenhum, que a RLS deixa ver nada, viva por alguns minutos
+# — mas é uma porta, e porta se abre de propósito, não a cada `git push`.
+#
+# ---------------------------------------------------------------------------
+# O que este workflow NÃO cobre, de propósito
+# ---------------------------------------------------------------------------
+#
+# As rotas de `/app/admin/*`. Elas exigem o papel `admin`, e conceder papel
+# privilegiado em produção para varrer tela é troca ruim: o vigia deste projeto
+# dispara alerta por qualquer concessão dessas nas últimas 24h, justamente
+# porque quem tem o papel lê o backup inteiro e edita a base que a IA cita como
+# diretriz. Ficam sem cobertura, e isso aparece no resumo em vez de ser
+# resolvido por um atalho.
+#
+# ---------------------------------------------------------------------------
+# Matriz, e não um job com um laço
+# ---------------------------------------------------------------------------
+#
+# Um job por tipo de conta, porque cada um precisa do SEU passo de remoção com
+# `if: always()`. Num laço dentro de um job só, a falha da varredura do primeiro
+# tipo pularia a remoção da conta dele.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rotas-autenticadas
+  cancel-in-progress: false
+
+jobs:
+  varrer:
+    name: Varrer as rotas como ${{ matrix.tipo }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tipo: medico
+            prova: /app/medico
+          - tipo: paciente
+            prova: /app/paciente
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Recusar sem o token
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Falta o segredo SUPABASE_ACCESS_TOKEN."
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      # O bundle precisa da URL do projeto e da chave pública, senão o cliente
+      # não resolve sessão nenhuma e a varredura morreria com erro obscuro. As
+      # duas vêm da API de gestão: são públicas por construção (a chave vai
+      # embutida em todo bundle que qualquer visitante baixa; quem protege os
+      # dados é a RLS), então não há segredo novo a cadastrar.
+      - name: Montar o .env do build
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: node scripts/conta-de-verificacao.mjs --env-do-build --saida .env
+
+      - name: Build
+        run: npm run build
+
+      - name: Servir o build
+        run: |
+          npx vite preview --port 4173 --host 127.0.0.1 > /tmp/preview.log 2>&1 &
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://127.0.0.1:4173/; then
+              echo "preview de pé"; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::o preview não respondeu em 30s"
+          cat /tmp/preview.log
+          exit 1
+
+      # `--no-save`: o Playwright não é dependência do projeto e não deve virar
+      # uma. Este workflow é ocasional e manual; obrigar todo mundo a baixar
+      # navegador no `npm ci` por causa dele seria cobrar de muitos o custo de
+      # poucos. O script resolve o import por `node_modules`, que é onde isto cai.
+      - name: Instalar o Playwright
+        run: |
+          npm i --no-save playwright
+          npx playwright install --with-deps chromium
+
+      # A conta nasce aqui. O id vai para /tmp/sessao.json.id ANTES de qualquer
+      # conferência, para o passo de remoção achá-la mesmo se este passo falhar
+      # no meio.
+      - name: Criar a conta temporária
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          node scripts/conta-de-verificacao.mjs \
+            --criar --tipo "${{ matrix.tipo }}" --saida /tmp/sessao.json
+
+      # A sessão entra por variável de ambiente e não passa por log nenhum. O
+      # `add-mask` é cinto e suspensório: o script não imprime o token, mas se
+      # algum dia imprimir, sai mascarado.
+      - name: Varrer as rotas
+        env:
+          ROTAS_SUPABASE_URL: https://qwiojyfxzvdcfbbexyxg.supabase.co
+          ROTAS_PROVA: ${{ matrix.prova }}
+        run: |
+          echo "::add-mask::$(node -e 'console.log(JSON.parse(require("fs").readFileSync("/tmp/sessao.json","utf8")).access_token)')"
+          ROTAS_SESSAO="$(cat /tmp/sessao.json)" \
+            node scripts/rotas-renderizam.mjs http://127.0.0.1:4173 \
+            | tee /tmp/rotas-${{ matrix.tipo }}.log
+
+      # `always()`: é este passo que impede a conta de sobrar de pé na produção
+      # quando algo acima falha — que é justamente quando ninguém está olhando.
+      # O script confere a remoção em vez de confiar no 200 do DELETE.
+      - name: Apagar a conta temporária
+        if: always()
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ ! -f /tmp/sessao.json.id ]; then
+            echo "Nenhuma conta foi criada nesta execução — nada a apagar."
+            exit 0
+          fi
+          node scripts/conta-de-verificacao.mjs \
+            --apagar --id "$(cat /tmp/sessao.json.id)"
+
+      # Só o relatório. O arquivo da sessão NUNCA vira artefato.
+      - name: Guardar o relatório
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rotas-${{ matrix.tipo }}
+          path: /tmp/rotas-${{ matrix.tipo }}.log
+          if-no-files-found: ignore
+
+      - name: Resumo
+        if: always()
+        run: |
+          echo "## Rotas abertas como \`${{ matrix.tipo }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if [ -s "/tmp/rotas-${{ matrix.tipo }}.log" ]; then
+            tail -40 "/tmp/rotas-${{ matrix.tipo }}.log" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "(a varredura não chegou a produzir relatório)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '> As rotas de `/app/admin/*` ficam fora: exigem papel privilegiado, e' >> "$GITHUB_STEP_SUMMARY"
+          echo '> concedê-lo em produção para varrer tela é troca ruim.' >> "$GITHUB_STEP_SUMMARY"

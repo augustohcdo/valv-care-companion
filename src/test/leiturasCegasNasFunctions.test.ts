@@ -78,8 +78,29 @@ const SEM_TOLERANCIA = [
  * número é dívida declarada, com a lista de onde ela está na mensagem do teste.
  *
  * 54 → 42: `dpo-export` (8) e `job-watchdog` (4) zerados e promovidos acima.
+ * 42 → 33: as leituras de AUTORIZAÇÃO e de EXISTÊNCIA, em nove funções. Elas
+ *          se pareciam e falhavam de três jeitos diferentes, que é o motivo de
+ *          terem ido juntas:
+ *
+ *            · **falha fechada com motivo errado** — `has_role` cego virava
+ *              403 "forbidden" e `user_roles` cego virava 401. Negar sem
+ *              confirmar o papel está certo; fazer o administrador concluir que
+ *              perdeu o acesso, não. Sete lugares;
+ *            · **falha afirmando ausência** — `access-decide` dizia
+ *              "solicitação não encontrada" sobre um pedido de acesso do
+ *              titular que está lá. Mesmo formato do "médico não encontrado"
+ *              que esta base já tinha: a coisa existe, e a culpa vai para quem
+ *              clicou;
+ *            · **falha ABRINDO** — a checagem de duplicidade do
+ *              `access-request` caía para o INSERT quando a leitura falhava, e
+ *              produzia a segunda linha na fila que ela existe para evitar.
+ *
+ *          Junto, as duas do backup: em `offsite-copy` e `weekly-export`, não
+ *          conseguir ler o segredo do cron parava a cópia de segurança com um
+ *          401 e SEM registro em `job_runs` — silêncio que o vigia só notaria
+ *          dias depois.
  */
-const DIVIDA_CONHECIDA = 42;
+const DIVIDA_CONHECIDA = 33;
 
 const cegas = encontrarCegas({ raiz: RAIZ, nomesDoCliente: clientesCriadosNoArquivo });
 const foraDaLista = cegas.filter((c) => !SEM_TOLERANCIA.includes(c.split(":")[0]));

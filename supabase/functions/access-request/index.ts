@@ -88,13 +88,27 @@ Deno.serve(async (req) => {
 
     // Duplo clique, ou a pessoa reenviando por não ter certeza de que foi, não
     // pode virar duas linhas na fila de aprovação.
-    const { data: recente } = await admin
+    const { data: recente, error: erroRecente } = await admin
       .from("access_requests")
       .select("id, status")
       .eq("email", dados.email)
       .gte("created_at", new Date(Date.now() - 3600_000).toISOString())
       .limit(1)
       .maybeSingle();
+    // Esta falha ia para o lado contrário das outras: sem observar o erro,
+    // `recente` vinha nulo e o código seguia para o INSERT — a checagem de
+    // duplicata falhava abrindo, e o resultado era exatamente a segunda linha na
+    // fila de aprovação que ela existe para evitar.
+    //
+    // Recusar é melhor: quem pediu tenta de novo e o pedido entra uma vez. Uma
+    // fila com o mesmo pedido duplicado faz o administrador decidir duas vezes,
+    // e a segunda decisão pode contradizer a primeira.
+    if (erroRecente) {
+      return json({
+        error: "nao_foi_possivel_conferir_duplicidade",
+        detail: "Não deu para conferir se este pedido já foi enviado. Tente de novo em instantes.",
+      }, 503);
+    }
     if (recente) return json({ ok: true, duplicado: true, id: recente.id });
 
     const { data: criada, error } = await admin
