@@ -14,6 +14,7 @@
     "demo:seed": "node scripts/demo-seed.mjs --aplicar",
     "dev": "vite",
     "ferramentas:verificar": "node scripts/ferramentas-verificar.mjs",
+    "functions:carregam": "deno run --allow-all --config supabase/functions/deno.json --lock supabase/functions/deno.lock scripts/functions-carregam.ts",
     "lint": "eslint .",
     "migrations": "node scripts/conferir-migrations.mjs",
     "mmcts": "node scripts/conferir-mmcts.mjs",

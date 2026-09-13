@@ -47,6 +47,18 @@ jobs:
       - name: Type-check (edge functions)
         run: npm run typecheck:functions
 
+      # E o passo acima NÃO basta. A `turnstile-config` importava
+      # `npm:@supabase/supabase-js@2/cors` — subcaminho que não existe na 2.45.0,
+      # que é o que o `deno.lock` destas functions trava. O `deno check` saía 0
+      # sobre esse arquivo (conferido), a função dava BOOT_ERROR/503 em
+      # produção, o widget do captcha não carregava e o botão Entrar ficava
+      # desabilitado: ninguém entrava no site, com a CI verde.
+      #
+      # Para especificador `npm:`, checar tipo não é resolver módulo. Este passo
+      # IMPORTA cada function de verdade, sob o mesmo config e lock do deploy.
+      - name: Edge functions carregam (não só tipam)
+        run: npm run functions:carregam
+
       - name: Lint
         run: npm run lint
 

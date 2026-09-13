@@ -75,6 +75,16 @@ jobs:
       - name: Type-check (edge functions)
         run: cd supabase/functions && deno check --quiet */index.ts
 
+      # E aqui importa mais do que na CI: este é o último ponto antes de a
+      # função ir para o ar. O `deno check` acima ficava verde sobre a
+      # `turnstile-config` com um import de subcaminho inexistente, e foi essa
+      # função que subiu quebrada e derrubou o login inteiro (BOOT_ERROR/503 →
+      # captcha não carrega → botão Entrar desabilitado).
+      #
+      # Publicar sem carregar é publicar no escuro. Custa segundos.
+      - name: Edge functions carregam (não só tipam)
+        run: npm run functions:carregam
+
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
