@@ -1,0 +1,88 @@
+{
+  "_o_que_e": "Terceira tentativa de fechar as 19 famílias sem prova de mercado brasileiro, em 13/09/2026. A rodada de 06/09 está em `mercado-br-rodada-06-09.json` e continua valendo — esta não a substitui, acrescenta os canais que ela não tinha tentado.",
+
+  "_resultado_em_uma_linha": "0 das 19 fecharam. De novo. Mas agora com seis canais novos testados e descartados COM MÉTODO, o que torna a próxima tentativa mais barata em vez de igual.",
+
+  "_a_conclusao_estrutural": [
+    "Duas rodadas, onze canais. O bloqueio não é falta de esforço: é que este ambiente não alcança nenhum registro autoritativo brasileiro de produto para saúde.",
+    "A ANVISA responde 403 em TODOS os hosts testados — `antigo.anvisa.gov.br`, `consultas.anvisa.gov.br`, a API `/api/consulta/produtos` e o repositório de instruções de uso. É proteção contra acesso automatizado e não se contorna; está testado, não suposto.",
+    "O que fecha isto é um humano com navegador comum, em minutos. Não é uma tarefa de pesquisa — é uma tarefa de telefone e de clique."
+  ],
+
+  "canais_novos_testados": [
+    {
+      "canal": "Banco de Preços em Saúde (Ministério da Saúde) — base anual compilada 2022",
+      "url": "https://www.gov.br/saude/pt-br/acesso-a-informacao/banco-de-precos/bases-anuais-compiladas",
+      "o_que_prometia": "Compras reais por instituições brasileiras, com as colunas certas: Descrição CATMAT, Anvisa, Fabricante, Fornecedor, Instituição, UF, preço. Prova de prateleira, datada e de origem governamental.",
+      "o_que_aconteceu": "Baixado (XLSX, 8,0 MB, 7.249 descrições CATMAT distintas). Nenhuma das 19 aparece.",
+      "por_que_o_zero_nao_vale_como_prova": "O CONTROLE reprovou a fonte, não as famílias. Busquei nela as que JÁ ESTÃO confirmadas no Brasil — Braile, Labcor, Cardioprótese, Edwards, Inspiris, Hancock, Mosaic, Perimount — e todas dão zero também. A base não cobre válvula cardíaca: é OPME, comprada por outro canal. Um zero numa fonte que não contém a classe de produto não diz nada sobre o produto.",
+      "licao": "Mesma disciplina da rodada anterior com a Medicicor, onde 'hancock' e 'mosaic' devolviam 11 cada e validaram a busca antes de a conclusão ser tirada. Sem o controle, este arquivo teria 19 'nao_confirmado' falsos."
+    },
+    {
+      "canal": "consultas.anvisa.gov.br (portal atual) e sua API",
+      "o_que_aconteceu": "HTTP 403 no site e em `/api/consulta/produtos`. Host diferente do `antigo.anvisa.gov.br` da rodada passada; mesma barreira.",
+      "estado": "descartado"
+    },
+    {
+      "canal": "Repositório de instruções de uso da ANVISA (RDC 431/2020)",
+      "o_que_prometia": "A RDC obriga o detentor do registro a publicar a instrução de uso no portal. Uma IFU em português É prova de registro brasileiro. Localizei o documento 'Bioprótese Valvar Cardíaca Porcina — Epic e Epic Supra', processo 25351301535200488.",
+      "o_que_aconteceu": "403, por dois caminhos diferentes. O documento existe e eu não o abri — então não entra.",
+      "estado": "descartado (mas é a pista mais forte para um humano: o documento está lá)"
+    },
+    {
+      "canal": "Diário Oficial da União (in.gov.br)",
+      "o_que_prometia": "Os deferimentos de registro da ANVISA são publicados no DOU, com número e empresa. Outro órgão, outro host.",
+      "o_que_aconteceu": "Inalcançável deste ambiente: conexão não completa (HTTP 000 por curl, 502 pelo buscador).",
+      "estado": "descartado"
+    },
+    {
+      "canal": "dados.gov.br (API de dados abertos)",
+      "o_que_aconteceu": "O site responde 200; a API devolve 401 — exige chave de aplicação, que é cadastro e não bloqueio.",
+      "estado": "possível para uma próxima tentativa, se alguém cadastrar a chave"
+    },
+    {
+      "canal": "PNCP e compras.dados.gov.br (compras públicas)",
+      "o_que_aconteceu": "PNCP não completa conexão; o endpoint de materiais do compras.dados devolve 404. Um agregador de pregões (sigapregao) também devolveu 404 no item indexado.",
+      "estado": "descartado por ora"
+    }
+  ],
+
+  "achados_que_valem": [
+    {
+      "familia": "Corcym|Perceval Plus",
+      "achado": "DISTRIBUIDOR BRASILEIRO NOVO, que a rodada anterior não localizou: Cardiomed Brasil, importadora e distribuidora em Trecho 3 - Guará, Brasília. A página de produtos lista 'Válvula Aórtica Perceval — 100% sem sutura para substituição da valva aórtica', ao lado de produtos LivaNova.",
+      "contato": "(61) 3382-0822 · comercial@cardiomedbrasil.com.br · https://cardiomedbrasil.com.br/produtos/",
+      "por_que_a_rodada_passada_nao_achou": "Ela buscou por DISTRIBUIDOR DO FABRICANTE ('distribuidor brasileiro da Corcym') e concluiu que não existia. Buscar pelo NOME DO PRODUTO achou. Fica registrado como método, não como acaso.",
+      "por_que_ainda_assim_nao_gravei": [
+        "A página diz 'Perceval', sem versão; nossa linha é Perceval Plus. A rodada anterior já tinha recusado por esse motivo exato e a recusa continua certa.",
+        "E a página se apresenta como representante de 'LivaNova' e 'Sorin Group' — marca que deixou de existir em 2015. Página que nomeia marca extinta há uma década não sustenta afirmação sobre a prateleira DE HOJE, que é o que o campo diz."
+      ],
+      "o_que_um_humano_resolve_em_5_minutos": "Ligar para a Cardiomed e perguntar duas coisas: distribuem Perceval hoje, e é a Plus ou a S? Com o número de registro ANVISA, fecha."
+    },
+    {
+      "familia": "Corcym|Perceval Plus (segunda fonte)",
+      "achado": "Publicação brasileira, aberta e lida: 'Sutureless Aortic Prosthesis Implantation: the First Brazilian Experience with Perceval Device', Braz J Cardiovasc Surg 2016. PMID 27849308, DOI 10.5935/1678-9741.20160065. Dois pacientes, Hospital de Clínicas de Porto Alegre / UFRGS.",
+      "por_que_nao_fecha": "Prova implante no Brasil em 2016, não comercialização hoje — e o artigo escreve 'Perceval' sem variante, e não menciona registro ANVISA nem disponibilidade comercial. São afirmações diferentes e não se emprestam."
+    },
+    {
+      "familia": "Abbott|St. Jude Regent",
+      "achado": "Achado de sinal CONTRÁRIO, que vale registrar: existe alerta ANVISA 3153 (St. Jude Medical Brasil LTDA — Válvula Cardíaca Mecânica Aórtica Regent (Rotável) — Recolhimento). Pelo que a busca indexa, modelos Regent AGN 17 e 29 mm foram distribuídos e implantados no Brasil entre 2003 e 2005 SEM registro adequado, e os 29 mm não implantados foram recolhidos por falta de registro no país.",
+      "por_que_nao_gravei": "Não abri a página (403), e a informação vem de resumo de busca — o mesmo tipo de fonte que produziu a citação inventada que esta sessão teve de arrancar da base. E um recolhimento de 2005 não diz qual é a situação de 2026.",
+      "utilidade": "Se confirmado, empurra a Regent para 'nao_confirmado' com fundamento, em vez de nulo por falta de busca."
+    }
+  ],
+
+  "_a_pergunta_que_esta_rodada_levanta": {
+    "o_que_descobri": "`mercado_br` não é lido por NADA. Nem pelo catálogo (`CatalogoProteses.tsx`), nem pelo recomendador, nem por lib alguma. Ele é gravado no banco, tipado no hook, e para ali.",
+    "e_isso_e_de_proposito": "Sim. O selo de mercado ESTEVE na tela e foi retirado por decisão, e há quatro testes em `CatalogoProteses.test.tsx` guardando que ele não volte — porque 'não confirmado' ao lado de uma prótese que o cirurgião implanta toda semana é ausência de evidência publicada como dúvida.",
+    "a_consequencia_honesta": "Fechar as 19 alimenta um campo que ninguém vê. A pesquisa tem valor de registro interno, e só. Antes de uma quarta rodada, vale decidir se o campo deve aparecer de alguma forma — por exemplo, só o selo POSITIVO, sem nunca dizer nada sobre as demais — ou se o esforço deve ir para outro lugar.",
+    "por_que_nao_decidi_sozinho": "Reverter uma decisão de produto guardada por teste não é conserto, é mudança de escopo. A decisão é do dono."
+  },
+
+  "_o_que_destravaria_agora": [
+    "Ligar para a Cardiomed Brasil (61 3382-0822) e perguntar por Perceval: versão e registro ANVISA. Uma ligação fecha uma família.",
+    "Abrir num navegador comum o repositório de instruções de uso da ANVISA e procurar por 'Epic', 'Regent', 'Masters', 'Freestyle', 'Intuity'. A IFU em português traz o detentor do registro no Brasil e o número — fecha várias de uma vez.",
+    "Perguntar aos representantes comerciais de Corcym, Meril e Abbott no Brasil. É informação que um cardiologista consegue por telefone e que nenhuma busca entrega.",
+    "Cadastrar uma chave de aplicação em dados.gov.br, se alguém quiser tentar o caminho de dados abertos."
+  ]
+}
