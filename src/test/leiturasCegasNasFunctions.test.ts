@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
 import { statSync } from "node:fs";
-import { encontrarCegas, clientesCriadosNoArquivo } from "./detectorDeLeituraCega";
+import { encontrarCegas, clientesCriadosNoArquivo } from "./detectorDeChamadasCegas";
 
 /**
  * A mesma varredura de `readErrors.test.ts`, do lado do servidor.

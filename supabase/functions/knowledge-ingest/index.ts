@@ -172,13 +172,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    await admin.from("audit_logs").insert({
+    const { error: erroTrilha } = await admin.from("audit_logs").insert({
       user_id: userData.user.id,
       action: "knowledge_ingested",
       target_table: "knowledge_chunks",
       target_id: fonteGravada.id,
       metadata: { fonte: fonte.slug, gravados: gravados.length, falhas: Object.keys(falhas).length },
     });
+    // Quem escreveu na base que a IA cita como diretriz, e o quê. Sem o
+    // registro, a base muda e não há de quem perguntar depois.
+    if (erroTrilha) {
+      console.error("knowledge-ingest: ingestão não registrada em audit_logs", erroTrilha.message);
+    }
 
     return json({
       ok: Object.keys(falhas).length === 0,

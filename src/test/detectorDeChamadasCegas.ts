@@ -4,7 +4,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * O detector de leitura cega, num lugar só.
+ * O detector de chamada cega — leitura E escrita —, num lugar só.
  *
  * ## Por que ele saiu de dentro do teste
  *
@@ -13,6 +13,11 @@ import { join } from "node:path";
  * e duas cópias divergem. Esta base já pagou por isso uma vez: a lista de
  * tabelas do backup ficou quinze tabelas atrasada porque existia em dois
  * lugares.
+ *
+ * Depois veio a varredura de ESCRITA do servidor e o arquivo ganhou o segundo
+ * lado. O nome mudou junto: um módulo que cobre as duas coisas e se chama "de
+ * leitura" é uma mentira pequena no próprio código, do tipo que esta sessão
+ * existe para não deixar passar.
  *
  * ## O que ele mede, dito com precisão
  *
@@ -196,6 +201,63 @@ export function encontrarCegas({ raiz, nomesDoCliente }: Varredura): string[] {
       // Não há regra 3. Eu tinha escrito uma — "um `throw` na região absolve" —
       // e ela reabria o mesmo buraco: o `throw` de uma leitura vizinha absolvia
       // esta. Quem confere o próprio erro já passa pela regra 1.
+
+      achados.push(`${rel}:${i + 1}`);
+    }
+  }
+  return achados;
+}
+
+
+/**
+ * As ESCRITAS que descartam o erro.
+ *
+ * ## Por que a regra aqui é mais dura que a do `writeErrors.test.ts`
+ *
+ * Aquele, que varre `src`, só acusa quando a escrita cega vem acompanhada de um
+ * `toast.success` ou de um `logAudit` — porque numa tela uma escrita que falha
+ * sem anunciar nada ainda deixa a lista sem o item, e alguém percebe.
+ *
+ * No servidor não há esse "alguém". A função responde 200 e ninguém olha. Das
+ * catorze escritas cegas encontradas nas edge functions, **oito não anunciavam
+ * sucesso de nenhuma forma reconhecível** — e estavam entre as piores: o papel
+ * de médico que não gravava numa aprovação de acesso, o consentimento de LGPD
+ * que não persistia, o registro do que foi enviado a um hospital.
+ *
+ * Exigir anúncio de sucesso aqui teria deixado passar a maioria. Então a regra
+ * é simples: escreveu e não olhou o erro, entra.
+ */
+export function encontrarEscritasCegas({ raiz, nomesDoCliente }: Varredura): string[] {
+  const achados: string[] = [];
+  const ESCRITAS = /\.(insert|update|upsert|delete)\(/;
+
+  for (const arquivo of walk(raiz)) {
+    const rel = arquivo.replace(/\\/g, "/");
+    if (/\.test\.tsx?$/.test(rel)) continue;
+
+    const texto = readFileSync(arquivo, "utf8");
+    const clientes = nomesDoCliente(texto, rel);
+    if (clientes.length === 0) continue;
+
+    const nomes = clientes.map(escapar).join("|");
+    const ehChamada = new RegExp(`\\b(?:${nomes})\\s*$|\\b(?:${nomes})\\.`);
+
+    const linhas = texto.split("\n");
+    for (let i = 0; i < linhas.length; i++) {
+      if (!ehChamada.test(linhas[i])) continue;
+
+      let fim = i;
+      while (fim < linhas.length - 1 && fim < i + 12 && !/;\s*$/.test(linhas[fim])) fim++;
+      const statement = linhas.slice(i, fim + 1).join("\n");
+      if (!ESCRITAS.test(statement)) continue;
+
+      // O `=` pode estar ACIMA do `await`, na forma ternária — olhar só para a
+      // frente marcaria como cega uma escrita que é conferida.
+      const contexto = linhas.slice(Math.max(0, i - 4), fim + 1).join("\n");
+      const regiao = linhas.slice(i, Math.min(linhas.length, fim + 6)).join("\n");
+      const observa =
+        /\{[^}]*\berror\b[^}]*\}\s*=/.test(contexto) || /\b\w+\.error\b/.test(regiao);
+      if (observa) continue;
 
       achados.push(`${rel}:${i + 1}`);
     }

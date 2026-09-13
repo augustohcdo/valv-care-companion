@@ -205,13 +205,23 @@ Deno.serve(async (req) => {
         text: msg.email,
       });
       if (notificacaoId) {
-        await supabase.from("notifications").update({
+        const { error: erroMarca } = await supabase.from("notifications").update({
           metadata: {
             kind: "welcome", publico,
             email_sent: envio.sent,
             email_reason: envio.reason ?? null,
           },
         }).eq("id", notificacaoId);
+        // Esta marca é o que a PRÓXIMA execução lê para saber que já mandou.
+        // Falhando calada, o `email_sent` não fica gravado e a boas-vindas é
+        // reenviada — o mesmo estrago da checagem de duplicidade, por outra
+        // porta. E-mail não se desenvia.
+        if (erroMarca) {
+          console.error(
+            `welcome-email: e-mail enviado a ${c.email} mas a marca não gravou ` +
+            `(${erroMarca.message}) — a próxima execução pode reenviar`,
+          );
+        }
       }
       resultados.push({
         user_id: c.user_id, publico, notificado,

@@ -104,7 +104,11 @@ Deno.serve(async (req) => {
     //    LGPD. Criar uma aqui faz o encerramento entrar no mesmo trilho de
     //    conformidade dos pedidos formais, com protocolo e resposta.
     if (alvo === ator) {
-      await admin.from("dpo_requests").insert({
+      // O pedido de eliminação em si. A conta já foi encerrada quando isto
+      // roda; se a linha não grava, o encerramento aconteceu e não há registro
+      // de que foi pedido — que é o documento que o art. 18 da LGPD faz o
+      // controlador guardar.
+      const { error: erroPedidoDpo } = await admin.from("dpo_requests").insert({
         user_id: alvo,
         right_type: "eliminacao",
         status: "atendido",
@@ -114,6 +118,14 @@ Deno.serve(async (req) => {
         response: JSON.stringify(relatorio),
         responded_at: new Date().toISOString(),
       });
+      if (erroPedidoDpo) {
+        await logError({
+          source: "edge_function", context: "account-close",
+          message:
+            `conta ${alvo} encerrada, mas o registro do pedido em dpo_requests NÃO gravou: ` +
+            `${erroPedidoDpo.message}. O encerramento aconteceu e não há documento dele.`,
+        });
+      }
     }
 
     return json({ ok: true, relatorio });

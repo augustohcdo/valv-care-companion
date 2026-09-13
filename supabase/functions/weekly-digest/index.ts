@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
         (pending > 0 ? ` · ${pending} caso(s) sem atualização há 30+ dias` : "") +
         (severe > 0 ? ` · ${severe} caso(s) importante(s)/crítico(s) ativo(s)` : "");
 
-      await supabase.from("notifications").insert({
+      const { error: erroNotificacao } = await supabase.from("notifications").insert({
         user_id: d.user_id,
         type: "system",
         title: "Resumo semanal do consultório",
@@ -123,6 +123,18 @@ Deno.serve(async (req) => {
         link: "/app/medico/relatorios",
         metadata: stats,
       });
+      // `created++` incondicional é o `ok: true, sent: 0` que os comentários
+      // desta base citam como a lição que escondeu por semanas que ninguém
+      // recebia o resumo — vivo, na mesma função, uma camada abaixo. O
+      // `admin-digest` faz `if (!error) notificados++`; este não fazia.
+      //
+      // Com a falha por fora da conta, o registro passa a distinguir "mandei
+      // para 12" de "tentei 12 e 12 falharam", que antes eram o mesmo número.
+      if (erroNotificacao) {
+        failed++;
+        firstError ??= `notificação não gravada: ${erroNotificacao.message}`;
+        continue;
+      }
       created++;
     }
 

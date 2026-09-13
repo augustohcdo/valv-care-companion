@@ -415,9 +415,16 @@ Deno.serve(async (req) => {
       }
       // O registro continua: é auditoria, e é como o uso fica visível. O que
       // saiu foi a parede, não o rastro.
-      await admin.from("audit_logs").insert({
+      const { error: erroTrilha } = await admin.from("audit_logs").insert({
         user_id: userId, action: "clinical_ai_call", target_table: "clinical_ai",
       });
+      // Esta linha é o rastro de uso da IA clínica — e é ela que a trava de
+      // rajada CONTA logo acima. Falhando calada, o uso não aparece no
+      // histórico e a trava passa a contar menos chamadas do que houve: o
+      // limite afrouxa sozinho, sem ninguém saber.
+      if (erroTrilha) {
+        console.error("clinical-ai: uso não registrado em audit_logs", erroTrilha.message);
+      }
     }
 
     const body = await req.json() as ReqBody;

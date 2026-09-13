@@ -4,7 +4,7 @@ import { describe, it, expect } from "vitest";
 import { statSync } from "node:fs";
 import {
   encontrarCegas, padraoDeDestino, arrayObservaTodosOsErros, itensDoArray,
-} from "./detectorDeLeituraCega";
+} from "./detectorDeChamadasCegas";
 
 /**
  * Guarda contra falha de LEITURA lida como conclusão.
@@ -155,7 +155,7 @@ const SEM_TOLERANCIA = [
 const DIVIDA_CONHECIDA = 2;
 
 /**
- * A varredura em si mora em `detectorDeLeituraCega.ts`, compartilhada com a
+ * A varredura em si mora em `detectorDeChamadasCegas.ts`, compartilhada com a
  * guarda das edge functions. Duas cópias divergem — esta base já pagou por isso.
  *
  * Em `src` o cliente é sempre `supabase`, importado de um módulo só, então o

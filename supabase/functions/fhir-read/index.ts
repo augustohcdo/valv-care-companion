@@ -268,7 +268,11 @@ Deno.serve(async (req) => {
     entry: entries,
   };
 
-  await admin.from("fhir_resources_outbound").insert({
+  // O registro do que SAIU para o hospital. É a contraparte da trilha de
+  // integração: sem ele, o bundle foi entregue e não existe prova de que foi.
+  // Numa auditoria de LGPD, quem pergunta "o que vocês mandaram, e quando?"
+  // procura exatamente aqui.
+  const { error: erroSaida } = await admin.from("fhir_resources_outbound").insert({
     hospital_id: keyRow.hospital_id,
     patient_id: patientId,
     grant_id: grant.id,
@@ -276,6 +280,17 @@ Deno.serve(async (req) => {
     payload: bundle,
     requester_ip: ip,
   });
+  // O bundle vai para o hospital mesmo assim — segurá-lo agora puniria o
+  // hospital por uma falha nossa de registro. Mas a falha não pode sumir: sem
+  // esta linha, existe entrega sem prova de entrega.
+  if (erroSaida) {
+    await logError({
+      source: "edge_function", context: "fhir-read",
+      message:
+        `bundle entregue ao hospital ${keyRow.hospital_id} para o paciente ${patientId}, ` +
+        `mas o registro em fhir_resources_outbound NÃO gravou: ${erroSaida.message}`,
+    });
+  }
 
   await admin.rpc("log_integration_event", {
     _hospital_id: keyRow.hospital_id, _patient_id: patientId, _actor: null, _api_key: keyRow.id,
