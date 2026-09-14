@@ -144,10 +144,24 @@ describe("o deploy das edge functions", () => {
  */
 describe("todo workflow que carrega o token do Supabase", () => {
   const DIR = ".github/workflows";
+  // Comentários fora JÁ NA SELEÇÃO, e não só nas asserções.
+  //
+  // O `verificacoes-periodicas.yml` nasceu com um comentário dizendo, com todas
+  // as letras, que NÃO toca no `SUPABASE_ACCESS_TOKEN` — e esta varredura o
+  // selecionou por causa dessa frase, exigindo dele o passo "Recusar sem o
+  // token" de um segredo que ele não usa. Guarda que casa com a palavra pune
+  // quem documentou a regra; é o mesmo erro que o teste de `pull_request` logo
+  // abaixo já tinha corrigido, uma camada acima.
+  //
+  // Quem carrega o token de verdade continua sendo pego: o uso aparece como
+  // `${{ secrets.SUPABASE_ACCESS_TOKEN }}`, que não é comentário.
+  const semComentario = (yml: string) =>
+    yml.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n");
+
   const comToken = readdirSync(DIR)
     .filter((n) => /\.ya?ml$/.test(n))
     .map((n) => ({ nome: `${DIR}/${n}`, yml: readFileSync(`${DIR}/${n}`, "utf8") }))
-    .filter(({ yml }) => yml.includes("SUPABASE_ACCESS_TOKEN"));
+    .filter(({ yml }) => semComentario(yml).includes("SUPABASE_ACCESS_TOKEN"));
 
   it("existe pelo menos um, senão a varredura cobre nada", () => {
     expect(comToken.map((w) => w.nome)).toContain(".github/workflows/deploy-functions.yml");

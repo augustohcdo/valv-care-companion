@@ -1,0 +1,217 @@
+name: Verificações periódicas
+
+# ---------------------------------------------------------------------------
+# Por que existe
+# ---------------------------------------------------------------------------
+#
+# O projeto construiu seis verificações sérias e NENHUMA delas rodava sozinha.
+# Elas existiam só quando alguém lembrava de digitar o comando:
+#
+#   · `saude-do-site`      — a porta de entrada do site abre?
+#   · `smoke`              — as 62 rotas devolvem o shell do app?
+#   · `publicacao`         — 17 conferências do estado publicado contra o banco
+#   · `pmids`              — 26 citações continuam apontando para o que dizem
+#   · `mmcts`              — 17 links de técnica cirúrgica continuam de pé
+#   · `ferramentas:verificar` — três calculadoras dirigidas num navegador de
+#     verdade, com o valor da tela conferido contra a fórmula calculada à parte
+#
+# O custo disso ficou visível do pior jeito: a `turnstile-config` parou de subir,
+# o login ficou FECHADO para todo mundo — captcha não carrega, botão Entrar
+# desabilitado — e ninguém soube. A CI estava verde (ela confere o código, não o
+# que está no ar) e o `smoke` também estaria: as rotas devolviam o shell
+# normalmente, a tela abria bonita, só não dava para entrar. Quem descobriu foi
+# uma pessoa tentando usar o site.
+#
+# Verificação que depende de alguém lembrar é verificação que não existe.
+#
+# ---------------------------------------------------------------------------
+# Por que NÃO CONFERIDO também reprova
+# ---------------------------------------------------------------------------
+#
+# Os scripts deste projeto usam 0 = ok, 1 = errado, 2 = NÃO CONFERIDO. É
+# tentador deixar o 2 passar verde, para a execução diária não ficar vermelha
+# quando o PubMed estiver fora do ar. Mas essa é exatamente a mentira que este
+# repositório inteiro persegue: dizer "está tudo bem" sobre o que não se olhou.
+#
+# Então o 2 também reprova — e a tabela do resumo diz, em cada linha, se foi
+# DIVERGE ou NÃO CONFERIDO. Quem abrir sabe na primeira olhada se o site
+# quebrou ou se a fonte estava fora do ar. As duas coisas merecem um olhar; só
+# uma delas é urgente.
+#
+# ---------------------------------------------------------------------------
+# Segredos
+# ---------------------------------------------------------------------------
+#
+# Nenhum. A URL do projeto e a chave publishable saem do `.env` versionado, e as
+# duas são públicas por construção — a chave vai embutida em todo bundle que
+# qualquer visitante baixa; quem protege os dados é a RLS. Este workflow não
+# toca em `SUPABASE_ACCESS_TOKEN` nem em `SUPABASE_SERVICE_ROLE_KEY`, e não deve
+# passar a tocar: ele roda sozinho, todo dia, sem ninguém olhando.
+
+on:
+  schedule:
+    # 09:17 UTC ≈ 06:17 em Brasília. Minuto quebrado de propósito: a hora cheia
+    # é quando todo mundo agenda, e o GitHub atrasa ou descarta execução nesses
+    # picos.
+    - cron: "17 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verificacoes-periodicas
+  cancel-in-progress: false
+
+jobs:
+  conferir:
+    name: O que está no ar ainda funciona?
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Instalar dependências
+        run: npm ci
+
+      # O `.env` é versionado e o Vite o lê sozinho no build — mas os scripts de
+      # conferência são Node puro e leem `process.env`. Sem este passo, o
+      # `publicacao` sairia 2 (falta a chave) TODO DIA, e uma execução diária
+      # que nasce amarela é uma execução que ninguém abre na terceira semana.
+      #
+      # Só a chave PÚBLICA passa por aqui. Ela já vai embutida em todo bundle
+      # que qualquer visitante baixa.
+      #
+      # `set -o pipefail` porque o `grep` está à esquerda de um cano: sem ele,
+      # o `.env` podendo ter perdido as linhas passaria despercebido e o passo
+      # ficaria verde exportando nada. (Esta linha foi acrescentada porque a
+      # guarda `src/test/passosDaCI.test.ts` reprovou este workflow enquanto eu
+      # o escrevia — que é exatamente para isso que ela existe.)
+      - name: Exportar as chaves públicas do .env
+        run: |
+          set -o pipefail
+          grep -E '^VITE_SUPABASE_(URL|PUBLISHABLE_KEY)=' .env \
+            | tr -d '"' >> "$GITHUB_ENV"
+          quantas=$(grep -cE '^VITE_SUPABASE_(URL|PUBLISHABLE_KEY)=' .env)
+          echo "Exportadas: $quantas de 2"
+          if [ "$quantas" -ne 2 ]; then
+            echo "::error::o .env não tem as duas chaves públicas; as conferências de banco sairiam NÃO CONFERIDO"
+            exit 1
+          fi
+
+      # A checagem mais barata e a mais importante vem primeiro, sozinha e sem
+      # depender de build nenhum: se a porta de entrada estiver fechada, quem
+      # abrir este resumo precisa ver isso na primeira linha.
+      - name: A porta de entrada do site abre?
+        run: node scripts/saude-do-site.mjs
+
+      - name: Build
+        run: npm run build
+
+      - name: Servir o build
+        run: |
+          npx vite preview --port 4173 --host 127.0.0.1 > /tmp/preview.log 2>&1 &
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://127.0.0.1:4173/; then
+              echo "preview de pé"; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::o preview não respondeu em 30s"
+          cat /tmp/preview.log
+          exit 1
+
+      # `--no-save`: o Playwright não é dependência do projeto e não deve virar
+      # uma. Mesmo raciocínio do `rotas-autenticadas.yml` — obrigar todo mundo a
+      # baixar navegador no `npm ci` seria cobrar de muitos o custo de poucos.
+      - name: Instalar o Playwright
+        run: |
+          npm i --no-save playwright
+          npx playwright install --with-deps chromium
+
+      # Um passo só para TODAS as conferências, de propósito: passo que falha
+      # encerra o job, e conferências em passos separados esconderiam tudo que
+      # vem depois da primeira que quebrar. Aqui cada uma roda até o fim e a
+      # tabela mostra o conjunto.
+      - name: Conferir
+        env:
+          SMOKE_BASE_URL: https://valvepath.com.br
+        run: |
+          diverge=0
+          naoConferido=0
+
+          # Tabela e detalhes vão para arquivos separados e só no fim se juntam.
+          # Escrevendo direto no resumo, o primeiro `<details>` caía NO MEIO da
+          # tabela e cortava as linhas seguintes — conferido rodando o bloco
+          # antes de publicar este arquivo.
+          : > /tmp/tabela.md
+          : > /tmp/detalhes.md
+
+          roda() {
+            rotulo="$1"; shift
+            if "$@" > "/tmp/saida.log" 2>&1; then
+              estado=0
+            else
+              estado=$?
+            fi
+            case "$estado" in
+              0) echo "| $rotulo | ✅ ok |" >> /tmp/tabela.md ;;
+              2) echo "| $rotulo | ⚠️ NÃO CONFERIDO |" >> /tmp/tabela.md
+                 naoConferido=1 ;;
+              *) echo "| $rotulo | ❌ DIVERGE (saída $estado) |" >> /tmp/tabela.md
+                 diverge=1 ;;
+            esac
+            if [ "$estado" -ne 0 ]; then
+              {
+                echo ""
+                echo "<details><summary>$rotulo — saída</summary>"
+                echo ""
+                echo '```'
+                tail -40 /tmp/saida.log
+                echo '```'
+                echo "</details>"
+              } >> /tmp/detalhes.md
+            fi
+            echo "── $rotulo → $estado"
+            tail -20 /tmp/saida.log
+          }
+
+          roda "Porta de entrada (turnstile-config)" node scripts/saude-do-site.mjs
+          roda "Rotas do site publicado (smoke)"     npm run smoke
+          roda "Estado publicado (publicacao)"       npm run publicacao
+          roda "Citações PubMed (pmids)"             npm run pmids
+          roda "Links MMCTS (mmcts)"                 npm run mmcts
+          roda "Calculadoras no navegador"           node scripts/ferramentas-verificar.mjs http://127.0.0.1:4173
+
+          {
+            echo "## Verificações periódicas"
+            echo ""
+            echo "| Verificação | Estado |"
+            echo "| --- | --- |"
+            cat /tmp/tabela.md
+            echo ""
+            cat /tmp/detalhes.md
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$diverge" -ne 0 ]; then
+            echo "> ❌ **Alguma coisa DIVERGE.** O que está no ar não é o que o repositório diz." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "$naoConferido" -ne 0 ]; then
+            echo "> ⚠️ **Alguma coisa ficou NÃO CONFERIDA** — fonte fora do ar, rede, credencial ausente." >> "$GITHUB_STEP_SUMMARY"
+            echo "> Não é divergência: é ausência de resposta. Reprova porque \"não sei\" não é \"está tudo bem\"." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "$diverge" -eq 0 ] && [ "$naoConferido" -eq 0 ]; then
+            # Conta a partir da tabela, e não um número escrito à mão: número
+            # cravado em texto envelhece calado quando a lista muda, e aí o
+            # resumo passa a afirmar uma quantidade que ninguém conferiu.
+            echo "> ✅ As $(wc -l < /tmp/tabela.md) conferências passaram." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          [ "$diverge" -eq 0 ] && [ "$naoConferido" -eq 0 ]
