@@ -148,30 +148,20 @@ describe("o workflow que abre as telas protegidas", () => {
   });
 
   /**
-   * O passo que varre não pode engolir o código de saída da varredura.
+   * O `| tee` que engolia o código de saída da varredura era guardado aqui, e
+   * a guarda saiu deste arquivo de propósito.
    *
-   * O GitHub roda os passos com `bash -e`, **sem** `pipefail`. Numa cadeia
-   * `node … | tee …` o bash devolve o status do último comando — o `tee`, que
-   * sempre dá 0. Quer dizer que a varredura podia sair 1 (rota quebrada) ou 2
-   * (não conferido) e o passo ficaria verde.
+   * Ela estava presa a UM workflow — o mesmo erro do `RAIZ = "src"` que deixou
+   * as vinte edge functions fora da varredura de leitura. E cobrou o preço
+   * previsível: o `db.yml`, que aplica SQL no banco de produção, tinha o mesmo
+   * defeito engolindo um `curl --fail-with-body`, e esta guarda não olhava para
+   * lá.
    *
-   * É o defeito que este workflow inteiro existe para caçar, dentro dele
-   * próprio. Achado relendo o log da primeira execução que deu certo — e é por
-   * isso que este teste existe: quem escrever o próximo passo com `| tee` vai
-   * esbarrar nele.
+   * Agora a regra é de diretório, em `src/test/passosDaCI.test.ts`: todo passo
+   * com cano, em qualquer workflow, precisa de `pipefail`. Ela cobre este
+   * arquivo junto com os outros — conferido por inversão, tirando o `set -o
+   * pipefail` daqui e vendo reprovar pelo nome.
    */
-  it("o código de saída da varredura não é engolido pelo `tee`", () => {
-    const passos = yml.split(/\n {6}- name: /);
-    for (const passo of passos) {
-      if (!/\|\s*tee\s/.test(passo)) continue;
-      const nome = passo.split("\n")[0].trim();
-      expect(
-        passo,
-        `o passo "${nome}" canaliza para \`tee\` sem \`set -o pipefail\`: ` +
-        "o status do comando de verdade some e o passo fica verde de graça",
-      ).toMatch(/set -o pipefail/);
-    }
-  });
 
   it("a sessão não vira artefato", () => {
     // O arquivo carrega um access_token válido. Artefato de workflow fica

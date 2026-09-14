@@ -88,11 +88,26 @@ jobs:
       # `--fail-with-body` para o passo falhar no HTTP de erro E ainda mostrar o
       # que a API respondeu. Sem o `--fail`, um 400 passaria como sucesso; sem o
       # `-with-body`, falharia sem dizer por quê.
+      #
+      # E o `--fail-with-body` sozinho NÃO bastava, por causa da última linha do
+      # comando. O GitHub roda os passos com `bash -e` e **sem** `pipefail`: numa
+      # cadeia `curl … | tee …` o bash devolve o status do `tee`, que é sempre 0.
+      # O `curl` podia sair 22 — a API recusando o SQL com 400, transação
+      # abortada, permissão negada — e o passo ficava VERDE. Quem disparasse
+      # veria o erro escrito no resumo e a bolinha verde ao lado, e a leitura
+      # natural é a bolinha.
+      #
+      # Num workflow que aplica DDL em banco de prontuário, isso é o pior formato
+      # possível: o banco não mudou e o relatório diz que mudou. É o mesmo
+      # defeito que já havia sido consertado no `rotas-autenticadas.yml` — a
+      # guarda de lá estava presa àquele arquivo, e este ficou de fora. Agora a
+      # regra é de diretório: ver `src/test/passosDaCI.test.ts`.
       - name: Executar
         env:
           TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           ARQUIVO: ${{ inputs.arquivo }}
         run: |
+          set -o pipefail
           jq -Rs '{query: .}' < "$ARQUIVO" > /tmp/corpo.json
           echo "## Resultado de \`$ARQUIVO\`" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
