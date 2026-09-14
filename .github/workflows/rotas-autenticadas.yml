@@ -13,12 +13,33 @@ name: Rotas autenticadas
 # Nenhuma dessas telas é aberta por nada automático hoje. Este workflow abre.
 #
 # ---------------------------------------------------------------------------
-# Por que não roda sozinho a cada push
+# Por que semanal, e não a cada push
 # ---------------------------------------------------------------------------
 #
 # Porque ele cria uma conta capaz de entrar na base de PRODUÇÃO. É pouca coisa
 # — conta sem vínculo nenhum, que a RLS deixa ver nada, viva por alguns minutos
 # — mas é uma porta, e porta se abre de propósito, não a cada `git push`.
+#
+# Só que "de propósito" virou "quando alguém lembra", e essas 39 telas passaram
+# semanas sem ninguém abrir. Foi decisão do dono do projeto passar a semanal: uma
+# vez por semana a porta abre sozinha, o que é frequência baixa o bastante para
+# a exposição continuar pequena e alta o bastante para a conferência existir.
+#
+# ---------------------------------------------------------------------------
+# O que muda quando ninguém está olhando
+# ---------------------------------------------------------------------------
+#
+# O `if: always()` do passo de remoção bastava enquanto havia uma pessoa vendo o
+# resultado. Ele cobre falha de passo — não cobre runner morto, job cancelado
+# pela infraestrutura, nem falha do próprio passo de remoção. Cada um desses
+# deixa uma conta de produção de pé, e, sem ninguém olhando, ela fica de pé para
+# sempre enquanto a semana seguinte cria outra: vazamento lento e invisível.
+#
+# Daí o último passo, `--varrer-restos`, que procura contas de verificação de
+# execuções ANTERIORES e as apaga. Ele reprova quando acha alguma — achar resto
+# significa que uma remoção falhou, e isso precisa aparecer mesmo depois de
+# consertado. Vem por último, e não primeiro, justamente para não cancelar a
+# varredura das telas quando encontra algo.
 #
 # ---------------------------------------------------------------------------
 # O que este workflow NÃO cobre, de propósito
@@ -40,6 +61,11 @@ name: Rotas autenticadas
 # tipo pularia a remoção da conta dele.
 
 on:
+  schedule:
+    # Domingo, 07:23 UTC ≈ 04:23 em Brasília — fora do horário em que alguém
+    # estaria usando o site, e num minuto quebrado porque a hora cheia é quando
+    # todo mundo agenda e o GitHub atrasa ou descarta execução nesses picos.
+    - cron: "23 7 * * 0"
   workflow_dispatch:
 
 permissions:
@@ -210,3 +236,22 @@ jobs:
           echo '' >> "$GITHUB_STEP_SUMMARY"
           echo '> As rotas de `/app/admin/*` ficam fora: exigem papel privilegiado, e' >> "$GITHUB_STEP_SUMMARY"
           echo '> concedê-lo em produção para varrer tela é troca ruim.' >> "$GITHUB_STEP_SUMMARY"
+
+      # POR ÚLTIMO, e com `always()`.
+      #
+      # Por último porque ele REPROVA quando acha resto, e reprovar antes
+      # cancelaria a varredura das 39 telas — trocar a conferência da semana pela
+      # limpeza seria perder a razão de o workflow existir.
+      #
+      # Com `always()` porque o caso que mais interessa é justamente aquele em
+      # que algo acima falhou.
+      #
+      # A janela de 3 horas do script é o que impede o job do `medico` de apagar
+      # a conta que o job do `paciente` acabou de criar: a matriz roda os dois em
+      # paralelo, e sem a janela um sabotaria o outro.
+      - name: Sobrou conta de alguma execução anterior?
+        if: always()
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/conta-de-verificacao.mjs --varrer-restos

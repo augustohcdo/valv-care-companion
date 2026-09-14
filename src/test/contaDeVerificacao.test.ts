@@ -53,12 +53,82 @@ describe("o workflow que abre as telas protegidas", () => {
     expect(gatilhos).not.toMatch(/pull_request_target/);
   });
 
-  it("é só manual — criar conta de produção não acontece a cada push", () => {
+  /**
+   * Semanal, nunca por push.
+   *
+   * Este teste já cravou o contrário — exigia que NÃO houvesse `schedule`,
+   * porque criar conta de produção sem ninguém olhando parecia troca ruim. A
+   * troca real acabou sendo outra: sem agenda, as 39 telas passaram semanas sem
+   * que nada as abrisse, e "de propósito" virou "quando alguém lembra". O dono
+   * do projeto decidiu pela agenda semanal.
+   *
+   * O que NÃO mudou, e continua cobrado aqui: nada disso roda a cada push, e
+   * nunca em `pull_request` — o repositório é público e o token é root.
+   *
+   * E o que a agenda passou a exigir está logo abaixo: a varredura de restos.
+   */
+  it("roda por agenda semanal, e nunca a cada push", () => {
     const gatilhos = yml.split(/\npermissions:|\njobs:/)[0];
     expect(gatilhos).toMatch(/workflow_dispatch/);
-    expect(gatilhos, "disparo automático abriria a porta a cada push").not.toMatch(/^\s*push:/m);
-    expect(gatilhos, "disparo por agenda abriria a porta sem ninguém olhando")
-      .not.toMatch(/schedule:/);
+    expect(gatilhos, "sem agenda, as 39 telas voltam a depender de alguém lembrar")
+      .toMatch(/^\s*schedule:/m);
+    expect(gatilhos, "disparo a cada push abriria a porta o tempo todo")
+      .not.toMatch(/^\s*push:/m);
+
+    // Semanal, e não diária ou de hora em hora: o campo do dia da semana (o
+    // quinto) precisa nomear um dia, senão o cron roda todo dia.
+    const cron = gatilhos.match(/-\s*cron:\s*["']([^"']+)["']/)?.[1] ?? "";
+    expect(cron, "não achei a expressão cron").not.toBe("");
+    const diaDaSemana = cron.trim().split(/\s+/)[4];
+    expect(
+      diaDaSemana,
+      `a agenda é "${cron}" — com "*" no dia da semana, a conta de produção nasce TODO DIA`,
+    ).not.toBe("*");
+  });
+
+  /**
+   * A garantia que a agenda trouxe junto.
+   *
+   * `if: always()` cobre falha de passo. Não cobre runner morto, job cancelado
+   * pela infraestrutura, nem falha do próprio passo de remoção — e cada um
+   * desses deixa uma conta capaz de entrar na produção de pé. Enquanto havia
+   * alguém olhando o resultado, isso aparecia; rodando por agenda, não aparece:
+   * a conta fica de pé para sempre e a semana seguinte cria outra.
+   */
+  it("varre contas que sobraram de execuções anteriores, e reprova quando acha", () => {
+    expect(
+      yml,
+      "sem esta varredura, uma remoção que falhe uma vez vaza uma conta de produção para sempre",
+    ).toMatch(/--varrer-restos/);
+
+    // `slice(1)`: o elemento 0 é tudo que vem ANTES do primeiro passo — o
+    // cabeçalho do arquivo, onde os comentários explicam esta varredura e citam
+    // `if: always()`. Sem cortá-lo, as asserções abaixo passariam lendo a
+    // explicação em vez do passo. Aconteceu com as duas, e é o motivo de este
+    // comentário existir.
+    const etapas = yml.split(/\n {6}- name: /).slice(1);
+    const varredura = etapas.find((p) => /--varrer-restos/.test(p));
+    expect(varredura, "não achei o passo").toBeTruthy();
+    expect(
+      varredura!,
+      "o caso que mais interessa é aquele em que algo acima falhou",
+    ).toMatch(/if:\s*always\(\)/);
+
+    // Por último: reprovando, ele cancelaria o que viesse depois — e o que vem
+    // depois seria a varredura das 39 telas, que é a razão de o workflow existir.
+    //
+    // A ordem se compara entre PASSOS, e não por `indexOf` no texto cru: a
+    // primeira ocorrência de `--varrer-restos` no arquivo é o comentário do
+    // cabeçalho que explica o passo, e comparar com ela deu 1995 > 9047 falso.
+    // Guarda que mede a posição da explicação em vez da posição do código é a
+    // mesma família de erro que casa com a palavra em vez da garantia.
+    const iVarredura = etapas.findIndex((p) => /--varrer-restos/.test(p));
+    const iRotas = etapas.findIndex((p) => /rotas-renderizam\.mjs/.test(p));
+    expect(iRotas, "não achei o passo que varre as telas").toBeGreaterThanOrEqual(0);
+    expect(
+      iVarredura,
+      "a varredura de restos precisa vir DEPOIS da varredura das telas",
+    ).toBeGreaterThan(iRotas);
   });
 
   it("pede permissão mínima", () => {
@@ -115,7 +185,12 @@ describe("o workflow que abre as telas protegidas", () => {
     for (const passo of passos) {
       const nome = passo.split("\n")[0].trim();
       const temChave = /SUPABASE_SERVICE_ROLE_KEY/.test(passo);
-      const podeTer = /Recusar sem as credenciais|Criar a conta|Apagar a conta/.test(nome);
+      // A varredura de restos entra na lista porque ela APAGA conta pela API de
+      // administração — é o mesmo trabalho do passo "Apagar a conta", sobre o
+      // lixo de execuções anteriores. Não é alargamento: é o terceiro passo que
+      // legitimamente mexe em conta, e nenhum deles constrói bundle.
+      const podeTer =
+        /Recusar sem as credenciais|Criar a conta|Apagar a conta|Sobrou conta/.test(nome);
       if (temChave && !podeTer) {
         throw new Error(
           `a service_role aparece no passo "${nome}", que não cria nem apaga conta. ` +
@@ -131,6 +206,31 @@ describe("o workflow que abre as telas protegidas", () => {
     expect(criar!).toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
     expect(apagar, "não achei o passo de remoção").toBeTruthy();
     expect(apagar!).toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
+  });
+
+  /**
+   * O filtro do `--varrer-restos` não pode alcançar conta de gente.
+   *
+   * Ele roda sozinho, de madrugada, e termina num `delete`. Duas coisas o
+   * prendem: o prefixo que só este script usa e o domínio `.invalid`, que a RFC
+   * 2606 reserva — nenhum domínio real pode existir ali, hoje ou nunca. Um
+   * filtro mais frouxo aqui apaga o prontuário de alguém.
+   */
+  it("a varredura de restos só alcança o domínio reservado", () => {
+    const js = readFileSync(SCRIPT, "utf8");
+    const corpo = js.slice(js.indexOf("async function varrerRestos("));
+    expect(corpo.length, "não achei o corpo de varrerRestos").toBeGreaterThan(300);
+
+    const consulta = corpo.slice(corpo.indexOf("from auth.users"), corpo.indexOf("order by"));
+    expect(consulta, "a consulta precisa filtrar pelo domínio reservado")
+      .toMatch(/PADRAO_DE_RESTO|valvepath\.invalid/);
+    expect(js, "o padrão precisa terminar no domínio reservado")
+      .toMatch(/PADRAO_DE_RESTO\s*=\s*["'][^"']*@valvepath\.invalid["']/);
+
+    // E a janela de idade, que é o que impede um job da matriz de apagar a conta
+    // que o outro acabou de criar — os dois rodam em paralelo no mesmo run.
+    expect(consulta, "sem janela de idade, um job da matriz sabota o outro")
+      .toMatch(/created_at\s*<\s*now\(\)\s*-\s*interval/);
   });
 
   it("o .env do build carrega só a chave PÚBLICA", () => {

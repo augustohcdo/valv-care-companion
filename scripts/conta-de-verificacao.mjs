@@ -394,6 +394,99 @@ async function apagar(id) {
   console.log(`Conta ${id} apagada e CONFERIDA: 0 linhas em auth.users e em public.profiles.`);
 }
 
+// ------------------------------------------------------- varrer restos
+
+/**
+ * O prefixo e o domínio que só as contas deste script usam.
+ *
+ * `.invalid` é reservado pela RFC 2606: nenhum domínio real pode existir ali,
+ * hoje ou nunca. Quer dizer que este filtro não tem como alcançar a conta de
+ * um médico ou de um paciente — o que importa quando o que vem a seguir é um
+ * `delete` rodando sozinho, de madrugada, sem ninguém olhando.
+ */
+const PADRAO_DE_RESTO = "verificacao-de-rotas-apagar+%@valvepath.invalid";
+
+/**
+ * Quanto tempo uma conta precisa ter para ser considerada RESTO.
+ *
+ * Não é excesso de zelo: a matriz roda `medico` e `paciente` em PARALELO, no
+ * mesmo run. Sem esta janela, o job do `medico` varreria a conta que o job do
+ * `paciente` acabou de criar, e a varredura dele morreria sem sessão — um job
+ * sabotando o outro, com a causa parecendo aleatória.
+ *
+ * Três horas: nenhuma execução deste workflow chega perto disso, e qualquer
+ * conta mais velha que isso é, por definição, de um run que já terminou.
+ */
+const HORAS_PARA_SER_RESTO = 3;
+
+/**
+ * Apaga contas de verificação que sobraram de execuções anteriores.
+ *
+ * ## Por que isto passou a ser necessário
+ *
+ * Enquanto este workflow era manual, o passo de remoção com `if: always()`
+ * bastava: se algo desse errado, havia alguém olhando o resultado.
+ *
+ * Passando a rodar por agenda, não há. E `always()` cobre falha de passo, não
+ * cobre runner morto, job cancelado pela infraestrutura ou falha do próprio
+ * passo de remoção. Cada um desses deixa **uma conta capaz de entrar na
+ * produção** de pé — e, sem ninguém olhando, ela fica de pé para sempre,
+ * enquanto a semana seguinte cria outra.
+ *
+ * Vazamento lento e invisível é a forma que este defeito assume quando a
+ * limpeza é boa mas só olha para si mesma.
+ *
+ * ## Achar resto JÁ É um achado
+ *
+ * Este modo não sai 0 calado quando encontra alguma coisa. Encontrar resto
+ * significa que uma remoção anterior falhou, e isso precisa aparecer no resumo
+ * mesmo depois de consertado — senão a falha some junto com o sintoma.
+ */
+async function varrerRestos() {
+  const linhas = await sql(
+    `select id, email, created_at
+       from auth.users
+      where email like '${PADRAO_DE_RESTO}'
+        and created_at < now() - interval '${HORAS_PARA_SER_RESTO} hours'
+      order by created_at`,
+  );
+
+  if (linhas.length === 0) {
+    console.log("Nenhuma conta de verificação sobrou de execuções anteriores.");
+    return;
+  }
+
+  console.error(
+    `SOBRARAM ${linhas.length} conta(s) de verificação de execuções anteriores.\n` +
+      "Cada uma é uma conta capaz de entrar na produção que uma remoção anterior\n" +
+      "não apagou. Vou apagar agora, mas o fato de existirem é o achado.\n",
+  );
+
+  const falharam = [];
+  for (const linha of linhas) {
+    console.error(`  · ${linha.email} (${linha.id}), criada em ${linha.created_at}`);
+    const r = await fetch(`${URL_BASE}/auth/v1/admin/users/${linha.id}`, {
+      method: "DELETE", headers: cabecalhos(),
+    });
+    // Conferido, e não deduzido do 200 — mesmo motivo de sempre.
+    const [restou] = await sql(
+      `select count(*) n from auth.users where id = '${linha.id}'`,
+    );
+    if (Number(restou.n) > 0) falharam.push({ ...linha, status: r.status });
+  }
+
+  if (falharam.length) {
+    console.error(
+      `\n${falharam.length} NÃO saíram nem agora. Apague à mão:\n` +
+        falharam.map((f) => `  delete from auth.users where id = '${f.id}';`).join("\n"),
+    );
+    process.exit(1);
+  }
+
+  console.error(`\nAs ${linhas.length} foram apagadas e conferidas.`);
+  process.exit(1);
+}
+
 // ---------------------------------------------------------------- main
 
 try {
@@ -408,6 +501,9 @@ try {
   } else if (temFlag("--apagar")) {
     await chaves();
     await apagar(valorFlag("--id"));
+  } else if (temFlag("--varrer-restos")) {
+    await chaves();
+    await varrerRestos();
   } else {
     console.error(
       "Use --criar --tipo <medico|paciente> --saida <arquivo>,\n" +
