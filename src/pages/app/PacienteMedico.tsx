@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,13 +61,13 @@ const PacienteMedico = () => {
   const [results, setResults] = useState<(Doctor & { full_name: string })[]>([]);
   const [linking, setLinking] = useState(false);
 
-  const { data: patient } = usePatient();
+  const { data: patient, error: erroPerfil } = usePatient();
   const patientId = (patient?.id as string | undefined) ?? null;
 
   // Médico vinculado, já enriquecido com o nome do perfil. Diferente do código
   // anterior, se o médico não for encontrado o card é limpo em vez de manter o
   // valor antigo na tela.
-  const { data: currentDoctor = null } = useQuery({
+  const { data: currentDoctor = null, error: erroMedico } = useQuery({
     queryKey: linkedDoctorKey(patient?.linked_doctor_id ?? undefined),
     queryFn: async (): Promise<(Doctor & { full_name: string }) | null> => {
       const { data: doc, error } = await supabase
@@ -239,6 +240,15 @@ const PacienteMedico = () => {
             </AlertDialog>
           </CardContent>
         </Card>
+      ) : erroPerfil || erroMedico ? (
+        // "Você ainda não está vinculado(a)" é uma afirmação sobre o vínculo, e
+        // uma leitura que falhou não sabe nada sobre o vínculo. Dito ao
+        // paciente, ele conclui que precisa procurar outro médico.
+        <FalhaDeLeitura
+          oQue="seu vínculo médico"
+          naoSignifica="você esteja sem cardiologista vinculado"
+          aQuemAvisar="o suporte ou seu médico"
+        />
       ) : (
         <Card className="border-dashed shadow-sm-soft">
           <CardContent className="py-8 text-center">

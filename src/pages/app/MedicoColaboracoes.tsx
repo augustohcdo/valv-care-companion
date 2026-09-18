@@ -18,7 +18,7 @@ export const doctorCollaborationsKey = (doctorId?: string) =>
 
 export default function MedicoColaboracoes() {
   const queryClient = useQueryClient();
-  const { data: doctor, isLoading: loadingDoctor } = useDoctor();
+  const { data: doctor, isLoading: loadingDoctor, error: erroMedico } = useDoctor();
 
   const { data: items = [], isLoading: loadingItems, error: erroColaboracoes } = useQuery({
     queryKey: doctorCollaborationsKey(doctor?.id),
@@ -112,7 +112,7 @@ export default function MedicoColaboracoes() {
         <div className="grid place-items-center min-h-[30vh]">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
-      ) : erroColaboracoes ? (
+      ) : erroColaboracoes || erroMedico ? (
         /* Sem isto a falha caía no `items.length === 0` e a tela dizia "Nenhum
            convite ainda" a quem TEM convite — o médico conclui que o colega não
            o chamou, ou que o convite foi retirado. */

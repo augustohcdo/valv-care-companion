@@ -23,7 +23,7 @@ export default function MedicoPacienteDetalhe() {
   const navigate = useNavigate();
   const [exporting, setExporting] = useState(false);
 
-  const { data: doctor, isLoading: loadingDoctor } = useDoctor();
+  const { data: doctor, isLoading: loadingDoctor, error: erroMedico } = useDoctor();
 
   const { data, isLoading: loadingDetail, error: erroDetalhe } = useQuery({
     queryKey: doctorPatientDetailKey(doctor?.id, id),
@@ -83,7 +83,7 @@ export default function MedicoPacienteDetalhe() {
     // tela. São coisas diferentes: a primeira se resolve tentando de novo, a
     // segunda não. E dizer "sem vínculo" quando o vínculo existe é afirmar um
     // fato clínico-administrativo falso.
-    if (erroDetalhe) {
+    if (erroDetalhe || erroMedico) {
       toast.error("Não foi possível carregar o prontuário", {
         description: "Isto não quer dizer que o paciente tenha deixado de estar vinculado. Tente novamente.",
       });
@@ -93,7 +93,7 @@ export default function MedicoPacienteDetalhe() {
       toast.error("Paciente não encontrado ou sem vínculo");
       navigate("/app/medico/pacientes");
     }
-  }, [loading, doctor, patient, erroDetalhe, navigate]);
+  }, [loading, doctor, patient, erroDetalhe, erroMedico, navigate]);
 
   const handleExportPdf = async () => {
     if (!patient) return;
@@ -150,7 +150,7 @@ export default function MedicoPacienteDetalhe() {
 
   // Sem este ramo, a falha ficava girando o spinner para sempre — o usuário lê
   // "está carregando" sobre algo que já terminou e falhou.
-  if (erroDetalhe) {
+  if (erroDetalhe || erroMedico) {
     return (
       <div className="mx-auto max-w-lg py-12 text-center space-y-3">
         <p className="font-medium">Não foi possível carregar o prontuário.</p>

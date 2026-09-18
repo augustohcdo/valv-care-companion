@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { aplicar } from "@/lib/mutate";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +46,7 @@ export default function PacienteMedicacoes() {
 
   const today = format(new Date(), "yyyy-MM-dd");
 
-  const { data: patient, isLoading: loadingPatient } = usePatient();
+  const { data: patient, isLoading: loadingPatient, error: erroPerfil } = usePatient();
   const patientId = patient?.id as string | undefined;
 
   const { data: meds = [], isLoading: loadingMeds } = useQuery({
@@ -241,7 +242,17 @@ export default function PacienteMedicacoes() {
         }
       />
 
-      {!patient ? (
+      {erroPerfil ? (
+        // Antes desta faixa, uma falha de leitura mandava o paciente "completar
+        // o perfil" que ele já tinha completo — e escondia a medicação dele
+        // atrás da frase. O que a pessoa toma é uma das duas coisas que a
+        // consulta seguinte vai perguntar.
+        <FalhaDeLeitura
+          oQue="suas medicações"
+          naoSignifica="seu perfil esteja incompleto ou que você não tenha medicações cadastradas"
+          aQuemAvisar="o suporte ou seu médico"
+        />
+      ) : !patient ? (
         <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">
           Complete seu perfil para gerenciar medicações.
         </CardContent></Card>

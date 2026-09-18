@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,10 +48,10 @@ const PacienteDocumentos = () => {
   const [description, setDescription] = useState("");
   const [shareWithDoctor, setShareWithDoctor] = useState(true);
 
-  const { data: patient, isLoading: loadingPatient } = usePatient();
+  const { data: patient, isLoading: loadingPatient, error: erroPerfil } = usePatient();
   const patientId = patient?.id ?? null;
 
-  const { data: docs = [], isLoading: loadingDocs } = useQuery({
+  const { data: docs = [], isLoading: loadingDocs, error: erroDocs } = useQuery({
     queryKey: patientDocumentsKey(patientId ?? undefined),
     queryFn: async () => {
       const { data, error } = await supabase
@@ -66,6 +67,10 @@ const PacienteDocumentos = () => {
   });
 
   const loading = loadingPatient || (!!patientId && loadingDocs);
+  // Perfil ou acervo: qualquer uma das duas leituras falhando deixa a lista
+  // vazia, e a lista vazia dizia "Nenhum documento ainda" — sobre os exames da
+  // pessoa, que é o que ela leva para a consulta.
+  const falhou = !!erroPerfil || !!erroDocs;
 
   const load = () => queryClient.invalidateQueries({ queryKey: patientDocumentsKey(patientId ?? undefined) });
 
@@ -242,6 +247,12 @@ const PacienteDocumentos = () => {
         <CardContent>
           {loading ? (
             <p className="text-sm text-muted-foreground">Carregando...</p>
+          ) : falhou ? (
+            <FalhaDeLeitura
+              oQue="seus documentos"
+              naoSignifica="você não tenha documentos guardados"
+              aQuemAvisar="o suporte ou seu médico"
+            />
           ) : docs.length === 0 ? (
             <div className="text-center py-10 text-sm text-muted-foreground">
               <FileText className="h-10 w-10 mx-auto mb-2 opacity-40" />

@@ -2,6 +2,7 @@
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 /**
@@ -43,6 +44,32 @@ const SCRIPT = "scripts/functions-carregam.ts";
 const CI = ".github/workflows/ci.yml";
 const DEPLOY = ".github/workflows/deploy-functions.yml";
 const RAIZ_FUNCTIONS = "supabase/functions";
+
+/**
+ * Onde procurar o `deno` além do PATH.
+ *
+ * A primeira versão deste teste chamava `spawnSync("deno", …)` direto e, quando
+ * o binário não estava no PATH que o `npm test` herda, reprovava dizendo
+ * "instale o Deno" — com o Deno instalado, dois diretórios ao lado. Mensagem de
+ * falha que aponta para a causa errada custa mais do que falha nenhuma: ela
+ * manda quem lê consertar o que não está quebrado.
+ *
+ * O instalador oficial põe em `~/.deno/bin`; o `setup-deno` da CI põe no PATH.
+ */
+const CAMINHOS_DO_DENO = [
+  join(process.env.HOME ?? "", ".deno/bin/deno"),
+  "/usr/local/bin/deno",
+  "/opt/homebrew/bin/deno",
+];
+
+function acharDeno(): string | null {
+  const noPath = spawnSync("deno", ["--version"], { encoding: "utf8" });
+  if (!noPath.error) return "deno";
+  for (const caminho of CAMINHOS_DO_DENO) {
+    if (caminho && existsSync(caminho)) return caminho;
+  }
+  return null;
+}
 
 const ler = (caminho: string) => (existsSync(caminho) ? readFileSync(caminho, "utf8") : "");
 
@@ -100,18 +127,22 @@ describe("a guarda que carrega as edge functions", () => {
     // gravar no `deno.lock` da raiz — um teste que suja a árvore de trabalho.
     // Não muda o que está sendo conferido: a recusa lê o lock DAS FUNCTIONS
     // pelo caminho, e o que ela compara é a resolução, que aqui segue livre.
-    const r = spawnSync("deno", ["run", "--allow-all", "--no-lock", SCRIPT], {
+    const deno = acharDeno();
+    expect(
+      deno,
+      "não achei o executável `deno`.\n\n" +
+        `Procurei no PATH e em: ${CAMINHOS_DO_DENO.join(", ")}\n\n` +
+        "Ele é dependência declarada deste repositório — `npm run typecheck:functions`\n" +
+        "também precisa dele — e a CI o instala. Pular este teste seria desligar a\n" +
+        "guarda que existe justamente para a guarda não ficar desligada.",
+    ).not.toBeNull();
+
+    const r = spawnSync(deno!, ["run", "--allow-all", "--no-lock", SCRIPT], {
       encoding: "utf8",
       timeout: 60_000,
     });
 
-    expect(
-      r.error === undefined,
-      "não consegui executar `deno` — ele é dependência declarada deste repositório\n" +
-        "(`npm run typecheck:functions` também precisa dele) e a CI o instala.\n" +
-        "Instale em https://deno.land — pular este teste seria desligar a guarda\n" +
-        "que existe justamente para a guarda não ficar desligada.",
-    ).toBe(true);
+    expect(r.error, `falhou ao executar ${deno}`).toBeUndefined();
 
     expect(
       r.status,

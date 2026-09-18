@@ -53,7 +53,7 @@ export default function CasoDetalhe() {
   const [saving, setSaving] = useState(false);
   const auditedRef = useRef<string | null>(null);
 
-  const { data: doctor, isLoading: loadingDoctor } = useDoctor();
+  const { data: doctor, isLoading: loadingDoctor, error: erroMedico } = useDoctor();
   // Só para a leitura do laudo reconhecer o próprio nome do médico onde ele
   // aparecer impresso — laudo emitido por quem está usando o sistema é comum,
   // e é aí que a troca com o nome do paciente passa despercebida.
@@ -141,12 +141,22 @@ export default function CasoDetalhe() {
   }, [caso]);
 
   useEffect(() => {
+    // Falhando a leitura do registro médico, a consulta do caso nem chega a
+    // rodar (ela depende de `doctor`), `data` fica `undefined` — e não `null` —
+    // e nenhum dos dois ramos abaixo dispara: a tela ficava em branco, calada,
+    // para sempre. Conferido renderizando com o cliente falhando em tudo.
+    if (erroMedico) {
+      toast.error("Não foi possível confirmar seu perfil de médico", {
+        description: "O caso não foi carregado por isso. Não quer dizer que ele não exista.",
+      });
+      return;
+    }
     if (error) toast.error("Erro ao carregar caso", { description: (error as Error).message });
     else if (!loading && data === null) {
       toast.error("Caso não encontrado");
       navigate("/app/medico/casos");
     }
-  }, [error, loading, data, navigate]);
+  }, [error, loading, data, erroMedico, navigate]);
 
   const saveChanges = async () => {
     setSaving(true);

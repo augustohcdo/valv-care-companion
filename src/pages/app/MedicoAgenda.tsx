@@ -5,6 +5,7 @@ import { format, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, isTo
 import { ptBR } from "date-fns/locale";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, MapPin, Clock, FileText } from "lucide-react";
 import { useDoctor } from "@/hooks/useDoctor";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +32,7 @@ export default function MedicoAgenda() {
   const [cursor, setCursor] = useState<Date>(new Date());
   const [selected, setSelected] = useState<Date>(new Date());
 
-  const { data: doctor, isLoading: loadingDoctor } = useDoctor();
+  const { data: doctor, isLoading: loadingDoctor, error: erroMedico } = useDoctor();
 
   const { data: appts = [], isLoading: loadingAppts, error } = useQuery({
     queryKey: doctorAgendaKey(doctor?.id),
@@ -57,6 +58,14 @@ export default function MedicoAgenda() {
   });
 
   const loading = loadingDoctor || (!!doctor?.id && loadingAppts);
+  // Duas frases categóricas nesta tela — "Nenhum compromisso neste dia" e
+  // "Nenhum compromisso futuro agendado" — e as duas afirmam coisas sobre a
+  // agenda. Falhando a leitura do registro médico OU dos compromissos, a agenda
+  // inteira parece vazia, e um médico que confia nela perde retorno.
+  //
+  // Faixa E frase juntas não resolvem: o olho lê a frase categórica e ignora o
+  // aviso. Por isso a frase é SUBSTITUÍDA, e não acompanhada.
+  const falhou = !!erroMedico || !!error;
 
   // O aviso de erro continua sendo um toast, como antes — mas num efeito, não
   // no corpo do render.
@@ -166,7 +175,12 @@ export default function MedicoAgenda() {
               <h3 className="font-serif text-lg text-primary mb-3 capitalize">
                 {format(selected, "EEEE, d 'de' MMMM", { locale: ptBR })}
               </h3>
-              {selectedAppts.length === 0 ? (
+              {falhou ? (
+                <FalhaDeLeitura
+                  oQue="sua agenda"
+                  naoSignifica="não haja compromissos neste dia"
+                />
+              ) : selectedAppts.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4">Nenhum compromisso neste dia.</p>
               ) : (
                 <div className="space-y-2">
@@ -188,6 +202,11 @@ export default function MedicoAgenda() {
             <CardContent className="space-y-2">
               {loading ? (
                 <p className="text-sm text-muted-foreground">Carregando…</p>
+              ) : falhou ? (
+                <p className="text-sm text-warning">
+                  Não foi possível carregar. Isto <strong>não</strong> quer dizer que não haja
+                  compromissos futuros.
+                </p>
               ) : upcoming.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum compromisso futuro agendado.</p>
               ) : (

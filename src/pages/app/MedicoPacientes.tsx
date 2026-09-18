@@ -15,7 +15,7 @@ export const doctorPatientsKey = (doctorId?: string) => ["doctor-patients", doct
 export default function MedicoPacientes() {
   const [q, setQ] = useState("");
 
-  const { data: doctor, isLoading: loadingDoctor } = useDoctor();
+  const { data: doctor, isLoading: loadingDoctor, error: erroMedico } = useDoctor();
 
   const { data: items = [], isLoading: loadingPatients, error: erroPacientes } = useQuery({
     queryKey: doctorPatientsKey(doctor?.id),
@@ -72,7 +72,7 @@ export default function MedicoPacientes() {
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
-      ) : erroPacientes ? (
+      ) : erroPacientes || erroMedico ? (
         /* Sem isto a falha caía no `filtered.length === 0` abaixo, e a tela
            dizia "Nenhum paciente vinculado" — com o convite a divulgar o CRM —
            a um médico que TEM pacientes e não conseguiu vê-los. */

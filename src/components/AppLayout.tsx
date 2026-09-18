@@ -143,8 +143,8 @@ export const AppLayout = () => {
   const [open, setOpen] = useState(false);
 
   const { isAdmin } = useIsAdmin();
-  const { data: medico, isLoading: carregandoMedico } = useDoctor();
-  const { data: paciente, isLoading: carregandoPaciente } = usePatient();
+  const { data: medico, isLoading: carregandoMedico, error: erroMedico } = useDoctor();
+  const { data: paciente, isLoading: carregandoPaciente, error: erroPaciente } = usePatient();
 
   const isDoctor = profile?.account_type === "medico";
 
@@ -161,7 +161,16 @@ export const AppLayout = () => {
   // **ainda não** tem linha em `doctors` e precisa da área clínica para criá-la;
   // a conta administrativa não tem e nunca terá. Por isso a supressão só vale
   // para quem é admin — para todo o resto, nada muda.
-  const registroConhecido = isDoctor ? !carregandoMedico : !carregandoPaciente;
+  // `!isLoading` NÃO é "conhecido": depois de uma falha de leitura o
+  // `isLoading` também é `false`, e esta variável — cujo nome afirma que se
+  // sabe — ficava `true` sem nada ter sido sabido. O admin perdia o menu
+  // clínico por causa de uma falha de rede, com o comentário acima dizendo que
+  // isso só valia "enquanto não se sabe".
+  //
+  // Conhecer é ter resolvido: não está carregando E não falhou.
+  const falhouORegistro = isDoctor ? !!erroMedico : !!erroPaciente;
+  const registroConhecido =
+    (isDoctor ? !carregandoMedico : !carregandoPaciente) && !falhouORegistro;
   const temRegistroClinico = isDoctor ? !!medico : !!paciente;
   // Enquanto não se sabe, o admin fica sem o menu clínico: é melhor ele
   // aparecer um instante depois do que piscar para quem não deveria vê-lo.

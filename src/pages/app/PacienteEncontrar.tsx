@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePatient } from "@/hooks/usePatient";
 import { PageHeader } from "@/components/PageHeader";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,7 +62,7 @@ function embaralharEstavel<T extends { doctor_id: string }>(lista: T[], semente:
 
 export default function PacienteEncontrar() {
   const queryClient = useQueryClient();
-  const { data: patient } = usePatient();
+  const { data: patient, error: erroPerfil } = usePatient();
   const patientId = (patient?.id as string | undefined) ?? undefined;
 
   const [especialidade, setEspecialidade] = useState(TODAS);
@@ -71,7 +72,7 @@ export default function PacienteEncontrar() {
   const [mensagem, setMensagem] = useState("");
   const [enviando, setEnviando] = useState(false);
 
-  const { data: medicos = [], isLoading } = useQuery({
+  const { data: medicos = [], isLoading, error: erroDiretorio } = useQuery({
     queryKey: diretorioKey(especialidade, uf, busca),
     queryFn: async () => {
       const { data, error } = await supabase.rpc("diretorio_medicos", {
@@ -174,6 +175,14 @@ export default function PacienteEncontrar() {
         <p className="text-sm text-muted-foreground flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
         </p>
+      ) : erroDiretorio || erroPerfil ? (
+        // "Nenhum profissional com esses filtros" convida a pessoa a alargar a
+        // busca — conselho errado quando o que falhou foi a consulta. Ela sai
+        // achando que não há cardiologista na UF dela.
+        <FalhaDeLeitura
+          oQue="a lista de profissionais"
+          naoSignifica="não haja profissionais com esses filtros"
+        />
       ) : ordenados.length === 0 ? (
         <Card><CardContent className="p-10 text-center text-sm text-muted-foreground">
           <SearchX className="h-8 w-8 mx-auto mb-2 opacity-40" />

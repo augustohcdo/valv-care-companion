@@ -84,6 +84,9 @@ import { PrivacyPreferencesPanel } from "@/components/PrivacyPreferencesPanel";
 import NovoCaso from "@/pages/app/NovoCaso";
 import FhirSandbox from "@/pages/app/FhirSandbox";
 import { toast } from "sonner";
+import PacienteMedicacoes from "@/pages/app/PacienteMedicacoes";
+import PacienteDiario from "@/pages/app/PacienteDiario";
+import PacienteMedico from "@/pages/app/PacienteMedico";
 
 // `MemoryRouter` porque as telas de lista usam `<Link>`. Sem ele o React quebra
 // no roteador antes de chegar à faixa de erro — e o teste reprovaria pelo motivo
@@ -280,3 +283,61 @@ describe("sandbox FHIR com a verificação de permissão falhando", () => {
  * varredura de rotas, que abre `/` num navegador de verdade — onde a paleta é
  * montada. O que falta é a asserção sobre a frase.
  */
+
+// ---------------------------------------------------------------------------
+// As telas do paciente, e os dois estados que `usePatient()` separa
+// ---------------------------------------------------------------------------
+
+/**
+ * `usePatient()` e `useDoctor()` fazem a distinção e a escrevem no próprio
+ * JSDoc: lançam quando a leitura falha, devolvem `null` quando não há registro.
+ *
+ *     > "Retorna `null` (não erro) quando o usuário não tem registro de
+ *     >  paciente — é o caso legítimo de quem ainda não completou o perfil."
+ *
+ * As dezesseis telas que os chamavam liam só o `data`. Em falha, `data` é
+ * `undefined`, cai no MESMO `!patient` do caso legítimo, e os dois estados
+ * viram um.
+ *
+ * Medido renderizando as 38 telas de `/app/` com o cliente falhando em tudo:
+ * 13 reconheciam a falha, 25 calavam. Estas três eram as piores, porque mandam
+ * o paciente fazer algo que ele JÁ FEZ e escondem o dado dele atrás da frase.
+ */
+describe("telas do paciente com o registro de paciente falhando", () => {
+  it("medicações: não manda completar um perfil que já está completo", async () => {
+    render(<PacienteMedicacoes />, { wrapper });
+
+    await waitFor(() =>
+      expect(screen.getByText(/não foi possível carregar suas medicações/i)).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText(/não tenha medicações cadastradas/i),
+      "falta a metade que impede a conclusão errada",
+    ).toBeInTheDocument();
+
+    // A segunda metade, que é a que pega o defeito: a frase falsa some.
+    expect(screen.queryByText(/Complete seu perfil para gerenciar medicações/i)).toBeNull();
+  });
+
+  it("diário: não afirma perfil incompleto quando a leitura é que falhou", async () => {
+    // Em valvopatia, sintomático x assintomático decide intervenção. Esconder o
+    // histórico de sintomas atrás de "complete seu perfil" apaga a evidência de
+    // que a pessoa vem registrando.
+    render(<PacienteDiario />, { wrapper });
+
+    await waitFor(() =>
+      expect(screen.getByText(/não foi possível carregar seu diário/i)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/Complete seu perfil para começar a registrar/i)).toBeNull();
+  });
+
+  it("vínculo médico: não afirma que o paciente está sem cardiologista", async () => {
+    // Dito a quem TEM vínculo, isto o manda procurar outro médico.
+    render(<PacienteMedico />, { wrapper });
+
+    await waitFor(() =>
+      expect(screen.getByText(/não foi possível carregar seu vínculo médico/i)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/ainda não está vinculado/i)).toBeNull();
+  });
+});

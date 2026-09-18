@@ -26,7 +26,7 @@ export const doctorDashboardKey = (doctorId?: string) => ["doctor-dashboard", do
 export default function MedicoHome() {
   const { profile } = useAuth();
 
-  const { data: doctor, isLoading: loadingDoctor } = useDoctor();
+  const { data: doctor, isLoading: loadingDoctor, error: erroMedico } = useDoctor();
 
   const { data: dashboard, isLoading: loadingDashboard, error: erroDashboard } = useQuery({
     queryKey: doctorDashboardKey(doctor?.id),
@@ -77,7 +77,7 @@ export default function MedicoHome() {
   // A faixa vem ANTES do painel, e no lugar dele. Mostrar os números zerados
   // com um aviso ao lado seria pior que não mostrar nada: o olho lê o número
   // grande e ignora a faixa — e o número grande está errado.
-  if (erroDashboard) {
+  if (erroDashboard || erroMedico) {
     return (
       <div className="max-w-6xl">
         <Card className="border-destructive/40 bg-destructive/5">

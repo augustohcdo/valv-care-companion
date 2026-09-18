@@ -186,7 +186,7 @@ type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export default function NovoCaso() {
   const navigate = useNavigate();
-  const { data: doctor, isLoading: loadingDoctor } = useDoctor();
+  const { data: doctor, isLoading: loadingDoctor, error: erroMedico } = useDoctor();
   // Só para reconhecer o próprio nome no laudo: laudo emitido pelo próprio
   // médico é comum, e é justamente aí que a troca com o nome do paciente passa.
   const { profile } = useAuth();
@@ -318,6 +318,10 @@ export default function NovoCaso() {
   // cima do que o médico está digitando.
   useEffect(() => {
     if (loadingDoctor) return;
+    // Falhou a leitura: NÃO marcar o rascunho como "carregado". Marcar diria ao
+    // resto da tela que já se olhou e não havia nada — e o autosave em cima
+    // disso apagaria o rascunho de verdade que está no servidor.
+    if (erroMedico) return;
     if (!doctorId) { setDraftLoaded(true); return; }
     if (draftLoadedRef.current) return;
     draftLoadedRef.current = true;
@@ -356,7 +360,7 @@ export default function NovoCaso() {
       }
       setDraftLoaded(true);
     })();
-  }, [loadingDoctor, doctorId]);
+  }, [loadingDoctor, doctorId, erroMedico]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Autosave (debounced) — only after minimum required fields are set
@@ -465,6 +469,18 @@ export default function NovoCaso() {
   };
 
   const submit = async () => {
+    // "Perfil de médico não encontrado" é uma afirmação sobre o cadastro. Com a
+    // leitura falhada o perfil pode existir perfeitamente — e o médico, lendo
+    // que não existe, vai procurar um cadastro que já está lá em vez de tentar
+    // de novo. O caso que ele acabou de digitar continua no rascunho.
+    if (erroMedico) {
+      toast.error("Não foi possível confirmar seu perfil de médico", {
+        description:
+          "Isto é falha de leitura, não ausência de cadastro. O que você digitou " +
+          "está salvo no rascunho. Recarregue a página e tente de novo.",
+      });
+      return;
+    }
     if (!doctorId) {
       toast.error("Perfil de médico não encontrado.");
       return;

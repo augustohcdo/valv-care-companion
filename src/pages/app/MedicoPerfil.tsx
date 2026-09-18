@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useDoctor, doctorKey } from "@/hooks/useDoctor";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ export default function MedicoPerfil() {
   const { user, profile, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
-  const { data: doctor, isLoading: loading } = useDoctor();
+  const { data: doctor, isLoading: loading, error: erroMedico } = useDoctor();
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -84,6 +85,21 @@ export default function MedicoPerfil() {
   };
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+
+  // Esta tela EDITA o registro profissional. Com a leitura falhada, o formulário
+  // abria em branco — e um médico que preenche o CRM de novo, sobre um registro
+  // que existe, está escrevendo em cima do que não conseguiu ler. Aqui a falha
+  // não pode virar "campo vazio": tem de barrar a edição.
+  if (erroMedico) {
+    return (
+      <div className="mx-auto max-w-2xl py-8">
+        <FalhaDeLeitura
+          oQue="seu registro profissional"
+          naoSignifica="seu cadastro esteja vazio ou tenha sido apagado"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl space-y-6">

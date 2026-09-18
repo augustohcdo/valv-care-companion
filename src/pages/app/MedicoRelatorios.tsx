@@ -44,7 +44,7 @@ export const doctorReportsKey = (doctorId?: string) => ["doctor-reports", doctor
 export default function MedicoRelatorios() {
   const { user } = useAuth();
 
-  const { data: doctorInfo, isLoading: loadingDoctor } = useDoctor();
+  const { data: doctorInfo, isLoading: loadingDoctor, error: erroMedico } = useDoctor();
 
   const { data: report, isLoading: loadingReport, error: erroDoReport } = useQuery({
     queryKey: doctorReportsKey(doctorInfo?.id),
@@ -265,7 +265,7 @@ export default function MedicoRelatorios() {
   // Antes, a falha caía nos `?? []` acima e a tela desenhava a coorte inteira
   // zerada — inclusive "Pacientes com sintomas críticos: 0". Não há como
   // desenhar honestamente um gráfico de distribuição sem os dados: a tela para.
-  if (erroDoReport) {
+  if (erroDoReport || erroMedico) {
     return (
       <div className="max-w-2xl">
         <PageHeader

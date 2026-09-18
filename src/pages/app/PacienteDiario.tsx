@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
 import { aplicar } from "@/lib/mutate";
 import { PageHeader } from "@/components/PageHeader";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,7 +71,7 @@ export default function PacienteDiario() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
 
-  const { data: patient, isLoading: loadingPatient } = usePatient();
+  const { data: patient, isLoading: loadingPatient, error: erroPerfil } = usePatient();
 
   const { data: items = [], isLoading: loadingEntries } = useQuery({
     queryKey: symptomEntriesKey(patient?.id),
@@ -275,7 +276,16 @@ export default function PacienteDiario() {
         }
       />
 
-      {!patient ? (
+      {erroPerfil ? (
+        // Em valvopatia, sintomático x assintomático decide intervenção. Uma
+        // falha de leitura não pode virar "complete seu perfil" nem sumir com o
+        // histórico de sintomas de quem já registrou.
+        <FalhaDeLeitura
+          oQue="seu diário de sintomas"
+          naoSignifica="seu perfil esteja incompleto ou que você não tenha registros"
+          aQuemAvisar="o suporte ou seu médico"
+        />
+      ) : !patient ? (
         <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">
           Complete seu perfil para começar a registrar sintomas.
         </CardContent></Card>
