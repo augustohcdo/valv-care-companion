@@ -5,6 +5,7 @@ import { ArrowLeft, Trash2, Loader2, Save, Download } from "lucide-react";
 import { useDoctor } from "@/hooks/useDoctor";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { aplicar } from "@/lib/mutate";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -160,14 +161,22 @@ export default function CasoDetalhe() {
 
   const saveChanges = async () => {
     setSaving(true);
-    const { error } = await supabase
-      .from("clinical_cases")
-      .update({ status: status as any, clinical_notes: notes })
-      .eq("id", id!);
+    // Por `aplicar()`, e não por `if (error)`: quando a RLS recusa um UPDATE, o
+    // PostgREST devolve 200 com `error: null` e ZERO linhas. Um médico editando
+    // caso que não é dele lia "Caso atualizado" — e, pior, saía daqui uma linha
+    // `case_updated` na trilha de auditoria afirmando uma mudança que não
+    // aconteceu. Numa trilha de conformidade, afirmar o que não ocorreu é pior
+    // que omitir: quem for lê-la depois não tem como saber quais linhas valem.
+    const ok = await aplicar(
+      supabase
+        .from("clinical_cases")
+        .update({ status: status as any, clinical_notes: notes })
+        .eq("id", id!)
+        .select("id"),
+      { sucesso: "Caso atualizado", falha: "Não foi possível salvar o caso" },
+    );
     setSaving(false);
-    if (error) toast.error("Erro ao salvar", { description: error.message });
-    else {
-      toast.success("Caso atualizado");
+    if (ok) {
       logAudit("case_updated", "clinical_cases", id!, { status });
       // sem isto o cabeçalho continuaria mostrando o status anterior
       queryClient.invalidateQueries({ queryKey: caseDetailKey(id, doctor?.id) });
@@ -175,13 +184,18 @@ export default function CasoDetalhe() {
   };
 
   const deleteCase = async () => {
-    const { error } = await supabase
-      .from("clinical_cases")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("id", id!);
-    if (error) toast.error("Erro", { description: error.message });
-    else {
-      toast.success("Caso removido");
+    // Mesmo motivo do `saveChanges`, com uma consequência a mais: sem conferir
+    // as linhas, a tela navegava para a lista dizendo "Caso removido" e o caso
+    // continuava lá — o médico só descobriria ao ver a lista.
+    const ok = await aplicar(
+      supabase
+        .from("clinical_cases")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", id!)
+        .select("id"),
+      { sucesso: "Caso removido", falha: "Não foi possível remover o caso" },
+    );
+    if (ok) {
       logAudit("case_deleted", "clinical_cases", id!);
       navigate("/app/medico/casos");
     }

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Check, Cloud, CloudOff, Loader2, Sparkles, Trash2, Upload } from "lucide-react";
 import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
+import { aplicar } from "@/lib/mutate";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
@@ -452,21 +453,25 @@ export default function NovoCaso() {
       return;
     }
     if (!confirm("Descartar este rascunho? Esta ação não pode ser desfeita.")) return;
-    const { error } = await supabase
-      .from("clinical_cases")
-      .delete()
-      .eq("id", draftIdRef.current)
-      .eq("status", "draft" as any);
-    if (error) {
-      toast.error("Não foi possível descartar", { description: error.message });
-      return;
-    }
+    // Por `aplicar()`: um DELETE que a RLS recusa devolve 200 com `error: null` e
+    // ZERO linhas. Sem conferir, a tela limpava o formulário dizendo "Rascunho
+    // descartado" com o rascunho intacto no servidor — e o autosave seguinte
+    // criaria um segundo.
+    const ok = await aplicar(
+      supabase
+        .from("clinical_cases")
+        .delete()
+        .eq("id", draftIdRef.current)
+        .eq("status", "draft" as any)
+        .select("id"),
+      { sucesso: "Rascunho descartado", falha: "Não foi possível descartar" },
+    );
+    if (!ok) return;
     draftIdRef.current = null;
     setForm(emptyForm);
     setStep(1);
     setSaveStatus("idle");
     setLastSavedAt(null);
-    toast.success("Rascunho descartado");
   };
 
   const submit = async () => {
@@ -500,8 +505,22 @@ export default function NovoCaso() {
     let error: any;
 
     if (caseId) {
-      const res = await supabase.from("clinical_cases").update(payload).eq("id", caseId);
+      // `.select("id")` e a conferência abaixo: promover o rascunho a caso é a
+      // escrita mais importante desta tela, e a RLS recusando devolve 200 com
+      // `error: null` e ZERO linhas. Sem isto o médico lia "Caso clínico
+      // criado", saía uma linha `case_created` na trilha de auditoria, a tela
+      // navegava para o caso — e o rascunho continuava rascunho.
+      const res = await supabase
+        .from("clinical_cases")
+        .update(payload)
+        .eq("id", caseId)
+        .select("id");
       error = res.error;
+      if (!error && !res.data?.length) {
+        error = {
+          message: "Nada foi alterado. Você pode não ter permissão sobre este caso.",
+        };
+      }
     } else {
       const res = await supabase
         .from("clinical_cases")

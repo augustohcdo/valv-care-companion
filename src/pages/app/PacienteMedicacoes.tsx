@@ -111,15 +111,17 @@ export default function PacienteMedicacoes() {
       active: form.active,
       notes: form.notes.trim() || null,
     };
-    const { error } = editingId
-      ? await supabase.from("medications").update(payload).eq("id", editingId)
-      : await supabase.from("medications").insert(payload);
+    const ok = await aplicar(
+      editingId
+        ? supabase.from("medications").update(payload).eq("id", editingId).select("id")
+        : supabase.from("medications").insert(payload).select("id"),
+      {
+        sucesso: editingId ? "Atualizado" : "Medicação adicionada",
+        falha: "Não foi possível salvar a medicação",
+      },
+    );
     setSaving(false);
-    if (error) {
-      toast.error("Erro ao salvar", { description: error.message });
-      return;
-    }
-    toast.success(editingId ? "Atualizado" : "Medicação adicionada");
+    if (!ok) return;
     reset();
     setOpen(false);
     load();

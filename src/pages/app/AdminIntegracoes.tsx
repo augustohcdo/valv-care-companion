@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { aplicar } from "@/lib/mutate";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Button } from "@/components/ui/button";
@@ -90,11 +91,19 @@ export default function AdminIntegracoes() {
   if (!isAdmin) return <Navigate to="/app/medico" replace />;
 
   const approveHospital = async (id: string, status: "ativo" | "encerrado") => {
-    const { error } = await supabase.from("hospitals").update({
-      status, approved_at: status === "ativo" ? new Date().toISOString() : null, approved_by: user?.id,
-    }).eq("id", id);
-    if (error) { toast.error(error.message); return; }
-    toast.success(`Hospital ${status === "ativo" ? "aprovado" : "encerrado"}.`);
+    // Por `aplicar()`: sem conferir as linhas, "Hospital encerrado." apareceria
+    // com o hospital ainda ativo — e um hospital que se acredita encerrado é um
+    // que ninguém vai revisar, com acesso a dado de paciente seguindo de pé.
+    const ok = await aplicar(
+      supabase.from("hospitals").update({
+        status, approved_at: status === "ativo" ? new Date().toISOString() : null, approved_by: user?.id,
+      }).eq("id", id).select("id"),
+      {
+        sucesso: `Hospital ${status === "ativo" ? "aprovado" : "encerrado"}.`,
+        falha: "Não foi possível mudar o status do hospital",
+      },
+    );
+    if (!ok) return;
     reload();
   };
 

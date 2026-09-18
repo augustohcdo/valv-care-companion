@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { aplicar } from "@/lib/mutate";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,19 +45,32 @@ export default function PacienteIntegracoes() {
   const reload = () => queryClient.invalidateQueries({ queryKey: patientIntegrationsKey(user?.id) });
 
   const decide = async (id: string, status: "aprovado" | "recusado", note?: string) => {
-    const { error } = await supabase.from("data_access_requests").update({ status, decision_note: note ?? null }).eq("id", id);
-    if (error) { toast.error(error.message); return; }
-    toast.success(status === "aprovado" ? "Pedido aprovado." : "Pedido recusado.");
+    const ok = await aplicar(
+      supabase.from("data_access_requests")
+        .update({ status, decision_note: note ?? null }).eq("id", id).select("id"),
+      {
+        sucesso: status === "aprovado" ? "Pedido aprovado." : "Pedido recusado.",
+        falha: "Não foi possível registrar sua decisão",
+      },
+    );
+    if (!ok) return;
     reload();
   };
 
   const revoke = async (grantId: string) => {
     if (!confirm("Tem certeza? O hospital perderá acesso imediatamente.")) return;
-    const { error } = await supabase.from("data_access_grants").update({
-      revoked_at: new Date().toISOString(), revoked_by: user?.id, revoke_reason: "Revogado pelo paciente",
-    }).eq("id", grantId);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Acesso revogado."); reload();
+    // O mais grave desta tela. A RLS recusando devolve 200 com `error: null` e
+    // ZERO linhas — e o paciente lia "Acesso revogado." com a concessão viva,
+    // acreditando que o hospital perdeu acesso aos dados dele. É afirmação sobre
+    // um direito que ele acabou de exercer.
+    const ok = await aplicar(
+      supabase.from("data_access_grants").update({
+        revoked_at: new Date().toISOString(), revoked_by: user?.id, revoke_reason: "Revogado pelo paciente",
+      }).eq("id", grantId).select("id"),
+      { sucesso: "Acesso revogado.", falha: "Não foi possível revogar o acesso" },
+    );
+    if (!ok) return;
+    reload();
   };
 
   const pending = requests.filter(r => r.status === "pendente");

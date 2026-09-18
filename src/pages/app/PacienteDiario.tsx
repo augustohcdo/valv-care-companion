@@ -13,7 +13,6 @@ import {
   Activity,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { logAudit } from "@/lib/auditLog";
 import { aplicar } from "@/lib/mutate";
 import { PageHeader } from "@/components/PageHeader";
@@ -135,19 +134,21 @@ export default function PacienteDiario() {
       // soft-deletado (upsert usa patient_id+entry_date como chave).
       deleted_at: null,
     };
-    let error;
-    if (editingId) {
-      ({ error } = await supabase.from("symptom_entries").update(payload).eq("id", editingId));
-    } else {
-      // upsert por dia
-      ({ error } = await supabase.from("symptom_entries").upsert(payload, { onConflict: "patient_id,entry_date" }));
-    }
+    // Por `aplicar()`: a RLS recusando devolve 200 com `error: null` e ZERO
+    // linhas. O paciente lia "Registro salvo" e fechava a tela; no diário de
+    // sintomas, o que ele registrou é o que o médico vai usar para decidir
+    // intervenção — um dia que sumiu é evidência que ninguém sabe que falta.
+    const ok = await aplicar(
+      editingId
+        ? supabase.from("symptom_entries").update(payload).eq("id", editingId).select("id")
+        // upsert por dia
+        : supabase.from("symptom_entries")
+            .upsert(payload, { onConflict: "patient_id,entry_date" })
+            .select("id"),
+      { sucesso: "Registro salvo", falha: "Não foi possível salvar o registro" },
+    );
     setSaving(false);
-    if (error) {
-      toast.error("Erro ao salvar", { description: error.message });
-      return;
-    }
-    toast.success("Registro salvo");
+    if (!ok) return;
     reset();
     setOpen(false);
     load();

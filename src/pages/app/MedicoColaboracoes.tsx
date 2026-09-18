@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Users, Inbox, ChevronRight, Check, X, Loader2, AlertTriangle } from "lucide-react";
 import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { aplicar } from "@/lib/mutate";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -86,12 +86,20 @@ export default function MedicoColaboracoes() {
     queryClient.invalidateQueries({ queryKey: doctorCollaborationsKey(doctor?.id) });
 
   const respond = async (id: string, status: "aceito" | "recusado") => {
-    const { error } = await supabase
-      .from("case_collaborators")
-      .update({ status: status as any, responded_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) toast.error("Erro", { description: error.message });
-    else toast.success(status === "aceito" ? "Convite aceito" : "Convite recusado");
+    // Por `aplicar()`: a RLS recusando devolve 200 com `error: null` e ZERO
+    // linhas. Sem conferir, o médico lia "Convite aceito" e o convite continuava
+    // pendente — ele entraria no caso achando que já é colaborador.
+    await aplicar(
+      supabase
+        .from("case_collaborators")
+        .update({ status: status as any, responded_at: new Date().toISOString() })
+        .eq("id", id)
+        .select("id"),
+      {
+        sucesso: status === "aceito" ? "Convite aceito" : "Convite recusado",
+        falha: "Não foi possível responder ao convite",
+      },
+    );
     load();
   };
 

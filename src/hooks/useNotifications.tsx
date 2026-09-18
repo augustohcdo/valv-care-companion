@@ -83,23 +83,39 @@ export const useNotifications = () => {
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
       if (!user) return;
-      const { error } = await supabase
+      // `.select` e a conferência das linhas: a RLS recusando devolve 200 com
+      // `error: null` e ZERO linhas, e só o `if (error)` lê isso como sucesso —
+      // o badge zerava na tela com as notificações ainda por ler no banco.
+      //
+      // Zero linhas aqui é ambíguo de propósito: pode ser recusa OU simplesmente
+      // não haver nada por ler. Por isso este caso NÃO lança; o que ele impede é
+      // a próxima linha afirmar o que não se sabe.
+      const { data, error } = await supabase
         .from("notifications")
         .update({ read: true })
         .eq("user_id", user.id)
-        .eq("read", false);
+        .eq("read", false)
+        .select("id");
       if (error) throw error;
+      return { marcadas: data?.length ?? 0 };
     },
     onSuccess: invalidate,
   });
 
   const removeMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      // Aqui zero linhas NÃO é ambíguo: pediu-se para apagar UMA notificação por
+      // id. Zero significa que ela não foi apagada — e sem isto o `logAudit`
+      // abaixo gravava "notification_deleted" sobre o que continuava lá.
+      const { data, error } = await supabase
         .from("notifications")
         .update({ deleted_at: new Date().toISOString() })
-        .eq("id", id);
+        .eq("id", id)
+        .select("id");
       if (error) throw error;
+      if (!data?.length) {
+        throw new Error("Nada foi alterado. Você pode não ter permissão sobre esta notificação.");
+      }
       logAudit("notification_deleted", "notifications", id);
     },
     onSuccess: invalidate,

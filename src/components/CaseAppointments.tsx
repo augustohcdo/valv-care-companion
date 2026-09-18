@@ -114,15 +114,17 @@ export const CaseAppointments = ({ caseId, readOnly = false }: Props) => {
       location: location.trim() || null,
       notes: notes.trim() || null,
     };
-    const { error } = editingId
-      ? await supabase.from("appointments").update(payload).eq("id", editingId)
-      : await supabase.from("appointments").insert(payload);
+    // Por `aplicar()`: a RLS recusando um UPDATE devolve 200 com `error: null` e
+    // ZERO linhas, e o `if (error)` sozinho lê isso como sucesso. Quem editasse
+    // registro de caso alheio via "Compromisso atualizado" com o banco intacto.
+    const ok = await aplicar(
+      editingId
+        ? supabase.from("appointments").update(payload).eq("id", editingId).select("id")
+        : supabase.from("appointments").insert(payload).select("id"),
+      { sucesso: editingId ? "Compromisso atualizado" : "Compromisso agendado", falha: "Não foi possível salvar o compromisso" },
+    );
     setSaving(false);
-    if (error) {
-      toast.error("Erro ao salvar", { description: error.message });
-      return;
-    }
-    toast.success(editingId ? "Compromisso atualizado" : "Compromisso agendado");
+    if (!ok) return;
     reset();
     setOpen(false);
     load();

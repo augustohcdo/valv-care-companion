@@ -68,7 +68,11 @@ vi.mock("@/integrations/supabase/client", () => ({
       },
       insert: (values: any) => {
         insertSpy(values);
-        return Promise.resolve(insertResult);
+        // Pelo `escrita()`, como o update: sem isso o mock devolve uma promessa
+        // sem `.select`, que é uma forma que o cliente real não tem — e o
+        // componente, corrigido para encadear `.select("id")`, quebrava aqui
+        // por defeito do mock, não do código.
+        return escrita(insertResult);
       },
       update: (values: any) => ({
         eq: (col: string, val: any) => {

@@ -46,7 +46,11 @@ vi.mock("@/integrations/supabase/client", () => ({
       },
       upsert: (values: any, opts: any) => {
         upsertSpy(table, values, opts);
-        return Promise.resolve({ error: null });
+        // Pelo `escrita()`, como o update: o cliente real encadeia `.select(...)`
+        // depois do upsert, e o mock devolvia uma promessa sem ele. O teste
+        // ficava VERDE e o Vitest acusava "unhandled rejection" — falso positivo
+        // com aviso, que é o formato mais fácil de ignorar.
+        return escrita({ error: null });
       },
       update: (values: any) => ({
         eq: (col: string, val: any) => {

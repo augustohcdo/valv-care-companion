@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { aplicar } from "@/lib/mutate";
 import { Card, CardContent } from "@/components/ui/card";
 import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Badge } from "@/components/ui/badge";
@@ -123,20 +124,25 @@ export default function AdminDPO() {
   const saveResponse = async (req: DpoRequest) => {
     const draft = draftOf(req);
     setSaving(req.id);
-    const { error } = await supabase
-      .from("dpo_requests")
-      .update({
-        status: draft.status,
-        response: draft.response || null,
-        responded_at: draft.status !== "recebido" ? new Date().toISOString() : null,
-      })
-      .eq("id", req.id);
+    // Por `aplicar()`: sem conferir as linhas, a recusa de RLS virava
+    // "Solicitação atualizada" MAIS uma linha `dpo_status_updated` na trilha de
+    // auditoria — afirmando que um pedido de titular foi respondido quando o
+    // status no banco não mudou. Os prazos do art. 18 correm sobre o estado
+    // real, não sobre o que a tela disse.
+    const ok = await aplicar(
+      supabase
+        .from("dpo_requests")
+        .update({
+          status: draft.status,
+          response: draft.response || null,
+          responded_at: draft.status !== "recebido" ? new Date().toISOString() : null,
+        })
+        .eq("id", req.id)
+        .select("id"),
+      { sucesso: "Solicitação atualizada", falha: "Não foi possível salvar a solicitação" },
+    );
     setSaving(null);
-    if (error) {
-      toast.error("Erro ao salvar", { description: error.message });
-      return;
-    }
-    toast.success("Solicitação atualizada");
+    if (!ok) return;
     logAudit("dpo_status_updated", "dpo_requests", req.id, { status: draft.status });
     reload();
   };

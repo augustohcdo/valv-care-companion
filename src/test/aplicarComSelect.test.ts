@@ -163,6 +163,85 @@ describe("as escritas que passam por aplicar()", () => {
     ).toMatch(/Array\.isArray\(data\) && data\.length === 0/);
   });
 
+  /**
+   * E o nível de fora: escrita que anuncia sucesso SEM passar pelo helper.
+   *
+   * O `.select` obrigatório acima só vale para quem já usa `aplicar()`. Havia
+   * dezessete UPDATE/DELETE/UPSERT que nem passavam por ele — conferiam só o
+   * `error` e emendavam no `toast.success`, às vezes com `logAudit` junto. Para
+   * a recusa de RLS, que chega como 200 com zero linhas, isso é sucesso.
+   *
+   * Os piores três, e é por eles que esta regra existe:
+   *
+   *   · `CasoDetalhe` gravava `case_updated` na trilha de auditoria sobre um
+   *     caso que não mudou — a trilha afirmando o que não aconteceu;
+   *   · `AdminDPO` gravava `dpo_status_updated` sobre um pedido de titular que
+   *     seguia no status antigo, com os prazos do art. 18 correndo;
+   *   · `PacienteIntegracoes` dizia "Acesso revogado." com a concessão viva — o
+   *     paciente acreditando que o hospital perdeu acesso aos dados dele.
+   *
+   * O décimo sétimo só apareceu quando ESTA regra rodou: a promoção do rascunho
+   * a caso clínico, em `NovoCaso`. Minha contagem à mão tinha parado em
+   * dezesseis porque a janela que eu usei não alcançava o `toast.success`, vinte
+   * linhas abaixo. Contagem à mão erra; regra que roda, não.
+   *
+   * A regra é a mesma do outro lado da moeda: quem ANUNCIA sucesso precisa ter
+   * olhado as linhas. Por `aplicar()` ou conferindo na mão; o caminho não
+   * importa, a garantia sim.
+   */
+  it("nenhuma escrita anuncia sucesso sem ter olhado as linhas", () => {
+    // Ancorado no encadeamento do Supabase, e não no nome do método: `.delete(`
+    // sozinho casa com `Set.prototype.delete`, e foi o que a versão anterior
+    // acusou no `CaseLaudoReader` — um `proximo.delete(key)` num Set.
+    //
+    // E a janela é larga (1500) porque a estreita tinha o defeito oposto: ao
+    // reformatar uma escrita em várias linhas, o `toast.success` saía dela e o
+    // site deixava de ser CONFERIDO, em vez de passar conferido. Guarda que
+    // perde o alvo quando alguém quebra a linha não guarda nada.
+    //
+    // Com as duas correções: 46 escritas do Supabase varridas, 0 acusadas.
+    const MUTACAO =
+      /\bsupabase\s*(?:\.\w+)*\.from\(\s*"[^"]+"\s*\)\s*\.(update|delete|upsert)\s*\(/gs;
+    const JANELA = 1500;
+    const culpadas: string[] = [];
+
+    for (const arquivo of arquivos) {
+      const limpo = semComentarios(readFileSync(arquivo, "utf8"));
+      for (const m of limpo.matchAll(MUTACAO)) {
+        const antes = limpo.slice(Math.max(0, m.index! - 300), m.index!);
+        // dentro de um `aplicar(...)`? então a regra de cima já cobre.
+        const dentroDeAplicar =
+          antes.includes("aplicar(") &&
+          antes.lastIndexOf("aplicar(") > Math.max(antes.lastIndexOf(";"), antes.lastIndexOf("}"));
+        if (dentroDeAplicar) continue;
+
+        const depois = limpo.slice(m.index! + m[0].length, m.index! + m[0].length + JANELA);
+        const anuncia = depois.includes("toast.success") || depois.includes("logAudit(");
+        if (!anuncia) continue;
+
+        const janela = limpo.slice(m.index!, m.index! + m[0].length + JANELA);
+        const olhouAsLinhas = janela.includes(".select(") && /\blength\b/.test(janela);
+        if (olhouAsLinhas) continue;
+
+        const linha = limpo.slice(0, m.index!).split("\n").length;
+        culpadas.push(`  · ${arquivo}:${linha}`);
+      }
+    }
+
+    expect(
+      culpadas,
+      `\n${culpadas.join("\n")}\n\n` +
+        "Esta escrita anuncia sucesso — `toast.success` ou `logAudit` logo depois —\n" +
+        "sem ter olhado quantas linhas mudaram.\n\n" +
+        "Quando a RLS recusa um UPDATE ou DELETE, o PostgREST devolve 200 com\n" +
+        "`error: null` e ZERO linhas: conferir só o `error` lê isso como sucesso.\n" +
+        "Com `logAudit` em seguida, a trilha de conformidade passa a afirmar um\n" +
+        "fato que não ocorreu — e quem for lê-la depois não tem como saber quais\n" +
+        "linhas valem.\n\n" +
+        "Passe por `aplicar(<escrita>.select(\"id\"), { sucesso, falha })`.",
+    ).toEqual([]);
+  });
+
   it("o detector não confunde menção em comentário com chamada", () => {
     // A contraprova, e o falso vermelho que ela evita: o `CaseTimeline` explica
     // num comentário por que usa `aplicar()`, e a primeira medição o acusou.
@@ -181,6 +260,20 @@ describe("as escritas que passam por aplicar()", () => {
     const achadas = escritasPassadasParaAplicar(semSelect);
     expect(achadas).toHaveLength(1);
     expect(/\.select\(/.test(achadas[0]), "não viu a falta do .select").toBe(false);
+  });
+
+  it("não confunde Set.delete com escrita no banco", () => {
+    // O falso positivo que a janela larga revelou: `proximo.delete(key)` num
+    // `Set`, no `CaseLaudoReader`, com um `logAudit` legítimo mais abaixo na
+    // mesma função. Sem a âncora no `supabase.from(...)`, a guarda mandava
+    // conferir linhas de uma estrutura de dados em memória.
+    const MUTACAO =
+      /\bsupabase\s*(?:\.\w+)*\.from\(\s*"[^"]+"\s*\)\s*\.(update|delete|upsert)\s*\(/gs;
+    const doSet = "const proximo = new Set(antes); proximo.delete(key); logAudit('x', 'y', 'z');";
+    expect([...doSet.matchAll(MUTACAO)], "confundiu Set.delete com escrita").toHaveLength(0);
+
+    const doBanco = 'await supabase.from("clinical_cases").delete().eq("id", i); toast.success("ok");';
+    expect([...doBanco.matchAll(MUTACAO)], "não viu a escrita de verdade").toHaveLength(1);
   });
 
   it("o detector equilibra as chaves do objeto escrito", () => {

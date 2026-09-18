@@ -146,15 +146,17 @@ export const CaseExams = ({ caseId, readOnly = false }: Props) => {
       nt_probnp: num(form.nt_probnp),
       six_min_walk: num(form.six_min_walk),
     };
-    const { error } = editingId
-      ? await supabase.from("case_exams").update(payload).eq("id", editingId)
-      : await supabase.from("case_exams").insert(payload);
+    // Por `aplicar()`: a RLS recusando um UPDATE devolve 200 com `error: null` e
+    // ZERO linhas, e o `if (error)` sozinho lê isso como sucesso. Quem editasse
+    // registro de caso alheio via "Exame atualizado" com o banco intacto.
+    const ok = await aplicar(
+      editingId
+        ? supabase.from("case_exams").update(payload).eq("id", editingId).select("id")
+        : supabase.from("case_exams").insert(payload).select("id"),
+      { sucesso: editingId ? "Exame atualizado" : "Exame registrado", falha: "Não foi possível salvar o exame" },
+    );
     setSaving(false);
-    if (error) {
-      toast.error("Erro ao salvar", { description: error.message });
-      return;
-    }
-    toast.success(editingId ? "Exame atualizado" : "Exame registrado");
+    if (!ok) return;
     reset();
     setOpen(false);
     load();

@@ -24,18 +24,37 @@ const selectChain = () => {
 };
 
 const updateChain = (values: any) => {
+  // Quantas linhas o `.eq()` alcançou — é o que o `.select(...)` devolve.
+  //
+  // O mock antes devolvia só `{ error: null }`, sem `.select`: uma forma que o
+  // cliente real não tem. O hook, corrigido para conferir as linhas afetadas
+  // (a RLS recusando devolve 200 com `error: null` e ZERO linhas), quebrava
+  // aqui por defeito do mock.
+  //
+  // E o detalhe que faz o mock valer: SEM `.select(...)` não vem `data`. Com os
+  // dois iguais, a conferência passaria sem ninguém ter pedido as linhas.
+  const encadear = (afetadas: any[]) => ({
+    ...chain,
+    then: (res: any) => res({ error: null }),
+    select: () => Promise.resolve({ data: afetadas, error: null }),
+  });
   const chain: any = {
     eq: (col: string, val: any) => {
       updateSpy(values, col, val);
+      let afetadas: any[] = [];
       // aplica a mutação no "banco" fake
       if (col === "id") {
+        afetadas = rows.filter((r: any) => r.id === val).map((r: any) => ({ id: r.id }));
         rows = rows.map((r) =>
           r.id === val ? { ...r, ...values } : r,
         ).filter((r: any) => !r.deleted_at);
+      } else {
+        afetadas = rows.map((r: any) => ({ id: r.id }));
       }
-      return { ...chain, then: (res: any) => res({ error: null }) };
+      return encadear(afetadas);
     },
     then: (res: any) => res({ error: null }),
+    select: () => Promise.resolve({ data: rows.map((r: any) => ({ id: r.id })), error: null }),
   };
   return chain;
 };
@@ -97,6 +116,34 @@ describe("useNotifications", () => {
     // Este é o ponto da migração: antes a contagem só mudava se o realtime
     // respondesse. Agora a invalidação da query atualiza a UI sozinha.
     await waitFor(() => expect(result.current.unread).toBe(0));
+  });
+
+  it("recusa de RLS — 200 com zero linhas — não audita a remoção", async () => {
+    /**
+     * A forma de falha que não vem como erro.
+     *
+     * Quando a RLS recusa o UPDATE, o PostgREST devolve 200 com `error: null` e
+     * ZERO linhas. Conferindo só o `error`, a mutação seguia e o
+     * `logAudit("notification_deleted")` gravava na trilha de auditoria a
+     * remoção de uma notificação que continuava lá.
+     *
+     * Aqui zero linhas NÃO é ambíguo: pediu-se para apagar UMA, por id.
+     *
+     * Conferido por inversão: tirando a checagem de `data.length` do hook, este
+     * teste reprova.
+     */
+    // O id não existe na lista fake, então o `.eq("id", …)` alcança zero linhas.
+    const { result } = renderHook(() => useNotifications(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      result.current.remove("id-que-nao-existe");
+    });
+
+    expect(
+      logAudit,
+      "auditou a remoção de uma notificação que não foi removida",
+    ).not.toHaveBeenCalled();
   });
 
   it("remove faz soft-delete, tira o item da lista e registra auditoria", async () => {

@@ -174,12 +174,20 @@ export const CaseCollaborators = ({ caseId, isOwner }: Props) => {
   };
 
   const respond = async (id: string, status: "aceito" | "recusado") => {
-    const { error } = await supabase
-      .from("case_collaborators")
-      .update({ status: status as any, responded_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) toast.error("Erro", { description: error.message });
-    else toast.success(status === "aceito" ? "Convite aceito" : "Convite recusado");
+    // Por `aplicar()`: a RLS recusando devolve 200 com `error: null` e ZERO
+    // linhas. Sem conferir, o médico lia "Convite aceito" e o convite continuava
+    // pendente — ele entraria no caso achando que já é colaborador.
+    await aplicar(
+      supabase
+        .from("case_collaborators")
+        .update({ status: status as any, responded_at: new Date().toISOString() })
+        .eq("id", id)
+        .select("id"),
+      {
+        sucesso: status === "aceito" ? "Convite aceito" : "Convite recusado",
+        falha: "Não foi possível responder ao convite",
+      },
+    );
     load();
   };
 
