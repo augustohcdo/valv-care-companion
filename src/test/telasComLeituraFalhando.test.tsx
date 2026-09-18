@@ -87,6 +87,7 @@ import { toast } from "sonner";
 import PacienteMedicacoes from "@/pages/app/PacienteMedicacoes";
 import PacienteDiario from "@/pages/app/PacienteDiario";
 import PacienteMedico from "@/pages/app/PacienteMedico";
+import PacienteHome from "@/pages/app/PacienteHome";
 
 // `MemoryRouter` porque as telas de lista usam `<Link>`. Sem ele o React quebra
 // no roteador antes de chegar à faixa de erro — e o teste reprovaria pelo motivo
@@ -339,5 +340,57 @@ describe("telas do paciente com o registro de paciente falhando", () => {
       expect(screen.getByText(/não foi possível carregar seu vínculo médico/i)).toBeInTheDocument(),
     );
     expect(screen.queryByText(/ainda não está vinculado/i)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// O aviso e a frase categórica na MESMA tela
+// ---------------------------------------------------------------------------
+
+/**
+ * Os dois defeitos que a varredura plana não conseguiu cobrar.
+ *
+ * `telasReconhecemFalha.test.tsx` garante que ninguém cala. Tentei estender a
+ * varredura para cobrar também a segunda metade da mensagem, e as três
+ * formulações puniram telas que fazem a coisa certa — o motivo está escrito lá.
+ * Estes dois casos vêm de lá e ficam aqui, onde a asserção é sobre o sentido.
+ *
+ * Os dois são o mesmo formato: a guarda existia e cobria uma PARTE da tela.
+ */
+describe("aviso e frase categórica não convivem", () => {
+  it("o selo do paciente não diz 'nenhum médico vinculado' quando a leitura falhou", async () => {
+    // A tela já tinha `falhouLeitura` e mostrava a faixa embaixo. O selo, no
+    // ponto mais visível — o cabeçalho colorido —, ficava fora dessa variável e
+    // seguia afirmando. Aviso embaixo, afirmação em cima: o olho fica com a de
+    // cima.
+    render(<PacienteHome />, { wrapper });
+
+    await waitFor(() =>
+      expect(screen.getByText(/não foi possível confirmar seu vínculo/i)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/nenhum médico vinculado/i)).toBeNull();
+  });
+
+  it("a trilha de auditoria não diz 'nenhum registro' quando a leitura falhou", async () => {
+    // A guarda do painel cobria o cartão dos CONTROLES. O cartão da trilha
+    // renderizava por fora dela, com dois números falsos: "Últimas 0 ações
+    // registradas em sua conta" e "Nenhum registro ainda".
+    //
+    // É o documento que prova ao titular o que aconteceu na conta dele. Dizer
+    // que ele está vazio, sem ter conseguido lê-lo, é afirmação sobre direito.
+    render(<PrivacyPreferencesPanel />, { wrapper });
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/não foi possível carregar sua trilha de auditoria/i),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText(/não quer dizer que não haja registros/i),
+      "falta a metade que impede a conclusão errada",
+    ).toBeInTheDocument();
+
+    expect(screen.queryByText(/nenhum registro ainda/i)).toBeNull();
+    expect(screen.queryByText(/últimas 0 ações/i)).toBeNull();
   });
 });

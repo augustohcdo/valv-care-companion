@@ -105,11 +105,56 @@ const RECONHECE =
   /não foi poss[ií]vel|n[ãa]o consegu|erro ao|falhou|falha ao|tentar novamente|indispon[ií]vel|problema ao|n[ãa]o carregou/i;
 
 /**
+ * ## O TETO — e por que ele não fecha por varredura plana
+ *
+ * Esta varredura cobra o piso: ninguém cala. A pergunta seguinte é se quem fala
+ * fala direito — se a mensagem traz a SEGUNDA metade, "isto não significa que
+ * não haja X", que é a que impede a conclusão errada.
+ *
+ * Tentei três formulações, e registro as três para ninguém (eu inclusive)
+ * refazer o caminho:
+ *
+ * 1. **Exigir a frase de negação por regex.** Reprovou seis telas que fazem a
+ *    coisa certa com outras palavras: "não a ausência de vínculos", "Não
+ *    conclua que nenhum hospital tem acesso", "o formulário não é exibido de
+ *    propósito: salvar apagaria seus dados". Negar uma conclusão é semântica;
+ *    lista de frases não captura.
+ *
+ * 2. **Proibir a frase categórica junto do aviso.** Parecia o lado fechado do
+ *    problema — "nenhum(a)", "não há", um zero. Reprovou quatro telas boas: a
+ *    própria negação contém a palavra ("Não conclua que NENHUM hospital tem
+ *    acesso"), e a explicação também ("NENHUM número é exibido nesta situação
+ *    de propósito"). A palavra aparece nos dois lados da mesma ideia.
+ *
+ * 3. **Medir antes de virar regra.** A sonda disse 32 de 32 e estava
+ *    contaminada: todas as telas rodavam dentro de um teste só e o `toast`
+ *    acumulava entre elas — uma passava com a negação que a outra tinha
+ *    emitido. Medição que não isola não mede.
+ *
+ * As duas primeiras puniam quem escreveu melhor, e guarda que pune quem fez
+ * certo é guarda que alguém desliga. Então o teto NÃO é cobrado aqui: ele fica
+ * em `telasComLeituraFalhando.test.tsx`, tela a tela, onde a asserção pode ser
+ * sobre o sentido e não sobre o vocabulário. É uma lista, e assumida como tal.
+ *
+ * O que a tentativa rendeu, e por isso ela valeu: dois defeitos reais que
+ * nenhuma das duas regras teria sobrevivido para achar —
+ *
+ *   · `PacienteHome` mostrava o selo "Nenhum médico vinculado" no ponto mais
+ *     visível da tela enquanto a faixa de falha aparecia embaixo. A tela já
+ *     tinha `falhouLeitura`; o selo é que ficava de fora dela;
+ *   · `PrivacyPreferencesPanel` protegia o cartão dos controles e deixava o
+ *     cartão da TRILHA DE AUDITORIA por fora, dizendo ao titular "Últimas 0
+ *     ações registradas" e "Nenhum registro ainda" — sobre o documento que
+ *     prova o que aconteceu na conta dele.
+ */
+
+/**
  * Telas que não leem nada, e por isso não têm o que reconhecer.
  *
  * Cada uma com o motivo escrito — a mesma regra das outras varreduras deste
  * repositório: motivo que não se consegue escrever é esquecimento disfarçado de
- * decisão. Se uma delas passar a ler do banco, a isenção cai junto.
+ * decisão. Se uma delas passar a ler do banco, a isenção cai junto, e o teste
+ * abaixo cobra isso nos dois sentidos.
  */
 const EXCECOES: Record<string, string> = {
   Biblioteca: "conteúdo estático de `src/data/clinicalLibrary.ts`; não lê banco",
@@ -152,8 +197,9 @@ async function montarComTudoFalhando(carregar: () => Promise<unknown>, nome: str
   if (!Tela) throw new Error(`${nome} não tem componente exportado`);
   const { container, unmount } = render(<Tela />, { wrapper });
   const texto = () => (container.textContent ?? "").replace(/\s+/g, " ").trim();
-  const reconheceu = () =>
-    RECONHECE.test(texto()) || vi.mocked(toast.error).mock.calls.length > 0;
+  // O texto do `toast` entra na conta: a negação pode estar na `description`
+  // dele, e é onde o `CasoDetalhe` e o `NovoCaso` a colocam.
+  const reconheceu = () => RECONHECE.test(texto()) || vi.mocked(toast.error).mock.calls.length > 0;
   return { texto, reconheceu, unmount };
 }
 
@@ -203,6 +249,7 @@ describe("toda tela de /app reconhece a falha de leitura", () => {
           },
           { timeout: 4000 },
         );
+
       } finally {
         unmount();
       }

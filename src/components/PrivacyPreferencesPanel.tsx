@@ -250,11 +250,25 @@ export function PrivacyPreferencesPanel() {
             <History className="h-4 w-4 text-primary" /> Histórico de auditoria
           </CardTitle>
           <CardDescription>
-            Últimas {audit.length} ações registradas em sua conta.
+            {erroPrivacidade
+              ? "Não foi possível ler a trilha desta conta."
+              : `Últimas ${audit.length} ações registradas em sua conta.`}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {audit.length === 0 ? (
+          {/* A guarda de `erroPrivacidade` cobria só o cartão dos controles, logo
+              acima. Este cartão renderizava por fora dela e dizia ao titular
+              "Últimas 0 ações registradas" e "Nenhum registro ainda" — sobre a
+              trilha de auditoria da LGPD, que é o documento que prova o que
+              aconteceu na conta dele. Dois números falsos, do lado de um aviso
+              que ele já tinha lido no cartão de cima. */}
+          {erroPrivacidade ? (
+            <p className="text-sm text-foreground/85 leading-relaxed">
+              <strong className="text-foreground">Não foi possível carregar sua trilha de auditoria.</strong>{" "}
+              <strong>Isto não quer dizer que não haja registros</strong> — a consulta é que não
+              voltou. Nada foi apagado. Recarregue a página.
+            </p>
+          ) : audit.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum registro ainda.</p>
           ) : (
             <ul className="space-y-2">

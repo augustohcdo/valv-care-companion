@@ -92,7 +92,17 @@ export default function PacienteHome() {
             com linguagem clara e respaldo científico. Seu médico continua no centro do cuidado.
           </p>
           <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 backdrop-blur-sm px-3 py-1.5 text-xs transition-all hover:bg-primary-foreground/15">
-            {linkedDoctor ? (
+            {falhouLeitura ? (
+              // O selo ficava fora do `falhouLeitura` que o resto da tela já
+              // respeitava: a faixa de falha aparecia embaixo e este selo, no
+              // ponto mais visível da tela, seguia dizendo "Nenhum médico
+              // vinculado". Aviso e frase categórica juntos são resolvidos pela
+              // frase — e aqui a frase é sobre o cuidado da pessoa.
+              <>
+                <span className="h-1.5 w-1.5 rounded-full bg-warning" />
+                Não foi possível confirmar seu vínculo
+              </>
+            ) : linkedDoctor ? (
               <>
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-75 animate-ping" />
