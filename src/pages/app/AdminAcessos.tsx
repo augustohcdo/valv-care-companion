@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,7 @@ export default function AdminAcessos() {
   const [emAcao, setEmAcao] = useState<string | null>(null);
   const [motivos, setMotivos] = useState<Record<string, string>>({});
 
-  const { data: pedidos = [], isLoading } = useQuery({
+  const { data: pedidos = [], isLoading, error: erroPedidos } = useQuery({
     queryKey: adminAcessosKey(),
     queryFn: async (): Promise<Pedido[]> => {
       const { data, error } = await supabase
@@ -142,6 +143,14 @@ export default function AdminAcessos() {
         <p className="text-sm text-muted-foreground flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin" /> Carregando...
         </p>
+      ) : erroPedidos ? (
+        // "Nenhuma solicitação até agora" fecha o assunto: quem administra sai
+        // da tela e não volta. Do outro lado há um médico esperando liberação
+        // que nunca chega, sem saber por quê.
+        <FalhaDeLeitura
+          oQue="as solicitações de acesso"
+          naoSignifica="não haja médicos aguardando liberação"
+        />
       ) : pedidos.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">
           <ShieldQuestion className="h-8 w-8 mx-auto mb-2 opacity-40" />

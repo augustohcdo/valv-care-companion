@@ -5,6 +5,7 @@ import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -522,6 +523,16 @@ export default function NovoCaso() {
   };
 
   const saveIndicator = (() => {
+    // A falha do registro médico vem ANTES de tudo aqui: sem ele não há
+    // rascunho para restaurar nem caso para salvar, e o indicador dizendo
+    // "Autosave inicia após identificar paciente e valva" manda o médico
+    // preencher achando que o trabalho está sendo guardado.
+    if (erroMedico) {
+      return {
+        icon: <CloudOff className="h-3.5 w-3.5 text-destructive" />,
+        text: "Não foi possível confirmar seu perfil — o rascunho não está sendo salvo",
+      };
+    }
     if (!canAutosave) {
       return { icon: <CloudOff className="h-3.5 w-3.5" />, text: "Autosave inicia após identificar paciente e valva" };
     }
@@ -542,6 +553,15 @@ export default function NovoCaso() {
         description="Registre uma avaliação valvar em 3 passos. Rascunhos são salvos automaticamente no servidor (criptografados em trânsito e em repouso) e visíveis apenas para você."
         breadcrumbs={[{ label: "Início", to: "/app/medico" }, { label: "Novo caso" }]}
       />
+
+      {erroMedico && (
+        <div className="mb-6">
+          <FalhaDeLeitura
+            oQue="seu perfil de médico"
+            naoSignifica="seu cadastro não exista ou que o rascunho anterior tenha se perdido"
+          />
+        </div>
+      )}
 
       {/* Premium progress bar */}
       <div className="mb-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">

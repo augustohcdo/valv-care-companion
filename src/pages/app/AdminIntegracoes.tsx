@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -32,7 +33,7 @@ export default function AdminIntegracoes() {
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [creatingKey, setCreatingKey] = useState(false);
 
-  const { data: isAdmin } = useQuery({
+  const { data: isAdmin, error: erroPapel } = useQuery({
     queryKey: adminRoleKey(user?.id),
     queryFn: async () => {
       const { data, error } = await supabase.rpc("has_role", { _user_id: user!.id, _role: "admin" });
@@ -71,6 +72,20 @@ export default function AdminIntegracoes() {
   // `isAdmin === undefined` é "ainda não sei" e precisa continuar mostrando o
   // spinner. Tratar undefined como falso mandaria o próprio admin para a tela
   // do médico durante o carregamento normal.
+  // A leitura do papel falhando deixava `isAdmin` em `undefined` para sempre —
+  // e a linha abaixo, que trata `undefined` como "ainda carregando", girava o
+  // spinner sem fim. O raciocínio do comentário acima vale para o carregamento;
+  // não vale para a falha, que não termina nunca sozinha.
+  if (erroPapel) {
+    return (
+      <div className="mx-auto max-w-2xl py-8">
+        <FalhaDeLeitura
+          oQue="sua permissão de administrador"
+          naoSignifica="você tenha perdido a permissão"
+        />
+      </div>
+    );
+  }
   if (authLoading || isAdmin === undefined) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   if (!isAdmin) return <Navigate to="/app/medico" replace />;
 

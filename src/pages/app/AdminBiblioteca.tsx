@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Textarea } from "@/components/ui/textarea";
 
 /**
@@ -61,7 +62,7 @@ export default function AdminBiblioteca() {
   const arquivoRef = useRef<HTMLInputElement>(null);
   const textoRef = useRef<HTMLInputElement>(null);
 
-  const { data: obras = [], isLoading } = useQuery({
+  const { data: obras = [], isLoading, error: erroObras } = useQuery({
     queryKey: bibliotecaKey(),
     queryFn: async (): Promise<Obra[]> => {
       const { data, error } = await supabase
@@ -402,6 +403,11 @@ export default function AdminBiblioteca() {
         <div className="flex justify-center py-10">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
+      ) : erroObras ? (
+        <FalhaDeLeitura
+          oQue="a biblioteca de referência"
+          naoSignifica="não haja obras enviadas"
+        />
       ) : obras.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-10">
           Nenhuma obra enviada ainda.

@@ -265,7 +265,13 @@ export default function MedicoRelatorios() {
   // Antes, a falha caía nos `?? []` acima e a tela desenhava a coorte inteira
   // zerada — inclusive "Pacientes com sintomas críticos: 0". Não há como
   // desenhar honestamente um gráfico de distribuição sem os dados: a tela para.
-  if (erroDoReport || erroMedico) {
+  // Qual dos dois falhou, para a linha técnica abaixo não ler `.message` de
+  // `null`: o react-query devolve `null` no `error` de quem NÃO falhou, e
+  // entrando aqui por `erroMedico` o `erroDoReport` é exatamente isso. Foi o
+  // que a varredura de telas pegou — a tela quebrava em branco, pior do que o
+  // estado que eu tinha vindo consertar.
+  const falha = erroDoReport ?? erroMedico;
+  if (falha) {
     return (
       <div className="max-w-2xl">
         <PageHeader
@@ -287,7 +293,7 @@ export default function MedicoRelatorios() {
                 clínico. Recarregue a página; se persistir, avise o suporte.
               </p>
               <p className="text-xs text-muted-foreground font-mono">
-                {(erroDoReport as { message?: string }).message ?? String(erroDoReport)}
+                {falha instanceof Error ? falha.message : String(falha)}
               </p>
             </div>
           </CardContent>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,7 +54,7 @@ export default function AdminConteudo() {
     },
   });
 
-  const { data: trechos = [], isLoading } = useQuery({
+  const { data: trechos = [], isLoading, error: erroTrechos } = useQuery({
     queryKey: trechosKey(),
     queryFn: async (): Promise<Trecho[]> => {
       // A coluna `embedding` fica de fora de propósito: é um vetor grande e
@@ -110,10 +111,26 @@ export default function AdminConteudo() {
           <BookOpenCheck className="h-7 w-7 text-primary" /> Revisão do conteúdo clínico
         </h1>
         <p className="text-muted-foreground">
-          Os trechos que alimentam as respostas da IA clínica. {pendentes} de {trechos.length}{" "}
-          aguardam revisão médica.
+          Os trechos que alimentam as respostas da IA clínica.{" "}
+          {erroTrechos ? (
+            // "0 de 0 aguardam revisão médica" é um número, e número é a forma
+            // mais convincente de afirmação falsa: ninguém desconfia de um
+            // contador. Ele saía de uma lista vazia por falha de leitura.
+            <span className="text-warning">
+              Não foi possível carregar quantos aguardam revisão.
+            </span>
+          ) : (
+            <>{pendentes} de {trechos.length} aguardam revisão médica.</>
+          )}
         </p>
       </header>
+
+      {erroTrechos && (
+        <FalhaDeLeitura
+          oQue="os trechos da base clínica"
+          naoSignifica="não haja trechos aguardando revisão"
+        />
+      )}
 
       {/* Quem pode aprovar, e por que — antes de qualquer botão. */}
       {permissao && !permissao.pode ? (

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +46,7 @@ export default function AdminUsuarios() {
   const [busca, setBusca] = useState("");
   const [emAcao, setEmAcao] = useState<string | null>(null);
 
-  const { data: contas = [], isLoading } = useQuery({
+  const { data: contas = [], isLoading, error: erroContas } = useQuery({
     queryKey: adminUsuariosKey(),
     queryFn: async (): Promise<Conta[]> => {
       const { data, error } = await supabase.rpc("admin_listar_usuarios");
@@ -141,6 +142,11 @@ export default function AdminUsuarios() {
         <div className="py-10 flex justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
         </div>
+      ) : erroContas ? (
+        <FalhaDeLeitura
+          oQue="a lista de contas"
+          naoSignifica="não haja contas cadastradas"
+        />
       ) : filtradas.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">
           Nenhuma conta encontrada.

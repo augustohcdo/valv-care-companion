@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -98,7 +99,7 @@ export default function AdminDPO() {
   const [exporting, setExporting] = useState<string | null>(null);
   const [exportUrls, setExportUrls] = useState<Record<string, string>>({});
 
-  const { data: requests = [], isLoading: loading } = useQuery({
+  const { data: requests = [], isLoading: loading, error: erroPedidos } = useQuery({
     queryKey: dpoRequestsAdminKey(),
     queryFn: async (): Promise<DpoRequest[]> => {
       const { data, error } = await supabase
@@ -172,6 +173,14 @@ export default function AdminDPO() {
           <Card><CardContent className="p-8 flex items-center justify-center gap-2 text-muted-foreground text-sm">
             <Loader2 className="h-4 w-4 animate-spin" /> Carregando solicitações…
           </CardContent></Card>
+        ) : erroPedidos ? (
+          // Fila da LGPD. "Nenhuma solicitação registrada" sobre uma leitura que
+          // falhou é o controlador concluindo que não há pedido de titular a
+          // responder — e os prazos do art. 18 correm do mesmo jeito.
+          <FalhaDeLeitura
+            oQue="a fila de solicitações LGPD"
+            naoSignifica="não haja pedidos de titular aguardando resposta"
+          />
         ) : requests.length === 0 ? (
           <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">
             Nenhuma solicitação registrada.

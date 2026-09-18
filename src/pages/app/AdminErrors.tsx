@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -104,7 +105,7 @@ export default function AdminErrors() {
   // Duas noções distintas de "carregando": `isLoading` é a primeira carga (o
   // spinner no meio da lista) e `isFetching` cobre também as recargas manuais
   // (o spinner dentro do botão). Usar só uma delas quebraria um dos dois.
-  const { data: errors = [], isLoading, isFetching, refetch } = useQuery({
+  const { data: errors = [], isLoading, isFetching, refetch, error: erroLeitura } = useQuery({
     queryKey: clientErrorsKey(),
     queryFn: async (): Promise<ClientError[]> => {
       // Por última ocorrência, não por criação: um erro antigo que voltou a
@@ -326,7 +327,17 @@ export default function AdminErrors() {
             </CardContent>
           </Card>
         ))}
-        {!errors.length && !isLoading && <p className="text-muted-foreground text-sm">Nenhum erro registrado.</p>}
+        {erroLeitura ? (
+          // O painel de erros dizendo "nenhum erro registrado" porque a leitura
+          // dele falhou é o vigia relatando calmaria sem ter olhado — o mesmo
+          // defeito que o `job-watchdog` já carregava, agora na tela.
+          <FalhaDeLeitura
+            oQue="os erros de produção"
+            naoSignifica="não haja erros registrados"
+          />
+        ) : (
+          !errors.length && !isLoading && <p className="text-muted-foreground text-sm">Nenhum erro registrado.</p>
+        )}
       </div>
     </div>
   );

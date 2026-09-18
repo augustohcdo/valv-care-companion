@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -130,7 +131,7 @@ export default function AdminFontes() {
   const [form, setForm] = useState(VAZIO);
   const [salvando, setSalvando] = useState(false);
 
-  const { data: fontes = [], isLoading } = useQuery({
+  const { data: fontes = [], isLoading, error: erroFontes } = useQuery({
     queryKey: adminFontesKey(),
     queryFn: async (): Promise<Fonte[]> => {
       const { data, error } = await supabase
@@ -239,7 +240,18 @@ export default function AdminFontes() {
         </p>
       </header>
 
-      {automaticasAtivas.length === 0 && !isLoading && (
+      {erroFontes && (
+        // A frase que estava aqui — "a consulta à literatura está desligada para
+        // todos os médicos" — é uma afirmação sobre a CONFIGURAÇÃO do produto.
+        // Dita por engano, faz quem administra ir procurar um interruptor que
+        // já está ligado.
+        <FalhaDeLeitura
+          oQue="as fontes da IA"
+          naoSignifica="a consulta à literatura esteja desligada"
+        />
+      )}
+
+      {!erroFontes && automaticasAtivas.length === 0 && !isLoading && (
         <div className="flex items-start gap-2 rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm text-warning">
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
           <p>

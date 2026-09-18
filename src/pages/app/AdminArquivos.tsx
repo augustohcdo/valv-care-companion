@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { Textarea } from "@/components/ui/textarea";
 
 /**
@@ -65,7 +66,7 @@ export default function AdminArquivos() {
   const [enviando, setEnviando] = useState(false);
   const arquivoRef = useRef<HTMLInputElement>(null);
 
-  const { data: arquivos = [], isLoading } = useQuery({
+  const { data: arquivos = [], isLoading, error: erroArquivos } = useQuery({
     queryKey: arquivosKey(),
     queryFn: async (): Promise<Arquivo[]> => {
       const { data, error } = await supabase
@@ -235,6 +236,11 @@ export default function AdminArquivos() {
         <p className="text-sm text-muted-foreground flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
         </p>
+      ) : erroArquivos ? (
+        <FalhaDeLeitura
+          oQue="os arquivos de trabalho"
+          naoSignifica="não haja arquivos guardados"
+        />
       ) : arquivos.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
