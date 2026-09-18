@@ -125,7 +125,7 @@ export default function AdminArquivos() {
         file_bytes: arquivo.size,
         origem: "humano",
         uploaded_by: user?.id ?? null,
-      }),
+      }).select("id"),
       { sucesso: "Arquivo guardado", falha: "Não foi possível registrar o arquivo" },
     );
     setEnviando(false);
@@ -160,7 +160,7 @@ export default function AdminArquivos() {
     // A linha primeiro: se o banco recusar, o arquivo continua lá e a lista
     // continua verdadeira. `aplicar` existe para recusa não virar sucesso.
     const ok = await aplicar(
-      supabase.from("workspace_files").delete().eq("id", arquivo.id),
+      supabase.from("workspace_files").delete().eq("id", arquivo.id).select("id"),
       { sucesso: "Arquivo removido", falha: "Não foi possível remover" },
     );
     if (!ok) return;

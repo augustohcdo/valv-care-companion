@@ -123,7 +123,7 @@ export default function AdminBiblioteca() {
         storage_path: caminho,
         file_bytes: arquivo.size,
         uploaded_by: user?.id ?? null,
-      }),
+      }).select("id"),
       { sucesso: "Obra enviada", falha: "Não foi possível registrar a obra" },
     );
     setEnviando(false);
@@ -223,7 +223,7 @@ export default function AdminBiblioteca() {
         kind: "texto",
         pages: extraido.totalPaginas,
         uploaded_by: user?.id ?? null,
-      }),
+      }).select("id"),
       { sucesso: "Texto enviado", falha: "Não foi possível registrar a obra" },
     );
     setEnviando(false);
@@ -256,7 +256,7 @@ export default function AdminBiblioteca() {
 
   const remover = async (obra: Obra) => {
     const ok = await aplicar(
-      supabase.from("reference_works").delete().eq("id", obra.id),
+      supabase.from("reference_works").delete().eq("id", obra.id).select("id"),
       { sucesso: "Obra removida", falha: "Não foi possível remover" },
     );
     if (!ok) return;

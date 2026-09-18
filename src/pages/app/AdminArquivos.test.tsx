@@ -23,7 +23,21 @@ vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: () => ({
       select: () => ({ order: () => Promise.resolve({ data: mocks.arquivos, error: null }) }),
-      insert: (v: unknown) => mocks.insert(v),
+      // `.select(...)` depois do insert porque é assim que o cliente real
+      // encadeia — e porque `aplicar()` PRECISA das linhas afetadas para
+      // enxergar a recusa de RLS, que chega como 200 com zero linhas. O mock
+      // devolvia a promessa direto, uma forma que o cliente não tem, e por isso
+      // este teste passou a reprovar quando o código foi corrigido.
+      insert: (v: unknown) => {
+        const resultado = mocks.insert(v) as { error: unknown; data?: unknown };
+        // O detalhe que faz este mock valer: SEM `.select(...)` o cliente real
+        // não devolve `data`. Modelando os dois iguais, o `aplicar()` enxergaria
+        // a lista vazia mesmo sem ninguém ter pedido as linhas — e a inversão
+        // desta guarda passava, provando o contrário do que eu queria.
+        return Object.assign(Promise.resolve({ error: resultado.error }), {
+          select: () => Promise.resolve(resultado),
+        });
+      },
     }),
     storage: {
       from: () => ({
@@ -61,7 +75,7 @@ describe("AdminArquivos", () => {
     vi.clearAllMocks();
     mocks.arquivos = [];
     mocks.upload.mockResolvedValue({ error: null });
-    mocks.insert.mockResolvedValue({ error: null });
+    mocks.insert.mockReturnValue({ error: null, data: [{ id: "f1" }] });
     mocks.remove.mockResolvedValue({ error: null });
   });
 
@@ -99,10 +113,35 @@ describe("AdminArquivos", () => {
     expect(mocks.upload, "tentou subir acima do teto da plataforma").not.toHaveBeenCalled();
   });
 
+  it("recusa de RLS — 200 com zero linhas — também apaga o arquivo subido", async () => {
+    /**
+     * A forma de falha que ninguém espera, e a razão de `aplicar()` existir.
+     *
+     * Quando a RLS recusa, o PostgREST não devolve erro: devolve **200 com
+     * `error: null` e zero linhas**. Para ele, gravar nada é sucesso.
+     *
+     * Esta tela chamava `aplicar()` SEM encadear `.select(...)`, e sem as linhas
+     * afetadas o helper não tem como ver o zero — o comentário dele diz que
+     * nesse caso "segue como sucesso". Quer dizer: o administrador lia "Arquivo
+     * guardado", o objeto ficava órfão no bucket, e a lista não o mostrava.
+     *
+     * Conferido nos dois sentidos: tirando o `.select("id")` do código, este
+     * teste reprova.
+     */
+    mocks.insert.mockReturnValue({ error: null, data: [] });
+    render(<AdminArquivos />, { wrapper });
+    await waitFor(() => expect(screen.getByLabelText("Arquivo")).toBeInTheDocument());
+    enviar(arquivo("notas.md", "text/markdown", 100));
+
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalled());
+    expect(toast.error, "a recusa de RLS precisa chegar ao usuário").toHaveBeenCalled();
+    expect(toast.success, "anunciou sucesso sobre escrita que não aconteceu").not.toHaveBeenCalled();
+  });
+
   it("se o registro falhar, apaga o arquivo que já tinha subido", async () => {
     // Sem isto o bucket acumularia objetos que a lista não mostra — e a tela
     // estaria mentindo sobre o que existe lá dentro.
-    mocks.insert.mockResolvedValue({ error: { message: "recusado" } });
+    mocks.insert.mockReturnValue({ error: { message: "recusado" }, data: null });
     render(<AdminArquivos />, { wrapper });
     await waitFor(() => expect(screen.getByLabelText("Arquivo")).toBeInTheDocument());
     enviar(arquivo("notas.md", "text/markdown", 100));
