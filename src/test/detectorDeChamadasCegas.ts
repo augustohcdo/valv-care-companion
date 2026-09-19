@@ -264,3 +264,78 @@ export function encontrarEscritasCegas({ raiz, nomesDoCliente }: Varredura): str
   }
   return achados;
 }
+
+/**
+ * As chamadas à API de `auth` que descartam o erro.
+ *
+ * ## Por que elas precisavam de um detector próprio
+ *
+ * `encontrarCegas` e `encontrarEscritasCegas` só olham statements que contêm
+ * `.select(`, `.rpc(`, `.insert(`, `.update(`, `.upsert(` ou `.delete(` — isto
+ * é, o que passa pelo PostgREST. A API de `auth` não passa: `createUser`,
+ * `updateUserById`, `generateLink`, `listUsers`, `signOut` e `getUser` falam
+ * com o GoTrue por outro caminho. As duas varreduras existentes não podiam
+ * enxergá-las nem em princípio, e por isso a família inteira ficou de fora.
+ *
+ * ## A diferença que faz esta guarda achar o que as outras não achariam
+ *
+ * `encontrarCegas` tem esta linha:
+ *
+ *     if (!alvo) continue; // resultado descartado de propósito (fire-and-forget)
+ *
+ * Para uma LEITURA isso se defende: quem joga o resultado fora não vai agir
+ * sobre ele. Para `auth` não se defende, e o caso concreto prova: o
+ * `account-close` fazia
+ *
+ *     await admin.auth.admin.signOut(token, "global").catch(() => {});
+ *
+ * e seguia para `return json({ ok: true })`. O resultado descartado ERA o
+ * defeito. Aqui, portanto, descartar conta como cegueira.
+ */
+export function encontrarAuthCegas({ raiz, nomesDoCliente }: Varredura): string[] {
+  const achados: string[] = [];
+
+  for (const arquivo of walk(raiz)) {
+    const rel = arquivo.replace(/\\/g, "/");
+    if (/\.test\.tsx?$/.test(rel)) continue;
+    if (/\/node_modules\//.test(rel)) continue;
+
+    const texto = readFileSync(arquivo, "utf8");
+    const clientes = nomesDoCliente(texto, rel);
+    if (clientes.length === 0) continue;
+
+    const nomes = clientes.map(escapar).join("|");
+    // `cliente.auth.algo(` ou `cliente.auth.admin.algo(`.
+    const ehChamadaDeAuth = new RegExp(`\\b(?:${nomes})\\.auth\\.(?:admin\\.)?\\w+\\s*\\(`);
+
+    const linhas = texto.split("\n");
+    for (let i = 0; i < linhas.length; i++) {
+      if (!ehChamadaDeAuth.test(linhas[i])) continue;
+      // Menção em comentário não é chamada. Esta base já pagou por essa
+      // confusão mais de uma vez.
+      if (/^\s*(\/\/|\*|\/\*)/.test(linhas[i])) continue;
+
+      let fim = i;
+      while (fim < linhas.length - 1 && fim < i + 12 && !/;\s*$/.test(linhas[fim])) fim++;
+
+      const contexto = linhas.slice(Math.max(0, i - 6), fim + 1).join("\n");
+      const alvo = padraoDeDestino(contexto);
+      const regiao = linhas.slice(i, Math.min(linhas.length, fim + 8)).join("\n");
+
+      // Descartar o resultado É a cegueira aqui — ver o bloco acima.
+      if (!alvo) { achados.push(`${rel}:${i + 1}`); continue; }
+
+      if (/^\{/.test(alvo) && /\berror\b/.test(alvo)) continue;
+      if (/^\[/.test(alvo) && arrayObservaTodosOsErros(alvo)) continue;
+
+      const recebem = alvo.replace(/^[[{]|[\]}]$/g, "")
+        .split(",")
+        .map((p) => p.split(":").pop()!.trim())
+        .filter((n) => /^\w+$/.test(n));
+      if (recebem.some((n) => new RegExp(`\\b${escapar(n)}\\.error\\b`).test(regiao))) continue;
+
+      achados.push(`${rel}:${i + 1}`);
+    }
+  }
+  return achados;
+}

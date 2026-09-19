@@ -38,7 +38,12 @@ Deno.serve(async (req) => {
   // `getClaims` não existe no SDK 2.45.0 importado acima — esta era a única
   // verificação de identidade da função, então ela nunca chegou a autorizar
   // ninguém. `getUser` valida o token no servidor e existe nas duas versões.
-  const { data: userData } = await userClient.auth.getUser(authHeader.replace("Bearer ", ""));
+  // Falha de leitura não é falta de permissão: respondendo 401 às duas, quem
+  // for investigar procura um problema de acesso que não existe.
+  const { data: userData, error: erroSessao } = await userClient.auth.getUser(
+    authHeader.replace("Bearer ", ""),
+  );
+  if (erroSessao) return json({ error: "auth_check_failed", detail: erroSessao.message }, 503);
   const userId = userData?.user?.id;
   if (!userId) return json({ error: "unauthorized" }, 401);
 

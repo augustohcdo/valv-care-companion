@@ -79,8 +79,25 @@ export function EncerrarContaDialog({
     }
 
     setAberto(false);
-    toast.success("Conta encerrada");
-    onEncerrada?.((data as { relatorio?: unknown } | null)?.relatorio);
+
+    // "Conta encerrada" sozinho esconderia a etapa que pode ter falhado. A
+    // função devolve se as sessões abertas foram de fato derrubadas; quando não
+    // foram, a conta está encerrada e banida — o token atual não renova, mas
+    // vale até expirar. Dizer isso é a diferença entre informar e tranquilizar.
+    const resposta = data as { relatorio?: unknown; sessoes_derrubadas?: boolean } | null;
+    if (resposta?.sessoes_derrubadas === false) {
+      toast.warning("Conta encerrada, com uma ressalva", {
+        description:
+          "Os dados foram encerrados e o acesso, bloqueado. Não consegui derrubar as " +
+          "sessões que já estavam abertas: elas param de valer quando o token atual " +
+          "expirar, porque uma conta bloqueada não consegue renová-lo.",
+        duration: 12_000,
+      });
+    } else {
+      toast.success("Conta encerrada");
+    }
+
+    onEncerrada?.(resposta?.relatorio);
   };
 
   return (

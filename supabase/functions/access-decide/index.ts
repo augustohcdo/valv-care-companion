@@ -31,7 +31,15 @@ Deno.serve(async (req) => {
 
     // `getUser`, não `getClaims`: o SDK fixado aqui não tem o segundo, e a
     // chamada lançaria em tempo de execução.
-    const { data: userData } = await admin.auth.getUser(authHeader.replace("Bearer ", ""));
+    // "Não consegui verificar" e "você não é quem diz" são estados diferentes.
+    // Respondendo 401 aos dois, uma instabilidade do GoTrue faz o administrador
+    // concluir que perdeu o acesso — e procurar o problema onde ele não está.
+    const { data: userData, error: erroSessao } = await admin.auth.getUser(
+      authHeader.replace("Bearer ", ""),
+    );
+    if (erroSessao) {
+      return json({ error: "auth_check_failed", detalhe: erroSessao.message }, 503);
+    }
     const adminUserId = userData?.user?.id;
     if (!adminUserId) return json({ error: "unauthorized" }, 401);
 
@@ -125,14 +133,46 @@ Deno.serve(async (req) => {
     if (!userId) {
       // Conta já existente não é erro: pode ser alguém que já era paciente e
       // agora pede acesso profissional. Recuperar o id é melhor que recusar.
-      const { data: lista } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
-      userId = lista?.users?.find((u) => u.email?.toLowerCase() === String(pedido.email).toLowerCase())?.id ?? null;
+      // Duas coisas erradas moravam na busca, e as duas eram silenciosas.
+      //
+      // **O teto.** Era uma página só, `perPage: 200`. O SDK fixado aqui não
+      // filtra `listUsers` por e-mail, então a única saída é paginar — e com
+      // 200 contas no banco a 201ª deixaria de ser encontrada, com a função
+      // respondendo "não foi possível criar a conta" sobre uma conta que
+      // existe. Teto que ninguém escreveu é teto que ninguém vê chegar.
+      //
+      // **O erro descartado.** O `{ data: lista }` jogava fora o `error`. Se a
+      // listagem falhasse, a mensagem reportada era a do `createUser` — quer
+      // dizer, apontando a causa errada para quem fosse investigar.
+      const PAGINAS = 25; // 25 × 200 = 5 000 contas
+      const procurado = String(pedido.email).toLowerCase();
+      let erroBusca: string | null = null;
+      let acabou = false;
+
+      for (let pagina = 1; pagina <= PAGINAS && !userId && !acabou; pagina++) {
+        const { data: lista, error: erroLista } = await admin.auth.admin.listUsers({
+          page: pagina, perPage: 200,
+        });
+        if (erroLista) { erroBusca = erroLista.message; break; }
+        const usuarios = lista?.users ?? [];
+        if (usuarios.length === 0) acabou = true;
+        userId = usuarios.find((u) => u.email?.toLowerCase() === procurado)?.id ?? null;
+      }
+
       if (!userId) {
+        // O teto batido não é o mesmo que "não existe": dizer "não existe" sem
+        // ter chegado ao fim da lista é afirmar sobre o que não foi olhado.
+        const motivo = erroBusca
+          ? `a busca pela conta existente falhou: ${erroBusca}`
+          : acabou
+            ? `não consegui criar a conta: ${erroConta?.message ?? "sem detalhe"}`
+            : `não consegui criar a conta (${erroConta?.message ?? "sem detalhe"}) e ` +
+              `a busca parou no teto de ${PAGINAS * 200} contas sem chegar ao fim da lista`;
         await logError({
           source: "edge_function", context: "access-decide",
-          message: `não consegui criar nem localizar a conta: ${erroConta?.message ?? "sem detalhe"}`,
+          message: `não consegui criar nem localizar a conta de ${pedido.email}: ${motivo}`,
         });
-        return json({ error: "não foi possível criar a conta", detalhe: erroConta?.message ?? null }, 500);
+        return json({ error: "não foi possível criar a conta", detalhe: motivo }, 500);
       }
     }
 
@@ -202,11 +242,25 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { data: link } = await admin.auth.admin.generateLink({
+    // O link de definir senha. Falhando, o e-mail sai com o endereço de
+    // "Esqueci minha senha" no lugar — degradação que o próprio texto explica,
+    // e por isso não é motivo para recusar a aprovação. Mas o erro era
+    // descartado, e ninguém ficava sabendo que o caminho curto tinha sumido:
+    // o profissional recebe um e-mail pior e o administrador não tem como
+    // saber por quê.
+    const { data: link, error: erroLink } = await admin.auth.admin.generateLink({
       type: "recovery",
       email: pedido.email,
       options: { redirectTo: `${SITE}/auth/redefinir` },
     });
+    if (erroLink) {
+      await logError({
+        source: "edge_function", context: "access-decide",
+        message:
+          `aprovação de ${pedido.email}: o link de definir senha não foi gerado ` +
+          `(${erroLink.message}). O e-mail saiu com o link de "Esqueci minha senha".`,
+      });
+    }
 
     const envio = await sendEmail({
       to: pedido.email,

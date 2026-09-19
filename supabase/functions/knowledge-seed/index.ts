@@ -244,7 +244,14 @@ Deno.serve(async (req) => {
       if (!authHeader) return naoAutorizado();
 
       const userClient = createClient(SUPABASE_URL, PUBLISHABLE, { global: { headers: { Authorization: authHeader } } });
-      const { data: userRes } = await userClient.auth.getUser();
+      // O mesmo par que o `has_role` logo abaixo já fazia: negar sem conseguir
+      // confirmar está certo, mas chamar isso de "unauth" manda o administrador
+      // procurar um problema de permissão que não existe.
+      const { data: userRes, error: erroSessao } = await userClient.auth.getUser();
+      if (erroSessao) return new Response(
+        JSON.stringify({ error: "auth_check_failed", detail: erroSessao.message }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
       if (!userRes?.user) return naoAutorizado();
 
       const { data: isAdmin, error: erroPapel } = await admin.rpc("has_role", { _user_id: userRes.user.id, _role: "admin" });

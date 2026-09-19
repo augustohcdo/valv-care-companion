@@ -98,7 +98,62 @@ Deno.serve(async (req) => {
 
     // 3) Derruba o que já estava aberto — sem isto a sessão viva continuaria
     //    valendo até expirar, e "encerrada" seria só uma palavra.
-    await admin.auth.admin.signOut(token, "global").catch(() => {});
+    //
+    //    ## Duas coisas erradas moravam nesta linha
+    //
+    //    Ela era:
+    //
+    //        await admin.auth.admin.signOut(token, "global").catch(() => {});
+    //
+    //    **A primeira:** `signOut(jwt, …)` manda `POST /logout` com aquele jwt
+    //    no `Authorization` (conferido no fonte do auth-js). Quem é derrubado é
+    //    o DONO DO TOKEN — e `token` aqui é o de quem CHAMOU. Quando um
+    //    administrador encerra a conta de outra pessoa pela fila de LGPD, que é
+    //    o caminho formal do art. 18, esta linha derrubava as sessões **do
+    //    administrador** e deixava as do titular vivas. Exatamente ao contrário.
+    //
+    //    **A segunda:** o `.catch(() => {})`. Era o único catch vazio do
+    //    repositório, e ainda por cima inútil no caso que importa: `signOut`
+    //    devolve `{ error }` em vez de lançar, então o erro nem chegava ao
+    //    catch — era descartado antes, pelo `await` sem destino. Falhando, a
+    //    função seguia para `ok: true` com as sessões de pé.
+    //
+    //    ## O que dá para fazer de cada lado
+    //
+    //    · o próprio titular encerrando: o token É dele, `signOut` é a
+    //      ferramenta certa, e agora o resultado é olhado;
+    //    · administrador encerrando a conta alheia: não há API de admin que
+    //      derrube sessão por id de usuário no SDK fixado aqui. Quem faz isso é
+    //      o RPC `derrubar_sessoes`, que apaga as linhas de `auth.sessions`.
+    //
+    //    Se o RPC ainda não existir no banco, a conta continua encerrada e
+    //    banida — o GoTrue recusa renovar token de conta banida, então o acesso
+    //    morre no fim da validade do token atual em vez de na hora. A resposta
+    //    diz qual dos dois aconteceu, em vez de um `ok: true` que não distingue.
+    let sessoesDerrubadas = false;
+    let motivoDasSessoes: string | null = null;
+
+    if (alvo === ator) {
+      const { error: erroSignOut } = await admin.auth.admin.signOut(token, "global");
+      if (erroSignOut) motivoDasSessoes = erroSignOut.message;
+      else sessoesDerrubadas = true;
+    } else {
+      const { error: erroRpc } = await admin.rpc("derrubar_sessoes", { _user_id: alvo });
+      if (erroRpc) motivoDasSessoes = erroRpc.message;
+      else sessoesDerrubadas = true;
+    }
+
+    if (!sessoesDerrubadas) {
+      await logError({
+        source: "edge_function",
+        context: "account-close",
+        message:
+          `conta ${alvo} encerrada, mas as sessões abertas NÃO foram derrubadas: ` +
+          `${motivoDasSessoes ?? "sem detalhe"}. A conta está banida, então o token ` +
+          "atual não renova — o acesso cai no fim da validade dele, não agora.",
+        metadata: { user_id: alvo, por_administrador: alvo !== ator },
+      });
+    }
 
     // 4) Quando o pedido nasce do próprio titular não existe linha na fila de
     //    LGPD. Criar uma aqui faz o encerramento entrar no mesmo trilho de
@@ -128,7 +183,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    return json({ ok: true, relatorio });
+    // `ok: true` continua verdadeiro: os dados foram encerrados e o acesso,
+    // banido. O que a resposta não pode fazer é esconder que uma das etapas não
+    // aconteceu — quem chamou precisa saber se ainda há sessão de pé.
+    return json({
+      ok: true,
+      relatorio,
+      sessoes_derrubadas: sessoesDerrubadas,
+      sessoes_motivo: motivoDasSessoes,
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     await logError({ source: "edge_function", context: "account-close", message });

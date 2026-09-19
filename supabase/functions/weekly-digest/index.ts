@@ -53,7 +53,12 @@ Deno.serve(async (req) => {
         // `getClaims` não existe no SDK 2.45.0 fixado acima: este ramo (admin
         // disparando o resumo à mão) nunca funcionou. O agendamento usa o
         // segredo de cron, por isso a falha passou despercebida.
-        const { data } = await supabase.auth.getUser(token);
+        const { data, error: erroSessao } = await supabase.auth.getUser(token);
+        // Negar continua sendo a direção certa, mas o motivo precisa aparecer
+        // no log — senão "unauthorized" é tudo que sobra para investigar.
+        if (erroSessao) {
+          console.error("não foi possível verificar a sessão", erroSessao.message);
+        }
         const uid = data?.user?.id;
         if (uid) {
           const { data: role, error: erroPapel } = await supabase

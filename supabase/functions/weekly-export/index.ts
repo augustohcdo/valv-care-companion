@@ -153,7 +153,12 @@ Deno.serve(async (req) => {
       // Mesma armadilha do `dpo-export`: `getClaims` não existe no SDK que este
       // bundle resolve. O caminho do cron não passa por aqui, então o backup
       // seguia rodando enquanto o disparo manual por admin quebrava.
-      const { data } = await supabase.auth.getUser(token);
+      const { data, error: erroSessao } = await supabase.auth.getUser(token);
+      // Negar é a direção certa; calar sobre o motivo não é. Sem esta linha,
+      // "unauthorized" é tudo que sobra para quem for investigar.
+      if (erroSessao) {
+        console.error("não foi possível verificar a sessão", erroSessao.message);
+      }
       const uid = data?.user?.id;
       if (uid) {
         const { data: role, error: erroPapel } = await supabase

@@ -80,7 +80,12 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) return json({ error: "unauthorized" }, 401);
 
-    const { data: userData } = await admin.auth.getUser(authHeader.replace("Bearer ", ""));
+    // "Não consegui verificar" ≠ "não autorizado". Ver o mesmo par em
+    // `account-close`, onde a distinção já estava escrita.
+    const { data: userData, error: erroSessao } = await admin.auth.getUser(
+      authHeader.replace("Bearer ", ""),
+    );
+    if (erroSessao) return json({ error: "auth_check_failed", detail: erroSessao.message }, 503);
     if (!userData?.user) return json({ error: "unauthorized" }, 401);
 
     const { data: isAdmin, error: erroPapel } = await admin.rpc("has_role", {

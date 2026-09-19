@@ -25,7 +25,12 @@ async function usuarioDoToken(req: Request): Promise<string | null> {
     // e como a chamada fica dentro de um try/catch a ausência virava um
     // `null` silencioso — todo erro ficava anônimo, inclusive de quem estava
     // logado. `getUser` valida o token no servidor e existe nas duas versões.
-    const { data } = await admin.auth.getUser(header.replace("Bearer ", ""));
+    // O `error` é OLHADO, e a decisão é a mesma: anônimo. Esta função é pública
+    // e recebe a chave anônima neste mesmo cabeçalho — um erro aqui é o caso
+    // corriqueiro, não uma anomalia. O que não pode é o erro ser descartado sem
+    // ninguém ter decidido nada: a decisão está escrita, e é esta linha.
+    const { data, error } = await admin.auth.getUser(header.replace("Bearer ", ""));
+    if (error) return null;
     return data?.user?.id ?? null;
   } catch {
     // A chave anônima também chega neste cabeçalho; não é um usuário, e não é
