@@ -154,10 +154,23 @@ async function limpar() {
   // bucket, e o painel de administração conta objeto sem linha.
   const objetos = await sql(`select storage_path from public.case_documents
      where case_id in (select id from public.clinical_cases where is_demo)`);
+  // O resultado de cada DELETE é olhado. Sem isso, a linha final imprimia
+  // "Removidos: … N arquivo(s)" com N = quantos objetos EXISTIAM, não quantos
+  // saíram — um número que parece conferência e é só contagem da lista de
+  // entrada. Um objeto que ficou no bucket é exatamente o que o painel de
+  // administração conta como órfão, e o script dizia que tinha limpado.
+  const apagados = [];
+  const naoApagados = [];
   for (const { storage_path } of objetos) {
-    await fetch(`${URL_BASE}/storage/v1/object/medical-documents/${storage_path}`, {
-      method: "DELETE", headers: { Authorization: `Bearer ${SERVICE_ROLE}` },
-    });
+    try {
+      const r = await fetch(`${URL_BASE}/storage/v1/object/medical-documents/${storage_path}`, {
+        method: "DELETE", headers: { Authorization: `Bearer ${SERVICE_ROLE}` },
+      });
+      if (r.ok) apagados.push(storage_path);
+      else naoApagados.push(`${storage_path} (HTTP ${r.status})`);
+    } catch (e) {
+      naoApagados.push(`${storage_path} (${e.message})`);
+    }
   }
 
   // `case_comments` e `case_collaborators` não têm chave estrangeira para
@@ -171,7 +184,14 @@ async function limpar() {
 
   const emails = MEDICOS.map((m) => `'${m.email}'`).join(",");
   await sql(`delete from auth.users where email in (${emails})`);
-  console.log(`Removidos: ${casos} caso(s) de demonstração, ${medicos} médico(s) fictício(s), ${objetos.length} arquivo(s).`);
+  console.log(`Removidos: ${casos} caso(s) de demonstração, ${medicos} médico(s) fictício(s), ${apagados.length} arquivo(s).`);
+  if (naoApagados.length) {
+    // Saída 1 e não silêncio: um bucket com objeto de demonstração sobrando é
+    // exatamente o que o próximo `--limpar` vai dizer que já limpou.
+    console.error(`\n${naoApagados.length} arquivo(s) NÃO saíram do bucket:`);
+    for (const x of naoApagados) console.error(`  · ${x}`);
+    process.exitCode = 1;
+  }
 }
 
 // --------------------------------------------------------------- aplicar
@@ -197,8 +217,13 @@ async function aplicar(emailMedico) {
         ban_duration: "876000h",
       }),
     });
-    const criado = await r.json();
-    if (!criado.id) throw new Error(`Falha ao criar ${m.email}: ${JSON.stringify(criado).slice(0, 300)}`);
+    // `.catch` porque `r.json()` lança em corpo não-JSON, e a exceção crua
+    // esconde o que o servidor respondeu.
+    const criado = await r.json().catch(() => null);
+    if (!criado?.id) {
+      const detalhe = criado ? JSON.stringify(criado).slice(0, 300) : `HTTP ${r.status}, corpo não-JSON`;
+      throw new Error(`Falha ao criar ${m.email}: ${detalhe}`);
+    }
     await sql(`update auth.users set confirmation_token='', recovery_token='',
                email_change='', email_change_token_new='' where id='${criado.id}'`);
     const [medico] = await inserir("doctors", [{

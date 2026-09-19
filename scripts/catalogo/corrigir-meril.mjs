@@ -164,13 +164,22 @@ for (const x of INEXISTENTES) {
   const chave = `${x.model_name}|${x.valve_position}|${x.size}`;
   const id = porChave.get(chave);
   if (!id) { console.log(`= ${chave} já não está no catálogo`); continue; }
-  console.log(`✗ ${chave} DESATIVADO — ${x.motivo.slice(0, 80)}…`);
-  desativadas++;
-  if (seco) continue;
-  await fetch(`${BASE}/rest/v1/prosthesis_catalog?id=eq.${id}`, {
+  if (seco) { console.log(`✗ ${chave} DESATIVADO — ${x.motivo.slice(0, 80)}… (simulação)`); desativadas++; continue; }
+  // O `desativadas++` vinha ANTES do PATCH, e o resultado do PATCH era
+  // descartado: o total impresso no fim contava a INTENÇÃO, não o efeito. Uma
+  // linha que o servidor recusou saía na contagem como desativada, e o
+  // catálogo seguia oferecendo uma prótese fora de linha.
+  const r = await fetch(`${BASE}/rest/v1/prosthesis_catalog?id=eq.${id}`, {
     method: "PATCH", headers: { ...cab, Prefer: "return=minimal" },
     body: JSON.stringify({ active: false, description: x.motivo }),
   });
+  if (!r.ok) {
+    console.error(`✗ ${chave}: PATCH devolveu HTTP ${r.status} — ${(await r.text()).slice(0, 200)}`);
+    process.exitCode = 1;
+    continue;
+  }
+  console.log(`✗ ${chave} DESATIVADO — ${x.motivo.slice(0, 80)}…`);
+  desativadas++;
 }
 
 console.log(

@@ -218,14 +218,24 @@ for (const r of renomear) {
 }
 
 // --- Inovare Alpha: página e foto -----------------------------------------
+// O `console.log` de baixo era INCONDICIONAL, e o resultado do PATCH era
+// descartado. Quer dizer: o script anunciava a foto e a página aplicadas sem
+// ter olhado se o servidor aceitou — e quem lê a saída do script não tem outra
+// forma de saber.
+let inovareOk = seco;
 if (!seco) {
-  await fetch(
+  const r = await fetch(
     `${BASE}/rest/v1/prosthesis_catalog?manufacturer=eq.Braile&model_name=eq.Inovare%20Alpha`,
     { method: "PATCH", headers: { ...cab, Prefer: "return=minimal" },
       body: JSON.stringify({ reference_url: PAGINA.inovare, image_url: FOTO.inovare.url }) },
   );
+  inovareOk = r.ok;
+  if (!r.ok) {
+    console.error(`✗ Inovare Alpha: PATCH devolveu HTTP ${r.status} — ${(await r.text()).slice(0, 200)}`);
+    process.exitCode = 1;
+  }
 }
-console.log(`+ Inovare Alpha: foto e página do fabricante`);
+if (inovareOk) console.log(`+ Inovare Alpha: foto e página do fabricante${seco ? " (simulação)" : ""}`);
 
 // --- linhas: cria o que falta, atualiza o que existe ------------------------
 let criadas = 0, atualizadas = 0;

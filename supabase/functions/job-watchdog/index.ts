@@ -329,9 +329,22 @@ Deno.serve(async (req) => {
     // Ponte para um vigia externo: é ele quem alerta se ESTA função parar de
     // rodar. Sem isso, a corrente termina em alguém lembrar de abrir o painel.
     const ping = Deno.env.get("DEADMAN_PING_URL");
+    let pingOk: boolean | null = null;
     if (ping) {
-      try { await fetch(ping, { method: "GET" }); }
-      catch (e) { console.error("ping do vigia externo falhou", e); }
+      try {
+        // O `catch` pegava só falha de REDE. Uma resposta não-2xx — a URL do
+        // monitor mudou, o serviço devolve 404 — passava em silêncio, e o
+        // batimento não era registrado do outro lado. O vigia externo então
+        // alerta que ESTA função parou, que é o alarme certo pelo motivo
+        // errado: ela rodou, quem não ouviu foi o monitor. Sem esta linha,
+        // ninguém consegue distinguir os dois na hora de investigar.
+        const r = await fetch(ping, { method: "GET" });
+        pingOk = r.ok;
+        if (!r.ok) console.error(`ping do vigia externo devolveu HTTP ${r.status}`);
+      } catch (e) {
+        pingOk = false;
+        console.error("ping do vigia externo falhou", e);
+      }
     }
 
     return new Response(JSON.stringify({
@@ -344,6 +357,9 @@ Deno.serve(async (req) => {
       concessoes_privilegiadas: erroConcessoes ? null : concessoes.length,
       nao_conferido: naoConferido,
       alerta,
+      // `null` = não há vigia externo configurado; `false` = há, e o batimento
+      // não chegou. São coisas diferentes e não podem virar a mesma.
+      ping_do_vigia_externo: pingOk,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     await recordJobRun({

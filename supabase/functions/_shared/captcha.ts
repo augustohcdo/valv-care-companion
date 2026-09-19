@@ -32,6 +32,18 @@ export async function verificarCaptcha(token: string | undefined | null, ip?: st
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: corpo,
     });
+    // A direção já estava certa — qualquer coisa diferente de `success: true`
+    // recusa —, mas o MOTIVO saía errado: um 500 da Cloudflare virava
+    // `captcha_recusado`, que quem lê a tela entende como "você errou o
+    // captcha". A pessoa passou no captcha; quem caiu foi o verificador.
+    //
+    // Recusar continua sendo a resposta (é um formulário público, e deixar
+    // passar com o porteiro fora do ar é abrir a porta), mas com o nome certo:
+    // `captcha_indisponivel` é o mesmo motivo do segredo ausente e da falha de
+    // rede, que são a mesma situação vista de outro ângulo.
+    if (!r.ok) {
+      return { ok: false, motivo: `captcha_indisponivel: siteverify HTTP ${r.status}` };
+    }
     const j = await r.json().catch(() => ({}));
     if (j?.success === true) return { ok: true };
     const codigos: string[] = Array.isArray(j?.["error-codes"]) ? j["error-codes"] : [];

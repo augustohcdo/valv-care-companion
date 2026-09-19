@@ -290,9 +290,15 @@ async function criar(tipo, saida) {
       },
     }),
   });
-  const criado = await r.json();
+  // `r.json()` LANÇA quando o corpo não é JSON — uma página de erro do gateway,
+  // por exemplo. Sem este `catch`, a exceção subia e o processo terminava com
+  // código 1, que neste script quer dizer "conferi e está errado". O que
+  // aconteceu foi outra coisa: não deu para conferir. A convenção inteira
+  // (0 ok, 1 errado, 2 NÃO CONFERIDO) existe para não confundir os dois.
+  const criado = await r.json().catch(() => null);
   if (!criado?.id) {
-    console.error(`NÃO CONFERIDO: falha ao criar a conta — ${JSON.stringify(criado).slice(0, 300)}`);
+    const detalhe = criado ? JSON.stringify(criado).slice(0, 300) : `HTTP ${r.status}, corpo não-JSON`;
+    console.error(`NÃO CONFERIDO: falha ao criar a conta — ${detalhe}`);
     process.exit(2);
   }
   // O id vai para o disco AGORA, antes de qualquer conferência.
