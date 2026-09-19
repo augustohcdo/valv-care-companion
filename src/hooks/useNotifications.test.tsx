@@ -41,7 +41,9 @@ const updateChain = (values: any) => {
   const chain: any = {
     eq: (col: string, val: any) => {
       updateSpy(values, col, val);
-      let afetadas: any[] = [];
+      // Sem inicializador: os dois ramos atribuem, e o `= []` seria valor
+      // morto — `no-useless-assignment` reprova, e com razão.
+      let afetadas: any[];
       // aplica a mutação no "banco" fake
       if (col === "id") {
         afetadas = rows.filter((r: any) => r.id === val).map((r: any) => ({ id: r.id }));

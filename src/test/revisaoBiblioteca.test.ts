@@ -178,7 +178,10 @@ describe("a página de revisão da biblioteca", () => {
       codigo = (e as { status?: number }).status ?? 0;
     }
     expect(codigo, "gerador não recusou quando não conseguiu ler a versão anterior").toBe(2);
-  });
+    // Sobe o `node`: prazo próprio, como o `beforeAll` acima já tinha. O padrão
+    // de 5 s do Vitest mata o teste antes numa máquina disputada, e o vermelho
+    // sai sem dizer o que estava sendo conferido.
+  }, 60_000);
 
   it("limpa o que criou", () => {
     rmSync(tmp, { recursive: true, force: true });

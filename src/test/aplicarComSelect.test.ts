@@ -117,6 +117,74 @@ export function escritasPassadasParaAplicar(texto: string): string[] {
   return achadas;
 }
 
+/**
+ * A **declaração** do helper de escrita dos testes, não uma menção a ele.
+ *
+ * Ancorada na coluna 0 (`^`) porque as catorze cópias são funções de topo do
+ * arquivo de teste, e porque a primeira versão desta guarda acusou a si mesma:
+ * o `indexOf("function escrita(")` casava com a própria string de busca, aqui
+ * dentro, indentada dentro do laço. Guarda que se acusa é guarda que ninguém
+ * acredita — e é a mesma distinção entre declaração e menção que o teste do
+ * `CaseTimeline`, logo abaixo, já cobrava.
+ */
+const DECLARACAO_DE_ESCRITA = /^function escrita\s*\(/m;
+
+/**
+ * O corpo do helper, pulando a lista de parâmetros.
+ *
+ * O "pulando" é o conserto do segundo falso vermelho desta guarda. A assinatura
+ * é `function escrita(resultado: { error: … } | null, afetadas = 1)`: o tipo do
+ * primeiro parâmetro é um **objeto literal**, então a primeira `{` depois do
+ * nome abre a ANOTAÇÃO DE TIPO, não o corpo. Equilibrando chaves a partir dali,
+ * o "corpo" extraído era `{ error: { message: string } | null }` — que
+ * naturalmente não define `.select`, e por isso onze arquivos corretos foram
+ * acusados de não definir.
+ */
+export function corpoDoHelperDeEscrita(texto: string): string | null {
+  const m = DECLARACAO_DE_ESCRITA.exec(texto);
+  if (!m) return null;
+
+  let i = texto.indexOf("(", m.index);
+  let parenteses = 0;
+  for (; i < texto.length; i++) {
+    if (texto[i] === "(") parenteses++;
+    else if (texto[i] === ")") { parenteses--; if (parenteses === 0) break; }
+  }
+  const inicio = texto.indexOf("{", i);
+  if (inicio < 0) return null;
+
+  let nivel = 0;
+  let k = inicio;
+  for (; k < texto.length; k++) {
+    if (texto[k] === "{") nivel++;
+    else if (texto[k] === "}") { nivel--; if (nivel === 0) break; }
+  }
+  return texto.slice(inicio, k + 1);
+}
+
+/**
+ * A única propriedade que este mock não pode perder: **sem `.select(...)` não
+ * vem `data`**. É ela que deixa o `aplicar()` separar "a RLS recusou" (200 com
+ * zero linhas) de "ninguém pediu as linhas".
+ */
+export function falhasDoMockDeEscrita(corpo: string): string[] {
+  const falhas: string[] = [];
+  const ondeSelect = corpo.indexOf(".select");
+
+  if (ondeSelect < 0) {
+    // Sem `.select` não há o que separar — e sem este `return` o recorte
+    // abaixo viraria `slice(0, -1)`, quase o corpo inteiro, medindo outra coisa.
+    return ["não define `.select`"];
+  }
+  if (/Promise\.resolve\(\s*\{[^}]*\bdata\b/.test(corpo.slice(0, ondeSelect))) {
+    falhas.push("a promessa nua já devolve `data`");
+  }
+  if (!/\.select\s*=/.test(corpo)) {
+    falhas.push("cita `.select` mas não o define");
+  }
+  return falhas;
+}
+
 const arquivos = varrer(RAIZ).filter((f) => f !== HELPER);
 
 describe("as escritas que passam por aplicar()", () => {
@@ -240,6 +308,141 @@ describe("as escritas que passam por aplicar()", () => {
         "linhas valem.\n\n" +
         "Passe por `aplicar(<escrita>.select(\"id\"), { sucesso, falha })`.",
     ).toEqual([]);
+  });
+
+  /**
+   * Os catorze mocks de escrita dos testes modelam a MESMA distinção.
+   *
+   * O helper `escrita()` aparece copiado em catorze arquivos de teste, em cinco
+   * variantes — não por desleixo: o `vi.mock` é içado, e uma função importada de
+   * fora não está inicializada quando a fábrica do mock roda.
+   *
+   * Conferido: as cinco variantes de hoje estão corretas. O risco não é o que
+   * existe, é a próxima cópia — e eu mesmo escrevi uma errada nesta rodada, que
+   * devolvia `data` sem `.select()` e fazia a inversão PASSAR, provando o
+   * contrário do que eu queria.
+   *
+   * A propriedade que não pode se perder é uma só: **sem `.select(...)` não vem
+   * `data`**. É ela que deixa o `aplicar()` distinguir "a RLS recusou" (200 com
+   * zero linhas) de "ninguém pediu as linhas". Um mock que devolvesse `data` nos
+   * dois casos faz a conferência passar vazia — e o teste fica verde sobre nada.
+   */
+  it("todo mock de escrita separa o `data` do `.select`", () => {
+    const arquivosDeTeste: string[] = [];
+    const varrerTestes = (dir: string) => {
+      for (const nome of readdirSync(dir)) {
+        if (IGNORAR.has(nome)) continue;
+        const full = join(dir, nome);
+        if (statSync(full).isDirectory()) varrerTestes(full);
+        else if (/\.test\.tsx?$/.test(nome)) arquivosDeTeste.push(full.replace(/\\/g, "/"));
+      }
+    };
+    varrerTestes(RAIZ);
+
+    const ruins: string[] = [];
+    let copias = 0;
+    for (const arquivo of arquivosDeTeste) {
+      const corpo = corpoDoHelperDeEscrita(readFileSync(arquivo, "utf8"));
+      if (corpo === null) continue;
+      copias++;
+      for (const falha of falhasDoMockDeEscrita(corpo)) {
+        ruins.push(`  · ${arquivo} — ${falha}`);
+      }
+    }
+
+    // São catorze hoje. O piso é dez, e não catorze, porque apagar um
+    // componente apaga o teste dele junto — e guarda que reprova quem fez certo
+    // é guarda que alguém desliga. Dez ainda pega o que realmente importa: um
+    // detector que deixou de casar com tudo e passou a varrer nada.
+    expect(copias, "a varredura encolheu — poucas cópias do helper encontradas")
+      .toBeGreaterThanOrEqual(10);
+    expect(
+      ruins,
+      `\n${ruins.join("\n")}\n\n` +
+        "Um mock de escrita precisa separar os dois casos, como o cliente real:\n" +
+        "  · aguardado direto  → devolve só { error }\n" +
+        "  · com `.select(...)` → devolve { data, error }\n\n" +
+        "Modelando os dois iguais, a conferência de linhas do `aplicar()` passa\n" +
+        "sem ninguém ter pedido as linhas — e o teste fica verde sobre nada.",
+    ).toEqual([]);
+  });
+
+  /**
+   * As três inversões da guarda acima, e a regressão do falso vermelho.
+   *
+   * O mock bom é escrito em linhas separadas de propósito: se a declaração
+   * `function escrita(` ficasse na coluna 0 dentro de um template literal, ela
+   * estaria na coluna 0 deste arquivo também — e a varredura de disco acharia
+   * a PRÓPRIA FIXTURE, exatamente o erro que a âncora `^` veio consertar.
+   */
+  const MOCK_BOM = [
+    "function escrita(resultado: { error: { message: string } | null }, afetadas = 1) {",
+    "  const p: any = Promise.resolve(resultado);",
+    "  p.select = () =>",
+    "    Promise.resolve({",
+    "      data: resultado.error ? [] : Array.from({ length: afetadas }, () => ({ id: 'r' })),",
+    "      error: resultado.error,",
+    "    });",
+    "  return p;",
+    "}",
+  ].join("\n");
+
+  it("o corpo extraído pula a anotação de tipo do parâmetro", () => {
+    // O falso vermelho que esta guarda produziu na primeira tentativa: onze
+    // arquivos CORRETOS acusados de "não define `.select`", porque a primeira
+    // `{` depois do nome abre o tipo do parâmetro, não o corpo. O corpo
+    // extraído era `{ error: { message: string } | null }` — e nele, de fato,
+    // não há `.select` nenhum.
+    const corpo = corpoDoHelperDeEscrita(MOCK_BOM);
+    expect(corpo, "não achou a declaração do helper").not.toBeNull();
+    expect(corpo, "extraiu a anotação de tipo em vez do corpo").toContain("p.select =");
+    expect(corpo!.startsWith("{\n  const p")).toBe(true);
+    expect(falhasDoMockDeEscrita(corpo!), "acusou um mock correto").toEqual([]);
+  });
+
+  it("acusa a promessa nua que já devolve `data`", () => {
+    // O defeito de verdade: modelando os dois casos iguais, `aplicar()` recebe
+    // uma lista vazia sem ninguém ter pedido `.select(...)`, e a conferência de
+    // linhas passa sobre nada.
+    const corpo = corpoDoHelperDeEscrita(
+      MOCK_BOM.replace("Promise.resolve(resultado)", "Promise.resolve({ ...resultado, data: [] })"),
+    );
+    expect(falhasDoMockDeEscrita(corpo!)).toEqual(["a promessa nua já devolve `data`"]);
+  });
+
+  it("acusa o mock que não define `.select`", () => {
+    const corpo = corpoDoHelperDeEscrita(
+      [
+        "function escrita(resultado: { error: { message: string } | null }) {",
+        "  return Promise.resolve(resultado);",
+        "}",
+      ].join("\n"),
+    );
+    expect(falhasDoMockDeEscrita(corpo!)).toEqual(["não define `.select`"]);
+  });
+
+  it("acusa o mock que cita `.select` sem atribuí-lo", () => {
+    // A forma sutil: o `.select` aparece no corpo — num comentário, ou numa
+    // chamada — mas nada o instala na promessa, então o encadeamento do código
+    // de produção estouraria. Sem esta regra, o recorte `slice(0, ondeSelect)`
+    // ainda mediria alguma coisa e a guarda passaria.
+    const corpo = corpoDoHelperDeEscrita(
+      [
+        "function escrita(resultado: { error: { message: string } | null }) {",
+        "  // o cliente real responde ao .select com data",
+        "  return Promise.resolve(resultado);",
+        "}",
+      ].join("\n"),
+    );
+    expect(falhasDoMockDeEscrita(corpo!)).toEqual(["cita `.select` mas não o define"]);
+  });
+
+  it("a declaração do helper é distinguida da menção a ele", () => {
+    // A guarda acusando a si mesma foi o primeiro falso vermelho: o
+    // `indexOf("function escrita(")` casava com a própria string de busca deste
+    // arquivo. Menção indentada não é declaração.
+    const mencao = '      const i = texto.indexOf("function escrita(");';
+    expect(corpoDoHelperDeEscrita(mencao), "confundiu a menção com a declaração").toBeNull();
   });
 
   it("o detector não confunde menção em comentário com chamada", () => {

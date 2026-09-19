@@ -153,7 +153,22 @@ describe("a guarda que carrega as edge functions", () => {
         "guarda deu 18 de 18 com o import quebrado no lugar.\n\n" +
         (r.stderr ?? "").slice(0, 400),
     ).toBe(2);
-  });
+    // O prazo do Vitest, e por que ele é MAIOR que o do `spawnSync`.
+    //
+    // O prazo padrão de um teste no Vitest são 5 s. Rodando a suíte inteira em
+    // paralelo, a máquina disputada passou desses 5 s e o Vitest matou este
+    // teste ANTES do `spawnSync` — que tinha 60 s de folga. Reprovou sozinho,
+    // com a árvore de trabalho limpa, e passou ao rodar o arquivo isolado.
+    //
+    // Guarda intermitente é pior que guarda nenhuma: quem vê vermelho sem causa
+    // aprende a rodar de novo até passar, e aí o vermelho de verdade também some
+    // na segunda tentativa. Com 90 s aqui, quem estoura primeiro é o `spawnSync`,
+    // que é o que tem a mensagem dizendo o que estava sendo conferido.
+    //
+    // A regra não é deste arquivo: `prazoDeSubprocesso.test.ts` cobra o prazo de
+    // TODO bloco que sobe processo externo. Eram cinco, em três arquivos — e
+    // consertar só este deixaria os outros quatro esperando a máquina lenta.
+  }, 90_000);
 
   it("o script realmente IMPORTA as functions — não as tipa", () => {
     expect(

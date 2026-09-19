@@ -184,7 +184,9 @@ describe("as verificações periódicas", () => {
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
-    });
+      // Sobe `bash`: prazo próprio, maior que o do filho, senão quem estoura
+      // primeiro é o Vitest (5 s no padrão) e o vermelho sai sem causa.
+    }, 90_000);
   }
 
   it("o resumo separa DIVERGE de NÃO CONFERIDO", () => {
@@ -220,7 +222,8 @@ describe("as verificações periódicas", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
+    // Sobe `bash`: prazo próprio, pelo mesmo motivo do bloco acima.
+  }, 90_000);
 
   it("uma conferência que falha não esconde as seguintes", () => {
     // Passo que falha encerra o job. Se as seis estivessem em passos separados,
