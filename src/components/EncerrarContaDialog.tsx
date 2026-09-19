@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Loader2, UserX } from "lucide-react";
 import { toast } from "sonner";
+import { motivoDaFuncao, funcaoRecusou } from "@/lib/respostaDeFuncao";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -70,11 +71,15 @@ export function EncerrarContaDialog({
 
     // A função devolve `{ error }` no corpo em recusas de regra (única conta de
     // administrador, por exemplo) — sem olhar isso, uma recusa viraria sucesso.
-    if (error || (data && (data as { error?: string }).error)) {
-      const detalhe = (data as { detail?: string; error?: string } | null)?.detail
-        ?? (data as { error?: string } | null)?.error
-        ?? error?.message;
-      toast.error("Não foi possível encerrar a conta", { description: detalhe });
+    //
+    // Mas o `data?.detail` escrito aqui para esse caso NUNCA disparava: a
+    // recusa vem com HTTP 400, e em qualquer não-2xx o `invoke` devolve
+    // `data: null` e guarda o corpo dentro de `error.context`. O que aparecia
+    // era "Edge Function returned a non-2xx status code" — sobre a ação mais
+    // irreversível do sistema.
+    if (funcaoRecusou(error, data)) {
+      const motivo = await motivoDaFuncao(error, data, "A conta não foi encerrada.");
+      toast.error("Não foi possível encerrar a conta", { description: motivo.texto });
       return;
     }
 

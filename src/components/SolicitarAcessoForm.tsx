@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, CheckCircle2, Loader2, Send, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { motivoDaFuncao } from "@/lib/respostaDeFuncao";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -89,7 +90,12 @@ export function SolicitarAcessoForm() {
       setCaptchaReset((n) => n + 1);
 
       if (error) {
-        toast.error("Não foi possível enviar", { description: (error as Error)?.message });
+        // `error.message` é sempre "Edge Function returned a non-2xx status
+        // code": o motivo que a função escreveu está no corpo, dentro de
+        // `error.context`. Mostrar a frase do SDK a quem pede acesso é dizer
+        // nada com ar de explicação.
+        const motivo = await motivoDaFuncao(error, data, "O pedido não foi enviado.");
+        toast.error("Não foi possível enviar", { description: motivo.texto });
         return;
       }
       if (data?.error) {

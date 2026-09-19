@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { motivoDaFuncao } from "@/lib/respostaDeFuncao";
 import { Beaker, Loader2, Database, AlertTriangle } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -85,7 +86,18 @@ export default function FhirSandbox() {
     setBusy(true); setResponse("");
     try {
       const { data, error } = await supabase.functions.invoke("knowledge-seed");
-      if (error) throw error;
+      if (error) {
+        // O `throw error` mandava o `catch` mostrar `e.message`, que num
+        // não-2xx é sempre "Edge Function returned a non-2xx status code". O
+        // motivo — "auth_check_failed", "role_check_failed", o detalhe da
+        // fonte que falta — está no corpo, dentro de `error.context`. Sem ele,
+        // quem clica não distingue "não sou admin" de "a fonte de 2025 ainda
+        // não foi cadastrada".
+        const motivo = await motivoDaFuncao(error, data, "A base não foi populada.");
+        setResponse(JSON.stringify(motivo.corpo ?? { erro: motivo.texto }, null, 2));
+        toast.error("Falha ao popular base", { description: motivo.texto });
+        return;
+      }
       setResponse(JSON.stringify(data, null, 2));
       // O toast dizia "Base RAG populada" mesmo com `inserted: 0` — sucesso
       // anunciado sobre trabalho que não aconteceu, e no lugar de maior

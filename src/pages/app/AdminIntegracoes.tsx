@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { motivoDaFuncao, funcaoRecusou } from "@/lib/respostaDeFuncao";
 import { ShieldCheck, KeyRound, Plus, Loader2, Copy } from "lucide-react";
 import { Navigate } from "react-router-dom";
 
@@ -123,7 +124,11 @@ export default function AdminIntegracoes() {
       body: { hospital_id: keyHospital, name: keyName, expires_in_days: keyDays },
     });
     setCreatingKey(false);
-    if (error || data?.error) { toast.error(data?.error ?? error?.message ?? "Erro"); return; }
+    if (funcaoRecusou(error, data)) {
+      const motivo = await motivoDaFuncao(error, data, "A chave não foi criada.");
+      toast.error("Não foi possível criar a chave", { description: motivo.texto });
+      return;
+    }
     setGeneratedKey(data.api_key);
     reload();
   };

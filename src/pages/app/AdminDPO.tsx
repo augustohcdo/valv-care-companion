@@ -13,6 +13,7 @@ import {
   CheckCircle2, XCircle, AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { motivoDaFuncao, funcaoRecusou } from "@/lib/respostaDeFuncao";
 import { logAudit } from "@/lib/auditLog";
 import { EncerrarContaDialog } from "@/components/EncerrarContaDialog";
 
@@ -153,8 +154,13 @@ export default function AdminDPO() {
       body: { dpo_request_id: req.id },
     });
     setExporting(null);
-    if (error || data?.error) {
-      toast.error("Erro ao gerar export", { description: data?.error ?? error?.message });
+    if (funcaoRecusou(error, data)) {
+      // `data?.error` nunca disparava num não-2xx: ali `data` é `null` e o
+      // corpo fica em `error.context`. Num pedido de titular do art. 18, o
+      // administrador via "Edge Function returned a non-2xx status code" e
+      // ficava sem saber se o documento saiu incompleto ou não saiu.
+      const motivo = await motivoDaFuncao(error, data, "O documento não foi gerado.");
+      toast.error("Erro ao gerar export", { description: motivo.texto });
       return;
     }
     setExportUrls((prev) => ({ ...prev, [req.id]: data.url }));

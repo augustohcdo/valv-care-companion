@@ -4,6 +4,7 @@ import {
   BadgeCheck, ExternalLink, Loader2, Mail, ShieldQuestion, Check, X, Clock, Database,
 } from "lucide-react";
 import { toast } from "sonner";
+import { motivoDaFuncao, funcaoRecusou } from "@/lib/respostaDeFuncao";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
@@ -113,10 +114,27 @@ export default function AdminAcessos() {
     });
     setEmAcao(null);
 
-    if (error || data?.error) {
+    if (funcaoRecusou(error, data)) {
+      // O motivo vem do CORPO da resposta, não do `error.message`.
+      //
+      // Numa aprovação incompleta o `access-decide` devolve 500 com a lista do
+      // que não persistiu e um `o_que_fazer` escrito para este momento. Como
+      // `invoke` devolve `data: null` em qualquer não-2xx, nada disso chegava
+      // aqui: o administrador lia "Não foi possível aprovar" com a conta já
+      // criada e o e-mail já enviado — e tendia a clicar de novo. A guarda de
+      // duplicidade depende do `status` do pedido, que é justamente um dos
+      // itens que podem não ter persistido: segundo e-mail, segundo link.
+      const motivo = await motivoDaFuncao(
+        error, data,
+        aprovar ? "A aprovação não foi concluída." : "A recusa não foi registrada.",
+      );
       toast.error(aprovar ? "Não foi possível aprovar" : "Não foi possível recusar", {
-        description: data?.error ?? (error as Error)?.message,
+        description: motivo.texto,
+        // A conta criada e o e-mail já enviado merecem mais tempo na tela:
+        // é o caso em que quem lê precisa AGIR, não só saber.
+        duration: motivo.corpo?.["conta_criada"] === true ? 20_000 : 8_000,
       });
+      recarregar();
       return;
     }
     toast.success(aprovar ? "Acesso liberado" : "Solicitação recusada", {
