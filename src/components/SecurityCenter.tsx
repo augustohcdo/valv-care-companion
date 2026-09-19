@@ -209,7 +209,17 @@ export function SecurityCenter() {
             onEncerrada={async () => {
               // A sessão precisa cair aqui também: o servidor já a invalidou, e
               // deixar a tela aberta como se ainda houvesse conta seria mentira.
-              await signOut();
+              // Falhando, a aba continua com a sessão da conta encerrada — o
+              // que precisa ser dito, não engolido.
+              const { error } = await signOut();
+              if (error) {
+                toast.warning("Conta encerrada — feche esta aba", {
+                  description:
+                    "Não consegui encerrar a sessão neste navegador. Feche todas as " +
+                    "abas do ValvePath para não deixar a conta encerrada aberta aqui.",
+                  duration: 15_000,
+                });
+              }
             }}
           />
         </div>

@@ -91,8 +91,13 @@ export default function RedefinirSenha() {
       setEstado((atual) => (atual === "recuperacao" ? atual : "sem-link"));
       // Só para nomear a recusa: "você está conectado como X, e esta página não
       // vai mexer nessa conta" é muito mais útil que um erro genérico.
-      const { data: sessao } = await supabase.auth.getSession();
-      if (vivo) setSessaoAtual(sessao.session?.user?.email ?? null);
+      // Falhando, não dá para nomear a conta — e inventar "nenhuma" seria
+      // afirmar que a pessoa não está conectada sem ter conseguido olhar. Fica
+      // `null`, que aqui quer dizer "não sei", e a recusa sai genérica em vez
+      // de errada.
+      const { data: sessao, error: erroSessao } = await supabase.auth.getSession();
+      if (erroSessao) console.error("não consegui ler a sessão atual", erroSessao);
+      if (vivo) setSessaoAtual(erroSessao ? null : sessao.session?.user?.email ?? null);
     }, ESPERA_MS);
 
     return () => {
@@ -130,9 +135,26 @@ export default function RedefinirSenha() {
     }
     // A sessão de recuperação não pode ficar viva na aba depois da troca: ela
     // dá acesso à conta sem que ninguém tenha digitado a senha nova.
-    await supabase.auth.signOut();
+    //
+    // O resultado era descartado, e o comentário acima dizia exatamente o que
+    // estava em jogo quando ele falha. `signOut` devolve `{ error }` — não
+    // lança —, então a falha sumia e a pessoa lia "Senha atualizada" com a
+    // sessão de recuperação de pé na aba. Ler o erro é o mínimo; o resto é
+    // dizer, porque a ação que falta é dela: fechar a aba.
+    const { error: erroSignOut } = await supabase.auth.signOut();
     setSubmitting(false);
-    toast.success("Senha atualizada");
+
+    if (erroSignOut) {
+      toast.warning("Senha atualizada — feche esta aba", {
+        description:
+          "A senha nova já vale. Não consegui encerrar a sessão de recuperação " +
+          "nesta aba, e enquanto ela estiver aberta dá acesso à conta. Feche a " +
+          "aba e entre de novo com a senha nova.",
+        duration: 15_000,
+      });
+    } else {
+      toast.success("Senha atualizada");
+    }
     navigate("/auth/login", { replace: true });
   };
 

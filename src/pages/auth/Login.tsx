@@ -50,7 +50,10 @@ export default function Login() {
   }, [emailValue]);
 
   const redirectAfterLogin = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    // Sem o erro observado, uma falha aqui fazia a pessoa ficar parada na tela
+    // de login depois de ter entrado, sem nada explicando por quê.
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) console.error("falha ao ler o usuário depois do login", error);
     if (!user) return;
     // A regra de destino é uma só, em `homeDoUsuario` — antes existia aqui, no
     // `AuthCallback` e no `ProtectedRoute`, em três versões que discordavam.

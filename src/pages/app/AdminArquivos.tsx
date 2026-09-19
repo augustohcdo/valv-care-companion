@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { aplicar } from "@/lib/mutate";
 import { logAudit } from "@/lib/auditLog";
+import { limparOrfao, removerDoBucket } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -132,8 +133,9 @@ export default function AdminArquivos() {
 
     if (!ok) {
       // Subiu o arquivo e a linha não entrou: sem isto o bucket ficaria com um
-      // objeto que ninguém sabe de onde veio.
-      await supabase.storage.from(BUCKET).remove([caminho]);
+      // objeto que ninguém sabe de onde veio. A limpeza também pode falhar, e
+      // aí quem precisa saber é quem administra.
+      await limparOrfao(BUCKET, caminho);
       return;
     }
 
@@ -164,8 +166,12 @@ export default function AdminArquivos() {
       { sucesso: "Arquivo removido", falha: "Não foi possível remover" },
     );
     if (!ok) return;
-    await supabase.storage.from(BUCKET).remove([arquivo.storage_path]);
-    logAudit("workspace_file_removed", "workspace_files", arquivo.id, { titulo: arquivo.titulo });
+    // O resultado é olhado ANTES do `logAudit`: gravar "removido" sobre um
+    // arquivo que continua no bucket é a trilha afirmando o que não aconteceu.
+    const saiu = await removerDoBucket(BUCKET, [arquivo.storage_path], "Arquivo removido");
+    logAudit("workspace_file_removed", "workspace_files", arquivo.id, {
+      titulo: arquivo.titulo, arquivo_saiu_do_bucket: saiu,
+    });
     recarregar();
   };
 

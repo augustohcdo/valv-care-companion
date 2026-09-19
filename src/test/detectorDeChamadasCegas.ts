@@ -292,7 +292,16 @@ export function encontrarEscritasCegas({ raiz, nomesDoCliente }: Varredura): str
  * e seguia para `return json({ ok: true })`. O resultado descartado ERA o
  * defeito. Aqui, portanto, descartar conta como cegueira.
  */
-export function encontrarAuthCegas({ raiz, nomesDoCliente }: Varredura): string[] {
+/**
+ * O núcleo compartilhado por `encontrarAuthCegas` e `encontrarStorageCegas`.
+ *
+ * As duas famílias diferem só no padrão da chamada; a regra de "quem observou
+ * o erro" é a mesma, e duplicá-la seria garantir que uma das cópias divergisse.
+ */
+function cegasPorPadrao(
+  { raiz, nomesDoCliente }: Varredura,
+  padrao: (nomes: string) => RegExp,
+): string[] {
   const achados: string[] = [];
 
   for (const arquivo of walk(raiz)) {
@@ -304,16 +313,21 @@ export function encontrarAuthCegas({ raiz, nomesDoCliente }: Varredura): string[
     const clientes = nomesDoCliente(texto, rel);
     if (clientes.length === 0) continue;
 
-    const nomes = clientes.map(escapar).join("|");
-    // `cliente.auth.algo(` ou `cliente.auth.admin.algo(`.
-    const ehChamadaDeAuth = new RegExp(`\\b(?:${nomes})\\.auth\\.(?:admin\\.)?\\w+\\s*\\(`);
+    const ehChamada = padrao(clientes.map(escapar).join("|"));
 
     const linhas = texto.split("\n");
     for (let i = 0; i < linhas.length; i++) {
-      if (!ehChamadaDeAuth.test(linhas[i])) continue;
+      if (!ehChamada.test(linhas[i])) continue;
       // Menção em comentário não é chamada. Esta base já pagou por essa
       // confusão mais de uma vez.
       if (/^\s*(\/\/|\*|\/\*)/.test(linhas[i])) continue;
+      // `onAuthStateChange` devolve `{ data: { subscription } }` e **não tem
+      // campo `error`** — conferido na declaração de tipo do `auth-js`, não
+      // deduzido. Cobrar erro de quem não tem erro é reprovar quem fez certo, e
+      // guarda que pune quem fez certo é guarda que alguém desliga. Esta foi a
+      // única exceção que a varredura pediu: duas ocorrências, em `useAuth` e
+      // em `RedefinirSenha`, as duas corretas.
+      if (/\.onAuthStateChange\s*\(/.test(linhas[i])) continue;
 
       let fim = i;
       while (fim < linhas.length - 1 && fim < i + 12 && !/;\s*$/.test(linhas[fim])) fim++;
@@ -322,8 +336,26 @@ export function encontrarAuthCegas({ raiz, nomesDoCliente }: Varredura): string[
       const alvo = padraoDeDestino(contexto);
       const regiao = linhas.slice(i, Math.min(linhas.length, fim + 8)).join("\n");
 
-      // Descartar o resultado É a cegueira aqui — ver o bloco acima.
-      if (!alvo) { achados.push(`${rel}:${i + 1}`); continue; }
+      // Descartar o resultado É a cegueira nestas duas famílias — ver abaixo.
+      //
+      // Com uma ressalva: o resultado também pode chegar pelo PARÂMETRO de um
+      // `.then(({ data, error }) => …)`, e aí não há atribuição para o
+      // `padraoDeDestino` achar. O `useAuth` faz exatamente isso com o
+      // `getSession`, e a primeira versão desta regra o acusou depois de eu já
+      // ter observado o erro lá dentro — reprovando quem tinha acabado de
+      // fazer certo.
+      //
+      // O `[\s\S]*?` e não `[^}]*`: a desestruturação é aninhada
+      // (`({ data: { session }, error })`), e a versão que não atravessava a
+      // chave de dentro seguiu acusando o `useAuth` depois de corrigido.
+      const parametro = /\(\s*(\{[\s\S]*?\})\s*\)\s*=>/.exec(
+        linhas.slice(i, Math.min(linhas.length, fim + 1)).join("\n"),
+      );
+      const observaNoCallback = !!parametro && /\berror\b/.test(parametro[1]);
+      if (!alvo) {
+        if (!observaNoCallback) achados.push(`${rel}:${i + 1}`);
+        continue;
+      }
 
       if (/^\{/.test(alvo) && /\berror\b/.test(alvo)) continue;
       if (/^\[/.test(alvo) && arrayObservaTodosOsErros(alvo)) continue;
@@ -338,4 +370,62 @@ export function encontrarAuthCegas({ raiz, nomesDoCliente }: Varredura): string[
     }
   }
   return achados;
+}
+
+/**
+ * As chamadas à API de `auth` que descartam o erro.
+ *
+ * ## Por que elas precisavam de um detector próprio
+ *
+ * `encontrarCegas` e `encontrarEscritasCegas` só olham statements que contêm
+ * `.select(`, `.rpc(`, `.insert(`, `.update(`, `.upsert(` ou `.delete(` — isto
+ * é, o que passa pelo PostgREST. A API de `auth` não passa: `createUser`,
+ * `updateUserById`, `generateLink`, `listUsers`, `signOut` e `getUser` falam
+ * com o GoTrue por outro caminho. As duas varreduras existentes não podiam
+ * enxergá-las nem em princípio, e por isso a família inteira ficou de fora.
+ *
+ * ## A diferença que faz esta guarda achar o que as outras não achariam
+ *
+ * `encontrarCegas` tem esta linha:
+ *
+ *     if (!alvo) continue; // resultado descartado de propósito (fire-and-forget)
+ *
+ * Para uma LEITURA isso se defende: quem joga o resultado fora não vai agir
+ * sobre ele. Para `auth` não se defende, e o caso concreto prova: o
+ * `account-close` fazia
+ *
+ *     await admin.auth.admin.signOut(token, "global").catch(() => {});
+ *
+ * e seguia para `return json({ ok: true })`. O resultado descartado ERA o
+ * defeito. Aqui, portanto, descartar conta como cegueira.
+ */
+export function encontrarAuthCegas(varredura: Varredura): string[] {
+  return cegasPorPadrao(
+    varredura,
+    // `cliente.auth.algo(` ou `cliente.auth.admin.algo(`.
+    (nomes) => new RegExp(`\\b(?:${nomes})\\.auth\\.(?:admin\\.)?\\w+\\s*\\(`),
+  );
+}
+
+/**
+ * As chamadas à API de `storage` que descartam o erro — a quarta família, e
+ * pelo mesmo motivo estrutural que a de `auth`.
+ *
+ * O Storage também não passa pelo PostgREST: `upload`, `remove`, `download`,
+ * `list` e `createSignedUrl` falam com outro serviço. As duas varreduras de
+ * PostgREST não podiam vê-las, e a de `auth` casa `\.auth\.`, que não é isto.
+ *
+ * Descartar conta como cegueira aqui pela mesma razão, e o caso concreto é o
+ * `remove` que vem logo antes de um `logAudit("…_removed")`: a trilha de
+ * auditoria afirmando que o arquivo saiu do bucket sem ninguém ter olhado se
+ * saiu. Trilha que afirma o que não aconteceu é pior que trilha omissa — quem
+ * for lê-la depois não tem como saber quais linhas valem.
+ */
+export function encontrarStorageCegas(varredura: Varredura): string[] {
+  return cegasPorPadrao(
+    varredura,
+    // `cliente.storage.from(…).algo(` — ou a quebra de linha depois de
+    // `.storage`, que é como metade das chamadas desta base está escrita.
+    (nomes) => new RegExp(`\\b(?:${nomes})\\.storage\\s*$|\\b(?:${nomes})\\.storage\\.`),
+  );
 }

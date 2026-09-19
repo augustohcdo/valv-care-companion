@@ -9,7 +9,11 @@ export default function AuthCallback() {
   const navigate = useNavigate();
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      // Falha de leitura também manda para o login — é a direção segura — mas
+      // sem o `console.error` não sobra nada para quem for investigar por que
+      // um login com Google "não funcionou".
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) console.error("falha ao ler o usuário no retorno do login", error);
       if (!user) return navigate("/auth/login", { replace: true });
       // Este caminho é o do login com Google, e ele ignorava o papel de
       // administrador: quem entrasse por aqui caía na área clínica mesmo sendo

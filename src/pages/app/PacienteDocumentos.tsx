@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePatient } from "@/hooks/usePatient";
 import { logAudit } from "@/lib/auditLog";
+import { removerDoBucket } from "@/lib/storage";
 import { aplicar } from "@/lib/mutate";
 import {
   Upload,
@@ -158,8 +159,12 @@ const PacienteDocumentos = () => {
     if (!ok) return;
     // Documento do paciente é dele, e a LGPD lhe dá o direito de apagar de
     // verdade. Diferente do documento de caso, que é prontuário e fica.
-    await supabase.storage.from("patient-documents").remove([doc.storage_path]);
-    logAudit("patient_document_deleted", "patient_documents", doc.id, { file_name: doc.file_name });
+    // O direito do art. 18 é de apagar de verdade. Anunciar "removido" sem ter
+    // olhado se o arquivo saiu é prometer o direito em vez de cumpri-lo.
+    const saiu = await removerDoBucket("patient-documents", [doc.storage_path], "Documento removido");
+    logAudit("patient_document_deleted", "patient_documents", doc.id, {
+      file_name: doc.file_name, arquivo_saiu_do_bucket: saiu,
+    });
     load();
   };
 

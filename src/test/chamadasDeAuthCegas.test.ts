@@ -84,6 +84,14 @@ const CLIENTE = [
 const FUNCTIONS = "supabase/functions";
 const SRC = "src";
 
+/**
+ * Em `src` ninguém chama `createClient`: todos importam o singleton de
+ * `@/integrations/supabase/client`, sempre com o nome `supabase`. É o mesmo
+ * seletor que o `readErrors.test.ts` usa, e por não tê-lo usado aqui eu
+ * commitei uma varredura de `src` que conferia nada.
+ */
+const CLIENTES_DE_SRC = () => ["supabase"];
+
 describe("chamadas à API de auth que descartam o erro", () => {
   it("nas edge functions: zero", () => {
     const cegas = encontrarAuthCegas({
@@ -104,8 +112,30 @@ describe("chamadas à API de auth que descartam o erro", () => {
   });
 
   it("em src: zero", () => {
-    const cegas = encontrarAuthCegas({ raiz: SRC, nomesDoCliente: clientesCriadosNoArquivo });
+    // `clientesCriadosNoArquivo` procura `createClient` — e em `src` NINGUÉM
+    // cria cliente: todos importam o singleton de
+    // `@/integrations/supabase/client`. Passando aquele seletor aqui, a
+    // varredura não achava cliente em arquivo nenhum, pulava tudo e devolvia
+    // zero. Foi o que eu commitei da primeira vez: um "zero" que era "não
+    // olhei", do mesmo formato que esta sessão inteira persegue, dentro da
+    // guarda contra ele.
+    //
+    // `readErrors.test.ts` já fazia certo: `() => ["supabase"]`. Com o seletor
+    // correto, a mesma varredura acusou NOVE chamadas cegas em `src`.
+    const cegas = encontrarAuthCegas({ raiz: SRC, nomesDoCliente: CLIENTES_DE_SRC });
     expect(cegas, `\n${cegas.map((c) => `  · ${c}`).join("\n")}`).toEqual([]);
+  });
+
+  it("a varredura de src de fato alcança os arquivos", () => {
+    // O sanity check que faltava da primeira vez, e que teria pego o engano na
+    // hora: se o seletor não casar, isto acusa em vez de dar zero satisfeito.
+    const comCliente = walk(SRC)
+      .filter((f) => !/\.test\.tsx?$/.test(f))
+      .filter((f) => /\bsupabase\s*\.\s*auth\b/.test(readFileSync(f, "utf8")));
+    expect(
+      comCliente.length,
+      "nenhum arquivo de src fala com `supabase.auth` — a varredura acima conferiu nada",
+    ).toBeGreaterThanOrEqual(5);
   });
 
   /**

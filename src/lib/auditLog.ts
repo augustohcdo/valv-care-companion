@@ -26,7 +26,18 @@ export async function logAudit(
   metadata?: Record<string, unknown>,
 ): Promise<boolean> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    // Sem observar o erro, uma falha ao ler o usuário fazia esta função voltar
+    // `false` calada — e `false` aqui quer dizer "não gravei". O JSDoc acima
+    // promete que "alguém saiba que o registro não entrou"; a promessa vale
+    // para esta saída também, senão a trilha para de receber linhas e o
+    // sistema segue relatando normalidade, que é o que ela veio impedir.
+    const { data: { user }, error: erroUsuario } = await supabase.auth.getUser();
+    if (erroUsuario) {
+      reportError(
+        new Error(`auditoria não gravada (não li o usuário): ${action} em ${targetTable}: ${erroUsuario.message}`),
+      );
+      return false;
+    }
     if (!user) return false;
 
     const { error } = await supabase.from("audit_logs").insert({

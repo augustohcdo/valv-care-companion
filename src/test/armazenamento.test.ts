@@ -119,8 +119,17 @@ describe("a tela não promete o que a plataforma não dá", () => {
     expect(i, "a função de envio sumiu").toBeGreaterThan(0);
     expect(f).toBeGreaterThan(i);
     const envio = semComentarios.slice(i, f);
+    // As DUAS formas de desfazer valem: o `.remove(` direto e o `limparOrfao(`
+    // de `@/lib/storage`, que faz a mesma coisa e ainda olha o resultado.
+    //
+    // A versão anterior exigia o `.remove(` literal, e quando o desfazer passou
+    // a chamar o helper — melhorando, porque o `remove` cego não dizia a
+    // ninguém que o órfão continuou lá — esta guarda reprovou o código
+    // corrigido. Cobrar o vocabulário em vez da garantia é o erro que esta base
+    // já cometeu meia dúzia de vezes, e ele sempre aparece assim: punindo quem
+    // acabou de fazer melhor.
     expect(envio, "envio sem desfazer: o arquivo ficaria órfão no bucket")
-      .toMatch(/if \(!ok\)[\s\S]{0,200}\.remove\(/);
+      .toMatch(/if \(!ok\)[\s\S]{0,200}(\.remove\(|limparOrfao\()/);
   });
 });
 

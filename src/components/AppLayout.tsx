@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   LayoutDashboard,
   Globe,
@@ -182,7 +183,19 @@ export const AppLayout = () => {
   ];
 
   const handleLogout = async () => {
-    await signOut();
+    const { error } = await signOut();
+    // Navegar para a home com a sessão viva no servidor é a interface dizendo
+    // "você saiu" sobre o que não aconteceu — e numa tela de saúde, num
+    // computador que pode ser compartilhado, a pessoa vai embora acreditando.
+    if (error) {
+      toast.error("Não consegui encerrar sua sessão", {
+        description:
+          `${error.message}. A sessão pode continuar aberta neste navegador — ` +
+          "feche todas as abas e, se for um computador compartilhado, tente de novo.",
+        duration: 12_000,
+      });
+      return;
+    }
     navigate("/", { replace: true });
   };
 

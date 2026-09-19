@@ -26,7 +26,17 @@ interface AuthContextValue {
    */
   profileError: boolean;
   loading: boolean;
-  signOut: () => Promise<void>;
+  /**
+   * Devolve `{ error }` como o SDK, em vez de `void`.
+   *
+   * Era `Promise<void>` sobre um `await supabase.auth.signOut()` com o
+   * resultado descartado — e `signOut` devolve `{ error }` em vez de lançar.
+   * Falhando, o `AppLayout` limpava o estado local e navegava para a home: a
+   * pessoa lia que saiu com a sessão de pé no servidor. O `SecurityCenter` já
+   * tinha aprendido isso no "sair de todos os dispositivos", com o comentário
+   * escrito lá; o botão "Sair" comum ficou de fora.
+   */
+  signOut: () => Promise<{ error: { message: string } | null }>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -71,7 +81,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     // 2) Sessão existente
-    supabase.auth.getSession().then(({ data: { session: existing } }) => {
+    supabase.auth.getSession().then(({ data: { session: existing }, error }) => {
+      // "Não consegui ler a sessão" e "não há sessão" são estados diferentes, e
+      // tratá-los igual manda para o login quem estava logado. O erro é raro
+      // aqui (a sessão vem do armazenamento local), mas descartá-lo é a mesma
+      // confusão que esta base já fechou nos hooks de registro clínico.
+      if (error) console.error("falha ao ler a sessão", error);
       setSession(existing);
       setUser(existing?.user ?? null);
       if (existing?.user) {
@@ -85,8 +100,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    // O estado local é limpo dos dois jeitos: manter a interface dizendo
+    // "logado" sobre uma sessão que já pode ter caído no servidor não ajuda
+    // ninguém. Quem decide o que dizer é quem chamou — com o erro na mão.
     setProfile(null);
+    return { error: error ? { message: error.message } : null };
   };
 
   const refreshProfile = async () => {

@@ -273,12 +273,18 @@ Deno.serve(async (req) => {
     error: failed.length ? failed.map((r) => r.error).join("; ") : null,
     triggeredBy,
   });
-  await supabase.storage
+  // O manifesto é o que diz a uma restauração futura o que deveria estar ali.
+  // Subindo-o sem olhar o resultado, um backup sem manifesto era relatado igual
+  // a um com — e a diferença só apareceria na hora de restaurar.
+  const { error: erroManifesto } = await supabase.storage
     .from(BUCKET)
     .upload(`exports/${stamp}/_manifest.json`, new TextEncoder().encode(JSON.stringify(manifest, null, 2)), {
       contentType: "application/json",
       upsert: true,
     });
+  if (erroManifesto) {
+    console.error("manifesto do export não subiu", erroManifesto.message);
+  }
 
   // Retenção. O bucket acumulava uma pasta por execução, para sempre: 102
   // objetos já estavam lá quando isto foi escrito, e cada pasta cresce junto
@@ -288,28 +294,56 @@ Deno.serve(async (req) => {
   // sem nenhuma falha de tabela, e nunca toca nas mais recentes. Uma rotação
   // que apaga backup bom porque o export do dia quebrou é pior que não ter
   // rotação nenhuma.
+  //
+  // As três chamadas de storage aqui descartavam o resultado, e a lista
+  // `removidas` era alimentada INCONDICIONALMENTE — a resposta afirmava ter
+  // apagado pastas sem ninguém ter olhado se apagou. Pior: a listagem falhando
+  // devolve `data: null`, que virava "não há pasta antiga", e a rotação
+  // relatava calmaria sobre o que não conseguiu ler.
   const removidas: string[] = [];
+  const naoRemovidas: string[] = [];
   if (failed.length === 0) {
     try {
-      const { data: pastas } = await supabase.storage.from(BUCKET).list("exports", { limit: 1000 });
+      const { data: pastas, error: erroLista } = await supabase.storage
+        .from(BUCKET).list("exports", { limit: 1000 });
+      if (erroLista) {
+        // Não dá para dizer "nada a rotacionar" sobre uma lista que não foi
+        // lida. Sem esta saída, a falha virava silêncio.
+        throw new Error(`não consegui listar as pastas de export: ${erroLista.message}`);
+      }
       const datas = (pastas ?? [])
         .map((p) => p.name)
         .filter((n) => /^\d{4}-\d{2}-\d{2}$/.test(n))
         .sort()
         .reverse();
       for (const antiga of datas.slice(MANTER_EXPORTS)) {
-        const { data: arquivos } = await supabase.storage.from(BUCKET).list(`exports/${antiga}`, { limit: 1000 });
+        const { data: arquivos, error: erroArquivos } = await supabase.storage
+          .from(BUCKET).list(`exports/${antiga}`, { limit: 1000 });
+        if (erroArquivos) { naoRemovidas.push(`${antiga} (não listei: ${erroArquivos.message})`); continue; }
         const caminhos = (arquivos ?? []).map((a) => `exports/${antiga}/${a.name}`);
-        if (caminhos.length) await supabase.storage.from(BUCKET).remove(caminhos);
+        if (caminhos.length) {
+          const { error: erroRemove } = await supabase.storage.from(BUCKET).remove(caminhos);
+          if (erroRemove) { naoRemovidas.push(`${antiga} (${erroRemove.message})`); continue; }
+        }
         removidas.push(antiga);
       }
     } catch (e) {
-      // Falhar ao limpar não pode manchar um backup que deu certo.
-      console.error("retenção do export falhou", e);
+      // Falhar ao limpar não pode manchar um backup que deu certo — mas
+      // também não pode sumir: o bucket cresce sem fim e ninguém fica sabendo.
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("retenção do export falhou", msg);
+      naoRemovidas.push(`rotação interrompida: ${msg}`);
     }
   }
 
-  return new Response(JSON.stringify({ ...manifest, retencao_removidas: removidas }), {
+  return new Response(JSON.stringify({
+    ...manifest,
+    retencao_removidas: removidas,
+    // Separado de propósito: "apaguei" e "tentei e não consegui" não podem
+    // chegar a quem lê como a mesma coisa.
+    retencao_nao_removidas: naoRemovidas,
+    manifesto_gravado: !erroManifesto,
+  }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
   } catch (e) {

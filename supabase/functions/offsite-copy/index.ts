@@ -119,11 +119,28 @@ Deno.serve(async (req) => {
       falhas,
     };
     const manifestoBytes = new TextEncoder().encode(JSON.stringify(manifesto, null, 2));
-    await enviarObjeto(cfg, `exports/${stamp}/_offsite_manifest.json`, manifestoBytes, "application/json");
-    await supabase.storage.from(BUCKET).upload(
+    // O manifesto é o que uma restauração usa para saber, SEM o Supabase, se o
+    // que baixou está inteiro — e no cenário que justifica esta função inteira,
+    // o Supabase é justamente o que não existe mais. As duas gravações dele
+    // eram descartadas: uma cópia externa sem manifesto era relatada igual a
+    // uma com, e a diferença só apareceria na hora de restaurar.
+    let manifestoFora = true;
+    let manifestoAqui = true;
+    try {
+      await enviarObjeto(cfg, `exports/${stamp}/_offsite_manifest.json`, manifestoBytes, "application/json");
+    } catch (e) {
+      manifestoFora = false;
+      falhas["_offsite_manifest.json (destino externo)"] =
+        e instanceof Error ? e.message : String(e);
+    }
+    const { error: erroManifesto } = await supabase.storage.from(BUCKET).upload(
       `exports/${stamp}/_offsite_manifest.json`, manifestoBytes,
       { contentType: "application/json", upsert: true },
     );
+    if (erroManifesto) {
+      manifestoAqui = false;
+      console.error("manifesto da cópia externa não subiu ao bucket", erroManifesto.message);
+    }
 
     const nFalhas = Object.keys(falhas).length;
     const ok = nFalhas === 0;
@@ -132,7 +149,7 @@ Deno.serve(async (req) => {
       job: JOB, startedAt, ok,
       itemsOk: Object.keys(conferidos).length,
       itemsFailed: nFalhas,
-      details: { stamp, destino: cfg.bucket },
+      details: { stamp, destino: cfg.bucket, manifesto_fora: manifestoFora, manifesto_aqui: manifestoAqui },
       error: ok ? null : `${nFalhas} arquivo(s) não copiados: ${Object.keys(falhas).join(", ")}`,
       triggeredBy,
     });

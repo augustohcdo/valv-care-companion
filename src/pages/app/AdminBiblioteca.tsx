@@ -8,6 +8,7 @@ import { extrairTexto } from "@/lib/pdfTexto";
 import { useAuth } from "@/hooks/useAuth";
 import { aplicar } from "@/lib/mutate";
 import { logAudit } from "@/lib/auditLog";
+import { limparOrfao, removerDoBucket } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -130,8 +131,9 @@ export default function AdminBiblioteca() {
 
     if (!ok) {
       // O arquivo subiu e a linha não: sem isto o bucket ficaria com um PDF que
-      // ninguém sabe de onde veio.
-      await supabase.storage.from(BUCKET).remove([caminho]);
+      // ninguém sabe de onde veio. A faxina também pode falhar — e aí quem
+      // precisa saber é quem administra, não quem só quis enviar um arquivo.
+      await limparOrfao(BUCKET, caminho);
       return;
     }
 
@@ -228,7 +230,7 @@ export default function AdminBiblioteca() {
     );
     setEnviando(false);
     if (!ok) {
-      await supabase.storage.from(BUCKET).remove([caminho]);
+      await limparOrfao(BUCKET, caminho);
       return;
     }
 
@@ -260,8 +262,12 @@ export default function AdminBiblioteca() {
       { sucesso: "Obra removida", falha: "Não foi possível remover" },
     );
     if (!ok) return;
-    await supabase.storage.from(BUCKET).remove([obra.storage_path]);
-    logAudit("reference_work_removed", "reference_works", obra.id, { title: obra.title });
+    // Olhado antes do `logAudit`: "obra removida" na trilha sobre um PDF que
+    // continua no bucket é a trilha afirmando o que não aconteceu.
+    const saiu = await removerDoBucket(BUCKET, [obra.storage_path], "Obra removida");
+    logAudit("reference_work_removed", "reference_works", obra.id, {
+      title: obra.title, arquivo_saiu_do_bucket: saiu,
+    });
     recarregar();
   };
 
