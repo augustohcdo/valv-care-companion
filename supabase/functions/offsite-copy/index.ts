@@ -145,35 +145,66 @@ Deno.serve(async (req) => {
     const nFalhas = Object.keys(falhas).length;
     const ok = nFalhas === 0;
 
-    await recordJobRun({
-      job: JOB, startedAt, ok,
-      itemsOk: Object.keys(conferidos).length,
-      itemsFailed: nFalhas,
-      details: { stamp, destino: cfg.bucket, manifesto_fora: manifestoFora, manifesto_aqui: manifestoAqui },
-      error: ok ? null : `${nFalhas} arquivo(s) não copiados: ${Object.keys(falhas).join(", ")}`,
-      triggeredBy,
-    });
-
-    // Falha aqui é falha da segunda camada de segurança — precisa gritar, não
-    // esperar alguém abrir o painel.
+    // O alerta ANTES do `recordJobRun`, e com o resultado guardado.
+    //
+    // Era depois, e descartado. O comentário dele diz "precisa gritar, não
+    // esperar alguém abrir o painel" — e ninguém conferia se o grito saiu.
+    // `sendAlert` devolve `{ sent: false, reason: "not_configured" }` quando
+    // não há `ALERT_EMAIL_TO`: a cópia externa do backup podia falhar toda
+    // semana em silêncio, com o registro dizendo que a falha foi "alertada".
+    //
+    // Mandando antes, o `job_runs` carrega se o aviso saiu — que é onde quem
+    // investiga vai olhar. É o mesmo desenho do `job-watchdog`, que já fazia
+    // assim, e a cópia externa é a camada que sobra quando o resto se perdeu.
+    let alerta: { sent: boolean; reason?: string } = { sent: false, reason: "sem_falha" };
     if (!ok) {
-      await sendAlert({
+      alerta = await sendAlert({
         subject: `[ValvePath] cópia externa do backup falhou (${nFalhas} arquivo(s))`,
         body:
           `Pasta: exports/${stamp}\nDestino: ${cfg.bucket}\n\n` +
           Object.entries(falhas).map(([a, m]) => `• ${a}: ${m}`).join("\n"),
       });
+      if (!alerta.sent) {
+        console.error(`alerta da cópia externa NÃO saiu: ${alerta.reason ?? "sem motivo"}`);
+      }
     }
 
-    return json({ ok, stamp, copiados: Object.keys(conferidos).length, falhas });
+    await recordJobRun({
+      job: JOB, startedAt, ok,
+      itemsOk: Object.keys(conferidos).length,
+      itemsFailed: nFalhas,
+      details: {
+        stamp, destino: cfg.bucket,
+        manifesto_fora: manifestoFora, manifesto_aqui: manifestoAqui,
+        alerta_enviado: alerta.sent, alerta_motivo: alerta.reason ?? null,
+      },
+      error: ok ? null : `${nFalhas} arquivo(s) não copiados: ${Object.keys(falhas).join(", ")}`,
+      triggeredBy,
+    });
+
+    return json({
+      ok, stamp, copiados: Object.keys(conferidos).length, falhas,
+      // Quem chama à mão precisa saber se o grito saiu. "Falhou e avisei" e
+      // "falhou e ninguém soube" não podem chegar como a mesma resposta.
+      alerta_enviado: alerta.sent,
+      alerta_motivo: alerta.reason ?? null,
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     await logError({ source: "edge_function", context: JOB, message });
     await recordJobRun({ job: JOB, startedAt, ok: false, error: message, triggeredBy });
-    await sendAlert({
+    // Também olhado: é o caminho da falha inesperada, onde o aviso importa mais.
+    const alertaDoErro = await sendAlert({
       subject: "[ValvePath] cópia externa do backup falhou",
       body: message,
     });
-    return json({ error: "internal_error", detail: message }, 500);
+    if (!alertaDoErro.sent) {
+      console.error(`alerta do erro da cópia externa NÃO saiu: ${alertaDoErro.reason ?? "sem motivo"}`);
+    }
+    return json({
+      error: "internal_error", detail: message,
+      alerta_enviado: alertaDoErro.sent,
+      alerta_motivo: alertaDoErro.reason ?? null,
+    }, 500);
   }
 });

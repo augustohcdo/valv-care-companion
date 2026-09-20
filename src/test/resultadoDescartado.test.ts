@@ -1,8 +1,9 @@
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync, statSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { chamadasDescartadas, totalDeChamadas, varrerFontes } from "./resultadoDescartado";
 
 /**
  * Nenhum `fetch` tem o resultado inteiramente descartado.
@@ -54,130 +55,35 @@ import { tmpdir } from "node:os";
  */
 
 const RAIZES = ["supabase/functions", "scripts", "src"];
-const IGNORAR = new Set(["node_modules", "dist", "coverage", ".git"]);
-
-function varrer(dir: string, out: string[] = []): string[] {
-  for (const nome of readdirSync(dir)) {
-    if (IGNORAR.has(nome)) continue;
-    const full = join(dir, nome);
-    if (statSync(full).isDirectory()) varrer(full, out);
-    else if (/\.(ts|tsx|mjs)$/.test(nome) && !/\.test\.tsx?$/.test(nome)) {
-      out.push(full.replace(/\\/g, "/"));
-    }
-  }
-  return out;
-}
 
 /**
- * Tira comentários preservando as LINHAS.
+ * As chamadas em que descartar o resultado é defeito, e o motivo de cada uma.
  *
- * Trocar um bloco de comentário por vazio faz tudo abaixo subir, e a guarda
- * passa a apontar uma linha que não é a do defeito. Já aconteceu nesta sessão:
- * a inversão dizia 150 com o defeito na 158. Por isso cada bloco vira o mesmo
- * número de quebras de linha que ocupava.
+ * A lista é curta de propósito: são as funções que dizem "fiz o trabalho lá
+ * fora" e cujo retorno é a ÚNICA forma de saber se fizeram.
  */
-export function semComentarios(texto: string): string {
-  return texto
-    .replace(/\/\*[\s\S]*?\*\//g, (bloco) => "\n".repeat((bloco.match(/\n/g) ?? []).length))
-    .replace(/(^|[^:])\/\/.*$/gm, "$1");
-}
+const OBRIGATORIAS: Record<string, string> = {
+  fetch:
+    "não tem `error`: resolve normalmente com um 500 e só rejeita se a conexão falhar",
+  sendEmail:
+    "devolve `{ sent, reason }` e nunca lança — um e-mail que não saiu é indistinguível de um que saiu",
+  sendAlert:
+    "o mesmo, e é o grito que avisa que a camada de baixo falhou",
+};
+const NOMES = Object.keys(OBRIGATORIAS);
 
-export interface ChamadaDeFetch {
-  linha: number;
-  /** O resultado é jogado fora por inteiro? */
-  descartado: boolean;
-}
+describe("nenhuma chamada joga o resultado fora", () => {
+  const arquivos = RAIZES.flatMap((r) => varrerFontes(r));
 
-/** Aceita a dispensa declarada: `// resultado descartado: <motivo>`. */
-const DISPENSA = /\/\/\s*resultado descartado:/;
-
-/**
- * Um `fetch` cujo resultado é jogado fora por inteiro.
- *
- * ## Por que a regra é esta, e não "confere o `r.ok`"
- *
- * A primeira versão procurava `const r = await fetch(` e depois exigia um uso
- * de `r`. Ela deu **cinco falsos vermelhos**, cada um por um buraco diferente,
- * e os cinco eram código correto:
- *
- *   · `const r = await cliente(cfg).fetch(url, …)` — o `fetch` do cliente
- *     assinado do S3. Minha exclusão de `algo.fetch(` exigia letra ou ponto
- *     antes do ponto, e ali vem `)`;
- *   · `const [a, b] = await Promise.all([fetch(x), fetch(y)])` — o destino
- *     está na linha de CIMA, e as chamadas ficam dentro de um array;
- *   · `resposta = await fetch(…)` sobre um `let resposta;` declarado antes —
- *     sem `const|let|var` na linha da chamada.
- *
- * Três formas legítimas que o detector não conhecia. Perseguir o destino da
- * variável é perseguir sintaxe; o que interessa é mais simples e não tem essas
- * bordas: **alguém recebe o resultado, ou ninguém recebe?** Um `fetch` cujo
- * statement começa com `await fetch(` e termina sem ninguém pegar nada é o
- * defeito; qualquer atribuição, `return`, encadeamento ou posição dentro de
- * uma expressão já significa que o resultado foi para algum lugar.
- *
- * Perde-se com isso o caso "recebeu e não olhou" — e está certo perder: era
- * justamente ele que produzia os cinco falsos vermelhos, porque "olhar" tem
- * formas demais (`r.ok`, `r.status`, um campo obrigatório do corpo). Guarda
- * que pune quem fez certo é guarda que alguém desliga.
- */
-export function chamadasDeFetch(original: string): ChamadaDeFetch[] {
-  const limpo = semComentarios(original).split("\n");
-  const cru = original.split("\n");
-  const achadas: ChamadaDeFetch[] = [];
-
-  for (let i = 0; i < limpo.length; i++) {
-    // Início de statement: só espaços, ou depois de `{`, `try {`, `else {`.
-    const inicio = limpo[i].replace(/^\s*(?:\}?\s*(?:try|else|do)?\s*\{)?\s*/, "");
-    if (!/^(?:await\s+)?fetch\s*\(/.test(inicio)) continue;
-
-    // ...MAS uma linha que é ELEMENTO de uma lista não é statement. As duas
-    // chamadas do `pesquisaExterna` ficam dentro de um `Promise.all([`, cada
-    // uma na sua linha, e o destino está na linha de cima:
-    //
-    //     const [resumoResp, textoResp] = await Promise.all([
-    //       fetch(`${EUTILS}/esummary.fcgi…`, { headers }),
-    //       fetch(`${EUTILS}/efetch.fcgi…`,  { headers }),
-    //     ]);
-    //
-    // A linha anterior terminando em `[`, `(`, `,` ou operador diz que a
-    // expressão continua — o resultado vai para algum lugar.
-    let anterior = i - 1;
-    while (anterior >= 0 && limpo[anterior].trim() === "") anterior--;
-    if (anterior >= 0 && /[[(,=?:]|&&|\|\||=>\s*$/.test(limpo[anterior].trimEnd().slice(-2))) {
-      continue;
-    }
-
-    if (DISPENSA.test(cru[i] ?? "") || DISPENSA.test(cru[i - 1] ?? "")) continue;
-
-    // Encadeou ali mesmo (`fetch(x).then(…)`) — o resultado foi usado.
-    const statement = limpo.slice(i, Math.min(limpo.length, i + 6)).join("\n");
-    const encadeou = /\)\s*\.\s*(then|catch|finally|json|text|ok|status|arrayBuffer|blob)\b/
-      .test(statement);
-
-    achadas.push({ linha: i + 1, descartado: !encadeou });
-  }
-  return achadas;
-}
-
-/** Toda chamada a `fetch`, para o sanity check da varredura. */
-export function totalDeFetches(original: string): number {
-  return semComentarios(original)
-    .split("\n")
-    .filter((l) => /\bfetch\s*\(/.test(l)).length;
-}
-
-describe("todo fetch tem o resultado olhado", () => {
-  const arquivos = RAIZES.flatMap((r) => varrer(r));
-
-  it("nenhuma chamada descarta o `Response` inteiro", () => {
+  it("nenhuma chamada descarta o resultado inteiro", () => {
     const ruins: string[] = [];
     let total = 0;
 
     for (const arquivo of arquivos) {
       const original = readFileSync(arquivo, "utf8");
-      total += totalDeFetches(original);
-      for (const c of chamadasDeFetch(original)) {
-        if (c.descartado) ruins.push(`  · ${arquivo}:${c.linha}`);
+      total += totalDeChamadas(original, NOMES);
+      for (const c of chamadasDescartadas(original, NOMES)) {
+        ruins.push(`  · ${arquivo}:${c.linha} — \`${c.nome}\`: ${OBRIGATORIAS[c.nome]}`);
       }
     }
 
@@ -197,13 +103,32 @@ describe("todo fetch tem o resultado olhado", () => {
     ).toEqual([]);
   });
 
+  it("cada nome da lista é de fato exercido pela varredura", () => {
+    // Uma lista ampliada que nunca casa passa sobre nada — e "passou" é
+    // exatamente o que esta sessão inteira desconfia. Se alguém acrescentar um
+    // nome aqui e a base não tiver chamada nenhuma a ele, isto acusa em vez de
+    // ficar verde por vacuidade.
+    const contagem: Record<string, number> = Object.fromEntries(NOMES.map((n) => [n, 0]));
+    for (const arquivo of arquivos) {
+      const texto = readFileSync(arquivo, "utf8");
+      for (const nome of NOMES) contagem[nome] += totalDeChamadas(texto, [nome]);
+    }
+    const semNenhuma = NOMES.filter((n) => contagem[n] === 0);
+    expect(
+      semNenhuma,
+      `\nNomes cobrados sem nenhuma chamada na base: ${semNenhuma.join(", ")}.\n` +
+        "Ou a função sumiu (e o nome sai da lista), ou o detector parou de casar.\n" +
+        `Contagem: ${JSON.stringify(contagem)}`,
+    ).toEqual([]);
+  });
+
   /** As contraprovas, em arquivo, porque é assim que o detector é usado. */
   const varrerFixture = (linhas: string[]) => {
     const dir = mkdtempSync(join(tmpdir(), "fetchok-"));
     try {
       const caminho = join(dir, "x.mjs");
       writeFileSync(caminho, linhas.join("\n"));
-      return chamadasDeFetch(readFileSync(caminho, "utf8"));
+      return chamadasDescartadas(readFileSync(caminho, "utf8"), NOMES);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -214,8 +139,7 @@ describe("todo fetch tem o resultado olhado", () => {
       "await fetch(`${BASE}/rest/v1/catalogo?id=eq.1`, { method: 'PATCH', body: corpo });",
       "console.log('+ Inovare Alpha: foto e página do fabricante');",
     ]);
-    expect(c.length).toBe(1);
-    expect(c[0].descartado, "não viu o `fetch` descartado").toBe(true);
+    expect(c.length, "não viu o `fetch` descartado").toBe(1);
   });
 
   it("aprova quem confere o `r.ok`", () => {
