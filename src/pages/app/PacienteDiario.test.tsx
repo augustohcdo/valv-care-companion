@@ -6,13 +6,27 @@ import type { ReactNode } from "react";
 
 const PATIENT = { id: "p1", user_id: "u1", linked_doctor_id: null, deleted_at: null };
 
+/**
+ * Datas relativas a HOJE, não fixas.
+ *
+ * Com `entry_date: "2026-07-30"` cravado, o teste seguiria verde para sempre
+ * — o mock ignora filtros —, mas o registro sairia da janela de 60 dias em
+ * produção sem nada acusar. Fixture que envelhece é guarda que expira sozinha.
+ */
+const diasAtras = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+};
+
 const ENTRIES = [
-  { id: "s1", patient_id: "p1", entry_date: "2026-07-30", dyspnea: 8, fatigue: 4, chest_pain: 2, palpitations: 0, edema: true, syncope: false, orthopnea: false, weight_kg: 72, bp_systolic: 130, bp_diastolic: 80, notes: "Cansaço ao subir escada", deleted_at: null },
+  { id: "s1", patient_id: "p1", entry_date: diasAtras(3), dyspnea: 8, fatigue: 4, chest_pain: 2, palpitations: 0, edema: true, syncope: false, orthopnea: false, weight_kg: 72, bp_systolic: 130, bp_diastolic: 80, notes: "Cansaço ao subir escada", deleted_at: null },
 ];
 
 let patientRow: any = PATIENT;
 let entries: any[] = [...ENTRIES];
 const upsertSpy = vi.fn();
+const gteSpy = vi.fn();
 const updateSpy = vi.fn();
 
 
@@ -38,6 +52,12 @@ vi.mock("@/integrations/supabase/client", () => ({
         const chain: any = {
           is: () => chain,
           eq: () => chain,
+          // O `gte` existe porque a consulta real filtra por DATA: a tela diz
+          // "Registros (60 dias)" e antes buscava as 60 últimas LINHAS. Sem
+          // este elo o encadeamento quebra — mock que não modela o cliente
+          // real reprova o código certo, que é o erro que as catorze cópias do
+          // `escrita()` ensinaram nesta mesma base.
+          gte: (coluna: string, valor: string) => { gteSpy(coluna, valor); return chain; },
           order: () => chain,
           limit: () => Promise.resolve({ data: entries, error: null }),
           maybeSingle: () => Promise.resolve({ data: patientRow, error: null }),
@@ -152,6 +172,54 @@ describe("PacienteDiario", () => {
     expect(values.deleted_at).toBeNull();
     expect(values.patient_id).toBe("p1");
     expect(opts).toEqual({ onConflict: "patient_id,entry_date" });
+  });
+
+  it("a janela é de DIAS, não de linhas — o rótulo da tela e a consulta concordam", async () => {
+    /**
+     * O defeito que este teste impede de voltar.
+     *
+     * A consulta era `.limit(60)` **sem filtro de data nenhum**, e os três
+     * números da tela falavam em dias:
+     *
+     *   · "Registros (60 dias)" — eram as 60 últimas LINHAS;
+     *   · "Média de dispneia (7d)" — era `items.slice(0, 7)`, as 7 últimas
+     *     LINHAS. Quem registrasse sete vezes em dois dias via uma "média de
+     *     7 dias" calculada sobre dois. Em valvopatia, sintomático ×
+     *     assintomático decide intervenção: um número de sintoma que significa
+     *     outra coisa que a legenda diz é pior do que número nenhum;
+     *   · e o gráfico monta uma grade de 30 dias procurando em `items` — com a
+     *     lista cortada por linhas, ele perdia dias em silêncio.
+     */
+    render(<PacienteDiario />, { wrapper });
+    await waitFor(() => expect(gteSpy).toHaveBeenCalled());
+
+    const [coluna, valor] = gteSpy.mock.calls[0];
+    expect(coluna, "o filtro precisa ser sobre a data do registro").toBe("entry_date");
+
+    const limite = new Date(`${valor}T00:00:00`);
+    const dias = Math.round((Date.now() - limite.getTime()) / 86_400_000);
+    expect(
+      dias,
+      `a consulta pediu a partir de ${valor}, que são ${dias} dias — a tela diz 60`,
+    ).toBeGreaterThanOrEqual(59);
+    expect(dias).toBeLessThanOrEqual(61);
+  });
+
+  it("a média de 7 dias cobre 7 dias, mesmo com vários registros no mesmo dia", async () => {
+    // Oito registros em dois dias. Pela contagem de LINHAS, a "média de 7d"
+    // sairia sobre os sete primeiros — todos de dois dias. Pela janela de
+    // DATA, os oito entram, porque todos estão dentro dos últimos sete dias.
+    entries = [
+      ...Array.from({ length: 4 }, (_, i) => ({
+        ...ENTRIES[0], id: `hoje${i}`, entry_date: diasAtras(0), dyspnea: 10,
+      })),
+      ...Array.from({ length: 4 }, (_, i) => ({
+        ...ENTRIES[0], id: `ontem${i}`, entry_date: diasAtras(1), dyspnea: 2,
+      })),
+    ];
+    render(<PacienteDiario />, { wrapper });
+    // (10×4 + 2×4) / 8 = 6.0 — pelas sete primeiras linhas daria 8.9.
+    await waitFor(() => expect(screen.getByText("6.0")).toBeInTheDocument());
   });
 
   it("a chave da query inclui o id do paciente, para não vazar cache entre contas", () => {

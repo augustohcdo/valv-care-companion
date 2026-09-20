@@ -115,6 +115,16 @@ Deno.serve(async (req) => {
   const falhas: string[] = [];
 
   /**
+   * Quantas Observations cabem numa resposta.
+   *
+   * O número não mudou (era um `30` solto no meio da consulta); o que mudou é
+   * que agora ele tem nome e o corte é DITO na resposta. Ver o bloco do
+   * `Bundle.total` lá embaixo.
+   */
+  const TETO_OBSERVATIONS = 30;
+  let observationsTruncado = false;
+
+  /**
    * O `patients.id` do titular, lido UMA vez.
    *
    * Antes esta mesma consulta aparecia três vezes, e uma delas com o pior
@@ -177,7 +187,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Observations ← symptom_entries (últimos 30)
+  // Observations ← symptom_entries (as mais recentes, até o teto)
   if (allowed.includes("Observation")) {
     if (pacienteId) {
       const { data: syms, error: erroSintomas } = await admin
@@ -186,8 +196,11 @@ Deno.serve(async (req) => {
         .eq("patient_id", pacienteId)
         .is("deleted_at", null)
         .order("entry_date", { ascending: false })
-        .limit(30);
+        .limit(TETO_OBSERVATIONS);
       if (erroSintomas) falhas.push(`symptom_entries: ${erroSintomas.message}`);
+      // Bateu o teto: o bundle está cortado, e o `total` precisa dizer a
+      // verdade sobre isso (ver abaixo).
+      if ((syms?.length ?? 0) >= TETO_OBSERVATIONS) observationsTruncado = true;
       for (const s of syms ?? []) {
         entries.push({
           resource: {
@@ -260,13 +273,41 @@ Deno.serve(async (req) => {
     }, 503);
   }
 
-  const bundle = {
+  // `Bundle.total`, e por que ele NÃO é `entries.length`.
+  //
+  // Na especificação FHIR, `total` é "the total number of matching resources,
+  // **irrespective of how many are in the bundle**". Preenchendo-o com o
+  // tamanho da página, um hospital que integra lê 30 e conclui que o paciente
+  // tem 30 observações — quando pode ter trezentas. É um número que parece
+  // contagem e é tamanho de recorte, exatamente no campo que a especificação
+  // reservou para não deixar isso acontecer.
+  //
+  // Sem paginação implementada, a resposta honesta é **omitir o `total`**: a
+  // própria especificação o marca como opcional justamente porque nem todo
+  // servidor sabe contar o conjunto inteiro. Omitir diz "não sei"; um número
+  // errado diz outra coisa. E o `entry.length` continua ali, para quem quiser
+  // saber quantos vieram nesta resposta.
+  const bundle: Record<string, unknown> = {
     resourceType: "Bundle",
     type: "searchset",
     timestamp: new Date().toISOString(),
-    total: entries.length,
     entry: entries,
   };
+  if (!observationsTruncado) {
+    // Nada foi cortado: aqui `total` é de fato o total, e informá-lo ajuda.
+    bundle.total = entries.length;
+  } else {
+    // Cortado: o consumidor precisa saber, e num campo que ele não confunda
+    // com `total`.
+    bundle.meta = {
+      ...(typeof bundle.meta === "object" && bundle.meta ? bundle.meta : {}),
+      tag: [{
+        system: "https://valvepath.com.br/fhir/tag",
+        code: "partial-result",
+        display: `Observations limitadas às ${TETO_OBSERVATIONS} mais recentes; total desconhecido`,
+      }],
+    };
+  }
 
   // O registro do que SAIU para o hospital. É a contraparte da trilha de
   // integração: sem ele, o bundle foi entregue e não existe prova de que foi.

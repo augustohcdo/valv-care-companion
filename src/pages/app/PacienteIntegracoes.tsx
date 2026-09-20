@@ -12,6 +12,15 @@ import { Hospital, Check, X, Copy, ShieldOff, Loader2, FileText } from "lucide-r
 
 export const patientIntegrationsKey = (userId?: string) => ["patient-integrations", userId] as const;
 
+/**
+ * Quantos itens recebidos a aba mostra.
+ *
+ * O contador dizia "Dados recebidos (50)" sobre um `.limit(50)`: com
+ * exatamente cinquenta, o paciente lia como "foi só isso que mandaram sobre
+ * mim". Uma linha a mais na consulta é o que permite escrever "50+".
+ */
+const TETO_RECEBIDOS = 50;
+
 export default function PacienteIntegracoes() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -24,7 +33,7 @@ export default function PacienteIntegracoes() {
       const [r, g, i] = await Promise.all([
         supabase.from("data_access_requests").select("*, hospitals(trade_name, legal_name)").eq("patient_id", user!.id).order("created_at", { ascending: false }),
         supabase.from("data_access_grants").select("*, hospitals(trade_name, legal_name)").eq("patient_id", user!.id).order("granted_at", { ascending: false }),
-        supabase.from("fhir_resources_inbound").select("*, hospitals(trade_name, legal_name)").eq("patient_id", user!.id).order("received_at", { ascending: false }).limit(50),
+        supabase.from("fhir_resources_inbound").select("*, hospitals(trade_name, legal_name)").eq("patient_id", user!.id).order("received_at", { ascending: false }).limit(TETO_RECEBIDOS + 1),
       ]);
       // O erro NÃO pode virar lista vazia aqui. Esta tela é onde o paciente
       // confere quem tem acesso ao prontuário dele: `grants: g ?? []` fazia a
@@ -33,7 +42,16 @@ export default function PacienteIntegracoes() {
       // defeito de interface — a tela promete "você decide quem acessa".
       const erro = r.error ?? g.error ?? i.error;
       if (erro) throw erro;
-      return { requests: r.data ?? [], grants: g.data ?? [], inbound: i.data ?? [] };
+      // Os pedidos e as concessões vêm sem teto: os contadores das abas deles
+      // são totais de verdade. O `inbound` tem teto, e por isso pede uma linha
+      // a mais — só para a aba poder dizer "50+" em vez de "50", que o
+      // paciente leria como "foi só isso que mandaram sobre mim".
+      const recebidos = i.data ?? [];
+      return {
+        requests: r.data ?? [], grants: g.data ?? [],
+        inbound: recebidos.slice(0, TETO_RECEBIDOS),
+        recebidosCortado: recebidos.length > TETO_RECEBIDOS,
+      };
     },
     enabled: !!user,
   });
@@ -41,6 +59,7 @@ export default function PacienteIntegracoes() {
   const requests = data?.requests ?? [];
   const grants = data?.grants ?? [];
   const inbound = data?.inbound ?? [];
+  const recebidosCortado = data?.recebidosCortado ?? false;
 
   const reload = () => queryClient.invalidateQueries({ queryKey: patientIntegrationsKey(user?.id) });
 
@@ -130,7 +149,7 @@ export default function PacienteIntegracoes() {
           <TabsTrigger value="pendentes">Pedidos pendentes {pending.length > 0 && <Badge className="ml-2" variant="destructive">{pending.length}</Badge>}</TabsTrigger>
           <TabsTrigger value="ativos">Acessos ativos ({grants.filter(g => !g.revoked_at).length})</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
-          <TabsTrigger value="recebidos"><FileText className="h-4 w-4 mr-2" />Dados recebidos ({inbound.length})</TabsTrigger>
+          <TabsTrigger value="recebidos"><FileText className="h-4 w-4 mr-2" />Dados recebidos ({inbound.length}{recebidosCortado ? "+" : ""})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pendentes" className="space-y-3">

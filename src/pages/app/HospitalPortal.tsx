@@ -14,6 +14,15 @@ import { Building2, KeyRound, Send, ShieldCheck, Activity, Loader2 } from "lucid
 
 const RESOURCE_TYPES = ["Condition", "Observation", "MedicationStatement", "DiagnosticReport", "Procedure", "Encounter"];
 
+/**
+ * Quantos itens cada aba lista.
+ *
+ * O contador dizia "Pedidos (50)" sobre um `.limit(50)`: número que parece
+ * total e é tamanho de página. Uma linha a mais na consulta permite escrever
+ * "50+", que é a verdade.
+ */
+const TETO_DA_ABA = 50;
+
 export default function HospitalPortal() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -63,7 +72,8 @@ export default function HospitalPortal() {
     if (!selected) return;
     (async () => {
       const [r, g, a] = await Promise.all([
-        supabase.from("data_access_requests").select("*").eq("hospital_id", selected).order("created_at", { ascending: false }).limit(50),
+        // +1 para o contador da aba poder dizer "50+" em vez de "50" — ver TETO_DA_ABA.
+        supabase.from("data_access_requests").select("*").eq("hospital_id", selected).order("created_at", { ascending: false }).limit(TETO_DA_ABA + 1),
         supabase.from("data_access_grants").select("*").eq("hospital_id", selected).order("granted_at", { ascending: false }).limit(50),
         supabase.from("integration_audit_log").select("*").eq("hospital_id", selected).order("created_at", { ascending: false }).limit(50),
       ]);
@@ -172,7 +182,7 @@ export default function HospitalPortal() {
       <Tabs defaultValue="novo" className="space-y-4">
         <TabsList>
           <TabsTrigger value="novo"><Send className="h-4 w-4 mr-2" />Novo pedido</TabsTrigger>
-          <TabsTrigger value="pedidos">Pedidos ({requests.length})</TabsTrigger>
+          <TabsTrigger value="pedidos">Pedidos ({Math.min(requests.length, TETO_DA_ABA)}{requests.length > TETO_DA_ABA ? "+" : ""})</TabsTrigger>
           <TabsTrigger value="grants"><ShieldCheck className="h-4 w-4 mr-2" />Acessos ativos</TabsTrigger>
           <TabsTrigger value="audit"><Activity className="h-4 w-4 mr-2" />Auditoria</TabsTrigger>
           <TabsTrigger value="api"><KeyRound className="h-4 w-4 mr-2" />API/FHIR</TabsTrigger>

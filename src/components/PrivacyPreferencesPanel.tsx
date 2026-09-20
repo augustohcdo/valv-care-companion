@@ -49,6 +49,17 @@ interface AuditRow {
 export const privacyPreferencesKey = (userId?: string) =>
   ["privacy-preferences", userId] as const;
 
+/**
+ * Quantas ações da trilha a tela mostra.
+ *
+ * A frase dizia "Últimas N ações registradas em sua conta" sobre um
+ * `.limit(30)`. Com exatamente trinta registros, o titular não tinha como
+ * saber se aquilo era a conta inteira ou um recorte — e é justamente com esta
+ * trilha que ele exerce o direito de acesso do art. 18. A consulta passa a
+ * pedir uma linha a mais só para poder dizer qual dos dois casos é.
+ */
+const TETO_DA_TRILHA = 30;
+
 export function PrivacyPreferencesPanel() {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
@@ -79,7 +90,11 @@ export function PrivacyPreferencesPanel() {
           .select("id, consent_type, action, document_version, source, created_at")
           .eq("user_id", user!.id)
           .order("created_at", { ascending: false })
-          .limit(30),
+          // +1 para SABER se há mais. Sem isso, trinta registros exatos são
+          // indistinguíveis de "são só esses" — e esta é a trilha que o
+          // titular usa para exercer o direito de acesso do art. 18. O extra
+          // não é exibido; serve só para a frase abaixo poder ser verdadeira.
+          .limit(TETO_DA_TRILHA + 1),
       ]);
       if (rConsent.error) throw rConsent.error;
       if (rAudit.error) throw rAudit.error;
@@ -92,7 +107,10 @@ export function PrivacyPreferencesPanel() {
   });
 
   const consents = data?.consents ?? [];
-  const audit = data?.audit ?? [];
+  const todaATrilha = data?.audit ?? [];
+  /** Há mais do que cabe: a linha extra pedida na consulta veio. */
+  const trilhaCortada = todaATrilha.length > TETO_DA_TRILHA;
+  const audit = todaATrilha.slice(0, TETO_DA_TRILHA);
   const loading = !user || loadingData;
 
   const load = () =>
@@ -252,7 +270,9 @@ export function PrivacyPreferencesPanel() {
           <CardDescription>
             {erroPrivacidade
               ? "Não foi possível ler a trilha desta conta."
-              : `Últimas ${audit.length} ações registradas em sua conta.`}
+              : trilhaCortada
+                ? `As ${audit.length} ações mais recentes da sua conta — há outras, mais antigas.`
+                : `Todas as ${audit.length} ações registradas em sua conta.`}
           </CardDescription>
         </CardHeader>
         <CardContent>

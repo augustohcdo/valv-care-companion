@@ -63,6 +63,18 @@ const emptyForm = {
 
 export const symptomEntriesKey = (patientId?: string) => ["symptom-entries", patientId] as const;
 
+/**
+ * A janela do painel, em DIAS. O rótulo de cada número desta tela fala em
+ * dias, e por isso a consulta também precisa falar.
+ */
+const DIAS_DO_PAINEL = 60;
+
+/**
+ * Teto de linhas, só para uma tela não puxar o diário inteiro de alguém que
+ * registra muitas vezes ao dia. Quando bate, a tela DIZ que bateu.
+ */
+const TETO_DE_REGISTROS = 400;
+
 export default function PacienteDiario() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -80,13 +92,26 @@ export default function PacienteDiario() {
         .select("*")
         .eq("patient_id", patient!.id)
         .is("deleted_at", null)
+        // A janela é de DIAS, não de linhas — era `.limit(60)` sem filtro de
+        // data nenhum, e os três números desta tela diziam "dias" sobre uma
+        // contagem de linhas. Quem registra duas vezes num dia já via coisa
+        // diferente do que o rótulo prometia. `entry_date` é `yyyy-MM-dd`, e a
+        // comparação lexicográfica é a mesma da cronológica.
+        .gte("entry_date", format(subDays(startOfDay(new Date()), DIAS_DO_PAINEL - 1), "yyyy-MM-dd"))
         .order("entry_date", { ascending: false })
-        .limit(60);
+        // Teto de segurança, e ele é DITO na tela quando bate — ver
+        // `atingiuOTeto`. Teto que ninguém escreve é teto que ninguém vê
+        // chegar, e esta base já pagou por isso no catálogo e na aprovação de
+        // acesso.
+        .limit(TETO_DE_REGISTROS);
       if (error) throw error;
       return data ?? [];
     },
     enabled: !!patient?.id,
   });
+
+  /** Bateu o teto: a lista está cortada e a tela precisa dizer. */
+  const atingiuOTeto = items.length >= TETO_DE_REGISTROS;
 
   const loading = loadingPatient || (!!patient?.id && loadingEntries);
 
@@ -186,7 +211,13 @@ export default function PacienteDiario() {
 
   const today = format(new Date(), "yyyy-MM-dd");
   const todayEntry = items.find((i) => i.entry_date === today);
-  const last7 = items.slice(0, 7);
+  // Sete DIAS, não sete linhas. Era `items.slice(0, 7)` sob um rótulo que diz
+  // "(7d)": quem registrasse sete vezes em dois dias via uma "média de 7 dias"
+  // calculada sobre dois. Em valvopatia, sintomático × assintomático decide
+  // intervenção — um número de sintoma que significa outra coisa que a legenda
+  // diz é pior que número nenhum.
+  const desdeSeteDias = format(subDays(startOfDay(new Date()), 6), "yyyy-MM-dd");
+  const last7 = items.filter((i) => i.entry_date >= desdeSeteDias);
   const avgDyspnea7 = last7.length
     ? (last7.reduce((s, e) => s + (e.dyspnea || 0), 0) / last7.length).toFixed(1)
     : "—";
@@ -300,8 +331,13 @@ export default function PacienteDiario() {
               {!todayEntry && <p className="text-xs text-muted-foreground mt-1">Toque em "Registrar hoje"</p>}
             </CardContent></Card>
             <Card className="shadow-sm-soft"><CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Registros (60 dias)</p>
+              <p className="text-xs text-muted-foreground">Registros ({DIAS_DO_PAINEL} dias)</p>
               <p className="text-2xl font-serif text-primary">{items.length}</p>
+              {atingiuOTeto && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Mostrando os {TETO_DE_REGISTROS} mais recentes — há mais no período.
+                </p>
+              )}
             </CardContent></Card>
             <Card className="shadow-sm-soft"><CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Média de dispneia (7d)</p>
