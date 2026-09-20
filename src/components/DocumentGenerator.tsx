@@ -56,6 +56,19 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
   const [text, setText] = useState("");
   /** O modelo parou por limite de tamanho: o texto abaixo está cortado. */
   const [truncado, setTruncado] = useState(false);
+  /**
+   * As fontes que sustentaram a resposta, e quantas delas ainda são
+   * PRELIMINARES (`review_status: "ai_generated"`).
+   *
+   * A `clinical-ai` devolve `sources` em todos os modos menos o de orientação
+   * de alta, e esta tela as descartava. O `ClinicalAIPanel`, ao lado, marca
+   * cada trecho preliminar com "· gerado por IA ·" — marcação estrutural, que
+   * não depende de o modelo ter obedecido à instrução do prompt. Aqui não
+   * havia marcação nenhuma: o médico gerava o documento, clicava em Copiar, e
+   * colava no prontuário um texto que podia se apoiar em material que nenhum
+   * médico revisou.
+   */
+  const [preliminares, setPreliminares] = useState<string[]>([]);
   const [kind, setKind] = useState<DocKind | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -90,6 +103,7 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
     setKind(mode);
     setText("");
     setTruncado(false);
+    setPreliminares([]);
     try {
       const { data, error } = await supabase.functions.invoke("clinical-ai", {
         body: { mode, caseId: caso.id },
@@ -109,6 +123,13 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
       if (data?.error) { toast.error(data.error); setKind(null); return; }
       setText(limparNotacaoMatematica(data.content ?? ""));
       setTruncado(!!data?.truncado);
+      const fontes: Array<{ organization?: string; year?: number; review_status?: string }> =
+        Array.isArray(data?.sources) ? data.sources : [];
+      setPreliminares(
+        fontes
+          .filter((f) => f.review_status === "ai_generated")
+          .map((f) => `${f.organization ?? "fonte"} ${f.year ?? ""}`.trim()),
+      );
       if (data?.truncado) {
         // Documento cortado tem a mesma cara de documento inteiro. Avisar duas
         // vezes — no aviso e na própria tela — porque quem assina precisa saber
@@ -125,9 +146,37 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
     }
   };
 
+  /**
+   * O texto que vai para a área de transferência.
+   *
+   * O aviso na tela **não viaja com o documento**. Quem copia e cola no
+   * prontuário leva só o texto — e o prontuário é onde a afirmação passa a
+   * valer. Por isso a ressalva vai junto, escrita no próprio documento, como
+   * o modelo de evolução manual já fazia com o "revisar antes de arquivar".
+   */
+  const textoParaCopiar = () => {
+    const notas: string[] = [];
+    if (truncado) {
+      notas.push(
+        "ATENÇÃO: este rascunho ficou INCOMPLETO — o gerador atingiu o limite de " +
+        "tamanho e parou no meio. Confira o final antes de arquivar.",
+      );
+    }
+    if (preliminares.length) {
+      notas.push(
+        `ATENÇÃO: parte do conteúdo apoia-se em ${preliminares.length} trecho(s) de base ` +
+        `PRELIMINAR, gerados por IA a partir de diretriz e ainda NÃO revisados por ` +
+        `médico (${preliminares.join("; ")}). Confira na fonte primária antes de ` +
+        "arquivar em prontuário ou entregar ao paciente.",
+      );
+    }
+    if (!notas.length) return text;
+    return `${text}\n\n---\n${notas.join("\n\n")}`;
+  };
+
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(textoParaCopiar());
       toast.success("Copiado para a área de transferência");
     } catch {
       toast.error("Não foi possível copiar automaticamente");
@@ -181,6 +230,22 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
                   <strong>Documento incompleto.</strong> O modelo atingiu o limite de tamanho e
                   parou no meio — o final está faltando. Gere de novo ou complete manualmente
                   antes de anexar ao prontuário.
+                </p>
+              </div>
+            )}
+            {preliminares.length > 0 && (
+              /* Acima do texto, junto do aviso de truncamento e pelo mesmo
+                 motivo: quem vai assinar precisa saber antes de começar a ler.
+                 E a mesma ressalva é acrescentada ao texto copiado, porque é
+                 o texto que chega ao prontuário. */
+              <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                <p className="text-xs text-foreground">
+                  <strong>Apoiado em base preliminar.</strong>{" "}
+                  {preliminares.length} trecho(s) usados nesta geração foram gerados por IA a
+                  partir de diretriz e <strong>ainda não foram revisados por médico</strong>{" "}
+                  ({preliminares.join("; ")}). Confira na fonte primária antes de arquivar.
+                  A ressalva vai junto no texto copiado.
                 </p>
               </div>
             )}
