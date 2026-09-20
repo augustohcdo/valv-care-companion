@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useDoctor } from "@/hooks/useDoctor";
 import { supabase } from "@/integrations/supabase/client";
+import { calcularAdesao, explicarAdesao, type Adesao } from "@/lib/adesao";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +38,8 @@ interface Aggregates {
   avgEF: number | null;
   patientsCritical: number;
   avgAdherence: number | null;
+  /** A conta inteira, para a tela poder mostrar o denominador. */
+  adesao: Adesao;
 }
 
 export const doctorReportsKey = (doctorId?: string) => ["doctor-reports", doctorId] as const;
@@ -77,13 +80,24 @@ export default function MedicoRelatorios() {
 
       const since = new Date(); since.setDate(since.getDate() - 30);
       const sinceISO = since.toISOString().slice(0, 10);
-      const [{ data: syms, error: erroSintomas }, { data: logs, error: erroLogs }] = await Promise.all([
+      const [
+        { data: syms, error: erroSintomas },
+        { data: logs, error: erroLogs },
+        { data: meds, error: erroMeds },
+      ] = await Promise.all([
         supabase.from("symptom_entries").select("*").in("patient_id", patientIds).is("deleted_at", null).gte("entry_date", sinceISO),
         supabase.from("medication_logs").select("*").in("patient_id", patientIds).gte("log_date", sinceISO),
+        // As PRESCRIÇÕES, que são o denominador da adesão — ver `dosesPrevistas`.
+        supabase.from("medications").select("id, patient_id, times, start_date, end_date, active")
+          .in("patient_id", patientIds),
       ]);
       if (erroSintomas) throw erroSintomas;
       if (erroLogs) throw erroLogs;
-      return { profile: prof, cases: cs ?? [], patients: pts ?? [], symptoms: syms ?? [], medLogs: logs ?? [] };
+      if (erroMeds) throw erroMeds;
+      return {
+        profile: prof, cases: cs ?? [], patients: pts ?? [],
+        symptoms: syms ?? [], medLogs: logs ?? [], medications: meds ?? [], sinceISO,
+      };
     },
     enabled: !!doctorInfo?.id,
   });
@@ -93,6 +107,8 @@ export default function MedicoRelatorios() {
   const patients = report?.patients ?? [];
   const symptoms = report?.symptoms ?? [];
   const medLogs = report?.medLogs ?? [];
+  const medications = report?.medications ?? [];
+  const sinceISO = report?.sinceISO ?? null;
   const loading = loadingDoctor || (!!doctorInfo?.id && loadingReport);
 
   const agg: Aggregates = useMemo(() => {
@@ -111,8 +127,14 @@ export default function MedicoRelatorios() {
     symptoms.forEach((s) => {
       if ((s.dyspnea ?? 0) >= 7 || (s.chest_pain ?? 0) >= 7 || s.syncope) critical.add(s.patient_id);
     });
-    const taken = medLogs.filter((l) => l.status === "tomado").length;
-    const adherence = medLogs.length ? (taken / medLogs.length) * 100 : null;
+    // A conta mora em `@/lib/adesao`, com teste próprio: ela é usada aqui, no
+    // PDF da coorte e no PDF do paciente, e três cópias garantiriam que uma
+    // delas divergisse — foi o que as catorze cópias do `escrita()` ensinaram.
+    const adesao = calcularAdesao(
+      medLogs, medications,
+      sinceISO ?? new Date().toISOString().slice(0, 10),
+      new Date().toISOString().slice(0, 10),
+    );
 
     return {
       totalPatients: patients.length,
@@ -120,9 +142,10 @@ export default function MedicoRelatorios() {
       bySeverity, byStatus, byValve,
       avgEF: efs.length ? efs.reduce((a, b) => a + b, 0) / efs.length : null,
       patientsCritical: critical.size,
-      avgAdherence: adherence,
+      avgAdherence: adesao.percentual,
+      adesao,
     };
-  }, [cases, patients, symptoms, medLogs]);
+  }, [cases, patients, symptoms, medLogs, medications, sinceISO]);
 
   const severityData = useMemo(() =>
     Object.entries(agg.bySeverity).map(([k, v]) => ({ name: severityLabels[k] || k, value: v })),
@@ -170,6 +193,7 @@ export default function MedicoRelatorios() {
       casesByValve: agg.byValve,
       avgEF: agg.avgEF,
       avgAdherence: agg.avgAdherence,
+      adesao: agg.adesao,
       patientsWithCriticalSymptoms: agg.patientsCritical,
       recentCases: [...cases]
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -329,7 +353,12 @@ export default function MedicoRelatorios() {
         <ScrollReveal><Kpi icon={<Users className="h-4 w-4" />} label="Pacientes" value={agg.totalPatients} /></ScrollReveal>
         <ScrollReveal delay={0.04}><Kpi icon={<FileText className="h-4 w-4" />} label="Casos" value={agg.totalCases} /></ScrollReveal>
         <ScrollReveal delay={0.08}><Kpi icon={<Heart className="h-4 w-4" />} label="FE média" value={agg.avgEF != null ? `${agg.avgEF.toFixed(1)}%` : "—"} /></ScrollReveal>
-        <ScrollReveal delay={0.12}><Kpi icon={<Activity className="h-4 w-4" />} label="Aderência (30d)" value={agg.avgAdherence != null ? `${agg.avgAdherence.toFixed(0)}%` : "—"} /></ScrollReveal>
+        <ScrollReveal delay={0.12}><Kpi
+          icon={<Activity className="h-4 w-4" />}
+          label="Aderência (30d)"
+          value={agg.avgAdherence != null ? `${agg.avgAdherence.toFixed(0)}%` : "—"}
+          nota={explicarAdesao(agg.adesao)}
+        /></ScrollReveal>
       </div>
 
       {agg.patientsCritical > 0 && (
@@ -497,7 +526,11 @@ export default function MedicoRelatorios() {
   );
 }
 
-function Kpi({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
+function Kpi({ icon, label, value, nota }: {
+  icon: React.ReactNode; label: string; value: string | number;
+  /** A conta por trás do número. Um percentual sem denominador não é auditável. */
+  nota?: string;
+}) {
   return (
     <Card className="card-elevated">
       <CardContent className="p-4">
@@ -508,6 +541,7 @@ function Kpi({ icon, label, value }: { icon: React.ReactNode; label: string; val
           </div>
         </div>
         <p className="text-2xl font-bold text-foreground">{value}</p>
+        {nota && <p className="text-[11px] text-muted-foreground mt-1 leading-snug">{nota}</p>}
       </CardContent>
     </Card>
   );

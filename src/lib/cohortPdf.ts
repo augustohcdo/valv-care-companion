@@ -2,6 +2,8 @@ import jsPDF from "jspdf";
 import { severityLabels, valveTypeLabels, caseStatusLabels } from "@/lib/clinicalLabels";
 import { PDF_COLORS as C, addPdfFooter, addCoverPage } from "@/lib/pdfShared";
 
+import { explicarAdesao, type Adesao } from "@/lib/adesao";
+
 export interface CohortMetrics {
   doctor?: { full_name: string; crm: string; crm_uf: string; specialty: string } | null;
   totalPatients: number;
@@ -11,6 +13,8 @@ export interface CohortMetrics {
   casesByValve: Record<string, number>;
   avgEF: number | null;
   avgAdherence: number | null;
+  /** A conta por trás do percentual. Sem ela o número não é auditável. */
+  adesao?: Adesao;
   patientsWithCriticalSymptoms: number;
   recentCases: Array<{ patient_name: string; severity: string; status: string; created_at: string }>;
 }
@@ -49,7 +53,12 @@ export function exportCohortPDF(m: CohortMetrics) {
     ["Pacientes vinculados", String(m.totalPatients)],
     ["Casos registrados", String(m.totalCases)],
     ["FE média da coorte", m.avgEF != null ? `${m.avgEF.toFixed(1)}%` : "—"],
-    ["Aderência média (30d)", m.avgAdherence != null ? `${m.avgAdherence.toFixed(0)}%` : "—"],
+    [
+      "Aderência média (30d)",
+      m.avgAdherence != null
+        ? `${m.avgAdherence.toFixed(0)}%${m.adesao ? ` (${m.adesao.tomadas}/${m.adesao.previstas} previstas)` : ""}`
+        : m.adesao ? explicarAdesao(m.adesao) : "—",
+    ],
     ["Pacientes com sintomas críticos (30d)", String(m.patientsWithCriticalSymptoms)],
   ];
   const colW = (pageW - mx * 2) / 2;

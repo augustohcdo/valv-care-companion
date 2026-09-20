@@ -218,8 +218,27 @@ export default function PacienteDiario() {
   // diz é pior que número nenhum.
   const desdeSeteDias = format(subDays(startOfDay(new Date()), 6), "yyyy-MM-dd");
   const last7 = items.filter((i) => i.entry_date >= desdeSeteDias);
-  const avgDyspnea7 = last7.length
-    ? (last7.reduce((s, e) => s + (e.dyspnea || 0), 0) / last7.length).toFixed(1)
+  // A média conta só quem REGISTROU dispneia.
+  //
+  // Era `(e.dyspnea || 0)` dividido por `last7.length`: um registro sem
+  // dispneia entrava como zero no numerador e continuava contando no
+  // denominador. Três registros com 8, null e null davam 2.7 — um paciente
+  // sintomático aparecendo quase bem.
+  //
+  // Hoje isto é LATENTE, não ativo: a coluna é `INTEGER` sem `NOT NULL`, mas o
+  // único lugar que grava é o formulário desta tela, que sempre manda número.
+  // Fica consertado porque o esquema permite o nulo e o gráfico logo acima já
+  // o trata (`found?.dyspnea ?? null`) — a média era a única peça que
+  // discordava das outras duas.
+  // O predicado de tipo (`e is ...`) é o que faz o `typecheck:strict` enxergar
+  // que, depois do filtro, `dyspnea` é número. Sem ele o TypeScript não
+  // estreita através de um `.filter`, e a alternativa seria um `!` — que
+  // silencia o compilador em vez de convencê-lo.
+  const comDispneia = last7.filter(
+    (e): e is typeof e & { dyspnea: number } => typeof e.dyspnea === "number",
+  );
+  const avgDyspnea7 = comDispneia.length
+    ? (comDispneia.reduce((s, e) => s + e.dyspnea, 0) / comDispneia.length).toFixed(1)
     : "—";
 
   if (loading) {

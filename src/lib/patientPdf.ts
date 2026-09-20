@@ -3,6 +3,7 @@ import {
   valveTypeLabels, valveDiseaseLabels, severityLabels, caseStatusLabels,
   examTypeLabels,
 } from "@/lib/clinicalLabels";
+import { calcularAdesao, explicarAdesao } from "@/lib/adesao";
 
 /** As seções cujo conteúdo vem de uma consulta que pode falhar. */
 export type SecaoDoProntuario = "casos" | "exames" | "sintomas" | "medicacoes" | "aderencia";
@@ -229,10 +230,25 @@ export function exportPatientPDF(data: PatientPdfData) {
     });
     if (falhou("aderencia")) {
       kv("Aderência (30 dias)", "não foi possível carregar os registros de dose.");
-    } else if (medLogs.length) {
-      const taken = medLogs.filter((l) => l.status === "tomado").length;
-      const total = medLogs.length;
-      kv("Aderência (30 dias)", `${total ? Math.round((taken / total) * 100) : 0}% (${taken}/${total} doses confirmadas)`);
+    } else {
+      // Era `tomadas ÷ REGISTRADAS`, e a seção sumia quando não havia registro
+      // nenhum. Os dois davam no mesmo lugar: o leitor não distinguia "tomou
+      // tudo" de "nunca registrou". Agora o denominador são as doses
+      // PREVISTAS pela prescrição, e a linha aparece sempre — inclusive para
+      // dizer que não há o que medir.
+      const hoje = new Date();
+      const trintaDias = new Date(hoje.getTime() - 29 * 86_400_000);
+      const a = calcularAdesao(
+        medLogs, medications,
+        trintaDias.toISOString().slice(0, 10),
+        hoje.toISOString().slice(0, 10),
+      );
+      kv(
+        "Aderência (30 dias)",
+        a.percentual != null
+          ? `${Math.round(a.percentual)}% — ${explicarAdesao(a)}`
+          : explicarAdesao(a),
+      );
     }
   }
 
