@@ -117,11 +117,12 @@ function conferirDado(nome, obtido, esperado, tolerancia = 0) {
  *    carrega aqui, então a rede nunca fica ociosa e o `networkidle` gastava os
  *    30 s de espera antes de olhar qualquer coisa.
  */
-const PROXY = process.env["HTTPS_PROXY"] || process.env["https_proxy"];
-const navegador = await chromium.launch({
-  executablePath: process.env["PW_CHROMIUM"] || "/opt/pw-browsers/chromium",
-  ...(PROXY ? { proxy: { server: PROXY, bypass: "127.0.0.1,localhost" } } : {}),
-});
+// O caminho do Chromium e o proxy vêm de `lib/chromium.mjs`, e o motivo está
+// escrito lá: cravar `/opt/pw-browsers/chromium` fazia este script funcionar no
+// contêiner de desenvolvimento e falhar na CI com "executable doesn't exist" —
+// erro que não diz nada sobre calculadora nenhuma. Foi exatamente isso que a
+// agenda diária acusou na primeira vez que conseguiu rodar.
+const navegador = await chromium.launch(opcoesDoChromium());
 const pagina = await navegador.newPage({ viewport: { width: 1280, height: 1400 } });
 
 /**

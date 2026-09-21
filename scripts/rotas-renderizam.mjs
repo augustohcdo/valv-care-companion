@@ -183,12 +183,10 @@ const PROXY = process.env["HTTPS_PROXY"] || process.env["https_proxy"];
  * Então: usa o caminho só quando ele EXISTE, e no resto das vezes deixa o
  * Playwright achar o dele.
  */
-const { existsSync } = await import("node:fs");
-const CAMINHO = process.env["PW_CHROMIUM"] || "/opt/pw-browsers/chromium";
-const navegador = await chromium.launch({
-  ...(existsSync(CAMINHO) ? { executablePath: CAMINHO } : {}),
-  ...(PROXY ? { proxy: { server: PROXY, bypass: "127.0.0.1,localhost" } } : {}),
-});
+// Este script já fazia certo; o que mudou é que a regra saiu daqui para
+// `lib/chromium.mjs`, onde os outros dois podem usá-la. Era a única cópia
+// correta de três, e uma regra que mora num arquivo só não tem como divergir.
+const navegador = await chromium.launch(opcoesDoChromium());
 
 // ---------------------------------------------------------------- sessão
 

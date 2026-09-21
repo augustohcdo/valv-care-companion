@@ -118,8 +118,9 @@ function medir() {
  * externa; `127.0.0.1` fica de fora dele.
  */
 const PROXY = process.env["HTTPS_PROXY"] || process.env["https_proxy"];
+// Ver `lib/chromium.mjs`: o caminho só entra quando o arquivo existe.
 const navegador = await chromium.launch({
-  executablePath: process.env["PW_CHROMIUM"] || "/opt/pw-browsers/chromium",
+  ...opcoesDoChromium(),
   ...(PROXY ? { proxy: { server: PROXY, bypass: "127.0.0.1,localhost" } } : {}),
 });
 const contexto = await navegador.newContext({ ...IPHONE });
