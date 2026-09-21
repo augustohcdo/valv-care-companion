@@ -29,11 +29,29 @@ export default function PacienteHome() {
    * assustam.
    */
   const [falhouLeitura, setFalhouLeitura] = useState(false);
+  /**
+   * `true` = ainda não sei. O TERCEIRO estado, que faltava.
+   *
+   * O comentário acima conta que o ramo de erro foi consertado. O de
+   * carregamento ficou: enquanto as leituras estavam em voo, `linkedDoctor` era
+   * `null` e `falhouLeitura` era `false`, então a tela caía no mesmo ramo de
+   * baixo e dizia ao paciente "Nenhum médico vinculado" — no selo mais visível
+   * da tela — e "Você ainda não vinculou um médico", com o convite para
+   * vincular alguém que já está vinculado.
+   *
+   * É a mesma afirmação falsa que o `falhouLeitura` existe para impedir, pelo
+   * outro ramo do `if`. Ausência de resposta não é resposta de ausência.
+   */
+  const [lendoVinculo, setLendoVinculo] = useState(true);
+  // Sem usuário ainda não há o que ler — e também não há como afirmar nada.
+  const carregando = !user || lendoVinculo;
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
+    setLendoVinculo(true);
     (async () => {
+      try {
       const { data: pat, error: erroPaciente } = await supabase
         .from("patients").select("*").is("deleted_at", null).eq("user_id", user.id).maybeSingle();
       if (cancelled) return;
@@ -59,6 +77,14 @@ export default function PacienteHome() {
           const meu = erroMeus ? undefined : (meus ?? []).find((m) => m.doctor_id === doc.id);
           setLinkedDoctor({ ...doc, full_name: meu?.full_name ?? null });
         }
+      }
+      } finally {
+        // No `finally` porque os `return` acima saem por três caminhos — recusa
+        // de RLS, ausência de paciente, ausência de médico — e sair de qualquer
+        // um deles sem baixar esta bandeira deixaria a tela "carregando" para
+        // sempre. Trocar uma afirmação falsa por um spinner eterno seria só
+        // mudar de defeito.
+        if (!cancelled) setLendoVinculo(false);
       }
     })();
     return () => { cancelled = true; };
@@ -92,7 +118,16 @@ export default function PacienteHome() {
             com linguagem clara e respaldo científico. Seu médico continua no centro do cuidado.
           </p>
           <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 backdrop-blur-sm px-3 py-1.5 text-xs transition-all hover:bg-primary-foreground/15">
-            {falhouLeitura ? (
+            {carregando ? (
+              // O terceiro estado. Sem ele, o selo dizia "Nenhum médico
+              // vinculado" durante toda a leitura — e o paciente que abre o app
+              // no celular, na rua, lê exatamente isso antes de qualquer dado
+              // chegar.
+              <>
+                <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground/40 animate-pulse" />
+                Verificando seu vínculo…
+              </>
+            ) : falhouLeitura ? (
               // O selo ficava fora do `falhouLeitura` que o resto da tela já
               // respeitava: a faixa de falha aparecia embaixo e este selo, no
               // ponto mais visível da tela, seguia dizendo "Nenhum médico
@@ -132,7 +167,18 @@ export default function PacienteHome() {
       </div>
 
       {/* Status médico */}
-      {linkedDoctor ? (
+      {carregando ? (
+        // O convite "Você ainda não vinculou um médico" aparecia aqui durante a
+        // leitura. Convidar a vincular alguém que já está vinculado não é só
+        // errado: é a tela pedindo ao paciente que conserte o que não está
+        // quebrado.
+        <Card className="shadow-sm-soft border-dashed">
+          <CardContent className="p-6 flex items-center gap-3 text-sm text-muted-foreground">
+            <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-pulse" />
+            Verificando seu vínculo com um médico…
+          </CardContent>
+        </Card>
+      ) : linkedDoctor ? (
         <Card className="shadow-sm-soft border-accent/30">
           <CardHeader>
             <div className="flex items-center justify-between gap-4 flex-wrap">

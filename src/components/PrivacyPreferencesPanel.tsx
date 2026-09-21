@@ -268,11 +268,13 @@ export function PrivacyPreferencesPanel() {
             <History className="h-4 w-4 text-primary" /> Histórico de auditoria
           </CardTitle>
           <CardDescription>
-            {erroPrivacidade
-              ? "Não foi possível ler a trilha desta conta."
-              : trilhaCortada
-                ? `As ${audit.length} ações mais recentes da sua conta — há outras, mais antigas.`
-                : `Todas as ${audit.length} ações registradas em sua conta.`}
+            {loadingData
+              ? "Lendo a trilha desta conta…"
+              : erroPrivacidade
+                ? "Não foi possível ler a trilha desta conta."
+                : trilhaCortada
+                  ? `As ${audit.length} ações mais recentes da sua conta — há outras, mais antigas.`
+                  : `Todas as ${audit.length} ações registradas em sua conta.`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -282,7 +284,15 @@ export function PrivacyPreferencesPanel() {
               trilha de auditoria da LGPD, que é o documento que prova o que
               aconteceu na conta dele. Dois números falsos, do lado de um aviso
               que ele já tinha lido no cartão de cima. */}
-          {erroPrivacidade ? (
+          {/* E o terceiro estado, que faltava pelo mesmo motivo que o primeiro:
+              enquanto a consulta estava em voo, `audit` era `[]`, `erroPrivacidade`
+              era falso, e o cartão dizia "Todas as 0 ações registradas em sua conta"
+              e "Nenhum registro ainda". Afirmar zero sobre a trilha de auditoria da
+              LGPD antes de tê-la lido é o mesmo defeito do parágrafo acima, pelo
+              outro ramo do `if`. */}
+          {loadingData ? (
+            <p className="text-sm text-muted-foreground">Carregando os registros…</p>
+          ) : erroPrivacidade ? (
             <p className="text-sm text-foreground/85 leading-relaxed">
               <strong className="text-foreground">Não foi possível carregar sua trilha de auditoria.</strong>{" "}
               <strong>Isto não quer dizer que não haja registros</strong> — a consulta é que não

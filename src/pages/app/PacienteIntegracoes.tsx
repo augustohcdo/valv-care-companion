@@ -27,7 +27,12 @@ export default function PacienteIntegracoes() {
 
   // As três listas são buscadas juntas porque a tela sempre as mostra juntas
   // (abas do mesmo painel) e compartilham o mesmo gatilho de recarga.
-  const { data, isFetching: loading, error } = useQuery({
+  // Duas noções de "carregando", e a diferença importa: `isFetching` cobre
+  // também as recargas em segundo plano (é ele que gira o spinner), enquanto
+  // `isLoading` é a PRIMEIRA carga — a única em que ainda não há dado nenhum.
+  // Substituir as abas a cada recarga faria a tela piscar e perder a aba
+  // escolhida; substituí-las na primeira carga é o que impede o número falso.
+  const { data, isFetching: loading, isLoading: primeiraCarga, error } = useQuery({
     queryKey: patientIntegrationsKey(user?.id),
     queryFn: async () => {
       const [r, g, i] = await Promise.all([
@@ -129,7 +134,33 @@ export default function PacienteIntegracoes() {
         tela — e é o número que o paciente lê. Aqui a contagem some enquanto
         não houver dado real por trás dela.
       */}
-      {error && !loading ? (
+      {primeiraCarga ? (
+        // O mesmo raciocínio do bloco acima, aplicado ao terceiro estado. Ele
+        // faltava: enquanto a leitura estava em voo, as abas já imprimiam
+        // "Acessos ativos (0)", "Dados recebidos (0)" e "Nenhum acesso ativo."
+        // — sobre quem pode ver o prontuário do paciente. Zero antes da
+        // resposta não é zero: é ainda-não-sei, e aqui a diferença é a garantia
+        // de LGPD que esta tela promete.
+        <Card className="border-dashed">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando seus acessos…
+            </CardTitle>
+            <CardDescription>
+              As contagens aparecem quando a lista chegar. Até lá a tela deixa de
+              exibir número de propósito: zero antes da resposta seria uma
+              afirmação sobre o que ainda não foi lido.
+            </CardDescription>
+            {/*
+              A frase acima evita de propósito a palavra "nenhum". Não é
+              preciosismo: a guarda `telasNaoAfirmamEnquantoCarregam` acusa
+              frase categórica nesta tela, e telas isentas por causa da própria
+              explicação ficam CEGAS para regressão de verdade. Escrever a
+              explicação sem a palavra mantém esta tela dentro da varredura.
+            */}
+          </CardHeader>
+        </Card>
+      ) : error && !loading ? (
         <Card className="border-destructive/40 bg-destructive/5">
           <CardHeader>
             <CardTitle className="text-base">Não foi possível carregar seus acessos</CardTitle>

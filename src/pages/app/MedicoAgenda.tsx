@@ -175,7 +175,20 @@ export default function MedicoAgenda() {
               <h3 className="font-serif text-lg text-primary mb-3 capitalize">
                 {format(selected, "EEEE, d 'de' MMMM", { locale: ptBR })}
               </h3>
-              {falhou ? (
+              {/*
+                Três estados, não dois. O cartão "Próximos compromissos", logo
+                abaixo, já tratava os três — `loading`, `falhou`, vazio — usando
+                esta mesma variável `loading`. Este painel tratava dois, e
+                enquanto a leitura estava em voo dizia "Nenhum compromisso neste
+                dia" ao médico que estava planejando o dia.
+
+                Não é erro nem é ausência: é ainda-não-sei. Dizer "nenhum" antes
+                de saber é a mesma afirmação sem trabalho feito que a faixa de
+                falha existe para impedir — só que no outro ramo do `if`.
+              */}
+              {loading ? (
+                <p className="text-sm text-muted-foreground py-4">Carregando…</p>
+              ) : falhou ? (
                 <FalhaDeLeitura
                   oQue="sua agenda"
                   naoSignifica="não haja compromissos neste dia"
