@@ -18,7 +18,7 @@
  *   npm run mobile -- http://127.0.0.1:4173    # preview local
  */
 import { execSync } from "node:child_process";
-import { opcoesDoChromium } from "./lib/chromium.mjs";
+import { opcoesDoChromium, pareceVazia } from "./lib/chromium.mjs";
 
 /**
  * O Playwright não é dependência do projeto — seria peso grande para um script
@@ -145,7 +145,11 @@ for (const caminho of PAGINAS) {
     // foi medida. Aconteceu de verdade: um build local sem
     // `VITE_SUPABASE_URL` quebrava o app no boot, o `#root` ficava vazio, e
     // este script aprovava as oito páginas em branco uma por uma.
-    if (r.elementos < 10 || r.texto < 50) {
+    //
+    // O limiar saiu daqui para `lib/chromium.mjs` quando o mesmo defeito
+    // apareceu no `ferramentas-verificar.mjs`, que não tinha esta conferência:
+    // dois limiares iguais são dois limiares que divergem na próxima mudança.
+    if (pareceVazia(r)) {
       const motivo =
         `a página não renderizou (${r.elementos} elementos, ${r.texto} caracteres) — ` +
         "veja o console do navegador; num build local costuma ser variável de ambiente faltando";

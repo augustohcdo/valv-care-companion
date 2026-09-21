@@ -36,7 +36,15 @@ export default tseslint.config(
   },
   {
     /**
-     * Os scripts de `scripts/` — 29 arquivos `.mjs` que o lint nunca tinha visto.
+     * Todo `.mjs` do repositório — 30 arquivos que o lint nunca tinha visto.
+     *
+     * O glob é `**\/*.mjs`, e não `scripts/**\/*.mjs`, porque regra amarrada ao
+     * diretório onde o defeito apareceu é o próprio defeito. Havia um
+     * `.shot-tmp.mjs` versionado na raiz — script descartável de captura de tela,
+     * commitado sem querer, que ninguém chama e que cravava
+     * `/opt/pw-browsers/chromium`. Nem o lint nem a guarda de Chromium o viam:
+     * os dois olhavam só para dentro de `scripts/`. Ele foi apagado; o glob
+     * largo é o que impede o próximo.
      *
      * ## Como isto apareceu
      *
@@ -66,7 +74,7 @@ export default tseslint.config(
      * quanto falso verde — guarda que pune quem fez certo é guarda que alguém
      * desliga.
      */
-    files: ["scripts/**/*.mjs"],
+    files: ["**/*.mjs"],
     extends: [js.configs.recommended],
     languageOptions: {
       ecmaVersion: 2023,

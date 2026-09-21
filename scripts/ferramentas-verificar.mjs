@@ -46,7 +46,9 @@
  * chunks que ela serve.
  */
 import { execSync } from "node:child_process";
-import { opcoesDoChromium } from "./lib/chromium.mjs";
+import {
+  opcoesDoChromium, pareceVazia, motivoDeTelaVazia, medirRenderizacao,
+} from "./lib/chromium.mjs";
 
 async function carregarPlaywright() {
   for (const alvo of ["playwright", "@playwright/test"]) {
@@ -139,8 +141,17 @@ pagina.on("requestfailed", (r) => {
   if (!IGNORAR.test(r.url())) erros.push(`${r.failure()?.errorText} ${r.url()}`);
 });
 
+/** Encerra tudo com NÃO CONFERIDO, que é diferente de reprovar. */
+async function encerrarNaoConferido(texto) {
+  console.error(`\nNÃO CONFERIDO — ${texto}\n`);
+  await navegador.close();
+  process.exit(2);
+}
+
 /**
- * Abre uma página, e trata "não alcancei o site" como NÃO CONFERIDO.
+ * Abre uma página e só devolve o controle quando o app REALMENTE subiu.
+ *
+ * ## Um: o navegador pode não chegar lá
  *
  * O cabeçalho deste arquivo já avisa que, de dentro do contêiner do agente, o
  * Chromium recebe `ERR_CONNECTION_RESET` até no HTML de produção. Mas o aviso
@@ -149,10 +160,26 @@ pagina.on("requestfailed", (r) => {
  *
  * Quem lê aquilo conclui a coisa errada — parece a página quebrada, quando é o
  * egresso do ambiente. É a mesma confusão que os códigos de saída deste projeto
- * existem para desfazer: 1 é "está errado", 2 é "não deu para olhar". Um erro de
- * navegação é o segundo caso, e agora sai assim.
+ * existem para desfazer: 1 é "está errado", 2 é "não deu para olhar".
  *
- * Erro DEPOIS de a página abrir continua subindo: aí é defeito de verdade.
+ * ## Dois: a página pode abrir e o app não subir
+ *
+ * E este custou uma execução da agenda diária. O build da CI não recebe
+ * `VITE_SUPABASE_URL` (a variável ainda não está configurada no repositório), o
+ * cliente do Supabase estoura `supabaseUrl is required` na carga do módulo, o
+ * React nunca monta, e o `#root` fica com ZERO elementos.
+ *
+ * O que o script fazia com isso: esperava 15 s pelo campo "Idade (anos)",
+ * estourava com `TimeoutError` não tratado e saía **1 — DIVERGE**. Quer dizer,
+ * anunciava que a calculadora está errada quando nada foi medido, e mandava o
+ * próximo leitor investigar o EuroSCORE em vez da variável que falta. Errado nas
+ * duas pontas: o veredito e o lugar para onde ele aponta.
+ *
+ * Página em branco não é página sem defeito; é página não medida. O
+ * `mobile.mjs` ao lado já tratava exatamente este caso, com o motivo escrito:
+ * "num build local costuma ser variável de ambiente faltando". Mais uma lição
+ * aprendida neste repositório, escrita, aplicada a um script, e ausente no
+ * irmão — a terceira vez nesta mesma dupla de arquivos.
  */
 async function irPara(caminho) {
   const url = `${BASE}${caminho}`;
@@ -160,18 +187,31 @@ async function irPara(caminho) {
     await pagina.goto(url, { waitUntil: "domcontentloaded" });
   } catch (e) {
     const motivo = String(e?.message ?? e).split("\n")[0];
-    console.error(
-      `\nNÃO CONFERIDO — não foi possível abrir ${url}\n` +
-      `  ${motivo}\n\n` +
+    await encerrarNaoConferido(
+      `não foi possível abrir ${url}\n  ${motivo}\n\n` +
       "Isto NÃO diz que a ferramenta está errada: diz que o navegador não\n" +
       "chegou até ela. De dentro do contêiner do agente é o esperado — o\n" +
       "egresso não alcança o site publicado. Rode de uma máquina com internet,\n" +
       "ou contra o preview local:\n\n" +
       "  npm run build && npx vite preview --port 4173 --host 127.0.0.1\n" +
-      "  node scripts/ferramentas-verificar.mjs http://127.0.0.1:4173\n",
+      "  node scripts/ferramentas-verificar.mjs http://127.0.0.1:4173",
     );
-    await navegador.close();
-    process.exit(2);
+  }
+
+  // O app monta em `#root`. Damos tempo ao React; o que não damos é o benefício
+  // da dúvida a uma tela vazia. O limiar e o diagnóstico moram em
+  // `lib/chromium.mjs`, junto com o do `mobile.mjs`.
+  const limite = Date.now() + 15000;
+  let medida = await medirRenderizacao(pagina);
+  while (pareceVazia(medida) && Date.now() < limite) {
+    await pagina.waitForTimeout(250);
+    medida = await medirRenderizacao(pagina);
+  }
+  if (pareceVazia(medida)) {
+    await encerrarNaoConferido(
+      `${url} abriu, mas o app não montou\n  ` +
+      motivoDeTelaVazia({ ...medida, erros }),
+    );
   }
 }
 

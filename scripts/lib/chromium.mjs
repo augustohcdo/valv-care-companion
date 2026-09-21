@@ -64,3 +64,60 @@ export function opcoesDoChromium({ env = process.env, existe = existsSync } = {}
     ...(proxy ? { proxy: { server: proxy, bypass: "127.0.0.1,localhost" } } : {}),
   };
 }
+
+/**
+ * Uma página em branco nunca reprova — e é justamente o pior estado.
+ *
+ * ## O defeito que isto fecha
+ *
+ * Numa execução da agenda diária, o build da CI saiu sem `VITE_SUPABASE_URL`
+ * (a variável ainda não está configurada no repositório). O cliente do Supabase
+ * estoura `supabaseUrl is required` na carga do módulo, o React nunca monta, o
+ * `#root` fica com ZERO elementos — e o `ferramentas-verificar.mjs` esperou 15 s
+ * por um campo de formulário, estourou com `TimeoutError` não tratado e saiu
+ * **1 — DIVERGE**.
+ *
+ * Quer dizer: anunciou que a calculadora está errada quando nada foi medido, e
+ * mandou o próximo leitor investigar o EuroSCORE em vez da variável que falta.
+ * Errado no veredito e errado no lugar para onde aponta.
+ *
+ * Página vazia não é página sem defeito: é página NÃO MEDIDA — saída 2.
+ *
+ * ## Por que o limiar mora aqui
+ *
+ * O `mobile.mjs` já fazia esta conferência, com o motivo escrito ("num build
+ * local costuma ser variável de ambiente faltando"), e o irmão não fazia. Pela
+ * terceira vez nesta dupla de arquivos, a lição estava aprendida num e ausente
+ * no outro. Duas cópias de um limiar são duas cópias que divergem; esta base já
+ * pagou esse preço com o caminho do Chromium, logo acima, e com as catorze
+ * cópias do `escrita()` nos testes.
+ *
+ * Os números não são escolhidos a esmo: qualquer tela do app monta muito mais
+ * de 10 elementos e mostra muito mais de 50 caracteres. O que fica abaixo disso
+ * é o shell do HTML sem app nenhum.
+ */
+export function pareceVazia({ elementos = 0, texto = 0 } = {}) {
+  return elementos < 10 || texto < 50;
+}
+
+/** O diagnóstico de uma tela vazia, com a causa mais provável nomeada. */
+export function motivoDeTelaVazia({ elementos = 0, texto = 0, erros = [] } = {}) {
+  return (
+    `#root tem ${elementos} elemento(s) e ${texto} caractere(s) de texto visível\n` +
+    (erros.length ? `  erros da página: ${erros.slice(0, 3).join(" | ")}\n` : "") +
+    "\nNenhuma conferência rodou — isto é ausência de medida, não divergência.\n" +
+    "A causa mais comum é o build ter saído sem as chaves PÚBLICAS: sem\n" +
+    "`VITE_SUPABASE_URL` o cliente do Supabase estoura `supabaseUrl is\n" +
+    "required` antes de o React montar, e a tela fica em branco.\n\n" +
+    "Na CI elas vêm das *Variables* do repositório (são públicas — vão em todo\n" +
+    "bundle; nunca em *Secrets*). Localmente, do `.env`."
+  );
+}
+
+/** O que há na tela agora: quanto o app montou, e quanto texto ele mostra. */
+export async function medirRenderizacao(pagina) {
+  return await pagina.evaluate(() => ({
+    elementos: document.getElementById("root")?.querySelectorAll("*").length ?? 0,
+    texto: (document.body.innerText || "").trim().length,
+  }));
+}
