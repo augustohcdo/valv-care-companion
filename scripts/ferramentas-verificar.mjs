@@ -46,6 +46,7 @@
  * chunks que ela serve.
  */
 import { execSync } from "node:child_process";
+import { opcoesDoChromium } from "./lib/chromium.mjs";
 
 async function carregarPlaywright() {
   for (const alvo of ["playwright", "@playwright/test"]) {

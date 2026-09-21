@@ -18,6 +18,7 @@
  *   npm run mobile -- http://127.0.0.1:4173    # preview local
  */
 import { execSync } from "node:child_process";
+import { opcoesDoChromium } from "./lib/chromium.mjs";
 
 /**
  * O Playwright não é dependência do projeto — seria peso grande para um script
@@ -110,19 +111,17 @@ function medir() {
 }
 
 /**
- * O mesmo lançamento do `ferramentas-verificar.mjs`: o Chromium deste contêiner
- * vive em `/opt/pw-browsers/chromium` e o `chrome-headless-shell` que o
- * Playwright procura por padrão não está instalado. Sem `executablePath` o
- * script morre antes de medir qualquer coisa — e morrer é melhor do que medir
- * errado, mas medir é melhor ainda. O proxy é preciso quando a `BASE` é
- * externa; `127.0.0.1` fica de fora dele.
+ * O mesmo lançamento dos outros dois scripts de navegador, e por isso mora num
+ * lugar só: `lib/chromium.mjs` decide o caminho do Chromium (passa `executablePath`
+ * apenas quando o arquivo existe) e o proxy (o navegador do contêiner de
+ * desenvolvimento só alcança a internet por ele; `127.0.0.1` fica de fora).
+ *
+ * Havia aqui uma segunda montagem do proxy, sobrescrevendo a do helper com o
+ * mesmo valor. Duas cópias que concordam hoje são duas cópias que divergem
+ * amanhã — foi assim que este script ficou com o caminho cravado enquanto o
+ * `rotas-renderizam.mjs` já fazia certo.
  */
-const PROXY = process.env["HTTPS_PROXY"] || process.env["https_proxy"];
-// Ver `lib/chromium.mjs`: o caminho só entra quando o arquivo existe.
-const navegador = await chromium.launch({
-  ...opcoesDoChromium(),
-  ...(PROXY ? { proxy: { server: PROXY, bypass: "127.0.0.1,localhost" } } : {}),
-});
+const navegador = await chromium.launch(opcoesDoChromium());
 const contexto = await navegador.newContext({ ...IPHONE });
 let falhou = false;
 let medidas = 0;

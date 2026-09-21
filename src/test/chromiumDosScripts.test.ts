@@ -84,33 +84,37 @@ describe("o Chromium dos scripts", () => {
     expect("proxy" in opcoesDoChromium({ env: {}, existe: () => false })).toBe(false);
   });
 
+  /**
+   * ## O que esta varredura NÃO promete — e o dia em que eu achei que prometia
+   *
+   * As duas regras abaixo leem o TEXTO dos scripts. Elas dizem "nenhum script
+   * crava caminho" e "todos buscam a decisão no mesmo lugar". Não dizem que os
+   * scripts *funcionam*, e eu tratei uma pela outra.
+   *
+   * O conserto que este arquivo acompanha trocou o corpo de três scripts pela
+   * chamada `opcoesDoChromium()` — **sem o `import`** em nenhum dos três. Os
+   * três morriam com `ReferenceError` antes de abrir uma aba. A varredura
+   * aprovou os três: ela procurava a AUSÊNCIA de `executablePath:`, e um
+   * arquivo que não carrega também não tem `executablePath:`.
+   *
+   * Guarda cujo nome promete mais do que ela confere é pior do que nenhuma,
+   * porque compra confiança que não sustenta. Quem pega "o script não roda" é
+   * o `no-undef` do lint, ligado em `eslint.config.js` para `scripts/**\/*.mjs`
+   * e conferido em `lintCobreOsScripts.test.ts` — até aquele conserto, o lint
+   * não olhava nenhum destes 29 arquivos e anunciava `0 erros` em toda CI.
+   */
+
   it("nenhum script sobe navegador com caminho cravado", () => {
     /**
      * A regra sobre a classe, não sobre os dois arquivos onde o defeito
      * apareceu. O próximo script que subir navegador entra sozinho.
      */
     const ruins: string[] = [];
-    let comLaunch = 0;
-
-    const varrer = (dir: string) => {
-      for (const nome of readdirSync(dir)) {
-        const full = join(dir, nome);
-        if (statSync(full).isDirectory()) { varrer(full); continue; }
-        if (!/\.mjs$/.test(nome)) continue;
-        const texto = readFileSync(full, "utf8");
-        if (!/chromium\.launch\s*\(/.test(texto)) continue;
-        comLaunch++;
-        // O helper é a exceção: é ele que decide, e tem teste próprio acima.
-        if (full.endsWith("lib/chromium.mjs")) continue;
-        if (/executablePath\s*:/.test(texto)) {
-          ruins.push(`  · ${full} — decide o caminho por conta própria`);
-        }
+    for (const full of scriptsQueSobemNavegador()) {
+      if (/executablePath\s*:/.test(semComentarios(readFileSync(full, "utf8")))) {
+        ruins.push(`  · ${full} — decide o caminho por conta própria`);
       }
-    };
-    varrer("scripts");
-
-    expect(comLaunch, "nenhum script sobe navegador — a varredura conferiu nada")
-      .toBeGreaterThanOrEqual(3);
+    }
     expect(
       ruins,
       `\n${ruins.join("\n")}\n\n` +
@@ -120,4 +124,75 @@ describe("o Chromium dos scripts", () => {
         "terceiro já tinha, com o motivo escrito no comentário dele.",
     ).toEqual([]);
   });
+
+  it("todo script de navegador busca a decisão no helper, e não uma cópia sua", () => {
+    /**
+     * A regra acima confere que ninguém escreve o caminho errado. Esta confere
+     * que todos leem o CERTO — do mesmo arquivo.
+     *
+     * A diferença não é acadêmica: um script pode declarar o próprio
+     * `opcoesDoChromium` local, passar no `no-undef`, passar na regra de cima,
+     * e divergir do helper na primeira vez que o helper mudar. Foi exatamente
+     * assim que o `rotas-renderizam.mjs` ficou certo e os outros dois errados
+     * — cada um com sua cópia da mesma decisão.
+     */
+    const semHelper: string[] = [];
+    for (const full of scriptsQueSobemNavegador()) {
+      const texto = readFileSync(full, "utf8");
+      const importa = /^\s*import\s*\{[^}]*\bopcoesDoChromium\b[^}]*\}\s*from\s*["'][^"']*lib\/chromium\.mjs["']/m
+        .test(texto);
+      if (!importa) {
+        semHelper.push(`  · ${full} — sobe navegador sem importar de lib/chromium.mjs`);
+      }
+    }
+    expect(
+      semHelper,
+      `\n${semHelper.join("\n")}\n\n` +
+        "Quem sobe navegador pega as opções em `scripts/lib/chromium.mjs`. Uma\n" +
+        "regra que mora num arquivo só não tem como divergir de si mesma.",
+    ).toEqual([]);
+  });
 });
+
+/**
+ * O código sem os comentários, com as linhas preservadas.
+ *
+ * A regra do caminho cravado procura `executablePath:` no arquivo. Sem esta
+ * limpeza, o primeiro comentário que EXPLICASSE a regra — escrevendo o nome do
+ * campo seguido de dois pontos, como faz o cabeçalho do `mobile.mjs` — derrubaria
+ * a guarda. Guarda que pune quem documentou é guarda que alguém desliga.
+ *
+ * As quebras de linha são mantidas de propósito: uma versão anterior deste
+ * truque, noutro detector desta base, colapsava os comentários de bloco e fazia
+ * a varredura apontar a linha 150 para um defeito que estava na 158.
+ */
+function semComentarios(texto: string): string {
+  return texto
+    .replace(/\/\*[\s\S]*?\*\//g, (bloco) => bloco.replace(/[^\n]/g, " "))
+    .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+}
+
+/**
+ * Os scripts que sobem navegador — a varredura das duas regras acima.
+ *
+ * O piso está aqui, e não em cada regra, porque é ele que impede a varredura de
+ * aprovar por não ter achado nada: uma lista vazia satisfaz qualquer `toEqual([])`.
+ */
+function scriptsQueSobemNavegador(): string[] {
+  const achados: string[] = [];
+  const varrer = (dir: string) => {
+    for (const nome of readdirSync(dir)) {
+      const full = join(dir, nome);
+      if (statSync(full).isDirectory()) { varrer(full); continue; }
+      if (!/\.mjs$/.test(nome)) continue;
+      // O helper é a exceção: é ele que decide, e tem teste próprio acima.
+      if (full.endsWith("lib/chromium.mjs")) continue;
+      if (/chromium\.launch\s*\(/.test(readFileSync(full, "utf8"))) achados.push(full);
+    }
+  };
+  varrer("scripts");
+
+  expect(achados.length, "nenhum script sobe navegador — a varredura conferiu nada")
+    .toBeGreaterThanOrEqual(3);
+  return achados;
+}

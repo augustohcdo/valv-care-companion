@@ -113,6 +113,7 @@
  */
 import { execSync } from "node:child_process";
 import { rotasDoApp } from "./smoke.mjs";
+import { opcoesDoChromium } from "./lib/chromium.mjs";
 
 async function carregarPlaywright() {
   for (const alvo of ["playwright", "@playwright/test"]) {

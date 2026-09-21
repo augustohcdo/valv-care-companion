@@ -34,4 +34,53 @@ export default tseslint.config(
       "react-hooks/purity": "warn",
     },
   },
+  {
+    /**
+     * Os scripts de `scripts/` — 29 arquivos `.mjs` que o lint nunca tinha visto.
+     *
+     * ## Como isto apareceu
+     *
+     * O bloco acima vale para `**\/*.{ts,tsx}`. Nada mais. `npm run lint` é
+     * `eslint .`, roda em toda CI e dizia "0 erros" — verdade sobre os arquivos
+     * que ele olhava, e silêncio sobre 29 que ele não olhava. É a mesma família
+     * de defeito que esta sessão persegue, dentro do próprio linter: relatar
+     * sucesso sem ter feito o trabalho.
+     *
+     * O que estava escondido ali: `ferramentas-verificar.mjs`, `mobile.mjs` e
+     * `rotas-renderizam.mjs` chamavam `opcoesDoChromium()` **sem importar**.
+     * `node --check` passava (a referência só falha em tempo de execução) e o
+     * teste que eu tinha escrito passava também, porque ele conferia a AUSÊNCIA
+     * de `executablePath:` — e um arquivo que nem carrega também não tem
+     * `executablePath:`. Guarda que só sabe dizer "não vi a coisa errada"
+     * aprova o arquivo que não faz nada.
+     *
+     * A agenda diária acusou `ReferenceError: opcoesDoChromium is not defined`.
+     * `no-undef` pega essa classe inteira — em todo script, para todo nome,
+     * para sempre — e não custa uma regra nova a cada defeito novo.
+     *
+     * ## Por que os globais do navegador entram
+     *
+     * Estes scripts passam funções para `page.evaluate()`, que roda DENTRO da
+     * página: `document`, `window` e `location` são legítimos ali. Sem eles,
+     * `no-undef` acusaria 17 linhas corretas. Falso vermelho importa tanto
+     * quanto falso verde — guarda que pune quem fez certo é guarda que alguém
+     * desliga.
+     */
+    files: ["scripts/**/*.mjs"],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: "module",
+      globals: { ...globals.node, ...globals.browser },
+    },
+    rules: {
+      // Não usado é estilo; não definido é um script que não roda. Ligar só o
+      // segundo mantém o sinal com significado — e foi o segundo que quebrou a
+      // agenda diária.
+      "no-unused-vars": "off",
+      // `catch { /* tenta o próximo */ }` é intencional em todo carregador de
+      // Playwright daqui, e o comentário diz por quê.
+      "no-empty": ["error", { allowEmptyCatch: true }],
+    },
+  },
 );
