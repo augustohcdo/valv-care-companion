@@ -42,6 +42,28 @@ function corpoDoPassoConferir(texto: string, chamadasSinteticas: string): string
 }
 
 /**
+ * O corpo do passo da porta de entrada, com a chamada real trocada por uma
+ * sintética de código de saída escolhido.
+ *
+ * Mesmo desenho do `corpoDoPassoConferir`: extrai do YAML de verdade em vez de
+ * redigitar o script aqui. Cópia testaria a cópia.
+ */
+function corpoDoPassoPortaDeEntrada(texto: string, comandoSintetico: string): string {
+  const i = texto.indexOf("      - name: A porta de entrada do site abre?");
+  if (i < 0) throw new Error('não achei o passo "A porta de entrada do site abre?"');
+  const bloco = texto.slice(i);
+  const j = bloco.indexOf("        run: |\n");
+  if (j < 0) throw new Error("o passo da porta de entrada não tem `run: |`");
+  const depois = bloco.slice(j + "        run: |\n".length);
+  const k = depois.search(/\n {6}- name: /);
+  const corpo = (k < 0 ? depois : depois.slice(0, k))
+    .split("\n")
+    .map((l) => (l.startsWith("          ") ? l.slice(10) : l))
+    .join("\n");
+  return corpo.replace(/node scripts\/saude-do-site\.mjs/g, comandoSintetico);
+}
+
+/**
  * As verificações que só existiam quando alguém lembrava.
  *
  * ## O que custou
@@ -162,6 +184,50 @@ describe("as verificações periódicas", () => {
       'issue que fica aberta depois de consertado ensina a ignorar issue',
     ).toContain('state: "closed"');
   });
+
+  /**
+   * O portão que eu não tinha visto.
+   *
+   * Depois de tirar o `exit 1` do passo das chaves, disparei o workflow à mão
+   * para conferir — e ele reprovou de novo, com ZERO conferências executadas.
+   * O passo seguinte, `A porta de entrada do site abre?`, era
+   * `run: node scripts/saude-do-site.mjs` puro: qualquer saída diferente de 0
+   * encerra o job, e sem as chaves aquele script sai **2**.
+   *
+   * Eu tinha tirado um portão de dois estados e deixado outro, três linhas
+   * abaixo. Só apareceu porque executei em vez de acreditar no conserto.
+   *
+   * A regra: só a porta de entrada FECHADA (saída 1) para o job. "Não consegui
+   * olhar" segue, e quem dá o veredito é o passo `Conferir`, que sabe pintar os
+   * três estados.
+   */
+  const PORTA: [string, string, number][] = [
+    ["ok", "true", 0],
+    ["NÃO CONFERIDO (2) não para o job", "bash -c 'exit 2'", 0],
+    ["porta FECHADA (1) para o job", "bash -c 'exit 1'", 1],
+    ["saída inesperada (7) para o job", "bash -c 'exit 7'", 7],
+  ];
+
+  for (const [nome, comando, esperado] of PORTA) {
+    it(`porta de entrada executada: ${nome}`, () => {
+      const dir = mkdtempSync(join(tmpdir(), "porta-"));
+      try {
+        const script = join(dir, "porta.sh");
+        writeFileSync(script, corpoDoPassoPortaDeEntrada(yml, comando));
+        const r = spawnSync("bash", ["-e", script], { encoding: "utf8", timeout: 60_000 });
+        expect(r.error, "não consegui executar `bash`").toBeUndefined();
+        expect(
+          r.status,
+          `esperava saída ${esperado} e veio ${r.status}.\n\n` +
+            "Um 2 que derruba o job é 'não consegui olhar' tratado como 'está errado'\n" +
+            "— e derruba junto as cinco conferências que nem precisavam da chave.\n\n" +
+            (r.stdout ?? "") + (r.stderr ?? ""),
+        ).toBe(esperado);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }, 90_000);
+  }
 
   it("sem as chaves públicas o job NÃO morre — as outras conferências rodam", () => {
     /**

@@ -151,15 +151,52 @@ jobs:
             echo "- \`VITE_SUPABASE_PUBLISHABLE_KEY\`"
             echo ""
             echo "São chaves **públicas** — já vão embutidas no bundle que qualquer visitante baixa."
-            echo "Por isso `variables`, e nunca `secrets`."
+            echo "São *variables*, nunca *secrets*."
             echo ""
           } >> "$GITHUB_STEP_SUMMARY"
 
       # A checagem mais barata e a mais importante vem primeiro, sozinha e sem
       # depender de build nenhum: se a porta de entrada estiver fechada, quem
-      # abrir este resumo precisa ver isso na primeira linha.
+      # abrir este resumo precisa ver isso na primeira linha, sem esperar o
+      # build e o Playwright.
+      #
+      # **Mas ela não pode ser um portão de dois estados.** Era
+      # `run: node scripts/saude-do-site.mjs` puro, e qualquer saída diferente
+      # de 0 encerrava o job. O script usa a convenção de três estados desta
+      # casa — 0 ok, 1 errado, 2 NÃO CONFERIDO — e sem as chaves públicas ele
+      # sai 2. Resultado: mesmo depois de eu tirar o `exit 1` do passo das
+      # chaves, o job continuou morrendo AQUI, e as conferências seguiram sem
+      # rodar. Eu tinha tirado um portão e deixado o outro, que não tinha visto.
+      #
+      # Agora ele para o job só no caso que a intenção descreve — a porta de
+      # entrada FECHADA, que é saída 1. "Não consegui olhar" não é "está
+      # fechada", e quem decide o veredito é o passo `Conferir`, que sabe
+      # pintar os três estados.
       - name: A porta de entrada do site abre?
-        run: node scripts/saude-do-site.mjs
+        run: |
+          # `estado=0` + `|| estado=$?`, e NÃO um `if` seguido de `$?`.
+          #
+          # A primeira versão deste bloco fazia `if node …; then exit 0; fi` e
+          # só então lia `$?` — que ali já é o status DO `if`, sempre 0 quando o
+          # ramo não foi tomado. O portão nunca disparava: porta fechada saía
+          # `exit 0` e o job seguia verde sobre um site fora do ar. A guarda
+          # `porta de entrada executada` pegou isto na hora, porque ela EXECUTA
+          # o bloco em vez de ler as palavras dele.
+          #
+          # A forma `cmd || estado=$?` também é o que funciona sob `bash -e`,
+          # que é o shell do GitHub: sem o `||`, a saída não-zero abortaria o
+          # passo antes de qualquer decisão.
+          estado=0
+          node scripts/saude-do-site.mjs || estado=$?
+          if [ "$estado" -eq 0 ]; then
+            exit 0
+          fi
+          if [ "$estado" -eq 2 ]; then
+            echo "::warning::porta de entrada NÃO CONFERIDA (saída 2) — segue; o passo Conferir dá o veredito"
+            exit 0
+          fi
+          echo "::error::a porta de entrada do site está FECHADA (saída $estado)"
+          exit "$estado"
 
       - name: Build
         run: npm run build
