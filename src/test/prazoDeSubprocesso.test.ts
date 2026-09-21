@@ -40,8 +40,16 @@ import { join } from "node:path";
 const RAIZ = "src";
 const IGNORAR = new Set(["node_modules", "dist", "coverage"]);
 
-/** Quem sobe processo externo. `fork` entra: é o mesmo custo de subida. */
-const SOBE_PROCESSO = /\b(spawnSync|execSync|execFileSync|spawn|exec|execFile|fork)\s*\(/;
+/**
+ * Quem sobe processo externo. `fork` entra: é o mesmo custo de subida.
+ *
+ * O `(?<![.\w$])` não é enfeite. Sem ele, `/regex/.exec(texto)` casava com o
+ * `exec` do `child_process` e esta guarda acusou um teste que só lê YAML —
+ * reprovando quem não sobe processo nenhum. Os nomes aqui são os IMPORTADOS de
+ * `node:child_process`; como método de outro objeto, são outra coisa.
+ */
+const SOBE_PROCESSO =
+  /(?<![.\w$])(spawnSync|execSync|execFileSync|spawn|exec|execFile|fork)\s*\(/;
 
 /** O prazo que o próprio filho recebeu, quando recebeu algum. */
 const PRAZO_DO_FILHO = /\btimeout:\s*([0-9_]+)/g;
@@ -184,6 +192,20 @@ const SEM_SPAWN = [
 /** Também no topo, e pelo mesmo motivo: ela cita `spawnSync(`. */
 const METODO_HOMONIMO = ['const r = suite.it("x", () => spawnSync("a"));'].join("\n");
 
+/**
+ * Um `.exec(` de REGEX, que não sobe processo nenhum.
+ *
+ * Esta guarda acusou um teste que só lê YAML porque `/re/.exec(texto)` casava
+ * com o `exec` do `child_process`. Reprovar quem não sobe processo é o erro
+ * que esta base persegue do outro lado.
+ */
+const EXEC_DE_REGEX = [
+  'it("lê o bloco de permissões", () => {',
+  "  const bloco = /permissions:\\n(.+)/.exec(yml);",
+  "  expect(bloco).not.toBeNull();",
+  "});",
+].join("\n");
+
 describe("prazo dos testes que sobem processo externo", () => {
   it("nenhum bloco sobe processo com o prazo padrão de 5 s", () => {
     const ruins: string[] = [];
@@ -242,6 +264,14 @@ describe("prazo dos testes que sobem processo externo", () => {
     const [bloco] = blocosDeTeste(COM_SPAWN_COM_PRAZO);
     expect(bloco.prazo, "confundiu uma vírgula de dentro com o fim do argumento").toBe(90_000);
     expect(bloco.corpo, "o corpo extraído não chegou ao fim da chamada").toContain("expect(r.status)");
+  });
+
+  it("não confunde `.exec(` de regex com o `exec` do child_process", () => {
+    const [bloco] = blocosDeTeste(EXEC_DE_REGEX);
+    expect(
+      faltaPrazo(bloco),
+      "cobrou prazo de um teste que não sobe processo nenhum",
+    ).toBeNull();
   });
 
   it("não confunde método de objeto com bloco de teste", () => {

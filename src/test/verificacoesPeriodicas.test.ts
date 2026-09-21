@@ -20,8 +20,17 @@ function corpoDoPassoConferir(texto: string, chamadasSinteticas: string): string
   const bloco = texto.slice(i);
   const j = bloco.indexOf("        run: |\n");
   if (j < 0) throw new Error('o passo "Conferir" não tem `run: |`');
-  const corpo = bloco
-    .slice(j + "        run: |\n".length)
+  // O corpo termina no PRÓXIMO passo, não no fim do arquivo.
+  //
+  // A versão anterior fatiava até o fim, o que funcionava só porque o
+  // `Conferir` era o último passo — uma dependência que ninguém tinha
+  // escrito. Ao acrescentar o passo que avisa por issue, o extrator passou a
+  // engolir o YAML dele e o `bash` reprovou sobre lixo, dizendo que a
+  // conferência tinha saído 2. Guarda que depende de ordem não declarada
+  // reprova a próxima pessoa que reordenar, pelo motivo errado.
+  const depoisDoRun = bloco.slice(j + "        run: |\n".length);
+  const k = depoisDoRun.search(/\n {6}- name: /);
+  const corpo = (k < 0 ? depoisDoRun : depoisDoRun.slice(0, k))
     .split("\n")
     .map((l) => (l.startsWith("          ") ? l.slice(10) : l))
     .join("\n");
@@ -115,8 +124,75 @@ describe("as verificações periódicas", () => {
     expect(ymlSemComentario).not.toMatch(/SUPABASE_ACCESS_TOKEN/);
   });
 
-  it("só lê — permissões mínimas", () => {
-    expect(yml).toMatch(/permissions:\s*\n\s*contents:\s*read/);
+  it("as permissões são exatamente as duas de que ele precisa", () => {
+    /**
+     * Este teste chamava-se "só lê — permissões mínimas" e cobrava apenas
+     * `contents: read`. Quando o passo que avisa por issue entrou, precisei de
+     * `issues: write` — e o teste continuou PASSANDO com o nome antigo, porque
+     * a regex só exigia que `contents: read` estivesse lá.
+     *
+     * Guarda cujo nome afirma mais do que ela confere é pior que guarda
+     * nenhuma: quem lê a lista de testes conclui que o workflow só lê.
+     *
+     * Agora ele enumera o conjunto: as duas que precisam existir, e nenhuma
+     * outra. `issues: write` está aqui porque um vigia diário que falha em
+     * silêncio não é vigia — ver o último passo do workflow.
+     */
+    const bloco = /permissions:\n((?:\s+#.*\n|\s+\w[\w-]*:\s*\w+\n)+)/.exec(yml);
+    expect(bloco, "não achei o bloco `permissions:`").not.toBeNull();
+
+    const concedidas = bloco![1]
+      .split("\n")
+      .filter((l) => l.trim() && !l.trim().startsWith("#"))
+      .map((l) => l.trim());
+
+    expect(concedidas.sort()).toEqual(["contents: read", "issues: write"]);
+  });
+
+  it("uma falha vira issue, e o sucesso a fecha", () => {
+    // O defeito que motivou este passo: as conferências reprovaram nos dias 14
+    // a 19 de setembro e ninguém soube. `$GITHUB_STEP_SUMMARY` só existe para
+    // quem abre a execução, e ninguém abre a aba de Actions todo dia.
+    const passo = yml.slice(yml.indexOf("- name: Avisar"));
+    expect(passo, "o passo do aviso sumiu").toContain("github-script");
+    expect(passo, "precisa rodar mesmo com o job vermelho").toMatch(/if:\s*always\(\)/);
+    expect(passo, "sem isto, abre uma issue nova por dia").toContain("issues.createComment");
+    expect(
+      passo,
+      'issue que fica aberta depois de consertado ensina a ignorar issue',
+    ).toContain('state: "closed"');
+  });
+
+  it("sem as chaves públicas o job NÃO morre — as outras conferências rodam", () => {
+    /**
+     * O defeito de verdade, e o mais caro desta sessão.
+     *
+     * O passo das chaves terminava com `exit 1` quando não as achava. Como
+     * elas vinham de um `.env` que o `.gitignore` exclui, na CI o passo morria
+     * SEMPRE — e matava o job antes do passo `Conferir`. As cinco conferências
+     * que não dependem de chave nenhuma (porta de entrada, rotas do site,
+     * PubMed, MMCTS, calculadoras) não rodaram uma única vez em seis dias.
+     *
+     * Pior: o `conferir-publicacao.mjs` JÁ sai 2 (NÃO CONFERIDO) sozinho
+     * quando falta a chave, e o `roda()` já sabe pintar isso de ⚠️. O sistema
+     * de três estados estava pronto; eu pus um portão de dois estados na
+     * frente dele.
+     *
+     * Falta de credencial é "não conferido", não "está errado".
+     */
+    const i = yml.indexOf("- name: Exportar as chaves públicas");
+    expect(i, "o passo das chaves sumiu").toBeGreaterThan(0);
+    const passo = yml.slice(i, yml.indexOf("\n      - name: ", i + 10));
+
+    expect(
+      passo,
+      "voltou o `exit 1`: falta de chave mata o job e nenhuma conferência roda",
+    ).not.toMatch(/^\s*exit 1\s*$/m);
+
+    expect(passo, "as chaves públicas moram em `vars`, não em `.env` versionado")
+      .toContain("vars.VITE_SUPABASE_URL");
+    expect(passo, "sem chave, o passo precisa AVISAR em vez de morrer")
+      .toContain("::warning::");
   });
 
   /**
