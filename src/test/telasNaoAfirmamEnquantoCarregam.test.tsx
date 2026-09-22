@@ -6,7 +6,7 @@ import { MemoryRouter } from "react-router-dom";
 import type { ReactNode } from "react";
 
 /**
- * NENHUMA tela de `/app/` afirma ausência enquanto ainda está lendo.
+ * NENHUMA tela afirma ausência enquanto ainda está lendo — de `/app/` e públicas.
  *
  * ## O terceiro estado
  *
@@ -123,12 +123,19 @@ const CATEGORICA =
  * afirmação sobre dado que ninguém leu.
  */
 const EXPLICAM_SEM_AFIRMAR: Record<string, string> = {
-  AdminDPO:
+  "app/AdminDPO":
     "'nenhuma exclusão é executada automaticamente por esta tela' descreve a REGRA do " +
     "processo de LGPD, não uma contagem; a lista em si diz 'Carregando solicitações…'. " +
     "O CUSTO desta isenção, escrito para quem vier depois: enquanto ela existir, esta " +
     "tela fica fora da varredura — uma contagem falsa que aparecesse aqui passaria batida. " +
     "Quem reescrever a frase de processo sem a palavra tira a entrada e devolve a cobertura.",
+  "public/Medicos":
+    "'Três passos, e nenhum deles automático' descreve como o acesso profissional é " +
+    "conferido — prosa fixa da página, sem dado por trás. A página não lê banco nenhum; " +
+    "quem lê é o `SolicitarAcessoForm` que ela inclui, e ele trata o carregamento " +
+    "(conferido). O custo é o mesmo da entrada acima: enquanto existir, esta página fica " +
+    "fora da varredura. Só apareceu agora porque ela nunca havia renderizado em teste " +
+    "nenhum — faltava o `IntersectionObserver` no `setup.ts`, e o render estourava.",
 };
 
 /**
@@ -144,14 +151,48 @@ const EXPLICAM_SEM_AFIRMAR: Record<string, string> = {
  * frase. Isenção é a última saída, não a primeira.
  */
 
-const todos = import.meta.glob("../pages/app/*.tsx");
+/**
+ * As telas que uma pessoa pode abrir: as de dentro do aplicativo E as públicas.
+ *
+ * A primeira versão desta varredura olhava só `pages/app/`, porque foi ali que
+ * as 4 telas do defeito estavam. Regra amarrada ao diretório onde o defeito
+ * apareceu é o próprio defeito — já custou duas vezes nesta sessão (o caminho
+ * do Chromium e o `.shot-tmp.mjs` na raiz), e as páginas públicas são as que
+ * qualquer visitante abre sem login.
+ *
+ * Medidas quando o escopo cresceu: das 17 páginas públicas, duas leem do banco
+ * (`DPO` e `Ferramentas`) e as duas já tratavam o carregamento. Nenhum defeito
+ * novo — mas o buraco era real, e agora está fechado em vez de descrito.
+ */
+const todos = { ...import.meta.glob("../pages/app/*.tsx"), ...import.meta.glob("../pages/public/*.tsx") };
 const modulos = Object.fromEntries(
   Object.entries(todos).filter(([c]) => !/\.test\.tsx$/.test(c)),
 );
-const TELAS = Object.keys(modulos).map((c) => ({
-  caminho: c,
-  nome: c.replace("../pages/app/", "").replace(".tsx", ""),
-}));
+
+/**
+ * O que não é uma tela inteira, e por isso não se monta sozinho.
+ *
+ * Com motivo escrito, como as outras listas deste repositório: sem isso, um
+ * arquivo que passa a estourar no render sai calado da varredura e ninguém
+ * percebe que a cobertura diminuiu.
+ */
+const NAO_SAO_TELAS: Record<string, string> = {
+  LegalPage:
+    "molde reaproveitado pelas páginas de termos e privacidade; recebe o conteúdo " +
+    "por props do roteador e não existe como tela por si",
+};
+
+const TELAS = Object.keys(modulos)
+  .map((c) => ({
+    caminho: c,
+    // O nome do arquivo, sem o diretório, é o que o módulo exporta.
+    nome: c.replace(/.*\//, "").replace(".tsx", ""),
+    // E o rótulo do teste traz o diretório: há uma `Privacidade` em `app/` e
+    // outra em `public/`, e sem isto os dois blocos teriam o mesmo nome — dois
+    // testes homônimos num relatório de falha não dizem qual arquivo olhar.
+    rotulo: c.replace("../pages/", "").replace(".tsx", ""),
+  }))
+  .filter((t) => !NAO_SAO_TELAS[t.nome]);
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
@@ -164,36 +205,62 @@ function wrapper({ children }: { children: ReactNode }) {
 
 beforeEach(() => vi.clearAllMocks());
 
-/** Monta a tela com tudo pendente e devolve o texto que ela mostra. */
-async function textoEnquantoCarrega(caminho: string, nome: string) {
+/** Quantas telas realmente consultaram o banco — o piso da varredura. */
+const leram = new Set<string>();
+
+/**
+ * Monta a tela com tudo pendente e devolve o texto que ela mostra, mais se ela
+ * consultou o banco durante a montagem.
+ */
+async function montarComLeituraPendente(caminho: string, nome: string) {
   const mod = (await modulos[caminho]()) as Record<string, unknown>;
   const Tela = (mod.default ?? mod[nome]) as React.ComponentType | undefined;
   if (!Tela) throw new Error(`${nome} não tem componente exportado`);
+  const antes = h.pendentes;
   const { container, unmount } = render(<Tela />, { wrapper });
   // Tempo para os efeitos dispararem. Não há corrida com a resposta: ela nunca
   // chega, então o estado medido é estável, e não uma janela de sorte.
   await new Promise((r) => setTimeout(r, 80));
   const texto = (container.textContent ?? "").replace(/\s+/g, " ").trim();
+  const consultou = h.pendentes > antes;
   unmount();
-  return texto;
+  return { texto, consultou };
 }
 
 describe("nenhuma tela afirma ausência enquanto ainda está lendo", () => {
   // Uma tela por bloco, e não as 38 num `it` só: este repositório já perdeu uma
   // medição para contaminação entre telas dentro do mesmo teste.
-  for (const { caminho, nome } of TELAS) {
-    const declarada = EXPLICAM_SEM_AFIRMAR[nome];
+  for (const { caminho, nome, rotulo } of TELAS) {
+    const declarada = EXPLICAM_SEM_AFIRMAR[rotulo];
 
-    it(`${nome}`, async () => {
-      const texto = await textoEnquantoCarrega(caminho, nome);
+    it(`${rotulo}`, async () => {
+      const { texto, consultou } = await montarComLeituraPendente(caminho, nome);
+      if (consultou) leram.add(rotulo);
       const achado = CATEGORICA.exec(texto);
+
+      /**
+       * Tela que não consultou nada não tem sobre o que ser precipitada.
+       *
+       * Quando a varredura passou a cobrir `pages/public/`, cinco páginas
+       * reprovaram por PROSA LEGAL estática: "nenhum provedor de analytics de
+       * terceiros está ativo", "nenhum dado clínico é compartilhado antes do
+       * aceite", "nenhum conteúdo aqui substitui avaliação médica". São
+       * afirmações sobre a política do serviço, não sobre dado que ninguém leu
+       * — e as páginas não leem banco nenhum.
+       *
+       * A isenção é por MEDIÇÃO, e não por lista escrita à mão: a regra é "não
+       * afirme ausência antes de ter lido", e quem não lê não entra nela. Lista
+       * exigiria manutenção e envelheceria calada; a medição acompanha o código.
+       * O piso mais abaixo garante que a medição não isente todo mundo.
+       */
+      if (!consultou) return;
 
       if (declarada) {
         // A exceção também é cobrada: se a frase sumiu, a isenção virou peso
         // morto e some junto — senão a lista cresce e nunca encolhe.
         expect(
           achado,
-          `${nome} está declarada em EXPLICAM_SEM_AFIRMAR, mas não contém mais frase\n` +
+          `${rotulo} está declarada em EXPLICAM_SEM_AFIRMAR, mas não contém mais frase\n` +
             "categórica. Tire a entrada: exceção que não isenta nada ensina a\n" +
             "acrescentar exceção sem olhar.",
         ).not.toBeNull();
@@ -205,7 +272,7 @@ describe("nenhuma tela afirma ausência enquanto ainda está lendo", () => {
         : "";
       expect(
         achado,
-        `\n${nome} afirma ausência com a leitura ainda em voo:\n\n  ${trecho}\n\n` +
+        `\n${rotulo} afirma ausência com a leitura ainda em voo:\n\n  ${trecho}\n\n` +
           "Enquanto a consulta não volta, `data` é vazio — e vazio não é zero, é\n" +
           "ainda-não-sei. Três estados: carregando, falhou, e não tem. O ramo de\n" +
           "erro desta base já foi consertado tela a tela; este é o vizinho dele.\n\n" +
@@ -215,17 +282,44 @@ describe("nenhuma tela afirma ausência enquanto ainda está lendo", () => {
     }, 30_000);
   }
 
+  it("o que foi tirado da varredura continua precisando de motivo", () => {
+    /**
+     * Isenção que não isenta nada ensina a acrescentar isenção sem olhar. Se
+     * `LegalPage` passar a montar sozinha, a entrada sai — e se outra parar de
+     * montar, ela entra aqui com o motivo, em vez de sumir calada.
+     */
+    for (const [nome, motivo] of Object.entries(NAO_SAO_TELAS)) {
+      expect(
+        Object.keys(modulos).some((c) => c.endsWith(`/${nome}.tsx`)),
+        `${nome} está em NAO_SAO_TELAS mas não existe mais — tire a entrada`,
+      ).toBe(true);
+      expect(motivo.length, `${nome} precisa de motivo escrito`).toBeGreaterThan(30);
+    }
+  });
+
   it("a varredura mediu alguma coisa", async () => {
     /**
      * O piso da própria varredura. Se o mock parar de aplicar — foi o que
      * aconteceu na primeira versão desta medição —, as telas resolvem por outro
      * caminho, ninguém fica pendente, e os 38 blocos acima passam sobre nada.
      */
-    expect(TELAS.length, "não achou telas em `pages/app/`").toBeGreaterThanOrEqual(35);
+    expect(
+      TELAS.length,
+      "não achou telas — a varredura cobre `pages/app/` E `pages/public/`",
+    ).toBeGreaterThanOrEqual(50);
     expect(
       h.pendentes,
       "nenhuma consulta ficou pendente — o mock não está sendo aplicado, e os\n" +
         "blocos acima passaram sobre telas que nunca entraram em carregamento",
     ).toBeGreaterThanOrEqual(30);
+    // E o piso da isenção por medição: se as telas pararem de consultar — mock
+    // trocado, `enabled` novo, hook renomeado —, a regra isenta todo mundo em
+    // silêncio, que é a forma exata de guarda que aprova sem ter olhado.
+    expect(
+      leram.size,
+      `só ${leram.size} tela(s) consultaram o banco. As que não consultam são\n` +
+        "isentas por medição, então um número baixo aqui significa que a varredura\n" +
+        "está isentando quase tudo — e passando sobre nada.",
+    ).toBeGreaterThanOrEqual(25);
   });
 });
