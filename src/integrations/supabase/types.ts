@@ -2417,7 +2417,11 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
-        Returns: undefined
+        // `void` virou `jsonb` na migration 20260923120000: `void` não tinha
+        // como distinguir "removi o papel" de "não havia papel a remover".
+        // Editado à mão porque `types:generate` fala com o projeto remoto, e a
+        // migration ainda não foi aplicada lá.
+        Returns: Json
       }
       admin_listar_usuarios: {
         Args: never

@@ -165,12 +165,33 @@ const PacienteMedico = () => {
     // Desvincular continua sendo direito do paciente — mas passa pela função,
     // porque a coluna deixou de ser escrita pelo cliente. A própria função
     // registra a trilha.
-    const { error } = await supabase.rpc("desvincular_medico");
+    const { data, error } = await supabase.rpc("desvincular_medico");
     if (error) {
       toast.error("Erro ao desvincular", { description: error.message });
       return;
     }
-    toast.success("Vínculo encerrado");
+
+    /**
+     * A função passou a dizer se DESVINCULOU, e não só se rodou.
+     *
+     * Antes ela devolvia `{ok: true}` mesmo quando não havia vínculo: a tela
+     * anunciava "Vínculo encerrado" e a trilha de auditoria gravava
+     * `doctor_patient_unlinked` com `doctor_id: null` — um desvínculo que nunca
+     * houve, no registro que existe justamente para provar o que houve.
+     *
+     * `undefined` é a função ANTIGA, antes da migration
+     * `20260923120000_trilha_so_registra_o_que_aconteceu`. Tratá-la como
+     * sucesso não é suposição: este botão só aparece com `currentDoctor`
+     * carregado, então ali havia vínculo e a função antiga fazia o trabalho.
+     */
+    const desvinculado = (data as { desvinculado?: boolean } | null)?.desvinculado;
+    if (desvinculado === false) {
+      toast.message("Não havia vínculo para encerrar", {
+        description: "Sua conta já estava sem médico vinculado. Nada foi alterado.",
+      });
+    } else {
+      toast.success("Vínculo encerrado");
+    }
     loadCurrent();
   };
 

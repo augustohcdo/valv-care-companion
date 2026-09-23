@@ -66,17 +66,41 @@ export default function AdminUsuarios() {
    * preenchido, e emendar direto no `toast.success` diria "papel concedido"
    * sobre uma operação recusada — o defeito que `src/lib/mutate.ts` existe para
    * impedir nas escritas de tabela.
+   *
+   * ## E o `error` sozinho não bastava
+   *
+   * Recusa levanta exceção; **não ter o que fazer, não**. Remover um papel que
+   * o usuário nunca teve apagava zero linhas, devolvia `void` sem erro nenhum, e
+   * esta tela dizia "Papel de administrador removido". A trilha de auditoria
+   * gravava `role_revoked` junto — e numa investigação é essa linha que responde
+   * "quem tirou o papel daquele usuário". Uma revogação que não houve não deixa
+   * só um registro a mais: esconde quem de fato removeu por outro caminho.
+   *
+   * Conferido rodando, num Postgres de verdade: conceder o mesmo papel duas
+   * vezes deixava DOIS `role_granted` para uma concessão só.
+   *
+   * Agora o RPC devolve `{ alterado }` e esta função lê. `undefined` é a versão
+   * anterior da função no banco, antes da migration
+   * `20260923120000_trilha_so_registra_o_que_aconteceu` — e aí não dá para
+   * distinguir, então vale o texto de sucesso de sempre.
    */
   const executar = async (
     chave: string,
-    chamada: PromiseLike<{ error: { message: string } | null }>,
-    mensagens: { sucesso: string; falha: string },
+    chamada: PromiseLike<{ data?: unknown; error: { message: string } | null }>,
+    mensagens: { sucesso: string; falha: string; semEfeito?: string },
   ) => {
     setEmAcao(chave);
-    const { error } = await chamada;
+    const { data, error } = await chamada;
     setEmAcao(null);
     if (error) {
       toast.error(mensagens.falha, { description: error.message });
+      return;
+    }
+    if ((data as { alterado?: boolean } | null)?.alterado === false) {
+      toast.message(mensagens.semEfeito ?? "Nada foi alterado", {
+        description: "A conta já estava nesse estado. Nenhum registro foi gravado na trilha.",
+      });
+      recarregar();
       return;
     }
     toast.success(mensagens.sucesso);
@@ -94,6 +118,9 @@ export default function AdminUsuarios() {
       {
         sucesso: conceder ? "Papel de administrador concedido" : "Papel de administrador removido",
         falha: conceder ? "Não foi possível conceder" : "Não foi possível remover",
+        semEfeito: conceder
+          ? "Esta conta já era administradora"
+          : "Esta conta já não era administradora",
       },
     );
 
