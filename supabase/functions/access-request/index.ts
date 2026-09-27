@@ -11,6 +11,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { logError } from "../_shared/logError.ts";
 import { verificarCaptcha } from "../_shared/captcha.ts";
+import { ipDoChamador } from "../_shared/ipDoChamador.ts";
 import { sendEmail } from "../_shared/sendEmail.ts";
 
 const UFS = [
@@ -73,7 +74,9 @@ Deno.serve(async (req) => {
 
     const captcha = await verificarCaptcha(
       typeof body.captchaToken === "string" ? body.captchaToken : null,
-      req.headers.get("cf-connecting-ip"),
+      // Mesma fonte das funções FHIR, agora num lugar só: a borda primeiro, e
+      // nunca a primeira entrada do `X-Forwarded-For`, que o cliente prefixa.
+      ipDoChamador(req),
     );
     if (!captcha.ok) return json({ error: "captcha_failed", motivo: captcha.motivo }, 403);
 

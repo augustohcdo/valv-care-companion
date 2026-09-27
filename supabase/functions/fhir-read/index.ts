@@ -2,6 +2,7 @@
 // GET /fhir-read?patient=<uuid>&type=Condition,Observation
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { ipDoChamador, ipPermitido } from "../_shared/ipDoChamador.ts";
 import { logError } from "../_shared/logError.ts";
 import { isValidPatientId, resolveAllowedTypes } from "../_shared/fhirSchema.ts";
 
@@ -31,7 +32,7 @@ Deno.serve(async (req) => {
   if (!isValidPatientId(patientId)) return json({ error: "missing_or_invalid_patient" }, 400);
 
   const apiKey = req.headers.get("x-api-key") ?? "";
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  const ip = ipDoChamador(req);
   const ua = req.headers.get("user-agent") ?? null;
 
   const m = apiKey.match(/^vp_([a-z0-9]+)_(.+)$/i);
@@ -56,8 +57,12 @@ Deno.serve(async (req) => {
   if (keyRow.revoked_at) return json({ error: "key_revoked" }, 401);
   if (new Date(keyRow.expires_at) < new Date()) return json({ error: "key_expired" }, 401);
   if (!keyRow.scopes?.includes("fhir.read")) return json({ error: "missing_scope" }, 403);
-  if (keyRow.ip_allowlist?.length && ip && !keyRow.ip_allowlist.includes(ip))
-    return json({ error: "ip_not_allowed" }, 403);
+  // O `&& ip &&` que havia aqui pulava a lista de permissão quando não havia IP
+  // determinável — "não sei de onde veio" valendo como "veio de onde eu
+  // permito". Quem configurou uma lista pediu para restringir por origem, e a
+  // resposta honesta a "não sei" é recusar. Ver `_shared/ipDoChamador.ts`.
+  const origem = ipPermitido(keyRow.ip_allowlist, ip);
+  if (!origem.ok) return json({ error: "ip_not_allowed", motivo: origem.motivo }, 403);
 
   const { data: grant, error: erroGrant } = await admin
     .from("data_access_grants")
