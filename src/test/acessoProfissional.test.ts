@@ -203,7 +203,9 @@ describe("a tabela da fila", () => {
     const dir = resolve(raiz, "supabase/migrations");
     const arquivos = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
     const comTabela = arquivos.filter((f) =>
-      /create table if not exists public\.access_requests/i.test(readFileSync(resolve(dir, f), "utf8")));
+      /create table if not exists public\.access_requests/i.test(
+        sqlSemComentarios(readFileSync(resolve(dir, f), "utf8")),
+      ));
     expect(comTabela.length, "nenhuma migration cria access_requests").toBeGreaterThan(0);
     return readFileSync(resolve(dir, comTabela[comTabela.length - 1]), "utf8");
   }
@@ -277,7 +279,9 @@ describe("o diretório de profissionais", () => {
     const dir = resolve(raiz, "supabase/migrations");
     const arquivos = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
     const comFuncao = arquivos.filter((f) =>
-      /function public\.diretorio_medicos/i.test(readFileSync(resolve(dir, f), "utf8")));
+      /function public\.diretorio_medicos/i.test(
+        sqlSemComentarios(readFileSync(resolve(dir, f), "utf8")),
+      ));
     expect(comFuncao.length, "nenhuma migration define diretorio_medicos").toBeGreaterThan(0);
     return readFileSync(resolve(dir, comFuncao[comFuncao.length - 1]), "utf8");
   }
@@ -324,12 +328,34 @@ describe("o diretório de profissionais", () => {
   });
 });
 
+/**
+ * O SQL de uma migration sem os comentários, com as linhas preservadas.
+ *
+ * Os seletores abaixo escolhem "a última migration que contém tal SQL". Sem
+ * esta limpeza, uma migration que apenas CITA aquele SQL num comentário — para
+ * explicar o que faz, ou o que deixou de fazer — entra na seleção e, sendo a
+ * mais recente, vence. Foi o que aconteceu: a migration
+ * `20260927120000_medico_pode_salvar_o_proprio_perfil` explica no cabeçalho que
+ * a de 2026-08-24 fez, para `patients`, o `revoke update` que faltou em
+ * `doctors` — e passou a ser lida como se fosse a migration do vínculo.
+ *
+ * Guarda que lê comentário não confere código; aqui o custo era pior, porque
+ * ela deixava de conferir o arquivo certo sem dizer que trocou de arquivo.
+ */
+function sqlSemComentarios(texto: string): string {
+  return texto
+    .replace(/\/\*[\s\S]*?\*\//g, (b) => b.replace(/[^\n]/g, " "))
+    .replace(/--[^\n]*/g, "");
+}
+
 describe("o vínculo depende do médico", () => {
   function migrationDoVinculo(): string {
     const dir = resolve(raiz, "supabase/migrations");
     const arquivos = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
     const com = arquivos.filter((f) =>
-      /revoke update on public\.patients/i.test(readFileSync(resolve(dir, f), "utf8")));
+      /revoke update on public\.patients/i.test(
+        sqlSemComentarios(readFileSync(resolve(dir, f), "utf8")),
+      ));
     expect(com.length, "nenhuma migration revoga o update de patients").toBeGreaterThan(0);
     return readFileSync(resolve(dir, com[com.length - 1]), "utf8");
   }
@@ -464,7 +490,9 @@ describe("a base CNES", () => {
     const dir = resolve(raiz, "supabase/migrations");
     const arquivos = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
     const com = arquivos.filter((f) =>
-      /create table if not exists public\.cnes_profissionais/i.test(readFileSync(resolve(dir, f), "utf8")));
+      /create table if not exists public\.cnes_profissionais/i.test(
+        sqlSemComentarios(readFileSync(resolve(dir, f), "utf8")),
+      ));
     expect(com.length, "nenhuma migration cria cnes_profissionais").toBeGreaterThan(0);
     return readFileSync(resolve(dir, com[com.length - 1]), "utf8");
   }

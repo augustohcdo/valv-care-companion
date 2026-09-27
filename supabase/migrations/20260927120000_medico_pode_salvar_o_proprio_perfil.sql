@@ -1,0 +1,64 @@
+-- ============================================================================
+-- Desde 24 de agosto nenhum médico conseguia salvar o perfil
+-- ============================================================================
+--
+-- ## A cadeia, em duas migrations que não se falaram
+--
+-- **2026-08-05** (`admin_users_and_roles`) fechou um buraco de verdade: o papel
+-- `authenticated` tinha UPDATE nas doze colunas de `doctors`, inclusive
+-- `verified`, e qualquer médico podia marcar a si mesmo como verificado. O
+-- conserto está certo, inclusive na sutileza que o comentário registra —
+-- privilégio de coluna não subtrai de privilégio de tabela, então revoga-se a
+-- tabela e concede-se de volta coluna por coluna:
+--
+--     revoke update on public.doctors from authenticated;
+--     grant update (crm, crm_uf, specialty, rqe, institution, city, bio)
+--       on public.doctors to authenticated;
+--
+-- **2026-08-24** (`diretorio_e_vinculo`) acrescentou duas colunas:
+--
+--     alter table public.doctors add column no_diretorio boolean not null default true;
+--     alter table public.doctors add column aceita_novos_pacientes boolean not null default true;
+--
+-- E a tela passou a gravar as NOVE numa instrução só (`MedicoPerfil.tsx:68`).
+-- O grant continuou com sete.
+--
+-- O mais instrutivo: **essa mesma migration** faz, para `patients`, exatamente
+-- o que faltou aqui — `revoke update on public.patients` seguido de
+-- `grant update (sex, city, uf, comorbidities, updated_at)`. O autor estava
+-- pensando em privilégio de coluna naquele dia. Em `patients` ficou certo; em
+-- `doctors`, as colunas entraram e o grant não.
+--
+-- ## O que foi medido, num PostgreSQL 16
+--
+-- Réplica dos dois passos na ordem em que rodaram, e depois as três chamadas:
+--
+--     update … set verified = true                    → permission denied  (a trava funciona)
+--     update … set <as 7 colunas de 2026-08-05>       → UPDATE 1
+--     update … set <as 9 que a tela grava hoje>       → PERMISSION DENIED
+--
+-- Quer dizer: o formulário inteiro reprova. Não é só a caixa do diretório — é o
+-- CRM, a instituição, a biografia, tudo, porque vai tudo na mesma instrução.
+--
+-- ## E por que isto é pior do que um formulário quebrado
+--
+-- A caixa "Aparecer no diretório" é enquadrada, no próprio código, como
+-- consentimento revogável: LGPD art. 8º §5º ("consentimento que não pode ser
+-- retirado não é consentimento") e a anuência de publicidade médica da
+-- Resolução CFM nº 2.336/2023.
+--
+-- `no_diretorio` nasce `true`. Sem este grant, todo médico está no diretório e
+-- **não tem como sair** — a revogação que a tela oferece não chega ao banco.
+--
+-- A tela não mente sobre isso: `if (dErr) throw dErr` e o `catch` mostra "Erro
+-- ao salvar" com a mensagem do Postgres. O defeito não é relatar sucesso falso;
+-- é a promessa da caixa não ter como ser cumprida.
+--
+-- ## O conserto
+--
+-- As duas colunas entram no grant. `verified` fica fora, como em 2026-08-05 —
+-- é ela que sustenta a regra mais dura desta base, e quem a marca é o
+-- `admin_verificar_medico`, não o próprio médico.
+-- ============================================================================
+
+grant update (no_diretorio, aceita_novos_pacientes) on public.doctors to authenticated;
