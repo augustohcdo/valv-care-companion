@@ -15,9 +15,9 @@ Fonte: [cadastro aberto ANVISA](https://dados.anvisa.gov.br/dados/TA_PRODUTO_SAU
 | **Edwards** (Edwards Lifesciences Comércio) | Perimount Magna Ease e Magna TFX mitral, Perimount RSR, **Inspiris RESILIA** (2 registros), **Mitris RESILIA**, **Konect RESILIA** (conduto aórtico valvulado), **Intuity Elite** (implante rápido), anéis Physio II, Physio Flex, Physio Tricuspid, McCarthy-Adams, Cosgrove |
 | **Medtronic** (Auto Suture do Brasil) | Avalus, Mosaic (Cinch), Hancock II aórtica e mitral, mecânicas Open Pivot, anéis e bandas Simulus, Contour 3D, CG Future, Profile 3D, Tri-Ad, Duran Ancore |
 | **Abbott** (St. Jude Medical Brasil) | Epic Plus (aórtica, mitral, Supra), **Epic Max** (registro no Brasil em fev/2026; aprovado pela FDA em mar/2023), porcinas, mecânicas Masters e Regent, anéis Tailor, Seguin e Saddle. **Trifecta e Trifecta GT: registro ainda vigente, mas a Abbott descontinuou a família em 2023** |
-| **Corcym** (VR Medical) | Perceval S e Perceval Plus (sem sutura), Solo Smart, Mitroflow, Pericarbon More, mecânicas Carbomedics e Bicarbon, anéis |
+| **Corcym** (VR Medical) | Perceval S e Perceval Plus (sem sutura), Solo Smart, Mitroflow (descrito em revisão como substituído pelo Crown PRT 🟡), Pericarbon More, mecânicas Carbomedics e Bicarbon, anéis |
 | **On-X (Artivion)** (Jotec do Brasil) | On-X aórtica e aorta ascendente |
-| **Nacionais** | Labcor (pericárdio bovino e porcina, anéis) e Braile Biomédica (Inovare, Vivere, anéis) |
+| **Nacionais** | Labcor (pericárdio bovino e porcina, anéis e **6 registros de enxertos valvados**) e Braile Biomédica (Inovare, Vivere, anéis). O recolhimento da Cardioprótese (2021) está em `relatorios/2026-09-29-verificacao-cirurgia.md` |
 | **Meril** (Doc Med) | Dafodil (bioprótese pericárdica aórtica) |
 
 Sinais a checar: validades até 2028 (Avalus em 11/2027, Mosaic em 09/2027, Perimount RSR em 06/2027, Inspiris em 2028), para ver revalidação no DOU. **Registro vigente não é produto em comercialização**: o Trifecta é o exemplo comprovado; os demais modelos não foram checados quanto a descontinuação. Vários registros da Medtronic têm publicação em 24/05/2021, aparentemente em bloco: não é lançamento.
@@ -33,7 +33,7 @@ Sinais a checar: validades até 2028 (Avalus em 11/2027, Mosaic em 09/2027, Peri
 | --- | --- | --- |
 | Medtronic | Avalus (FDA 31/07/2017 🟢), Avalus Ultra (página de produto e estudo pós-aprovação existem; aprovação não confirmada em fonte regulatória 🟡), Hancock II, Mosaic, mecânicas Open Pivot, anéis Simulus e Profile 3D | Dados de durabilidade do Avalus; status do Avalus Ultra por região ❓ |
 | Abbott | Epic, Epic Max (FDA mar/2023 🟢), Masters, Regent, anéis Tailor. **Trifecta e Trifecta GT descontinuados em 2023 🟢** após alerta da FDA sobre deterioração estrutural precoce | Dados do Epic Max; efeito da saída do Trifecta sobre a base instalada e as trocas ❓ |
-| Corcym (ex-LivaNova) | Perceval (FDA 08/01/2016 🟢), Solo Smart, Mitroflow, Crown PRT (existem no banco PMA 🟢), mecânicas Carbomedics e Bicarbon. **Aviso de segurança da Carbomedics em 17/01/2025 (espessura de folheto fora da especificação)** 🟢 | Alcance do aviso Carbomedics e impacto no Brasil; status comercial do Mitroflow (último suplemento FDA em 2019); dados de longo prazo do Perceval ❓ |
+| Corcym (ex-LivaNova) | Perceval (FDA 08/01/2016 🟢), Solo Smart, Mitroflow, Crown PRT (existem no banco PMA 🟢), mecânicas Carbomedics e Bicarbon. **Aviso de segurança da Carbomedics em 17/01/2025 (espessura de folheto fora da especificação)** 🟢 | Alcance do aviso Carbomedics e impacto no Brasil; Mitroflow: substituição pelo Crown PRT descrita em revisão, sem comunicado da Corcym (último suplemento FDA em 2019); dados de longo prazo do Perceval ❓ |
 | Artivion | On-X (aórtica aprovada pela FDA com INR 1,5 a 2,0 com base no ensaio PROACT 🟢). **PROACT Xa (apixabana) interrompido em 23/09/2022** por mais eventos tromboembólicos com AVC que com varfarina 🟢. **Recall da On-X mitral iniciado em 01/02/2026** (10 unidades, Coreia do Sul, causa em investigação) 🟢 | Impacto no Brasil não verificado; uso em jovens ❓ |
 | Foldax | TRIA (válvula mitral de polímero): aprovada na Índia em jun/2025 e só investigacional nos EUA 🟡 | Confirmar em comunicado da CDSCO e no artigo do JACC ❓ |
 | Fabricantes brasileiros (Labcor, Braile) e asiáticos (a mapear) | Bioprótese e mecânicas | Os nacionais têm registros vigentes na ANVISA 🟢; participação em compras não medida ❓ |
@@ -72,7 +72,7 @@ Sinais a checar: validades até 2028 (Avalus em 11/2027, Mosaic em 09/2027, Peri
 | Abbott | Navitor, Portico | TAVR autoexpansível | Status do Portico; participação do Navitor. ❓ |
 | Abbott | MitraClip, TriClip | TEER mitral e tricúspide | Aprovação TriClip por região; dados TRILUMINATE. ❓ |
 | Abbott | Tendyne | TMVR | Status regulatório por região. ❓ |
-| Boston Scientific | ACURATE neo2 / prime | TAVR | Verificar se foi retirado do mercado e o porquê. ⚠️❓ |
+| Boston Scientific | ACURATE neo2 / Prime | TAVR | **Descontinuados mundialmente** (8-K à SEC em 28/05/2025; a empresa deixou de buscar aprovação da FDA) 🟢 ⚠️ |
 | JenaValve | Trilogy | Insuficiência aórtica | Aprovação e situação societária. ❓ |
 | Meril Life Sciences | Myval | TAVR balão-expansível | Estudos LANDMARK, comparativos com SAPIEN, presença e preços no Brasil, litígios de patente. ❓ |
 | Anteris | DurAVR | TAVR (folheto de polímero/biomimético) | Estudo pivotal. 🧪❓ |
