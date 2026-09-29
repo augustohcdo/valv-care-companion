@@ -1,6 +1,6 @@
 # Mapa competitivo: ponto de partida
 
-> **Aviso.** Este mapa é um esqueleto escrito a partir de conhecimento geral com data de corte, sem verificação em fontes primárias. **Não é fonte de verdade.** O agente deve tratar cada linha como hipótese e confirmar status, nomes e datas com pesquisa atual antes de usar. Ao confirmar, atualize a linha e preencha `Verificado em` e `Fonte`.
+> **Aviso.** Este mapa mistura dois níveis. **As linhas com 🟢 ou 🟡 foram verificadas em 29/09/2026** (cadastro da ANVISA, banco da FDA, comunicados de fabricantes; ver `relatorios/2026-09-29-verificacao-cirurgia.md`). **Tudo o que está marcado ❓, e toda linha sem marca, é hipótese escrita de memória, sem verificação.** O agente deve confirmar status, nomes e datas com pesquisa atual antes de usar. Ao confirmar, atualize a linha e registre fonte e data.
 >
 > Legenda de status: ✅ comercial · 🧪 em estudo/pivotal · ⚠️ descontinuado/suspenso · ❓ verificar
 
@@ -16,11 +16,11 @@ Fonte: [cadastro aberto ANVISA](https://dados.anvisa.gov.br/dados/TA_PRODUTO_SAU
 | **Medtronic** (Auto Suture do Brasil) | Avalus, Mosaic (Cinch), Hancock II aórtica e mitral, mecânicas Open Pivot, anéis e bandas Simulus, Contour 3D, CG Future, Profile 3D, Tri-Ad, Duran Ancore |
 | **Abbott** (St. Jude Medical Brasil) | Epic Plus (aórtica, mitral, Supra), **Epic Max** (registro no Brasil em fev/2026; aprovado pela FDA em mar/2023), porcinas, mecânicas Masters e Regent, anéis Tailor, Seguin e Saddle. **Trifecta e Trifecta GT: registro ainda vigente, mas a Abbott descontinuou a família em 2023** |
 | **Corcym** (VR Medical) | Perceval S e Perceval Plus (sem sutura), Solo Smart, Mitroflow (descrito em revisão como substituído pelo Crown PRT 🟡), Pericarbon More, mecânicas Carbomedics e Bicarbon, anéis |
-| **On-X (Artivion)** (Jotec do Brasil) | On-X aórtica e aorta ascendente |
+| **On-X (Artivion)** (Jotec do Brasil) | On-X aórtica, **On-X mitral** (registro 81398250013, publicado em 29/06/2020, validade 19/12/2036) e prótese de aorta ascendente. A mitral é a linha do recall de fev/2026 (10 unidades enviadas à Coreia do Sul, segundo a FDA) |
 | **Nacionais** | Labcor (pericárdio bovino e porcina, anéis e **6 registros de enxertos valvados**) e Braile Biomédica (Inovare, Vivere, anéis). O recolhimento da Cardioprótese (2021) está em `relatorios/2026-09-29-verificacao-cirurgia.md` |
 | **Meril** (Doc Med) | Dafodil (bioprótese pericárdica aórtica) |
 
-Sinais a checar: validades até 2028 (Avalus em 11/2027, Mosaic em 09/2027, Perimount RSR em 06/2027, Inspiris em 2028), para ver revalidação no DOU. **Registro vigente não é produto em comercialização**: o Trifecta é o exemplo comprovado; os demais modelos não foram checados quanto a descontinuação. Vários registros da Medtronic têm publicação em 24/05/2021, aparentemente em bloco: não é lançamento.
+Sinais a checar: validades que vencem até 2028, para ver revalidação no DOU. A mais próxima é a do **Solo Smart (Corcym), em 10/10/2026**; depois vêm Vivere (Braile) e L-Hydro (Labcor) em 05/2027, Perimount RSR (06/2027), Mosaic (09/2027), Avalus (11/2027), McCarthy-Adams (02/2028) e Inspiris (08 e 11/2028). A lista completa está no panorama, seção 3.1. **Registro vigente não é produto em comercialização**: o Trifecta é o exemplo comprovado; os demais modelos não foram checados quanto a descontinuação. **Datas de publicação no cadastro não são datas de lançamento**: os 19 registros cirúrgicos da Medtronic têm a mesma data (24/05/2021), o que indica migração em bloco.
 
 ### Edwards no cirúrgico: o que está confirmado 🟢 e o que segue hipótese ❓
 - **Confirmado no banco PMA da FDA** (openFDA, conferido em 29/09/2026): Inspiris RESILIA, Mitris RESILIA e Konect RESILIA (PMA P150048, com suplementos em 2026), Intuity Elite (P150036) e a família Perimount/Magna (P860057). Detalhes e datas em `relatorios/2026-09-29-verificacao-cirurgia.md`.
@@ -28,7 +28,7 @@ Sinais a checar: validades até 2028 (Avalus em 11/2027, Mosaic em 09/2027, Peri
 - 🟡 **Perimount Theon RSR** aparece no banco PMA (S079, 11/03/2026, aviso de 30 dias) e no GUDID. Lançamento comercial não confirmado.
 - ❓ Durabilidade de longo prazo do tecido RESILIA, posição frente a Avalus, Epic Max, Perceval e On-X, efeito do TAVI em baixo risco sobre o volume de SAVR e acesso minimamente invasivo: sem verificação neste mapa.
 
-### Concorrentes globais em válvula cirúrgica (hipóteses de partida, verificar)
+### Concorrentes globais em válvula cirúrgica (parcialmente verificado: seguir as marcas 🟢, 🟡 e ❓)
 | Empresa | Linhas | Verificar |
 | --- | --- | --- |
 | Medtronic | Avalus (FDA 31/07/2017 🟢), Avalus Ultra (página de produto e estudo pós-aprovação existem; aprovação não confirmada em fonte regulatória 🟡), Hancock II, Mosaic, mecânicas Open Pivot, anéis Simulus e Profile 3D | Dados de durabilidade do Avalus; status do Avalus Ultra por região ❓ |
@@ -58,9 +58,9 @@ Sinais a checar: validades até 2028 (Avalus em 11/2027, Mosaic em 09/2027, Peri
 | SAPIEN 3 / SAPIEN 3 Ultra RESILIA | TAVR aórtica balão-expansível | Indicações vigentes por região (baixo risco, assintomáticos, valve-in-valve). |
 | SAPIEN X4 | TAVR de nova geração | Status regulatório por região e dados do estudo ALLIANCE. ❓ |
 | PASCAL / PASCAL Precision | TEER mitral e tricúspide | Indicações vigentes no Brasil, EUA e Europa; estudos CLASP IID/IITR. ❓ |
-| EVOQUE | Reposição tricúspide transcateter | Status no Brasil; dados do TRISCEND II; expansão de indicação. ❓ |
+| EVOQUE | Reposição tricúspide transcateter | **Registrado na ANVISA** (2 registros, 80219050197 e 80219050198, publicados em 01/12/2025, validade 01/12/2035) 🟢. Dados do TRISCEND II e expansão de indicação: ❓ |
 | SAPIEN M3 | Reposição mitral transcateter | Status por região. ❓ |
-| INSPIRIS / KONECT / MITRIS RESILIA | Válvulas cirúrgicas (RESILIA) | Durabilidade e comparações com biológicas concorrentes. ❓ |
+| INSPIRIS / KONECT / MITRIS RESILIA | Válvulas cirúrgicas (RESILIA) | Registros (ANVISA) e PMA (FDA) confirmados 🟢, ver seção de cirurgia acima. Durabilidade e comparações com biológicas concorrentes: ❓ |
 | Aquisições e tentativas recentes (ex.: JenaValve) | Insuficiência aórtica | Desfecho do processo regulatório/antitruste e implicações. ❓ |
 
 ## Concorrentes globais em transcateter
@@ -75,9 +75,9 @@ Sinais a checar: validades até 2028 (Avalus em 11/2027, Mosaic em 09/2027, Peri
 | Boston Scientific | ACURATE neo2 / Prime | TAVR | **Descontinuados mundialmente** (8-K à SEC em 28/05/2025; a empresa deixou de buscar aprovação da FDA) 🟢 ⚠️ |
 | JenaValve | Trilogy | Insuficiência aórtica | Aprovação e situação societária. ❓ |
 | Meril Life Sciences | Myval | TAVR balão-expansível | Estudos LANDMARK, comparativos com SAPIEN, presença e preços no Brasil, litígios de patente. ❓ |
-| Anteris | DurAVR | TAVR (folheto de polímero/biomimético) | Estudo pivotal. 🧪❓ |
+| Anteris | DurAVR | TAVR | Estágio e estudos; **a descrição da tecnologia do folheto não foi verificada** (versão anterior deste mapa a descrevia de memória). 🧪❓ |
 | Venus Medtech, MicroPort CardioFlow, Peijia | Válvulas TAVR chinesas | TAVR | Movimentos de internacionalização e CE mark. ❓ |
-| Colibri, Foldax, outros | Válvulas em desenvolvimento | Vários | Rastrear rodadas de investimento e estudos. 🧪❓ |
+| Colibri e outros | Válvulas em desenvolvimento | Vários | Rastrear rodadas de investimento e estudos. 🧪❓ (a Foldax, que aparecia aqui por engano, é cirúrgica: está na tabela de válvulas cirúrgicas) |
 
 ## Concorrentes em tricúspide/mitral (pipeline)
 

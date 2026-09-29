@@ -4,7 +4,9 @@
 
 ## Como ler
 - O cadastro lista **registros**, não vendas. Registro não é participação de mercado.
-- Recorte por nome técnico (prótese valvar biológica ou mecânica, anel de anuloplastia, válvula cardíaca). Produtos com outro nome técnico (ex.: conduto valvulado, se cadastrado à parte) podem faltar. Nomes técnicos "Instrumental" e "Medidor" (acessórios) ficaram de fora.
+- Recorte por nome técnico (prótese valvar biológica ou mecânica, anel de anuloplastia, válvula cardíaca). **Condutos e enxertos valvados ficaram de fora** (cadastrados como "Próteses cardiovasculares"; ver 3.5). Nomes técnicos "Instrumental" e "Medidor" (acessórios) também ficaram de fora.
+- **As categorias abaixo são as do nome técnico no cadastro, não uma classificação clínica.** Válvulas biológicas e mecânicas aparecem também em "Válvula (nome genérico)" (ex.: Trifecta GT, Perceval S, Solo Smart, Mitroflow, Masters e On-X mitral). Quem somar só a tabela "Prótese mecânica" subestima as mecânicas.
+- **"Data de publicação" não é a data do primeiro registro do produto.** Ela pode refletir troca de titular ou reemissão. Sinais: os 19 registros cirúrgicos da Medtronic têm a mesma data (24/05/2021), embora o Avalus tenha aprovação da FDA e marcação CE de 2017; e Perceval S, Solo Smart e Mitroflow (Corcym) foram publicados juntos em 06/02/2023, embora o Perceval já tivesse alerta no Brasil em 2016 sob outro detentor.
 - O nome técnico "prótese biológica" **mistura cirúrgico e transcateter**. A separação abaixo foi feita por palavras-chave no nome comercial (SAPIEN, Evolut, Myval, Navitor, EVOQUE, THV, "sistema de entrega" e similares) e **pode errar em casos de borda**. Conferir linha a linha antes de citar.
 - Não há registros vencidos nem cancelados no arquivo. Isso sugere (é inferência) que o cadastro lista só registros em vigor; portanto **o dado não permite ver os cancelados**.
 - **Registro vigente não significa produto comercializado.** Exemplo comprovado: a Abbott descontinuou toda a família Trifecta em 2023, mas o registro do Trifecta GT segue vigente no cadastro (ver `2026-09-29-verificacao-cirurgia.md`). Vale o mesmo cuidado para qualquer outra linha da lista.
@@ -135,7 +137,7 @@ Detentor no Brasil por marca: Medtronic = Auto Suture do Brasil; Abbott = St. Ju
 ## 3. Sinais que o dado permite (a confirmar)
 
 ### 3.1 Validades que vencem até o fim de 2028 (janela de revalidação)
-Registro perto do vencimento exige pedido de revalidação. Se não for renovado, a empresa perde o direito de comercializar. **Ausência de revalidação só se confirma no DOU e na consulta oficial.**
+Registro perto do vencimento exige pedido de revalidação; se ela não for feita a tempo, o registro perde a validade (regra a confirmar com a área regulatória). **Ausência de revalidação só se confirma no DOU e na consulta oficial.** O primeiro item, **Solo Smart (Corcym), vence em 10/10/2026, onze dias depois da data deste relatório**; como a validade é bem menor que os dez anos típicos dos demais registros, vale conferir se é um dado atípico ou se a revalidação já foi pedida.
 
 | Marca | Produto | Registro | Validade |
 | --- | --- | --- | --- |
@@ -152,6 +154,7 @@ Registro perto do vencimento exige pedido de revalidação. Se não for renovado
 | Edwards | Válvula Aórtica Inspiris Resilia Edwards | 80219050171 | 05/11/2028 |
 
 ### 3.2 Registros publicados desde 2023 (cirúrgicos)
+**Atenção:** esta lista mostra **datas de publicação no cadastro, não lançamentos**. As três linhas de 06/02/2023 (Perceval S, Solo Smart, Mitroflow) parecem ser um lote de troca de titular ou reemissão, não produtos novos no Brasil. Para as demais, a data é compatível com registro novo (ex.: Epic Plus em jan/2023, depois da aprovação da FDA em set/2021; Epic Max em fev/2026, depois de mar/2023), mas isso é leitura, não confirmação.
 
 | Publicação | Marca | Produto | Registro |
 | --- | --- | --- | --- |
@@ -172,13 +175,14 @@ Registro perto do vencimento exige pedido de revalidação. Se não for renovado
 - **Verificação cruzada feita em 29/09/2026** (ver `2026-09-29-verificacao-cirurgia.md`): os produtos Edwards, Medtronic, Abbott, Corcym e On-X do cadastro foram conferidos no banco PMA da FDA. A separação cirúrgico/transcateter foi auditada item a item.
 - **Epic Max** foi aprovado pela FDA em março de 2023 e só recebeu registro no Brasil em fev/2026: o registro recente na ANVISA não é lançamento global.
 - A Edwards tem registros cirúrgicos de várias gerações (Perimount Magna, Inspiris RESILIA, Mitris RESILIA, Intuity Elite, Konect RESILIA e anéis Physio, Cosgrove e McCarthy-Adams). Quais estão de fato em uso hoje é pergunta comercial, não do cadastro.
-- A Medtronic concentra muitos registros cirúrgicos sob o mesmo detentor. Vários com data de publicação 24/05/2021 parecem ter sido migrados ou reemitidos em bloco: **não** interpretar como lançamento.
-- Fabricantes brasileiros (Labcor e Braile) têm portfólio cirúrgico próprio, com pericárdio bovino e porcino. São referência em licitações de menor preço; conferir nos editais.
+- A Medtronic concentra 19 registros cirúrgicos sob o mesmo detentor, **todos com a mesma data de publicação (24/05/2021)**: isso indica migração ou reemissão em bloco (por exemplo, troca de titular), **não** lançamento. A data também não diz quando cada produto chegou ao Brasil.
+- Fabricantes brasileiros (Labcor e Braile) têm portfólio cirúrgico próprio, com pericárdio bovino e porcino. O papel deles nas compras públicas **não foi medido** neste relatório: a afirmação comum de que competem por preço precisa ser conferida nos editais e atas do PNCP.
 - O cadastro não indica se um modelo foi descontinuado comercialmente pela empresa. Registro vigente pode não ter mais oferta ativa.
 - Não foi encontrado, neste recorte, registro de válvula cirúrgica sem sutura de outra marca além do Perceval (Corcym) e do Intuity (Edwards); isso reflete apenas o recorte por nome técnico, não prova ausência de outros.
 
 ### 3.4 Recalls e alertas encontrados nas famílias listadas (resumo)
 Detalhes, fontes e limites em `2026-09-29-verificacao-cirurgia.md` (Fase 2).
+
 | Marca | Achado | Confiança |
 | --- | --- | --- |
 | Abbott Trifecta | Descontinuado em 2023 (FDA e Abbott) | 🟢 |
@@ -192,7 +196,7 @@ Detalhes, fontes e limites em `2026-09-29-verificacao-cirurgia.md` (Fase 2).
 | Edwards, Abbott (Epic, Masters, Regent), Avalus, Solo Smart, Mitroflow | Nenhum recall encontrado no openFDA | 🟡 (ausência de achado não é prova) |
 
 ### 3.5 Lacuna do recorte: condutos e enxertos valvados
-Este panorama usou os nomes técnicos de prótese valvar, anel de anuloplastia e válvula cardíaca. **Condutos e enxertos valvados cadastrados como "Próteses cardiovasculares" ficaram de fora.** A varredura complementar (ver `2026-09-29-verificacao-cirurgia.md`, Fase 3, seção 4) achou 6 registros da Labcor e 1 da St. Jude/Abbott (Masters Series) além de Konect (Edwards) e Open Pivot (Medtronic), que já estavam aqui. Portanto o portfólio de raiz da aorta da Labcor é maior do que este panorama mostra.
+Este panorama usou os nomes técnicos de prótese valvar, anel de anuloplastia e válvula cardíaca. **Condutos e enxertos valvados cadastrados como "Próteses cardiovasculares" ficaram de fora.** A varredura complementar (ver `2026-09-29-verificacao-cirurgia.md`, Fase 3, seção 4, e Fase 4, seção 3) achou 6 registros da Labcor e 1 da St. Jude/Abbott (Masters Series, com tecnologia Hemashield) além de Konect (Edwards) e Open Pivot (Medtronic), que já estavam neste panorama. Portanto o portfólio de raiz da aorta da Labcor é maior do que este panorama mostra.
 
 ### 3.6 Enxerto de raiz sem valva e remendos
 O cadastro também mostra o **Terumo Gelweave Valsalva** (enxerto de raiz, registro 80012280188, validade 14/08/2027) e remendos de pericárdio bovino (Labcor, Braile, Cardioprótese, Products and Features). Não são válvulas e não entram nas contagens deste panorama.
