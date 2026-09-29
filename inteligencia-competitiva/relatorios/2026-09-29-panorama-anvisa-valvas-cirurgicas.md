@@ -6,7 +6,8 @@
 - O cadastro lista **registros**, não vendas. Registro não é participação de mercado.
 - Recorte por nome técnico (prótese valvar biológica ou mecânica, anel de anuloplastia, válvula cardíaca). Produtos com outro nome técnico (ex.: conduto valvulado, se cadastrado à parte) podem faltar. Nomes técnicos "Instrumental" e "Medidor" (acessórios) ficaram de fora.
 - O nome técnico "prótese biológica" **mistura cirúrgico e transcateter**. A separação abaixo foi feita por palavras-chave no nome comercial (SAPIEN, Evolut, Myval, Navitor, EVOQUE, THV, "sistema de entrega" e similares) e **pode errar em casos de borda**. Conferir linha a linha antes de citar.
-- O arquivo só mostra registros com validade em vigor; o dado não permite ver os cancelados.
+- Não há registros vencidos nem cancelados no arquivo. Isso sugere (é inferência) que o cadastro lista só registros em vigor; portanto **o dado não permite ver os cancelados**.
+- **Registro vigente não significa produto comercializado.** Exemplo comprovado: a Abbott descontinuou toda a família Trifecta em 2023, mas o registro do Trifecta GT segue vigente no cadastro (ver `2026-09-29-verificacao-cirurgia.md`). Vale o mesmo cuidado para qualquer outra linha da lista.
 - Quando o fabricante aparece vazio numa linha, foi juntado o de linhas duplicadas do mesmo registro; "não informado" indica campo vazio no cadastro.
 
 ## 1. Resumo: registros vigentes por segmento e empresa
@@ -122,7 +123,7 @@ Detentor no Brasil por marca: Medtronic = Auto Suture do Brasil; Abbott = St. Ju
 | Marca | Registro | Produto | Fabricante (país) | Publicação | Validade |
 | --- | --- | --- | --- | --- | --- |
 | Abbott | 10332340468 | Masters Series Mechanical Heart Valve | Abbott Medical (Estados Unidos Da América) | 26/10/2020 | 26/10/2030 |
-| Abbott | 81258750001 | Válvula Trifecta com tecnologia Glide (GT) | St. Jude Medical (Estados Unidos Da América) | 14/02/2018 | 14/02/2028 |
+| Abbott | 81258750001 | Válvula Trifecta com tecnologia Glide (GT) **[descontinuado pela Abbott em 2023; registro ainda vigente]** | St. Jude Medical (Estados Unidos Da América) | 14/02/2018 | 14/02/2028 |
 | Abbott | 10332340241 | Válvula Cardíaca Mecânica Masters Series Rotável Aórtica Hemodynamic Plus | Abbott Medical (Estados Unidos Da América) | 13/07/2009 | 13/07/2034 |
 | Cardioprotese Ltda | 10263870001 | BIOPROTESE CARDIACA DE PERICARDIO BOVINO CARDIOPROTESE | Cardioprotese Ltda (Brasil) | 29/11/1996 | 01/11/2036 |
 | Corcym | 80102512948 | Válvula Perceval S | Corcym Canada Corp. (Canadá) | 06/02/2023 | 20/07/2035 |
@@ -145,7 +146,7 @@ Registro perto do vencimento exige pedido de revalidação. Se não for renovado
 | Edwards | Bioprótese Pericardial RSR PERIMOUNT Carpentier-Edwards | 80219050167 | 19/06/2027 |
 | Medtronic | MOSAIC - BIOPRÓTESE COM SISTEMA DE IMPLANTE AVANÇADO CINCH | 10349001189 | 03/09/2027 |
 | Medtronic | Avalus - Bioprótese Cardíaca de Pericárdio | 10349001103 | 13/11/2027 |
-| Abbott | Válvula Trifecta com tecnologia Glide (GT) | 81258750001 | 14/02/2028 |
+| Abbott | Válvula Trifecta com tecnologia Glide (GT) **(produto descontinuado pela Abbott em 2023; registro ainda vigente)** | 81258750001 | 14/02/2028 |
 | Edwards | MCCARTHY-ADAMS - ANEL PARA ANULOPLASTIA EDWARDS | 80219050105 | 18/02/2028 |
 | Edwards | VÁLVULA AÓRTICA INSPIRIS RESILIA | 80219050170 | 20/08/2028 |
 | Edwards | Válvula Aórtica Inspiris Resilia Edwards | 80219050171 | 05/11/2028 |
@@ -168,6 +169,8 @@ Registro perto do vencimento exige pedido de revalidação. Se não for renovado
 | 23/01/2023 | Abbott | Epic  Plus Mitral | 10332340494 |
 
 ### 3.3 Leituras e cuidados
+- **Verificação cruzada feita em 29/09/2026** (ver `2026-09-29-verificacao-cirurgia.md`): os produtos Edwards, Medtronic, Abbott, Corcym e On-X do cadastro foram conferidos no banco PMA da FDA. A separação cirúrgico/transcateter foi auditada item a item.
+- **Epic Max** foi aprovado pela FDA em março de 2023 e só recebeu registro no Brasil em fev/2026: o registro recente na ANVISA não é lançamento global.
 - A Edwards tem registros cirúrgicos de várias gerações (Perimount Magna, Inspiris RESILIA, Mitris RESILIA, Intuity Elite, Konect RESILIA e anéis Physio, Cosgrove e McCarthy-Adams). Quais estão de fato em uso hoje é pergunta comercial, não do cadastro.
 - A Medtronic concentra muitos registros cirúrgicos sob o mesmo detentor. Vários com data de publicação 24/05/2021 parecem ter sido migrados ou reemitidos em bloco: **não** interpretar como lançamento.
 - Fabricantes brasileiros (Labcor e Braile) têm portfólio cirúrgico próprio, com pericárdio bovino e porcino. São referência em licitações de menor preço; conferir nos editais.

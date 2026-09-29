@@ -32,6 +32,7 @@ Antes de publicar, passe cada item por estas perguntas. Se falhar, reverifique o
 - **Denominador:** percentuais de estudos: de quantos pacientes, em qual população, em qual seguimento, qual definição de desfecho (VARC-2 ou VARC-3)?
 - **Indicação:** aprovado para qual população e qual anatomia? "Registrado" não é "indicado para" nem "reembolsado".
 - **Região:** o fato vale para o Brasil ou é dos EUA/Europa? Aprovação numa região não implica em outra.
+- **Registro vigente não é produto comercializado.** Antes de listar um modelo como ativo, procurar descontinuação, recall ou alerta de segurança (FDA, ANVISA, comunicado do fabricante). Exemplo: o Trifecta da Abbott foi descontinuado em 2023 e o registro brasileiro seguiu vigente até 2028.
 - **Identidade do produto:** mesmo nome comercial pode designar gerações diferentes (ex.: G4 e G5, RESILIA e anterior). Confira modelo e versão.
 - **Consistência interna:** o item contradiz algo que a mesma fonte disse antes, ou algo estabelecido no `mapa-competitivo.md`? Se sim, explique.
 - **Interesse da fonte:** o fabricante descrevendo seu produto, patrocinador financiando o estudo, consultoria vendendo relatório. Registre o viés possível.
@@ -41,6 +42,7 @@ Antes de publicar, passe cada item por estas perguntas. Se falhar, reverifique o
 
 | Dado | Regra |
 | --- | --- |
+| Produto listado como ativo | Checar descontinuação e alertas (FDA, ANVISA, comunicado da empresa) antes de afirmar que está à venda. Suplemento recente na FDA mostra atividade regulatória, não lançamento. Data de "decisão" de produto antigo no banco PMA pode ser reemissão, não estreia. |
 | Registro ANVISA | Ler do cadastro aberto e conferir na consulta oficial e no DOU. Registrar nº do registro, detentor, validade e data de publicação. Lembrar: cadastro não traz a indicação aprovada. |
 | Preços | Sempre faixa observada, com origem, data, quantidade, escopo. Mínimo 3 observações para falar em mediana. Identificar valor unitário vs. total. Não comparar preços de escopos diferentes. |
 | Estudos | Ler o resumo do artigo ou o slide oficial. Se só há notícia, marcar 🟡 e buscar a publicação. Registrar N, seguimento, desfecho primário, limitações. |
