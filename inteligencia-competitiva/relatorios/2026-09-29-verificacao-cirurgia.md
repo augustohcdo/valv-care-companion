@@ -2,13 +2,37 @@
 
 **Posição em:** 2026-09-29. Objetivo: separar o que está confirmado em fonte primária do que continua hipótese, e registrar as correções. Níveis de fonte conforme `protocolo-de-verificacao.md`.
 
+## Resumo consolidado (leia primeiro)
+
+Este relatório foi montado em quatro fases. **Quando uma fase posterior contradiz uma anterior, vale a posterior**; as linhas antigas foram corrigidas neste passo de revisão, mas o histórico foi mantido.
+
+**O que pode ser usado como fato 🟢 (fonte primária)**
+- Os registros da ANVISA citados (produto, detentor, datas, validade), no cadastro aberto de 29/09/2026. Registro não é venda, nem indicação, nem preço.
+- Existência e atividade regulatória, no banco PMA da FDA, de Inspiris, Mitris, Konect e Intuity Elite (Edwards); Perimount/Magna (Edwards); Avalus, Hancock II e Mosaic (Medtronic); Epic e Epic Max (Abbott); Perceval, Solo Smart, Mitroflow e Crown PRT (Corcym); On-X.
+- **Abbott Trifecta e Trifecta GT foram descontinuados em 2023** (carta da Abbott e carta da FDA aos profissionais). O registro brasileiro segue vigente até 2028.
+- Epic Max: aprovação da FDA em março de 2023. Epic Plus: setembro de 2021.
+- On-X aórtica: aprovação da FDA para INR de 1,5 a 2,0 com base no PROACT. **PROACT Xa (apixabana) interrompido em 23/09/2022** por mais eventos tromboembólicos com AVC que com varfarina.
+- **Acurate neo2 e Prime (Boston Scientific): vendas mundiais descontinuadas, comunicado à SEC em 28/05/2025.**
+- **Carbomedics (Corcym): aviso REC-000703 de 17/01/2025**, texto completo lido (ação preventiva de estoque, probabilidade preliminar "muito baixa"; detalhes na Fase 4).
+- **On-X mitral: recall aberto desde 01/02/2026, 10 unidades, Coreia do Sul** (só registro da FDA; sem corroboração independente).
+- Lista de recalls por família no openFDA (Fase 2), lembrando que é só EUA.
+
+**Provável 🟡 (fonte secundária ou parcial)**: Avalus Ultra aprovado; Foldax TRIA (Índia, jun/2025); Perimount Theon como linha nova; Mitroflow substituído pelo Crown PRT; recolhimento da Cardioprótese em 2021 e alerta do Perceval no Brasil (resumos, sem ler a página da ANVISA); status "sem descontinuação encontrada" de anéis, Labcor, Braile e Meril Dafodil.
+
+**Não verificado ❓**: participação de mercado e volumes; se cada modelo está à venda hoje no Brasil (só sei de Trifecta e Acurate, descontinuados); alcance no Brasil do aviso Carbomedics e do recall On-X; texto original dos alertas da ANVISA; lotes e testes do Carbomedics; Cosgrove e McCarthy-Adams.
+
+**Três avisos de método**
+1. **Registro vigente não é produto comercializado.** Exemplos: Trifecta (descontinuado) e Cardioprótese (recolhimento em 2021).
+2. **Ausência de recall no openFDA não prova ausência de problema** (só EUA, busca por palavras).
+3. **Data de "decisão" no banco PMA não é data de lançamento.** Suplemento recente mostra atividade regulatória.
+
 ## 1. Correções (o que estava errado ou enganoso)
 
 | # | O que estava escrito | Problema | Correção | Fonte |
 | --- | --- | --- | --- | --- |
 | 1 | Abbott **Trifecta GT** listado como produto ativo e como "validade a vigiar" | **A Abbott retirou e descontinuou toda a família Trifecta** (carta a clientes de 31/07/2023, após alerta da FDA de fevereiro de 2023 sobre deterioração estrutural precoce). O registro na ANVISA continua vigente (nº 81258750001, publicado em 14/02/2018, validade 14/02/2028). | **Registro vigente não significa produto comercializado.** Trifecta sai da lista de produtos ativos da Abbott. | [TCTMD](https://www.tctmd.com/news/abbott-stop-making-trifecta-surgical-aortic-valves) (nível 2), [MedTech Dive](https://www.medtechdive.com/news/abbott-pulls-trifecta-heart-valves-deterioration/689515/) (nível 2), [carta da Abbott a clientes, jul/2023](https://www.structuralheart.abbott/int/fileadmin/pdf/OUS-Abbott-Trifecta-Customer-Letter-July-2023.pdf) (nível 1, fabricante). Registro: cadastro ANVISA. 🟢 |
 | 2 | "**Epic Max** (registro de fev/2026)" | Leitura enganosa: parece lançamento recente. A aprovação da FDA foi em março de 2023; o registro brasileiro só saiu em fev/2026. | Registrar as duas datas. | [Comunicado da Abbott, 30/03/2023](https://abbott.mediaroom.com/2023-03-30-Abbott-Receives-FDA-Approval-for-Epic-TM-Max-Tissue-Valve-to-Treat-Aortic-Valve-Disease) (nível 1); cadastro ANVISA (10332340525, publicação 02/02/2026). 🟢 |
-| 3 | On-X: "estudo PROACT/LOWERING-IT" | "LOWERING-IT" **não foi verificado**. | Removido. Mantido só o PROACT. | Ver 2.4. |
+| 3 | On-X: "estudo PROACT/LOWERING-IT" | "LOWERING-IT" **não foi verificado**. | Removido. Mantido só o PROACT. | Ver 2.3. |
 | 4 | "Fabricantes asiáticos (ex.: Lepu, Jenscare)" e "Anteris ... relevância para cirurgia" | Escritos de memória, **sem verificação**. | Removidos do mapa. | n/d |
 | 5 | Panorama: "o arquivo só mostra registros com validade em vigor" | Era inferência. Não há registros vencidos ou cancelados no arquivo, mas isso não prova que o cadastro exclui os cancelados. | Reescrito como inferência. | Cadastro ANVISA. |
 
@@ -19,10 +43,10 @@ Consultas por nome comercial em `api.fda.gov/device/pma.json` (ex.: `search=trad
 
 | Produto | Empresa | PMA | O que o registro mostra |
 | --- | --- | --- | --- |
-| INSPIRIS RESILIA (aórtica) | Edwards | P150048 | Decisão em 29/06/2017; suplemento mais recente no banco: S101, 03/06/2026 |
-| MITRIS RESILIA (mitral) | Edwards | P150048 | Decisão em 16/03/2022; suplemento mais recente: S099, 16/04/2026 |
-| KONECT RESILIA (conduto aórtico valvulado) | Edwards | P150048 | Decisão em 10/07/2020; suplemento mais recente: S103, 29/07/2026 |
-| EDWARDS INTUITY ELITE | Edwards | P150036 | Decisão em 12/08/2016; suplemento mais recente: S080, 29/07/2026 |
+| INSPIRIS RESILIA (aórtica) | Edwards | P150048 | PMA original com decisão em 29/06/2017; suplemento mais recente no banco: S101, 03/06/2026 |
+| MITRIS RESILIA (mitral) | Edwards | P150048 | Registro com o nome MITRIS RESILIA e decisão APPR em 16/03/2022 (suplemento do PMA P150048; o PMA original é de 2017); suplemento mais recente: S099, 16/04/2026 |
+| KONECT RESILIA (conduto aórtico valvulado) | Edwards | P150048 | Registro com o nome KONECT RESILIA e decisão APPR em 10/07/2020 (suplemento do PMA P150048); suplemento mais recente: S103, 29/07/2026 |
+| EDWARDS INTUITY ELITE | Edwards | P150036 | Registro com o nome Intuity Elite e decisão APPR em 12/08/2016; suplemento mais recente: S080, 29/07/2026 |
 | PERIMOUNT / MAGNA | Edwards | P860057 | Família com suplementos até 29/07/2026 (S227) |
 | AVALUS | Medtronic | P170006 | Decisão em 31/07/2017 (bate com a fonte de imprensa); suplemento mais recente: S045, 09/07/2026 |
 | HANCOCK II / MOSAIC | Medtronic | P980043 / P990064 | Suplementos recentes (fev e mar/2026) |
@@ -33,7 +57,7 @@ Consultas por nome comercial em `api.fda.gov/device/pma.json` (ex.: `search=trad
 | ON-X | On-X Life Technologies | P000037 | Decisão em 30/05/2001; suplemento mais recente: S071, 04/08/2026 |
 | CARBOMEDICS, SJM MASTERS, OPEN PIVOT | Corcym, Abbott, Medtronic | P900060, P810002, P990046 | Existem no banco |
 
-Observações: datas de "decisão" de produtos antigos (ex.: Hancock II) são de reemissões no banco, não do primeiro lançamento: não usar como data de estreia. Um suplemento recente mostra **atividade regulatória**, não necessariamente lançamento.
+Observações: as datas acima são as que constam nos registros do openFDA para o nome citado; **não as use como data de estreia comercial** (Mitris e Konect entraram por suplementos de um PMA existente). Datas de "decisão" de produtos antigos (ex.: Hancock II) são de reemissões no banco, não do primeiro lançamento: não usar como data de estreia. Um suplemento recente mostra **atividade regulatória**, não necessariamente lançamento.
 
 ### 2.2 ANVISA (cadastro aberto, 29/09/2026)
 Produtos, detentores, fabricantes, datas e validades do panorama vêm do arquivo oficial. **Auditoria da classificação cirúrgico/transcateter:** revisei os 79 nomes comerciais classificados como cirúrgicos. Nenhum parece transcateter. Casos de borda resolvidos:
@@ -42,7 +66,7 @@ Produtos, detentores, fabricantes, datas e validades do panorama vêm do arquivo
 - Mantida a ressalva: a separação é por palavras-chave e pode errar; conferir linha a linha antes de citar.
 
 ### 2.3 Evidência e regulatório citados
-- **On-X aórtica com INR 1,5 a 2,0**: aprovado pela FDA com base no ensaio randomizado PROACT (varfarina em INR reduzido mais aspirina 81 mg). Fontes: [resultados intermediários do PROACT, JTCVS/PubMed](https://pubmed.ncbi.nlm.nih.gov/24512654/) (nível 1) e [comunicado da On-X sobre a aprovação](https://www.onxlti.com/fda-approval-onx-aortic-less-warfarin/) (nível 1, fabricante). O "PROACT Xa" é outro estudo (apixabana em On-X aórtica) e não deve ser confundido. 🟢 para o PROACT; o resultado do PROACT Xa **não foi verificado por mim**.
+- **On-X aórtica com INR 1,5 a 2,0**: aprovado pela FDA com base no ensaio randomizado PROACT (varfarina em INR reduzido mais aspirina 81 mg). Fontes: [resultados intermediários do PROACT, JTCVS/PubMed](https://pubmed.ncbi.nlm.nih.gov/24512654/) (nível 1) e [comunicado da On-X sobre a aprovação](https://www.onxlti.com/fda-approval-onx-aortic-less-warfarin/) (nível 1, fabricante). O "PROACT Xa" é outro estudo (apixabana em On-X aórtica) e não deve ser confundido: foi **interrompido em 23/09/2022** (ver Fase 2). 🟢
 - **Avalus**: FDA em 31/07/2017 (openFDA P170006, e [Cardiovascular News](https://cardiovascularnews.com/medtronics-avalus-pericardial-valve-receives-ce-mark-fda-approval/)). 🟢
 
 ## 3. Provável, mas só com fonte secundária ou parcial 🟡
@@ -57,9 +81,9 @@ Produtos, detentores, fabricantes, datas e validades do panorama vêm do arquivo
 
 - Posições de mercado, participação e volumes por empresa (nenhuma fonte pública usada).
 - Anéis Simulus, Physio, Cosgrove, Profile 3D, Tailor e Seguin **não aparecem no banco PMA** com esses nomes; podem estar em outra via regulatória. Não verifiquei.
-- Status de descontinuação de cada modelo listado no cadastro da ANVISA (o caso Trifecta mostra que isso importa). **Os demais modelos podem ter o mesmo problema; só o Trifecta foi checado.**
-- Mitroflow: status comercial atual (o último suplemento de FDA é de 2019; o significado do código APWD não foi confirmado).
-- PROACT Xa e demais estudos de anticoagulação em ensaio.
+- Status de descontinuação de cada modelo listado no cadastro da ANVISA (o caso Trifecta mostra que isso importa). **Os demais modelos podem ter o mesmo problema.** As Fases 2 e 3 pesquisaram recalls e descontinuações por família; onde nada foi achado, isso não confirma que o modelo está à venda.
+- Mitroflow: status comercial atual (o último suplemento de FDA é de 2019; o significado do código APWD não foi confirmado; revisão em periódico o descreve como substituído pelo Crown PRT, ver Fase 3).
+- Demais estudos de anticoagulação em andamento (o PROACT Xa foi resolvido na Fase 2).
 - Tudo o que está marcado ❓ nas seções de transcateter do `mapa-competitivo.md`.
 
 ## 5. Método e reprodução
@@ -69,7 +93,7 @@ Produtos, detentores, fabricantes, datas e validades do panorama vêm do arquivo
 4. Onde a fonte não pôde ser aberta (site da ANVISA, texto completo de JTCVS e Annals), a afirmação ficou 🟡 ou ❓.
 
 ## 6. Como usar isto
-Ao falar com clientes ou em material interno, usar somente as linhas 🟢. Tratar 🟡 como "provável, a confirmar". Não citar nada de ❓ como fato.
+Ao falar com clientes ou em material interno, usar somente as linhas 🟢. Tratar 🟡 como "provável, a confirmar". Não citar nada de ❓ como fato. **Este relatório é uma verificação por fontes públicas acessíveis a este ambiente; não substitui a conferência com a área regulatória da empresa e a Consulta de Produtos da ANVISA.**
 
 ---
 
@@ -85,10 +109,10 @@ Ao falar com clientes ou em material interno, usar somente as linhas 🟢. Trata
 | **Artivion On-X (mitral com anel Conform-X)** | Não | **Recall aberto, iniciado em 01/02/2026**: válvulas liberadas e distribuídas antes de concluídos todos os testes exigidos. **10 unidades, distribuídas à Coreia do Sul** segundo o registro. Causa "em investigação pela empresa". Status "Open, Classified". A ação foi pedir ao cliente que colocasse em quarentena. | 🟢 openFDA (`res_event_number` 98548), conferir no [banco de recalls da FDA](https://www.accessdata.fda.gov/scripts/cdrh/cfdocs/cfRES/res.cfm). Nenhuma outra fonte independente foi encontrada. Não há indício de que atinja o Brasil, **mas isso não foi verificado**. |
 | On-X (aórtica e demais) | Não | Recalls por erro de rotulagem em 2014, 2015 e 2019 (2019: 2 unidades, número de série errado; terminado em jun/2020) | 🟢 [FDA, recall 170731](https://www.accessdata.fda.gov/scripts/cdrh/cfdocs/cfres/res.cfm?id=170731) e openFDA. |
 | On-X e o anticoagulante apixabana (PROACT Xa) | n/a | **Estudo interrompido em 23/09/2022** por recomendação do comitê independente de segurança: eventos de coágulo com AVC foram mais frequentes com apixabana do que com varfarina. | 🟢 [Comunicado da Artivion](https://www.prnewswire.com/news-releases/artivion-follows-recommendation-to-stop-proact-xa-clinical-trial-301631774.html) (fabricante, nível 1). Isso resolve a dúvida que ficou aberta na Fase 1. |
-| **Corcym Carbomedics** (válvulas e próteses Carbo-Seal / Carbo-Seal Valsalva) | Não encontrada | **Aviso de segurança REC-000703, datado de 17/01/2025**: motivo "espessura do folheto fora da especificação"; produtos listados no Anexo A a devolver. Fonte: modelo do aviso hospedado pelo regulador holandês. Li só o cabeçalho e o motivo; **não li a parte sobre pacientes já implantados**. | 🟢 para a existência e o motivo ([aviso no site da IGJ](https://www.igj.nl/site/binaries/site-content/collections/documents/2025/01/22/corcym-s.r.l.-rec-000703-carbomedics-prosthetic-heart-valves-and-carbomedics-carbo-seal-and-carbo-seal-valsalva-ascending-aortic-prostheses/IT210457-Corcym+S.r.l.-REC-000703-Carbomedics+Prosthetic+Heart+Valves+and+Carbomedics+Carbo-Seal+and+Carbo-Seal+Valsalva+Ascending+Aortic+Prostheses_Geredigeerd.pdf)); 🟡 para o alcance. Nenhum recall nos EUA. Impacto no Brasil não verificado. |
-| **Corcym Perceval** | Não | Ação de campo nos EUA em 31/10/2016 (passos do implante); acessórios "Dual Collapser" em 29/07/2020 (queixas de impossibilidade de colapsar a válvula). No Brasil, alerta de 07/12/2016 (nº 2026, ação FSCA-HV-2016-001) sobre técnica cirúrgica, com risco de mau posicionamento, regurgitação perivalvular e marca-passo permanente. | 🟢 FDA (openFDA). 🟡 alerta brasileiro (fonte: [resumo do Grupo IBES](https://www.ibes.med.br/tecnovigilancia-anvisa-valvula-cardiaca-alerta-de-seguranca-com-foco-na-tecnica-cirurgica/), secundária). O registro citado no alerta (80483300010, detentor Alcard) **não está no cadastro atual**; o Perceval hoje aparece sob a VR Medical. |
+| **Corcym Carbomedics** (válvulas e próteses Carbo-Seal / Carbo-Seal Valsalva) | Não encontrada | **Aviso de segurança REC-000703, de 17/01/2025**: possível espessura do revestimento de carbono pirolítico dos folhetos abaixo da especificação; ação de quarentena e devolução de estoque. **Texto completo lido na Fase 4** (risco, probabilidade preliminar "muito baixa", pacientes implantados). | 🟢 ([aviso na IGJ, versão editada](https://www.igj.nl/site/binaries/site-content/collections/documents/2025/01/22/corcym-s.r.l.-rec-000703-carbomedics-prosthetic-heart-valves-and-carbomedics-carbo-seal-and-carbo-seal-valsalva-ascending-aortic-prostheses/IT210457-Corcym+S.r.l.-REC-000703-Carbomedics+Prosthetic+Heart+Valves+and+Carbomedics+Carbo-Seal+and+Carbo-Seal+Valsalva+Ascending+Aortic+Prostheses_Geredigeerd.pdf)); 🟢 texto completo na [versão da HPRA](https://assets.hpra.ie/data/docs/default-source/product-updates/fsn/field-safety-notices/january-2025/carbomedics-prosthetic-heart-valves_corcym-s-r-l-_advice-regarding-a-device-removal.pdf?sfvrsn=79f09d78_1). Nenhum recall encontrado no openFDA. Lotes (Anexo A) e impacto no Brasil não verificados. |
+| **Corcym Perceval** | Não | Ação de campo nos EUA em 31/10/2016 (passos do implante); acessórios "Dual Collapser" em 29/07/2020 (queixas de impossibilidade de colapsar a válvula). No Brasil, alerta de 07/12/2016 (o resumo consultado cita "nº 2026", **número a confirmar**, ação FSCA-HV-2016-001) sobre técnica cirúrgica, com risco de mau posicionamento, regurgitação perivalvular e marca-passo permanente. | 🟢 FDA (openFDA). 🟡 alerta brasileiro (fonte: [resumo do Grupo IBES](https://www.ibes.med.br/tecnovigilancia-anvisa-valvula-cardiaca-alerta-de-seguranca-com-foco-na-tecnica-cirurgica/), secundária). O registro citado no alerta (80483300010, detentor Alcard) **não está no cadastro atual**; o Perceval hoje aparece sob a VR Medical. |
 | Corcym Mitroflow, Solo Smart, Crown PRT, Bicarbon, Pericarbon | Não encontrada | Nenhum recall no openFDA | 🟡 ausência de achado. Mitroflow: status comercial ainda não esclarecido. |
-| **Medtronic Hancock II e Mosaic (mitral)** | Não encontrada | Recall de 21/05/2019: 15 unidades distribuídas no mundo com **rótulo de tamanho errado** (as válvulas em si estavam corretas). Recall antigo de 2009 (válvulas com Cinch distribuídas por engano). Também mudança de material do stent (acetal → PEEK) porque o fornecedor descontinuou o acetal, descrita no protocolo do estudo NCT03139721. | 🟢 openFDA e [protocolo do estudo](https://cdn.clinicaltrials.gov/large-docs/21/NCT03139721/Prot_000.pdf). Página de produto do Hancock II segue no site da Medtronic. |
+| **Medtronic Hancock II e Mosaic (mitral)** | Não encontrada | Recall de 21/05/2019: 15 unidades distribuídas no mundo com **rótulo de tamanho errado** (as válvulas em si estavam corretas). Recall antigo de 2009 (válvulas com Cinch distribuídas por engano). Também mudança de material do stent (acetal → PEEK) porque o fornecedor descontinuou o acetal, segundo trecho do protocolo do estudo NCT03139721 exibido na busca (**não abri o protocolo inteiro**). | 🟢 recalls (openFDA); 🟡 mudança de stent ([protocolo do estudo](https://cdn.clinicaltrials.gov/large-docs/21/NCT03139721/Prot_000.pdf)). Página de produto do Hancock II segue no site da Medtronic. |
 | Medtronic Open Pivot | Não encontrada | Recall de 11/02/2020: caixa rotulada como aórtica com produto mitral (reclamação da China); 2004: prótese colocada invertida no suporte | 🟢 openFDA. |
 | Medtronic Simulus (anéis) | Não encontrada | Recall de 14/01/2020: kits **dimensionadores de demonstração** enviados a clientes por engano (não o anel implantável) | 🟢 openFDA. |
 | Medtronic Avalus | Não encontrada | Nenhum recall no openFDA | 🟡 ausência de achado. |
@@ -96,11 +120,11 @@ Ao falar com clientes ou em material interno, usar somente as linhas 🟢. Trata
 | Abbott Epic, Epic Plus, Epic Max, Masters, Regent | Não encontrada | Nenhum recall no openFDA. Epic Plus aprovado pela FDA em set/2021 (comunicado da Abbott). Masters e Regent seguem no site da Abbott. | 🟡 ausência de achado; 🟢 [aprovação Epic Plus](https://abbott.mediaroom.com/2021-09-22-FDA-Approves-Abbotts-Epic-TM-Plus-Tissue-Valves-for-People-in-Need-of-Mitral-or-Aortic-Valve-Replacement). |
 | Artivion CryoValve SG (homoenxerto pulmonar humano) | Não | 2024: recalls por resultados de teste inválidos (28/05/2024) e por doador com cultura positiva para *Staphylococcus aureus* (06/03/2024) | 🟢 openFDA. Relevante para Ross e cirurgia pulmonar. |
 | **Cardioprótese Ltda** (bioprótese de pericárdio bovino, Brasil) | Não encontrada | **Alerta ANVISA nº 3671**, recolhimento decidido pela ANVISA; notificação em 13/10/2021 (código de ação de campo 80166). O registro (nº 10263870001, publicado em 1996) segue vigente até 01/11/2036 no cadastro. | 🟡 resumo de busca do próprio site da ANVISA (página deu 403). Outro caso de **registro vigente após recolhimento**. |
-| Labcor, Braile (cirúrgicas), Meril Dafodil, anéis Physio, Cosgrove, McCarthy-Adams, Contour 3D, CG Future, Profile 3D, Seguin, Tailor, Duran, Tri-Ad | Não pesquisado a fundo | Nenhum recall no openFDA (anéis podem estar registrados na FDA sob outra descrição). Sem busca de descontinuação. | ❓ **Não verificado.** |
+| Labcor, Braile (cirúrgicas), Meril Dafodil, anéis Physio, Cosgrove, McCarthy-Adams, Contour 3D, CG Future, Profile 3D, Seguin, Tailor, Duran, Tri-Ad | Ver Fase 3, seção 3 | Nenhum recall no openFDA (anéis podem estar registrados na FDA sob outra descrição). | Reclassificado na Fase 3: 🟡 para a maioria, ❓ para Cosgrove e McCarthy-Adams. |
 
 ## B. Uma pista sobre o cadastro da ANVISA
 
-O **Acurate neo2** (transcateter, Boston Scientific) teve alerta da ANVISA (nº 4909) informando que a empresa decidiu descontinuar a comercialização mundial. O cadastro atual **não contém nenhum registro de válvula da Boston Scientific**. Isso sugere que o arquivo aberto exclui registros cancelados, e que por isso o Trifecta (cujo registro ainda está lá) segue vigente por a empresa não ter cancelado. É inferência 🟡, baseada em um único caso (o alerta veio de resumo de busca; página da ANVISA deu 403).
+O **Acurate neo2** (transcateter, Boston Scientific) teve alerta da ANVISA (nº 4909) informando que a empresa decidiu descontinuar a comercialização mundial. O cadastro atual **não contém nenhum registro de válvula da Boston Scientific** que eu tenha encontrado (busca pelo detentor e por "Acurate" no nome comercial; o próprio alerta cita um nome de empresa diferente, então o registro pode ter existido sob outro detentor). Isso sugere que o arquivo aberto exclui registros cancelados, e que por isso o Trifecta (cujo registro ainda está lá) segue vigente por a empresa não ter cancelado. É inferência 🟡, baseada em um único caso (o alerta veio de resumo de busca; página da ANVISA deu 403).
 
 ## C. O que isso muda para o uso
 - Para cada linha de "registro vigente" no panorama, a resposta a "está à venda?" continua sendo **desconhecida**, salvo Trifecta (descontinuado). Pergunte ao fabricante ou ao distribuidor.
@@ -114,8 +138,8 @@ Resolvido ou reclassificado na Fase 3, abaixo.
 
 # Fase 3: pontos em aberto (29/09/2026)
 
-## 1. Aviso Carbomedics (Corcym), lido por inteiro
-**Correção (Fase 4, abaixo):** a versão da IGJ é editada e curta, mas a versão hospedada pela HPRA (Irlanda) traz o texto completo; o que vem a seguir descreve a versão da IGJ. O conteúdo completo está na Fase 4. A versão da IGJ contém só: referência REC-000703, data 17/01/2025, produtos (válvulas protéticas Carbomedics e próteses Carbo-Seal e Carbo-Seal Valsalva), "motivo: espessura do folheto fora da especificação", a carta introdutória (os dispositivos do Anexo A foram enviados ao seu serviço; ação corretiva de campo da Corcym S.r.l.) e a nota "o restante do aviso detalha o que motivou a ação e o que fazer". **Não há no documento público** o risco clínico, os lotes, nem orientação sobre pacientes já implantados. 🟢 para o que está escrito; **o alcance real continua desconhecido** e só o fabricante, o distribuidor (VR Medical) ou a Tecnovigilância podem informar. Isso substitui a ressalva "li só o cabeçalho".
+## 1. Aviso Carbomedics (Corcym)
+**Superado pela Fase 4, seção 1.** Nesta fase eu li apenas a versão da IGJ (Holanda), editada e curta (referência, data, produtos, motivo e carta introdutória). A versão da HPRA (Irlanda) tem o texto completo, com risco, probabilidade, ações e orientação sobre pacientes implantados. Use a Fase 4.
 
 ## 2. Alertas da ANVISA (nº 3671 e nº 4909), na fonte original
 **Não foi possível ler.** O portal antigo (`antigo.anvisa.gov.br`) devolve apenas a casca do portal e o sistema `anvisa.gov.br/sistec` responde com bloqueio da Cloudflare (403). Alternativas usadas:
@@ -148,18 +172,18 @@ O panorama ANVISA considerou os nomes técnicos "prótese valvar cardíaca (biol
 | Labcor | 10171250035 | Enxerto arterial valvado orgânico | 02/07/2007 | 02/07/2027 |
 | Labcor | 10171250034 | Enxerto arterial valvado orgânico L-Hydro | 11/06/2007 | 11/06/2027 |
 | Labcor | 10171250046 | Enxerto arterial inorgânico valvado | 08/04/2013 | 08/04/2028 |
-| Abbott (St. Jude) | 10332340091 | Enxerto aórtico valvado Masters Series com tecnologia de enxerto | 07/03/2002 | 07/03/2037 |
+| Abbott (St. Jude) | 10332340091 | Enxerto aórtico valvado Masters Series com tecnologia de enxerto Hemashield | 07/03/2002 | 07/03/2037 |
 | Medtronic (Auto Suture) | 10349001078 | Enxerto valvulado aórtico Open Pivot (já estava no panorama) | 24/05/2021 | 11/08/2034 |
 | Edwards | 80219050182 | Conduto aórtico valvulado Konect RESILIA (já estava no panorama) | 21/02/2022 | 21/02/2032 |
 
-Conclusão: no segmento de **raiz da aorta (condutos valvados)**, a Labcor é a empresa com mais registros no cadastro; mostra que o recorte do panorama subestimava o portfólio nacional. Outros nomes de conduto (ex.: "tubo" ou "tubo valvado" com outra grafia) podem existir e não foram varridos exaustivamente. Também há homoenxertos (CryoValve, Artivion) e itens de tecido de outras empresas que não foram procurados.
+Conclusão: no segmento de **raiz da aorta (condutos valvados)**, a Labcor é a empresa com mais registros no cadastro; mostra que o recorte do panorama subestimava o portfólio nacional. Outros nomes de conduto (ex.: "tubo" ou "tubo valvado" com outra grafia) podem existir e não foram varridos exaustivamente. A varredura ampliada da Fase 4 (seção 3) complementou este ponto.
 
-## 5. O que continua sem verificação
+## 5. O que continua sem verificação (lista atualizada na Fase 4, seção 4)
 - Alcance clínico do aviso Carbomedics e do recall On-X mitral no Brasil.
 - Texto original dos alertas da ANVISA (bloqueio do portal).
 - Status comercial atual, no Brasil, de qualquer modelo (exceto Trifecta e Acurate, descontinuados).
 - Cosgrove e McCarthy-Adams: disponibilidade.
-- Homoenxertos e outros itens de tecido no cadastro.
+- Homoenxertos e outros itens de tecido no cadastro (varridos na Fase 4: nenhum homoenxerto valvar encontrado).
 
 ---
 
