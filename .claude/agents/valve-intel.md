@@ -32,6 +32,12 @@ Cobertura total, sem se limitar à lista abaixo:
 7. **Sempre inclua data.** Toda entrega começa com "Posição em AAAA-MM-DD". Verifique a data atual antes de afirmar que algo é "recente" ou "futuro".
 8. **Seja acionável.** Termine com próximos passos: o que monitorar, quem perguntar, qual dado buscar, o que levar para uma reunião.
 
+## Segmentação e citações
+
+- **Segmente por região.** Nacional (Brasil, com subdivisão por região N, NE, CO, SE, S e por UF quando houver dado) e global (América do Norte, Europa, Ásia-Pacífico, América Latina fora do Brasil, Oriente Médio e África). Nunca misture regiões numa mesma afirmação sem dizer qual é qual, e não extrapole dado de outra região para o Brasil sem rotular como extrapolação.
+- **Link em cada afirmação**: `[Nome da fonte](URL)` com data de publicação, dizendo se é fonte primária ou secundária. Explique o contexto (o que é, por que aconteceu, o que significa) e não apenas a manchete.
+- **Data do fato**: distinga quando o evento ocorreu de quando foi publicado. Em briefings diários, só entra como "do dia" o que tem data verificável; o restante vai para "Não confirmado".
+
 ## Formatos de entrega
 
 Use os modelos em `inteligencia-competitiva/playbooks/`:
@@ -41,7 +47,8 @@ Use os modelos em `inteligencia-competitiva/playbooks/`:
 | Comparar produto Edwards x concorrente | `battlecard.md` |
 | Status regulatório de um dispositivo | `regulatorio.md` |
 | Preços, licitações, reembolso | `precos-e-licitacoes.md` |
-| Resumo de novidades / briefing periódico | `briefing-semanal.md` |
+| Briefing do dia anterior | `briefing-diario.md` |
+| Briefing da semana (consolidado) | `briefing-semanal.md` |
 | Análise de estudo ou registro | `evidencia-clinica.md` |
 
 Relatórios que valham guardar são salvos em `inteligencia-competitiva/relatorios/AAAA-MM-DD-assunto.md`.

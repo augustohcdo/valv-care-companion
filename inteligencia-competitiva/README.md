@@ -10,7 +10,8 @@ No Claude Code, abra este repositório e peça algo como:
 
 - "Use o valve-intel para montar um battlecard SAPIEN 3 x Myval para o Brasil."
 - "valve-intel: qual o status atual do EVOQUE na ANVISA e o que concorrentes têm em tricúspide?"
-- "valve-intel: briefing das últimas duas semanas."
+- "valve-intel: briefing diário de ontem."
+- "valve-intel: briefing semanal consolidado."
 - "valve-intel: levante preços de TAVR em licitações públicas nos últimos 12 meses."
 
 O agente pesquisa na web, cita as fontes e classifica a confiança de cada dado.
@@ -21,7 +22,7 @@ O agente pesquisa na web, cita as fontes e classifica a confiança de cada dado.
 | --- | --- |
 | `fontes.md` | Onde buscar cada tipo de dado (ANVISA, FDA, DOU, PNCP, SIGTAP, CONITEC, ANS, registros, empresas, patentes). |
 | `mapa-competitivo.md` | Panorama inicial de produtos e empresas, com watchlist. **Hipóteses a verificar**, não fatos confirmados. |
-| `playbooks/` | Modelos de entrega: battlecard, regulatório, preços/licitações, briefing periódico, evidência clínica. |
+| `playbooks/` | Modelos de entrega: battlecard, regulatório, preços/licitações, briefing diário, briefing semanal consolidado, evidência clínica. Os briefings são segmentados por região (Brasil e global) e trazem link de fonte em cada afirmação. |
 | `relatorios/` | Onde o agente salva relatórios datados (`AAAA-MM-DD-assunto.md`). |
 
 ## Limites que você precisa conhecer
