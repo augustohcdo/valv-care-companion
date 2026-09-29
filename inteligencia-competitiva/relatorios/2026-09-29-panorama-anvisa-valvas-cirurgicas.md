@@ -177,6 +177,19 @@ Registro perto do vencimento exige pedido de revalidação. Se não for renovado
 - O cadastro não indica se um modelo foi descontinuado comercialmente pela empresa. Registro vigente pode não ter mais oferta ativa.
 - Não foi encontrado, neste recorte, registro de válvula cirúrgica sem sutura de outra marca além do Perceval (Corcym) e do Intuity (Edwards); isso reflete apenas o recorte por nome técnico, não prova ausência de outros.
 
+### 3.4 Recalls e alertas encontrados nas famílias listadas (resumo)
+Detalhes, fontes e limites em `2026-09-29-verificacao-cirurgia.md` (Fase 2).
+| Marca | Achado | Confiança |
+| --- | --- | --- |
+| Abbott Trifecta | Descontinuado em 2023 (FDA e Abbott) | 🟢 |
+| On-X mitral (Conform-X) | Recall iniciado em 01/02/2026: 10 unidades, Coreia do Sul, testes incompletos, causa em investigação | 🟢 (openFDA) |
+| Corcym Carbomedics | Aviso REC-000703 de 17/01/2025: espessura de folheto fora da especificação | 🟢 existência, 🟡 alcance |
+| Corcym Perceval | Ações de campo em 2016 e 2020; alerta no Brasil em dez/2016 | 🟢 FDA, 🟡 Brasil |
+| Medtronic Hancock II e Mosaic mitral | Recall 2019: rótulo de tamanho errado em 15 unidades | 🟢 |
+| Medtronic Open Pivot, Simulus | Recalls 2020 de rotulagem e de kits de demonstração | 🟢 |
+| Cardioprótese (nacional) | Recolhimento (ANVISA, 2021); registro ainda vigente | 🟡 |
+| Edwards, Abbott (Epic, Masters, Regent), Avalus, Solo Smart, Mitroflow | Nenhum recall encontrado no openFDA | 🟡 (ausência de achado não é prova) |
+
 ## 4. Próximos passos sugeridos
 1. Conferir no DOU se os registros com validade até 2028 foram revalidados (busca por nome e nº de registro).
 2. Cruzar com compras públicas (PNCP) para ver **quais marcas e modelos aparecem de fato nos editais e atas** de prótese biológica e mecânica.
