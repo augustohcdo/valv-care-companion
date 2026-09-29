@@ -29,7 +29,7 @@
 | Products And Features Brasil I | 0 | 1 | - |
 | Emergo Brazil Import Importaca | 0 | 1 | - |
 
-Total: 79 registros cirúrgicos e 26 transcateter no recorte.
+Total: 79 registros cirúrgicos e 26 transcateter no recorte (**recontado de forma independente em 29/09/2026**: 105 pares registro+nome; por nome técnico, cirúrgicos = 33 biológicas, 15 mecânicas, 22 anéis e 9 "válvula" genérica; contagens por empresa idênticas às da tabela acima).
 
 Detentor no Brasil por marca: Medtronic = Auto Suture do Brasil; Abbott = St. Jude Medical Brasil; Corcym = VR Medical; On-X = Jotec do Brasil; Meril = Doc Med; Edwards = Edwards Lifesciences Comércio de Produtos Médico-Cirúrgicos. Essas associações vêm dos nomes dos fabricantes e detentores no próprio cadastro.
 
@@ -137,7 +137,7 @@ Detentor no Brasil por marca: Medtronic = Auto Suture do Brasil; Abbott = St. Ju
 ## 3. Sinais que o dado permite (a confirmar)
 
 ### 3.1 Validades que vencem até o fim de 2028 (janela de revalidação)
-Registro perto do vencimento exige pedido de revalidação; se ela não for feita a tempo, o registro perde a validade (regra a confirmar com a área regulatória). **Ausência de revalidação só se confirma no DOU e na consulta oficial.** O primeiro item, **Solo Smart (Corcym), vence em 10/10/2026, onze dias depois da data deste relatório**; como a validade é bem menor que os dez anos típicos dos demais registros, vale conferir se é um dado atípico ou se a revalidação já foi pedida.
+Registro perto do vencimento exige pedido de revalidação; se ela não for feita a tempo, o registro perde a validade (regra a confirmar com a área regulatória). **Ausência de revalidação só se confirma no DOU e na consulta oficial.** O primeiro item, **Solo Smart (Corcym), vence em 10/10/2026, onze dias depois da data deste relatório**; a validade dele (menos de quatro anos após a publicação) foge do padrão de dez anos. **Avalus e Mosaic (Cinch) também têm validades menores que dez anos** (cerca de seis anos e meio após a publicação de 24/05/2021). Isso é coerente com registros migrados que herdaram a validade anterior, mas é leitura, não confirmação. Vale conferir se a revalidação já foi pedida.
 
 | Marca | Produto | Registro | Validade |
 | --- | --- | --- | --- |
