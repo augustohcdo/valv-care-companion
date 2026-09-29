@@ -4,6 +4,51 @@
 >
 > Legenda de status: ✅ comercial · 🧪 em estudo/pivotal · ⚠️ descontinuado/suspenso · ❓ verificar
 
+## Foco principal: cirurgia valvar aberta (SAVR, mitral, tricúspide, raiz da aorta)
+
+### Brasil: o que o cadastro da ANVISA confirma 🟢 (2026-09-29)
+
+Fonte: [cadastro aberto ANVISA](https://dados.anvisa.gov.br/dados/TA_PRODUTO_SAUDE_SITE.csv). Detalhe completo em `relatorios/2026-09-29-panorama-anvisa-valvas-cirurgicas.md`. Registro existente não é volume vendido nem indicação aprovada.
+
+| Empresa (detentor no Brasil) | Válvulas cirúrgicas e anéis com registro vigente (exemplos) |
+| --- | --- |
+| **Edwards** (Edwards Lifesciences Comércio) | Perimount Magna Ease e Magna TFX mitral, Perimount RSR, **Inspiris RESILIA** (2 registros), **Mitris RESILIA**, **Konect RESILIA** (conduto aórtico valvulado), **Intuity Elite** (implante rápido), anéis Physio II, Physio Flex, Physio Tricuspid, McCarthy-Adams, Cosgrove |
+| **Medtronic** (Auto Suture do Brasil) | Avalus, Mosaic (Cinch), Hancock II aórtica e mitral, mecânicas Open Pivot, anéis e bandas Simulus, Contour 3D, CG Future, Profile 3D, Tri-Ad, Duran Ancore |
+| **Abbott** (St. Jude Medical Brasil) | Epic Plus (aórtica, mitral, Supra), **Epic Max** (registro de fev/2026), **Trifecta GT**, porcinas, mecânicas Masters e Regent, anéis Tailor, Seguin e Saddle |
+| **Corcym** (VR Medical) | Perceval S e Perceval Plus (sem sutura), Solo Smart, Mitroflow, Pericarbon More, mecânicas Carbomedics e Bicarbon, anéis |
+| **On-X (Artivion)** (Jotec do Brasil) | On-X aórtica e aorta ascendente |
+| **Nacionais** | Labcor (pericárdio bovino e porcina, anéis) e Braile Biomédica (Inovare, Vivere, anéis) |
+| **Meril** (Doc Med) | Dafodil (bioprótese pericárdica aórtica) |
+
+Sinais a checar: validades até 2028 (Avalus em 11/2027, Mosaic em 09/2027, Perimount RSR em 06/2027, Trifecta GT em 02/2028, Inspiris em 2028), para ver revalidação no DOU. Vários registros da Medtronic têm publicação em 24/05/2021, aparentemente em bloco: não é lançamento.
+
+### Edwards no cirúrgico: hipóteses de partida (verificar)
+Inspiris RESILIA (aórtica), Mitris RESILIA (mitral), Konect RESILIA (conduto valvulado), Intuity Elite (implante rápido), anéis Physio, Cosgrove e McCarthy-Adams. Estudos e durabilidade de longo prazo do tecido RESILIA; posição frente a Avalus, Epic Max, Perceval e On-X; efeito do TAVI em baixo risco sobre o volume de SAVR; acesso minimamente invasivo. ❓
+
+### Concorrentes globais em válvula cirúrgica (hipóteses de partida, verificar)
+| Empresa | Linhas | Verificar |
+| --- | --- | --- |
+| Medtronic | Avalus, Avalus Ultra, Hancock II, Mosaic, mecânicas Open Pivot, anéis Simulus e Profile 3D | Novidades de rótulo, dados de durabilidade do Avalus, status do Avalus Ultra por região ❓ |
+| Abbott | Epic, Epic Max, Trifecta GT, Masters, Regent, anéis Tailor | Dados do Epic Max e do Trifecta GT; posição do tecido Linx ❓ |
+| Corcym (ex-LivaNova) | Perceval, Solo Smart, Mitroflow, Crown PRT, mecânicas Carbomedics e Bicarbon | Implante sem sutura e dados de longo prazo ❓ |
+| Artivion | On-X (baixo INR), enxertos e raiz | Evidência de INR reduzido (estudo PROACT/LOWERING-IT) e uso em jovens ❓ |
+| Foldax | TRIA (válvula de polímero) | Estágio regulatório e estudos ❓ |
+| Anteris | Tecnologias de folheto (linha percutânea DurAVR) | Relevância para cirurgia ❓ |
+| Fabricantes asiáticos (ex.: Lepu, Jenscare) e brasileiros (Labcor, Braile) | Bioprótese e mecânicas de preço competitivo | Presença em licitações e preços ❓ |
+
+### Temas que definem o mercado cirúrgico (acompanhar)
+| Tema | Por que importa | Fonte de checagem |
+| --- | --- | --- |
+| TAVI vs SAVR em baixo risco e em pacientes jovens | Volume de SAVR e idade média dos pacientes | Estudos com seguimento longo, diretrizes ESC/EACTS e ACC/AHA |
+| Durabilidade de bioprótese (deterioração estrutural, reintervenção) | Argumento central da escolha por tecido | Artigos com seguimento de 5 a 10 anos e registros |
+| Anticoagulação e válvula mecânica (INR baixo, anticoagulantes diretos) | Mecânica em pacientes jovens | Ensaios em andamento no ClinicalTrials.gov |
+| Implante rápido e sem sutura | Tempo de pinçamento e cirurgia minimamente invasiva | Comparações publicadas |
+| Cirurgia minimamente invasiva (minitoracotomia, esternotomia parcial, robótica) | Acesso e recuperação | ISMICS, STS, séries publicadas |
+| Reoperação e valve-in-valve | Escolha da primeira válvula planejando a segunda | Registros de ViV, estudos de redo |
+| Plastia mitral e anéis | Nicho em que a Edwards tem linha própria (Physio, Cosgrove) | Séries e diretrizes |
+| Raiz da aorta (Bentall, valve-sparing, Ross) | Condutos valvulados (Konect) | Séries e registros |
+| Compras públicas de próteses valvares no Brasil | Preço e concorrência com nacionais | PNCP |
+
 ## Edwards Lifesciences (referência)
 
 | Família | Uso | Notas para verificar |
@@ -35,10 +80,6 @@
 ## Concorrentes em tricúspide/mitral (pipeline)
 
 Rastrear: TricValve (P+F), Trisol, VDyne, CroíValve, Cardiovalve, Innovalve, 4C Medical (AltaValve), NeoChord, Pi-Cardia (Leaflex/ShortCut) e novos entrantes. Para cada um: estágio, estudo, fonte de financiamento, previsão de aprovação. ❓
-
-## Concorrentes em válvulas cirúrgicas
-
-Medtronic (Avalus, Hancock II, Mosaic), Abbott (Epic, Trifecta se ainda existir, mecânicas), Corcym (Perceval sutureless), Artivion (On-X, mecânica), LivaNova/Sorin (verificar o que virou Corcym), e fabricantes nacionais. ❓
 
 ## Brasil: fabricantes e distribuidores locais
 

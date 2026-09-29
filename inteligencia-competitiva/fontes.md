@@ -61,6 +61,25 @@ Níveis de fonte (1 a 4) seguem o protocolo. Endereços mudam: se um link falhar
 | Registros: STS/ACC TVT, SWEDEHEART, FRANCE-TAVI, GARY, NICOR, J-TVT, Registro Brasileiro de TAVI (SBHCI) | 1 | 🔵 artigos e relatórios | Números vêm da publicação. |
 | VARC-3 e documentos de consenso | 1 | 🔵 | Definições de desfecho. |
 
+### 3.1 Cirurgia valvar aberta (foco principal)
+
+| Fonte | Nível | Acesso | Como usar |
+| --- | --- | --- | --- |
+| **STS National Database** (`sts.org/registries/sts-national-database`) e relatórios do STS Adult Cardiac Surgery Database | 1 | 🔵 página institucional; dados detalhados por publicação | Volumes e desfechos de troca e plastia valvar nos EUA; risco (STS-PROM). Números vêm de artigos e relatórios. |
+| STS Risk Calculator (`riskcalc.sts.org`) | 1 | 🔵 | Estratificação de risco (SAVR vs TAVI). |
+| **SBCCV** (Sociedade Brasileira de Cirurgia Cardiovascular, `sbccv.org.br`) | 1 | 🔵 | Congresso, diretrizes, registros e posicionamentos da cirurgia cardíaca no Brasil. |
+| **Brazilian Journal of Cardiovascular Surgery** (`bjcvs.org`; o domínio antigo `rbccv.org.br` não respondeu) | 1 | 🔵 | Artigos de cirurgia cardíaca brasileira, acesso aberto. Também via PubMed. |
+| **CTSNet** (`ctsnet.org`) | 3 a 4 | 🔵 página inicial; `/forums` não existe mais na URL testada | Comunidade de cirurgiões cardiotorácicos: vídeos de técnica, discussões, opinião de líderes. Serve como sinal do que os cirurgiões usam e discutem, nunca como prova. |
+| Society for Heart Valve Disease (`shvd.org`) | 1 | 🔵 | Congresso bianual e material educacional sobre doença valvar. |
+| ISMICS (`ismics.org`) | 1 | 🔵 | Cirurgia cardíaca minimamente invasiva: consensos e congresso. |
+| EACTS (`eacts.org`), AATS (`aats.org`) | 1 | 🔵 | Congressos, diretrizes conjuntas ESC/EACTS, sessões de late-breaking. |
+| NICOR (`nicor.org.uk`), SWEDEHEART, ANZSCTS | 1 | 🔵 NICOR; SWEDEHEART sem resposta; ANZSCTS 403 | Registros nacionais de cirurgia cardíaca (Reino Unido, Suécia, Austrália/Nova Zelândia). |
+| Periódicos de cirurgia: Annals of Thoracic Surgery, JTCVS, EJCTS, ICVTS, Innovations, JAMA Surgery | 1 | 🔴 403 no site; 🟢 resumo via PubMed | Ler o resumo no PubMed e citar o PMID. Texto completo só se aberto. |
+| Fabricantes cirúrgicos: Edwards (surgical heart valves), Medtronic, Abbott, Corcym, LivaNova, Artivion (On-X), Labcor, Braile, Foldax | 1 | 🔵 Corcym, LivaNova, Artivion, Labcor, Foldax; alguns links de produto mudaram (404) | Páginas de produto e comunicados. Confirmar indicação no regulador. |
+| Tecidos e homoenxertos (ex.: LifeNet Health, Artivion) | 1 | 🔵 | Fornecedores de tecido para cirurgia valvar e da raiz. |
+| ANVISA: nomes técnicos "Prótese valvular cardíaca biológica/mecânica", "Anéis de anuloplastia", "Válvula cardíaca" | 1 | 🟢 CSV | Base do relatório `relatorios/2026-09-29-panorama-anvisa-valvas-cirurgicas.md`. |
+| PNCP: termos "prótese valvar biológica", "prótese valvular mecânica", "anel de anuloplastia", "tubo/conduto/enxerto valvado" | 1 | 🟢 JSON | Quais marcas e modelos aparecem em editais e atas de cirurgia. |
+
 ## 4. Empresas e mercado
 
 | Fonte | Nível | Acesso | Como usar |

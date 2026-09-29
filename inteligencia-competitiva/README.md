@@ -1,5 +1,7 @@
 # Inteligência competitiva em válvulas cardíacas
 
+**Foco principal: cirurgia valvar aberta** (SAVR, mitral, tricúspide, raiz da aorta, minimamente invasiva). O transcateter entra como contexto e concorrência. Os briefings marcam cada item como Segmento: Cirurgia ou Transcateter e listam a cirurgia primeiro.
+
 Base de conhecimento do agente **`valve-intel`** (definido em `.claude/agents/valve-intel.md`), pensado para apoiar um profissional da Edwards Lifesciences em novidades de mercado, comparação com concorrentes, status regulatório (ANVISA e demais), evidência, preços e licitações.
 
 Este material é separado do app ValvePath e não é usado por ele.
@@ -24,8 +26,8 @@ O agente pesquisa na web, cita as fontes e classifica a confiança de cada dado.
 | `protocolo-de-verificacao.md` | Como garantir que cada informação é robusta e faz sentido. |
 | `ferramentas/` | Script de coleta por API aberta. |
 | `mapa-competitivo.md` | Panorama inicial de produtos e empresas, com watchlist. **Hipóteses a verificar**, não fatos confirmados. |
-| `playbooks/` | Modelos de entrega: battlecard, regulatório, preços/licitações, briefing diário, briefing semanal consolidado, evidência clínica. Os briefings são segmentados por região (Brasil e global) e trazem link de fonte em cada afirmação. |
-| `relatorios/` | Onde o agente salva relatórios datados (`AAAA-MM-DD-assunto.md`). |
+| `playbooks/` | Modelos de entrega: battlecard (transcateter e cirúrgico), regulatório, preços/licitações, briefing diário, briefing semanal consolidado, evidência clínica. Os briefings são segmentados por região (Brasil e global) e trazem link de fonte em cada afirmação. |
+| `relatorios/` | Onde o agente salva relatórios datados (`AAAA-MM-DD-assunto.md`). Já existe o panorama ANVISA de válvulas cirúrgicas e anéis no Brasil (2026-09-29). |
 
 ## Coleta e verificação
 

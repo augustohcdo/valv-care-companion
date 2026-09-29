@@ -13,6 +13,23 @@ Uso interno. Consolida **todas as notícias relevantes da semana** (segunda a do
 5. **Todo link do diário é mantido**, e cada afirmação nova também leva `[fonte](URL)` com data.
 6. Se algum diário da semana estiver faltando, diga quais dias e cubra a lacuna por pesquisa direta.
 
+## Prioridade editorial: cirurgia valvar aberta
+
+O foco principal é a **cirurgia valvar aberta**. Cada briefing abre a cobertura, no Brasil e no global, pelo que envolve cirurgia, e trata o transcateter como contexto e concorrência (o que ele muda para a cirurgia). Subtemas de cirurgia, em ordem:
+
+1. **Troca valvar aórtica cirúrgica (SAVR)**: bioprótese, mecânica, sem sutura e implante rápido; raiz da aorta (Bentall, valve-sparing, Ross, condutos valvulados).
+2. **Mitral**: troca e plastia, anéis e bandas, cordas.
+3. **Tricúspide cirúrgica** e cirurgia combinada (com revascularização, aorta ascendente).
+4. **Cirurgia minimamente invasiva** (minitoracotomia, esternotomia parcial, endoscópica, robótica).
+5. **Reoperação, valve-in-valve e planejamento da segunda válvula.**
+6. **Durabilidade das biopróteses** e **anticoagulação das mecânicas** (INR baixo, anticoagulantes diretos).
+7. **Adjuntos cirúrgicos**: cardioplegia, canulação, hemostasia e selantes, fechamento esternal, perfusão, monitoramento hemodinâmico.
+8. **Sociedades, registros e eventos da cirurgia**: STS, SBCCV, EACTS, AATS, ISMICS, SHVD, registros nacionais.
+9. **Concorrentes cirúrgicos**: Medtronic, Abbott, Corcym, Artivion (On-X), Labcor, Braile, Meril, Foldax, asiáticos.
+10. **Compras e preços de próteses valvares** (biológicas, mecânicas, anéis, condutos) e cobertura SUS/ANS da cirurgia.
+
+Todo item recebe a etiqueta **Segmento: Cirurgia** ou **Segmento: Transcateter**. Cirurgia vem primeiro em cada seção. Itens de transcateter só entram se afetam a cirurgia (volume, evidência, diretriz, preço, cobertura) ou a Edwards de forma relevante.
+
 ## Estrutura
 
 ### 1. Resumo executivo (máx. 10 linhas)
