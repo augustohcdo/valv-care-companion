@@ -115,7 +115,7 @@ Resolvido ou reclassificado na Fase 3, abaixo.
 # Fase 3: pontos em aberto (29/09/2026)
 
 ## 1. Aviso Carbomedics (Corcym), lido por inteiro
-O documento público hospedado pela IGJ é uma **versão editada** ("Geredigeerd") e contém só: referência REC-000703, data 17/01/2025, produtos (válvulas protéticas Carbomedics e próteses Carbo-Seal e Carbo-Seal Valsalva), "motivo: espessura do folheto fora da especificação", a carta introdutória (os dispositivos do Anexo A foram enviados ao seu serviço; ação corretiva de campo da Corcym S.r.l.) e a nota "o restante do aviso detalha o que motivou a ação e o que fazer". **Não há no documento público** o risco clínico, os lotes, nem orientação sobre pacientes já implantados. 🟢 para o que está escrito; **o alcance real continua desconhecido** e só o fabricante, o distribuidor (VR Medical) ou a Tecnovigilância podem informar. Isso substitui a ressalva "li só o cabeçalho".
+**Correção (Fase 4, abaixo):** a versão da IGJ é editada e curta, mas a versão hospedada pela HPRA (Irlanda) traz o texto completo; o que vem a seguir descreve a versão da IGJ. O conteúdo completo está na Fase 4. A versão da IGJ contém só: referência REC-000703, data 17/01/2025, produtos (válvulas protéticas Carbomedics e próteses Carbo-Seal e Carbo-Seal Valsalva), "motivo: espessura do folheto fora da especificação", a carta introdutória (os dispositivos do Anexo A foram enviados ao seu serviço; ação corretiva de campo da Corcym S.r.l.) e a nota "o restante do aviso detalha o que motivou a ação e o que fazer". **Não há no documento público** o risco clínico, os lotes, nem orientação sobre pacientes já implantados. 🟢 para o que está escrito; **o alcance real continua desconhecido** e só o fabricante, o distribuidor (VR Medical) ou a Tecnovigilância podem informar. Isso substitui a ressalva "li só o cabeçalho".
 
 ## 2. Alertas da ANVISA (nº 3671 e nº 4909), na fonte original
 **Não foi possível ler.** O portal antigo (`antigo.anvisa.gov.br`) devolve apenas a casca do portal e o sistema `anvisa.gov.br/sistec` responde com bloqueio da Cloudflare (403). Alternativas usadas:
@@ -160,3 +160,42 @@ Conclusão: no segmento de **raiz da aorta (condutos valvados)**, a Labcor é a 
 - Status comercial atual, no Brasil, de qualquer modelo (exceto Trifecta e Acurate, descontinuados).
 - Cosgrove e McCarthy-Adams: disponibilidade.
 - Homoenxertos e outros itens de tecido no cadastro.
+
+---
+
+# Fase 4: Carbomedics completo, condutos e recall On-X (29/09/2026)
+
+## 1. Aviso Carbomedics (REC-000703): texto completo
+Fonte: [aviso hospedado pela HPRA, Irlanda](https://assets.hpra.ie/data/docs/default-source/product-updates/fsn/field-safety-notices/january-2025/carbomedics-prosthetic-heart-valves_corcym-s-r-l-_advice-regarding-a-device-removal.pdf?sfvrsn=79f09d78_1) (comunicado do fabricante, hospedado por regulador; nível 1). O texto não pôde ser extraído pelas ferramentas de leitura, então **extraí o texto direto do PDF**; a transcrição abaixo é fiel ao que li. Datado de **17/01/2025**, assinado pelo gerente de qualidade da Corcym; a HPRA registra o aviso em 04/02/2025.
+
+| Item | O que o aviso diz |
+| --- | --- |
+| Produtos | Válvulas Carbomedics (bidisco, carbono pirolítico, para posição aórtica ou mitral) e próteses de aorta ascendente Carbo-Seal e Carbo-Seal Valsalva (que usam o mesmo conjunto folhetos/orifício). Modelos e números de série: **Anexo A, não público**. |
+| Problema | A Corcym detectou que os produtos do Anexo A "podem apresentar folhetos com espessura do revestimento de carbono pirolítico abaixo da especificação". |
+| Risco | Se implantado um folheto com revestimento fino, "o folheto pode sofrer desgaste acelerado ao longo do tempo", com potencial falha levando a **esteno-insuficiência, insuficiência cardíaca aguda ou progressiva e lesão grave**. |
+| Probabilidade | A empresa faz testes extensos; "embora esses testes estejam em andamento e precisem de confirmação, os resultados preliminares sugerem que essa probabilidade é **muito baixa**". Testes e simulações do impacto sobre a durabilidade tinham resultados previstos "até meados de fevereiro" (de 2025). |
+| Ação do usuário | Identificar o estoque do Anexo A, colocar em **quarentena**, devolver o formulário a `FSCA@corcym.com` e devolver os dispositivos. Prazos: passos 1 e 2 até **24/01/2025**; devolução até **31/01/2025**. |
+| Ação do fabricante | Remoção de produto, prevista para concluir até **31/03/2025**. |
+| Pacientes já implantados | Sem novas recomendações até saírem os resultados dos testes. O aviso lembra que a probabilidade é considerada muito baixa e que o modo de falha por desgaste, se ocorresse, seria **ao longo do tempo**. |
+| Comunicação ao paciente | **Não exigida** ("Is the FSN required to be communicated to the patient? No"). |
+| Acompanhamento | O aviso diz que **é esperado um aviso de acompanhamento** ("Further advice... follow-up FSN: Yes"). **Não encontrei o acompanhamento publicado** nas buscas. |
+
+**Como ler:** é uma ação preventiva de **estoque** (produtos ainda nas prateleiras) com probabilidade preliminar descrita como muito baixa, não um alerta de falha em implantes. O resultado dos testes de durabilidade e a lista de lotes não são públicos. O que isso significa para o Brasil (se as unidades do Anexo A foram enviadas à VR Medical ou a hospitais brasileiros) **é desconhecido**: perguntar à VR Medical ou à Tecnovigilância.
+
+## 2. Recall On-X mitral (fev/2026): checagem adicional
+- O registro do openFDA (nº 98548) continua sendo a única fonte encontrada. Busca web não achou outra menção.
+- O relatório trimestral da Artivion (10-Q de 30/06/2026) **não menciona** o recall, o que é compatível com um evento de 10 unidades, sem materialidade financeira. Isso não confirma nem contradiz o recall. 🟢 openFDA; sem corroboração independente.
+
+## 3. Conclusão da varredura de condutos e enxertos no cadastro ANVISA
+Varredura ampliada (29/09/2026) sobre os nomes técnicos "Próteses cardiovasculares", "Próteses vasculares" e "Enxertos", cruzando com termos de valva, aorta e raiz:
+- **Condutos/enxertos valvados:** 6 da Labcor, 1 da St. Jude/Abbott (Masters), Konect (Edwards), Open Pivot (Medtronic). Nenhum outro conduto valvado de outra empresa foi encontrado; Carbo-Seal e On-X Ascendente já estavam na lista de mecânicas.
+- **Enxerto de raiz sem valva:** **Terumo Gelweave Valsalva** (enxerto arterial de poliéster vedado com gelatina), registro 80012280188, publicado em 14/08/2017, **validade 14/08/2027**. Relevante para cirurgia da raiz da aorta.
+- **Remendos de pericárdio bovino** (usados em cirurgia cardíaca, não são válvulas): Labcor, Braile, Cardioprótese (a mesma empresa do recolhimento de 2021) e Products and Features (DryPatch, 2025).
+- **Não foram encontrados** homoenxertos valvares (ex.: CryoValve) no cadastro por essa varredura; isso pode significar que não há registro ou que estão sob outro nome.
+
+## 4. O que ainda resta em aberto
+- Lista de lotes do Carbomedics e resultado dos testes de durabilidade (não públicos).
+- Impacto no Brasil do aviso Carbomedics e do recall On-X.
+- Texto original dos alertas da ANVISA (bloqueio do portal).
+- Status comercial atual de cada modelo no Brasil.
+- Cosgrove e McCarthy-Adams (disponibilidade).

@@ -183,7 +183,7 @@ Detalhes, fontes e limites em `2026-09-29-verificacao-cirurgia.md` (Fase 2).
 | --- | --- | --- |
 | Abbott Trifecta | Descontinuado em 2023 (FDA e Abbott) | 🟢 |
 | On-X mitral (Conform-X) | Recall iniciado em 01/02/2026: 10 unidades, Coreia do Sul, testes incompletos, causa em investigação | 🟢 (openFDA) |
-| Corcym Carbomedics | Aviso REC-000703 de 17/01/2025: espessura de folheto fora da especificação | 🟢 existência, 🟡 alcance |
+| Corcym Carbomedics | Aviso REC-000703 (17/01/2025): possível espessura do revestimento de carbono pirolítico abaixo da especificação; risco de desgaste acelerado; probabilidade preliminar "muito baixa"; ação de quarentena e devolução de estoque; pacientes implantados sem nova recomendação; acompanhamento esperado, não encontrado | 🟢 texto completo lido (HPRA); alcance no Brasil não verificado |
 | Corcym Perceval | Ações de campo em 2016 e 2020; alerta no Brasil em dez/2016 | 🟢 FDA, 🟡 Brasil |
 | Medtronic Hancock II e Mosaic mitral | Recall 2019: rótulo de tamanho errado em 15 unidades | 🟢 |
 | Medtronic Open Pivot, Simulus | Recalls 2020 de rotulagem e de kits de demonstração | 🟢 |
@@ -193,6 +193,9 @@ Detalhes, fontes e limites em `2026-09-29-verificacao-cirurgia.md` (Fase 2).
 
 ### 3.5 Lacuna do recorte: condutos e enxertos valvados
 Este panorama usou os nomes técnicos de prótese valvar, anel de anuloplastia e válvula cardíaca. **Condutos e enxertos valvados cadastrados como "Próteses cardiovasculares" ficaram de fora.** A varredura complementar (ver `2026-09-29-verificacao-cirurgia.md`, Fase 3, seção 4) achou 6 registros da Labcor e 1 da St. Jude/Abbott (Masters Series) além de Konect (Edwards) e Open Pivot (Medtronic), que já estavam aqui. Portanto o portfólio de raiz da aorta da Labcor é maior do que este panorama mostra.
+
+### 3.6 Enxerto de raiz sem valva e remendos
+O cadastro também mostra o **Terumo Gelweave Valsalva** (enxerto de raiz, registro 80012280188, validade 14/08/2027) e remendos de pericárdio bovino (Labcor, Braile, Cardioprótese, Products and Features). Não são válvulas e não entram nas contagens deste panorama.
 
 ## 4. Próximos passos sugeridos
 1. Conferir no DOU se os registros com validade até 2028 foram revalidados (busca por nome e nº de registro).
