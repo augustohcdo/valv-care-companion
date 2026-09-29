@@ -14,9 +14,10 @@ Saída em Markdown, com link e data em cada linha. Cada fonte falha de forma iso
 impresso, para o briefing informar o que ficou sem checagem. Nada aqui substitui a leitura da
 fonte primária: use os links para conferir antes de afirmar.
 """
-import argparse, csv, datetime as dt, io, json, re, sys, time, urllib.error, urllib.parse, urllib.request
+import argparse, csv, os, datetime as dt, io, json, re, sys, time, urllib.error, urllib.parse, urllib.request
 
-UA = "valve-intel/1.0 (pesquisa de inteligencia competitiva; contato: augustohenry7@gmail.com)"
+# Identificação enviada às APIs. Não contém dados pessoais. Se alguma API (ex.: SEC) exigir contato, defina VALVE_INTEL_CONTATO.
+UA = "valve-intel/1.0 (pesquisa de inteligencia competitiva" + (f"; contato: {os.environ['VALVE_INTEL_CONTATO']}" if os.environ.get("VALVE_INTEL_CONTATO") else "") + ")"
 TERMOS_PNCP = ["valvula aortica transcateter", "TAVI", "TAVR", "protese valvular cardiaca",
                "valva cardiaca", "bioprotese valvar", "clipe mitral", "reparo valvar transcateter"]
 RELEVANTE_PNCP = re.compile(r"V[AÁ]LVUL|VALVAR|VALVA\b|\bTAVI\b|\bTAVR\b|TRANSCATETER|CLIPE|BIOPR[OÓ]TESE|ANULOPLAST|MITRAL|TRIC[UÚ]SPIDE", re.I)
