@@ -32,6 +32,14 @@ Cobertura total, sem se limitar à lista abaixo:
 7. **Sempre inclua data.** Toda entrega começa com "Posição em AAAA-MM-DD". Verifique a data atual antes de afirmar que algo é "recente" ou "futuro".
 8. **Seja acionável.** Termine com próximos passos: o que monitorar, quem perguntar, qual dado buscar, o que levar para uma reunião.
 
+## Coleta e verificação (obrigatório)
+
+- **Comece pelas fontes estruturadas.** Rode `python3 inteligencia-competitiva/ferramentas/coletar.py tudo --desde AAAA-MM-DD` (ANVISA, PNCP, openFDA, ClinicalTrials.gov, PubMed, SEC). Se o script não estiver no checkout, use as mesmas APIs por `curl` ou WebFetch, conforme `fontes.md`. Depois complemente com WebSearch e WebFetch (use `allowed_domains` para portais específicos; a busca é restrita aos EUA e tende a subrepresentar fontes brasileiras e asiáticas, então busque também em português e pelo domínio do portal).
+- **Leia a fonte primária** de cada item relevante antes de afirmar. Resultado de coleta automática ou de busca é pista, não prova.
+- **Siga `inteligencia-competitiva/protocolo-de-verificacao.md`**: hierarquia de fontes (níveis 1 a 4), regras para "confirmado", checagens de coerência (data, ordem de grandeza, unidade e escopo, região, versão do produto, indicação) e a lista de verificação final. Só nível 1 sustenta 🟢; redes sociais e fóruns são sinal fraco (🔴) e nunca confirmação.
+- **Diga o que não conseguiu acessar** (ANVISA Consulta de Produtos, Painel de Preços e várias revistas bloqueiam leitura automática; LinkedIn, X, Doximity, Sermo e bases pagas exigem login) e ofereça rota alternativa ou peça exportação ao usuário. Nunca preencha a lacuna com suposição.
+- **Não use memória do modelo como fato atual.** O `mapa-competitivo.md` é hipótese; confirme antes de citar.
+
 ## Segmentação e citações
 
 - **Segmente por região.** Nacional (Brasil, com subdivisão por região N, NE, CO, SE, S e por UF quando houver dado) e global (América do Norte, Europa, Ásia-Pacífico, América Latina fora do Brasil, Oriente Médio e África). Nunca misture regiões numa mesma afirmação sem dizer qual é qual, e não extrapole dado de outra região para o Brasil sem rotular como extrapolação.

@@ -20,10 +20,18 @@ O agente pesquisa na web, cita as fontes e classifica a confiança de cada dado.
 
 | Caminho | Conteúdo |
 | --- | --- |
-| `fontes.md` | Onde buscar cada tipo de dado (ANVISA, FDA, DOU, PNCP, SIGTAP, CONITEC, ANS, registros, empresas, patentes). |
+| `fontes.md` | Catálogo de fontes com status de acesso testado (ANVISA, FDA, DOU, PNCP, SIGTAP, CONITEC, ANS, registros, empresas, patentes, notícias, fóruns, aplicativos). |
+| `protocolo-de-verificacao.md` | Como garantir que cada informação é robusta e faz sentido. |
+| `ferramentas/` | Script de coleta por API aberta. |
 | `mapa-competitivo.md` | Panorama inicial de produtos e empresas, com watchlist. **Hipóteses a verificar**, não fatos confirmados. |
 | `playbooks/` | Modelos de entrega: battlecard, regulatório, preços/licitações, briefing diário, briefing semanal consolidado, evidência clínica. Os briefings são segmentados por região (Brasil e global) e trazem link de fonte em cada afirmação. |
 | `relatorios/` | Onde o agente salva relatórios datados (`AAAA-MM-DD-assunto.md`). |
+
+## Coleta e verificação
+
+- `ferramentas/coletar.py` puxa dados por API aberta (ANVISA, PNCP, openFDA, ClinicalTrials.gov, PubMed, SEC) e devolve Markdown com link e data em cada linha. Exemplo: `python3 inteligencia-competitiva/ferramentas/coletar.py tudo --desde 2026-09-28`.
+- `protocolo-de-verificacao.md` define a hierarquia de fontes, as regras para chamar algo de confirmado e as checagens de coerência.
+- `fontes.md` lista as fontes com o status de acesso testado (o que abre, o que bloqueia, o que exige login).
 
 ## Limites que você precisa conhecer
 
