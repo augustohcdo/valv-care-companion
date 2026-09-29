@@ -108,7 +108,55 @@ O **Acurate neo2** (transcateter, Boston Scientific) teve alerta da ANVISA (nº 
 - O recall On-X e o aviso Carbomedics **não têm confirmação de impacto no Brasil**. Recomendo consultar o setor de assuntos regulatórios ou o distribuidor local (Jotec para On-X; VR Medical para Corcym) e a Tecnovigilância da ANVISA.
 
 ## D. Ainda em aberto
-- Leitura completa do aviso Carbomedics (pacientes implantados, lotes, ações).
-- Alertas da ANVISA nº 3671 e nº 4909 na fonte original (bloqueio 403).
-- Descontinuação dos itens marcados ❓ na tabela.
-- Status comercial do Mitroflow.
+Resolvido ou reclassificado na Fase 3, abaixo.
+
+---
+
+# Fase 3: pontos em aberto (29/09/2026)
+
+## 1. Aviso Carbomedics (Corcym), lido por inteiro
+O documento público hospedado pela IGJ é uma **versão editada** ("Geredigeerd") e contém só: referência REC-000703, data 17/01/2025, produtos (válvulas protéticas Carbomedics e próteses Carbo-Seal e Carbo-Seal Valsalva), "motivo: espessura do folheto fora da especificação", a carta introdutória (os dispositivos do Anexo A foram enviados ao seu serviço; ação corretiva de campo da Corcym S.r.l.) e a nota "o restante do aviso detalha o que motivou a ação e o que fazer". **Não há no documento público** o risco clínico, os lotes, nem orientação sobre pacientes já implantados. 🟢 para o que está escrito; **o alcance real continua desconhecido** e só o fabricante, o distribuidor (VR Medical) ou a Tecnovigilância podem informar. Isso substitui a ressalva "li só o cabeçalho".
+
+## 2. Alertas da ANVISA (nº 3671 e nº 4909), na fonte original
+**Não foi possível ler.** O portal antigo (`antigo.anvisa.gov.br`) devolve apenas a casca do portal e o sistema `anvisa.gov.br/sistec` responde com bloqueio da Cloudflare (403). Alternativas usadas:
+- **Acurate neo2 (alerta 4909): confirmado em fonte primária alternativa.** A Boston Scientific comunicou à SEC em **28/05/2025** que "está descontinuando as vendas mundiais dos sistemas ACURATE neo2 e ACURATE Prime e não buscará mais a aprovação da FDA", citando exigências clínicas e regulatórias crescentes ("prohibitive" o investimento adicional). 🟢 [Formulário 8-K na SEC](https://www.sec.gov/Archives/edgar/data/885725/000088572525000033/bsx-20250528.htm). Segundo veículos especializados, o anúncio veio menos de uma semana depois de o estudo ACURATE IDE não atingir a não inferioridade frente ao Evolut da Medtronic 🟡 ([MassDevice](https://www.massdevice.com/boston-scientific-discontinues-acurate-tavr-sales-cites-regulatory-burden/)). Não li o resumo do estudo.
+- **Cardioprótese (alerta 3671): detalhe só por resumo de busca do próprio site da ANVISA 🟡.** Segundo o resumo, o recolhimento foi determinado pela **Resolução RE nº 1.978, de 14/05/2021**, após inspeção sanitária na empresa em 18 a 22/01/2021 que apontou fabricação em desacordo com exigências da RDC; modelos **Bioprótese de Pericárdio Bovino Premium Mitral e Premium Aórtica**; ação: devolução ao fabricante. Página original não lida. O registro nº 10263870001 segue vigente no cadastro até 01/11/2036.
+
+## 3. Status comercial por família (o que pude apurar)
+
+| Família | Resultado | Confiança |
+| --- | --- | --- |
+| **Corcym Mitroflow** | Uma revisão em periódico revisado por pares descreve o Mitroflow como **descontinuado e substituído pelo Crown PRT** ([MDPI, J Clin Med 2023](https://www.mdpi.com/2077-0383/12/22/7063)). O FDA ainda mantém o PMA P060038 (último suplemento em 2019), e o registro brasileiro foi publicado em 06/02/2023 (validade 2036). Não achei comunicado da Corcym confirmando. | 🟡 |
+| **Edwards Physio II e Physio Flex** | Constam "em distribuição comercial" no FDA AccessGUDID (registro do Physio II de ago/2023); o Physio Flex tem estudo clínico recente (pacientes tratados até abr/2024). Fontes: [GUDID Physio II](https://accessgudid.nlm.nih.gov/devices/00690103180183), [GUDID Physio Flex](https://accessgudid.nlm.nih.gov/devices/00690103206180). | 🟢 status; sem achado de descontinuação |
+| Edwards Cosgrove e McCarthy-Adams (IMR ETlogix) | Nenhuma informação de descontinuação, **nem** de disponibilidade atual. O registro brasileiro do McCarthy-Adams vence em 18/02/2028. | ❓ |
+| **Medtronic Profile 3D, Contour 3D, CG Future** | Páginas de produto ativas no site da Medtronic. Simulus e Duran AnCore aparecem em documentos de estudos. Nenhum achado de descontinuação ou aviso. | 🟡 |
+| **Abbott Tailor, Séguin, Rigid Saddle** | Fazem parte do portfólio no site da Abbott e de estudo pós-mercado (NCT04761120). Nenhum achado de descontinuação ou aviso. | 🟡 |
+| **Labcor** | Modelos no site da Labcor (TLPB-A, TLPB-M, L-Hydro, Dokimos Plus, Kyros). Nenhum recolhimento encontrado. | 🟡 |
+| **Braile** | Produtos no site e artigos. Nenhum recolhimento encontrado. O Inovare SafeSync (transcateter) e o Alpha são produtos distintos. | 🟡 |
+| **Meril Dafodil** | Marcação CE; estudos Dafodil-1 com seguimento de 5 anos publicado em 2026; registro europeu EURODAF-1 previsto para abril de 2026; Dafodil Neo no site da Meril. Sem recall ou descontinuação. | 🟡 |
+
+**Regra que continua valendo:** "não encontrei descontinuação ou recolhimento" **não é** "está comercializado". Para saber se um modelo está à venda no Brasil, pergunte ao distribuidor. Foram pesquisados só os canais públicos.
+
+## 4. Lacuna que encontrei no meu próprio recorte
+O panorama ANVISA considerou os nomes técnicos "prótese valvar cardíaca (biológica/mecânica)", "anéis de anuloplastia" e "válvula cardíaca". **Condutos e enxertos valvados podem estar cadastrados sob "Próteses cardiovasculares" e ficaram de fora.** Varredura complementar no cadastro (29/09/2026), com nomes que indicam enxerto ou conduto valvado:
+
+| Empresa | Registro | Produto | Publicação | Validade |
+| --- | --- | --- | --- | --- |
+| Labcor | 10171250027 | Enxerto arterial tubular valvado orgânico | 12/12/2005 | 12/12/2035 |
+| Labcor | 10171250029 | Enxerto arterial inorgânico valvado | 06/11/2006 | 06/11/2036 |
+| Labcor | 10171250037 | Enxerto arterial tubular valvado orgânico L-Hydro | 17/09/2007 | 17/09/2027 |
+| Labcor | 10171250035 | Enxerto arterial valvado orgânico | 02/07/2007 | 02/07/2027 |
+| Labcor | 10171250034 | Enxerto arterial valvado orgânico L-Hydro | 11/06/2007 | 11/06/2027 |
+| Labcor | 10171250046 | Enxerto arterial inorgânico valvado | 08/04/2013 | 08/04/2028 |
+| Abbott (St. Jude) | 10332340091 | Enxerto aórtico valvado Masters Series com tecnologia de enxerto | 07/03/2002 | 07/03/2037 |
+| Medtronic (Auto Suture) | 10349001078 | Enxerto valvulado aórtico Open Pivot (já estava no panorama) | 24/05/2021 | 11/08/2034 |
+| Edwards | 80219050182 | Conduto aórtico valvulado Konect RESILIA (já estava no panorama) | 21/02/2022 | 21/02/2032 |
+
+Conclusão: no segmento de **raiz da aorta (condutos valvados)**, a Labcor é a empresa com mais registros no cadastro; mostra que o recorte do panorama subestimava o portfólio nacional. Outros nomes de conduto (ex.: "tubo" ou "tubo valvado" com outra grafia) podem existir e não foram varridos exaustivamente. Também há homoenxertos (CryoValve, Artivion) e itens de tecido de outras empresas que não foram procurados.
+
+## 5. O que continua sem verificação
+- Alcance clínico do aviso Carbomedics e do recall On-X mitral no Brasil.
+- Texto original dos alertas da ANVISA (bloqueio do portal).
+- Status comercial atual, no Brasil, de qualquer modelo (exceto Trifecta e Acurate, descontinuados).
+- Cosgrove e McCarthy-Adams: disponibilidade.
+- Homoenxertos e outros itens de tecido no cadastro.
