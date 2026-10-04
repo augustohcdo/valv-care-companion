@@ -70,20 +70,42 @@ export interface PoliticaRls {
  * (tabela, nome) que tenha sido derrubado.
  */
 export function politicasVivas(dir = DIR): PoliticaRls[] {
-  const criadas = new Map<string, PoliticaRls>();
-  const derrubadas = new Set<string>();
+  const vivas = new Map<string, PoliticaRls>();
   const arquivos = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
 
+  /**
+   * Uma passada ÚNICA, em ordem de posição — e o motivo tem data.
+   *
+   * A primeira versão fazia duas varreduras por arquivo: primeiro todos os
+   * `drop policy`, depois todos os `create policy`, e no fim descartava o par
+   * (tabela, nome) que tivesse aparecido em algum drop. Quer dizer: ela não
+   * tinha noção de ORDEM.
+   *
+   * O preço apareceu quando a migration de `doctors` ganhou um
+   * `drop policy if exists` da própria política ANTES de criá-la — que é o
+   * idioma idempotente, e foi acrescentado justamente porque o `db.yml` afirma
+   * que todo SQL que ele aplica é reexecutável. A guarda passou a considerar a
+   * política derrubada e reprovou dizendo "doctors ficou sem política de
+   * SELECT", sobre uma tabela que tem uma.
+   *
+   * Agora cada instrução é aplicada na posição em que aparece: um `create`
+   * depois de um `drop` revive, e um `drop` depois de um `create` derruba. É o
+   * que o Postgres faz, e modelar menos do que isso é modelar outra coisa.
+   */
   for (const arquivo of arquivos) {
-    const texto = readFileSync(join(dir, arquivo), "utf8");
+    const sql = readFileSync(join(dir, arquivo), "utf8");
+    const instrucoes: { pos: number; tipo: "drop" | "create"; p?: PoliticaRls; chave: string }[] = [];
 
-    for (const m of texto.matchAll(
+    for (const m of sql.matchAll(
       /drop\s+policy\s+(?:if\s+exists\s+)?"?([^";]+?)"?\s+on\s+(?:public\.)?"?(\w+)"?/gi,
     )) {
-      derrubadas.add(`${m[2].toLowerCase()}::${m[1].trim().toLowerCase()}`);
+      instrucoes.push({
+        pos: m.index!, tipo: "drop",
+        chave: `${m[2].toLowerCase()}::${m[1].trim().toLowerCase()}`,
+      });
     }
 
-    for (const m of texto.matchAll(
+    for (const m of sql.matchAll(
       /create\s+policy\s+"?([^"]+?)"?\s+on\s+(?:public\.)?"?(\w+)"?([\s\S]*?);\s*(?:\n|$)/gi,
     )) {
       const nome = m[1].trim().toLowerCase();
@@ -93,13 +115,20 @@ export function politicasVivas(dir = DIR): PoliticaRls[] {
         .toLowerCase() as PoliticaRls["comando"];
       const using = /\busing\s*\(([\s\S]*?)\)\s*(?:with\s+check|$)/i.exec(resto)?.[1]?.trim() ?? null;
       const withCheck = /\bwith\s+check\s*\(([\s\S]*?)\)\s*$/i.exec(resto.trim())?.[1]?.trim() ?? null;
-      criadas.set(`${tabela}::${nome}`, { tabela, nome, arquivo, comando, using, withCheck });
+      instrucoes.push({
+        pos: m.index!, tipo: "create", chave: `${tabela}::${nome}`,
+        p: { tabela, nome, arquivo, comando, using, withCheck },
+      });
+    }
+
+    instrucoes.sort((a, b) => a.pos - b.pos);
+    for (const i of instrucoes) {
+      if (i.tipo === "drop") vivas.delete(i.chave);
+      else vivas.set(i.chave, i.p!);
     }
   }
 
-  return [...criadas.entries()]
-    .filter(([chave]) => !derrubadas.has(chave))
-    .map(([, p]) => p);
+  return [...vivas.values()];
 }
 
 function sqlDeTodasAsMigrations(): string {
@@ -154,6 +183,13 @@ describe("cobertura de RLS", () => {
     content_review_status:
       "tabela de referência: os estados possíveis de revisão de conteúdo ('ai_generated', " +
       "'reviewed'). Não tem dado de pessoa; a tela mostra o rótulo para todo mundo.",
+    trusted_sources:
+      "catálogo dos domínios que a IA pode citar — sociedade médica, órgão público, base " +
+      "de literatura, fabricante — com o que cada um embasa e o que NÃO embasa. É " +
+      "referência, sem dado de pessoa, e a instrução do modelo cita esse texto literalmente. " +
+      "Só apareceu nesta lista quando o extrator passou a respeitar a ORDEM das instruções: " +
+      "a versão anterior a escondia, porque o arquivo usa `drop policy if exists` antes do " +
+      "`create` e ela contava o drop sem olhar a posição.",
     knowledge_sources:
       "catálogo das fontes que a IA cita (ESC/EACTS 2025, SBC 2024…). É público de propósito: " +
       "a resposta da IA nomeia a fonte, e quem lê precisa poder conferir qual é.",

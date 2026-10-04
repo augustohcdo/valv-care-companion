@@ -123,8 +123,37 @@ grant execute on function public.pode_ver_medico(uuid, uuid) to authenticated;
 -- A política
 -- ----------------------------------------------------------------------------
 drop policy if exists "Authenticated users view doctors" on public.doctors;
+-- E a própria, para o arquivo poder ser reexecutado: `create policy` erra se a
+-- política já existe, e o `db.yml` afirma no cabeçalho que todo SQL que ele
+-- aplica é "idempotente por construção". Esta não era.
+drop policy if exists "Ver medico com relacao ou sendo medico" on public.doctors;
 
 create policy "Ver medico com relacao ou sendo medico"
 on public.doctors for select
 to authenticated
 using (public.pode_ver_medico(id, auth.uid()));
+
+-- ===========================================================================
+-- CONFERÊNCIA — o resultado abaixo é o que prova que deu certo
+-- ===========================================================================
+--
+-- "Success. No rows returned" não é prova de nada, e o `db.yml` diz isso no
+-- último passo dele. Esperado:
+--
+--   politica_de_select ....... Ver medico com relacao ou sendo medico
+--   usa_o_helper ............. true   ← senão a leitura voltou a ser aberta
+--   leitura_aberta_ficou ..... false  ← a política `using (true)` tem de ter saído
+--   helper_security_definer .. true   ← sem isto a política recursa e derruba a tabela
+
+SELECT
+  p.policyname                                        AS politica_de_select,
+  p.qual LIKE '%pode_ver_medico%'                     AS usa_o_helper,
+  (SELECT count(*) > 0 FROM pg_policies x
+    WHERE x.tablename = 'doctors' AND x.cmd = 'SELECT'
+      AND btrim(coalesce(x.qual, '')) = 'true')       AS leitura_aberta_ficou,
+  (SELECT f.prosecdef FROM pg_proc f
+     JOIN pg_namespace n ON n.oid = f.pronamespace
+    WHERE n.nspname = 'public' AND f.proname = 'pode_ver_medico')
+                                                      AS helper_security_definer
+FROM pg_policies p
+WHERE p.tablename = 'doctors' AND p.cmd = 'SELECT';

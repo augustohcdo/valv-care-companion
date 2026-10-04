@@ -74,3 +74,22 @@ comment on function public.derrubar_sessoes(uuid) is
   'Encerra as sessões abertas de um usuário. Usada pelo account-close quando um '
   'administrador encerra a conta de outra pessoa — caso em que o signOut da '
   'Admin API derrubaria o administrador, não o titular. Só service_role.';
+
+-- ===========================================================================
+-- CONFERÊNCIA — o resultado abaixo é o que prova que deu certo
+-- ===========================================================================
+--
+-- Esperado:
+--   existe .................... true
+--   security_definer .......... true   ← sem isto ela não alcança `auth.sessions`
+--   so_service_role ........... true   ← `authenticated` não pode derrubar sessão alheia
+--   devolve_quantas ........... integer  ← o account-close relata o número
+
+SELECT
+  true                                                   AS existe,
+  f.prosecdef                                            AS security_definer,
+  NOT has_function_privilege('authenticated', f.oid, 'EXECUTE') AS so_service_role,
+  pg_catalog.pg_get_function_result(f.oid)               AS devolve_quantas
+FROM pg_proc f
+JOIN pg_namespace n ON n.oid = f.pronamespace
+WHERE n.nspname = 'public' AND f.proname = 'derrubar_sessoes';

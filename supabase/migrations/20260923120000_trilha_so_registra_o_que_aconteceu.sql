@@ -152,3 +152,30 @@ $$;
 -- As permissões que a função tinha antes do `drop` não sobrevivem a ele.
 revoke all on function public.admin_definir_papel(uuid, public.app_role, boolean) from public;
 grant execute on function public.admin_definir_papel(uuid, public.app_role, boolean) to authenticated;
+
+-- ===========================================================================
+-- CONFERÊNCIA — o resultado abaixo é o que prova que deu certo
+-- ===========================================================================
+--
+-- Esperado:
+--   desvincular_sai_sem_vinculo ..... true   ← o ramo que impede a linha falsa
+--   desvincular_diz_se_desvinculou .. true   ← `ok: true` sozinho não distinguia
+--   papel_le_row_count .............. true   ← `on conflict do nothing` não levanta erro
+--   papel_grava_so_se_mudou ......... true
+--   papel_devolve_jsonb ............. true   ← `void` não tinha como dizer "nada mudou"
+
+SELECT
+  bool_or(f.proname = 'desvincular_medico'
+          AND f.prosrc LIKE '%v_doctor is null%')            AS desvincular_sai_sem_vinculo,
+  bool_or(f.proname = 'desvincular_medico'
+          AND f.prosrc LIKE '%desvinculado%')                AS desvincular_diz_se_desvinculou,
+  bool_or(f.proname = 'admin_definir_papel'
+          AND f.prosrc ILIKE '%get diagnostics%ROW_COUNT%')  AS papel_le_row_count,
+  bool_or(f.proname = 'admin_definir_papel'
+          AND f.prosrc LIKE '%v_linhas > 0%')                AS papel_grava_so_se_mudou,
+  bool_or(f.proname = 'admin_definir_papel'
+          AND pg_catalog.pg_get_function_result(f.oid) = 'jsonb') AS papel_devolve_jsonb
+FROM pg_proc f
+JOIN pg_namespace n ON n.oid = f.pronamespace
+WHERE n.nspname = 'public'
+  AND f.proname IN ('desvincular_medico', 'admin_definir_papel');

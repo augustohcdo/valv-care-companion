@@ -62,3 +62,22 @@
 -- ============================================================================
 
 grant update (no_diretorio, aceita_novos_pacientes) on public.doctors to authenticated;
+
+-- ===========================================================================
+-- CONFERÊNCIA — o resultado abaixo é o que prova que deu certo
+-- ===========================================================================
+--
+-- Esperado:
+--   colunas_que_o_medico_grava ... 9      ← as sete de antes + as duas novas
+--   no_diretorio_liberado ........ true   ← é ela que a caixa do diretório escreve
+--   aceita_novos_liberado ........ true
+--   verified_segue_trancado ...... true   ← o selo NÃO pode voltar ao alcance do médico
+
+SELECT
+  count(*)                                              AS colunas_que_o_medico_grava,
+  bool_or(column_name = 'no_diretorio')                 AS no_diretorio_liberado,
+  bool_or(column_name = 'aceita_novos_pacientes')       AS aceita_novos_liberado,
+  NOT bool_or(column_name = 'verified')                 AS verified_segue_trancado
+FROM information_schema.column_privileges
+WHERE table_schema = 'public' AND table_name = 'doctors'
+  AND grantee = 'authenticated' AND privilege_type = 'UPDATE';
