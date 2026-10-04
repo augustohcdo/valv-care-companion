@@ -400,7 +400,12 @@ jobs:
                   ...context.repo, issue_number: decisao.numero,
                   body: textoDoComentario({ ...decisao, link }),
                 });
-                core.notice(`Issue #${decisao.numero}: o conjunto de vereditos mudou.`);
+                // Os dois casos caem neste ramo, e dizem coisas diferentes:
+                // "mudou" afirma uma comparação que o primeiro não fez.
+                core.notice(decisao.primeiraVez
+                  ? `Issue #${decisao.numero}: sem assinatura anterior para comparar — ` +
+                    "comentei uma vez e expliquei o silêncio que vem depois."
+                  : `Issue #${decisao.numero}: o conjunto de vereditos mudou.`);
                 break;
 
               case "fechar":
