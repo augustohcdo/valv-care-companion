@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { ESLint } from "eslint";
 import { readdirSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 
 /**
@@ -98,26 +99,48 @@ describe("o lint cobre os scripts de `scripts/`", () => {
     expect(mensagens).toEqual([]);
   });
 
-  it("nenhum arquivo executável de `scripts/` fica de fora do lint", async () => {
+  it("nenhum arquivo executável VERSIONADO fica de fora do lint", async () => {
     /**
-     * A regra sobre a classe, não sobre os três arquivos onde o defeito
-     * apareceu. O próximo script entra sozinho — inclusive num subdiretório
-     * novo, que é onde `lib/chromium.mjs` nasceu.
+     * A regra sobre a classe, e a classe é o repositório — não a pasta.
+     *
+     * A primeira versão varria `scripts/`, porque foi ali que os três scripts
+     * mortos estavam. Regra amarrada ao diretório onde o defeito apareceu é o
+     * próprio defeito, e esta sessão já pagou por isso três vezes: o caminho do
+     * Chromium (dois de três arquivos), o `.shot-tmp.mjs` na raiz (invisível
+     * para o lint E para a guarda, porque os dois olhavam só `scripts/`), e a
+     * varredura do terceiro estado presa a `pages/app/`.
+     *
+     * Quem acendeu a luz desta vez foi `.github/scripts/avisoPorIssue.mjs`:
+     * código executável num diretório novo, dentro do alcance do ESLint e fora
+     * do alcance desta guarda.
+     *
+     * `git ls-files` em vez de varrer o disco: é o conjunto do que está
+     * commitado, e deixa `node_modules` e `dist` de fora sem lista de exceção.
      */
     const eslint = new ESLint({});
-    const executaveis: string[] = [];
+    const executaveis = execFileSync("git", ["ls-files"], { encoding: "utf8" })
+      .trim().split("\n")
+      .filter((f) => /\.(mjs|js|cjs|ts|tsx)$/.test(f));
 
-    const varrer = (dir: string) => {
-      for (const nome of readdirSync(dir)) {
-        const full = join(dir, nome);
-        if (statSync(full).isDirectory()) { varrer(full); continue; }
-        if (/\.(mjs|js|cjs|ts|tsx)$/.test(nome)) executaveis.push(full);
-      }
+    /**
+     * Os dois arquivos de configuração da raiz, com motivo.
+     *
+     * Não são código do produto: são a configuração das próprias ferramentas, e
+     * cada um reprova em voz alta quando quebra — `eslint.config.js` derruba o
+     * `npm run lint` inteiro, `postcss.config.js` derruba o build. Não há
+     * silêncio possível neles, que é a razão de a regra existir.
+     */
+    const CONFIG_DA_RAIZ: Record<string, string> = {
+      "eslint.config.js":
+        "é o próprio config do ESLint; quebrado, o `npm run lint` não roda e ninguém " +
+        "confunde isso com 'nenhum problema encontrado'",
+      "postcss.config.js":
+        "configuração do build; quebrada, o `npm run build` reprova na hora",
     };
-    varrer("scripts");
 
     const foraDoLint: string[] = [];
     for (const arquivo of executaveis) {
+      if (arquivo in CONFIG_DA_RAIZ) continue;
       if (await eslint.isPathIgnored(arquivo)) {
         foraDoLint.push(`  · ${arquivo} — ignorado pelo ESLint`);
         continue;
@@ -130,8 +153,24 @@ describe("o lint cobre os scripts de `scripts/`", () => {
 
     expect(
       executaveis.length,
-      "a varredura não achou script nenhum — estaria conferindo nada",
-    ).toBeGreaterThanOrEqual(29);
+      "a varredura não achou arquivo nenhum — estaria conferindo nada",
+    ).toBeGreaterThanOrEqual(400);
+    /**
+     * O piso que importa: a varredura NÃO é presa a um diretório.
+     *
+     * A primeira tentativa deste piso exigia um arquivo em `.github/` — e
+     * reprovou, porque o arquivo que motivou a mudança ainda não estava no
+     * índice do git. Piso que depende de um arquivo específico existir é piso
+     * que reprova quem apagou aquele arquivo por um motivo legítimo. O que se
+     * quer garantir é a propriedade, não a amostra.
+     */
+    const raizes = new Set(executaveis.map((f) => f.split("/")[0]));
+    expect(
+      [...raizes].sort(),
+      "a varredura cobre um diretório só — era exatamente o defeito da versão anterior",
+    ).not.toHaveLength(1);
+    expect(raizes.size, "poucos diretórios de topo para o tamanho desta base")
+      .toBeGreaterThanOrEqual(3);
     expect(
       foraDoLint,
       `\n${foraDoLint.join("\n")}\n\n` +
@@ -140,7 +179,13 @@ describe("o lint cobre os scripts de `scripts/`", () => {
         "que é indistinguível de estar certo — e foi exatamente assim que três\n" +
         "scripts que não carregavam ficaram verdes por uma semana.",
     ).toEqual([]);
-  });
+    /**
+     * Prazo declarado porque este bloco sobe `git ls-files`.
+     * `prazoDeSubprocesso.test.ts` cobrou na hora — e com razão: o padrão do
+     * Vitest são 5 s, e numa máquina de CI disputada isso já produziu vermelho
+     * sem causa nesta base.
+     */
+  }, 30_000);
 
   it("`no-undef` está ligado onde ele é a única rede", async () => {
     /**

@@ -116,6 +116,52 @@ function indiceForaDeAspas(texto: string, alvo: string): number {
   return -1;
 }
 
+/**
+ * A parte de um passo que é SHELL — e por que isso é uma função à parte.
+ *
+ * ## A quinta forma de falso positivo, e a única que não é sobre léxico
+ *
+ * As quatro de cima são todas "isto parece cano e não é". Esta é diferente: a
+ * linha **não é shell**. Um passo `uses: actions/github-script@v7` tem um bloco
+ * `script:` com JavaScript, e ali um `|` pode ser OU binário, alternância de
+ * expressão regular, ou — foi o caso — texto dentro de um comentário:
+ *
+ *     // Antes isto era tudo texto dentro de `script: |`, e o resultado
+ *
+ * A guarda acusou essa linha. E a propriedade que ela defende — "o GitHub roda
+ * os passos com `bash -e` e SEM `pipefail`" — vale para `run:`, não para
+ * `script:`: o segundo não passa por shell nenhum.
+ *
+ * ## Por que separada de `linhasComCano`
+ *
+ * A primeira tentativa misturou as duas coisas na mesma função, e os testes de
+ * `linhasComCano` reprovaram na hora: eles a alimentam com shell puro, sem a
+ * moldura `run:`, e passaram a receber lista vazia. São duas perguntas
+ * distintas — "que parte do passo é shell" e "que linha de shell tem cano de
+ * verdade" —, e juntá-las cegou a segunda. Cada uma com seu teste.
+ */
+export function linhasDeShell(passo: string): string[] {
+  const achadas: string[] = [];
+  // `null` = fora de bloco `run:`. Quando dentro, guarda o recuo da chave
+  // `run:`; o bloco termina na primeira linha não vazia com recuo menor ou igual.
+  let recuoDoRun: number | null = null;
+
+  for (const linha of passo.split("\n")) {
+    const recuo = linha.search(/\S/);
+    if (recuoDoRun !== null && recuo >= 0 && recuo <= recuoDoRun) recuoDoRun = null;
+
+    const abreRun = /^(\s*)run:\s*\|[-+]?\d*\s*$/.exec(linha);
+    if (abreRun) { recuoDoRun = abreRun[1].length; continue; }
+
+    // `run: comando` numa linha só também é shell.
+    const runInline = /^\s*run:\s*(\S.*)$/.exec(linha);
+    if (runInline) { achadas.push(runInline[1]); continue; }
+
+    if (recuoDoRun !== null) achadas.push(linha);
+  }
+  return achadas;
+}
+
 /** As linhas de um passo que têm cano de verdade, com contexto de `case`. */
 export function linhasComCano(passo: string): string[] {
   const achadas: string[] = [];
@@ -149,7 +195,9 @@ describe("os passos dos workflows", () => {
 
       for (const passo of passos) {
         const linhas = passo.split("\n");
-        const comCano = linhasComCano(passo);
+        // Só o shell: `script:` de `github-script` é JavaScript, e um `|` ali
+        // não passa por bash nenhum.
+        const comCano = linhasComCano(linhasDeShell(passo).join("\n"));
         if (comCano.length === 0) continue;
         if (pipefailNoWorkflow || /set -o pipefail|set -eo pipefail|set -euo pipefail/.test(passo)) {
           continue;
@@ -181,6 +229,50 @@ describe("os passos dos workflows", () => {
     expect(canosNaLinha("          node script.mjs | tee saida.log"), "não viu um cano de verdade")
       .toBe(true);
     expect(canosNaLinha("          curl -sS url | jq ."), "não viu um cano de verdade").toBe(true);
+  });
+
+  it("só o `run:` é shell — `script:` de JavaScript fica de fora", () => {
+    /**
+     * O falso vermelho que motivou `linhasDeShell`: a guarda acusou um
+     * COMENTÁRIO de JavaScript que continha `script: |` dentro de crases.
+     */
+    const comScript = [
+      "        uses: actions/github-script@v7",
+      "        with:",
+      "          script: |",
+      "            // Antes isto era tudo texto dentro de `script: |`, e o resultado",
+      "            const mascara = a | b;",
+      "            await github.rest.issues.create({ ...context.repo });",
+    ].join("\n");
+    expect(
+      linhasDeShell(comScript),
+      "um bloco `script:` não é shell, e um `|` ali não passa por bash nenhum",
+    ).toEqual([]);
+    expect(linhasComCano(linhasDeShell(comScript).join("\n"))).toEqual([]);
+  });
+
+  it("e o `run:` continua sendo lido — nas duas formas", () => {
+    // O outro lado: escopar não pode cegar o que a guarda existe para achar.
+    const bloco = [
+      "        run: |",
+      "          node scripts/varre.mjs | tee /tmp/log",
+      "          echo pronto",
+      "        env:",
+      "          X: 1",
+    ].join("\n");
+    expect(linhasDeShell(bloco)).toEqual([
+      "          node scripts/varre.mjs | tee /tmp/log",
+      "          echo pronto",
+    ]);
+    expect(
+      linhasComCano(linhasDeShell(bloco).join("\n")).length,
+      "o cano dentro do `run:` deixou de ser achado",
+    ).toBe(1);
+
+    // `run:` numa linha só é shell também, e é a linha inteira.
+    expect(linhasDeShell("        run: curl -sS url | jq .")).toEqual(["curl -sS url | jq ."]);
+    expect(linhasComCano(linhasDeShell("        run: curl -sS url | jq .").join("\n")).length)
+      .toBe(1);
   });
 
   it("padrão de `case` não é cano — e cano dentro do `case` ainda é", () => {
