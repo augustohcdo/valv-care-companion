@@ -19,6 +19,31 @@ const logsQueryDates: string[] = [];
 const insertSpy = vi.fn();
 const updateSpy = vi.fn();
 
+/**
+ * A escrita do cliente real, nas duas formas — a cópia canônica desta base.
+ *
+ * O mock daqui devolvia `Promise.resolve({ error: null })` nas duas operações,
+ * uma forma que o cliente do Supabase **não tem**: sem `.select(...)` não vem
+ * `data`, com `.select(...)` vem. Quando o `logTake` passou a conferir as
+ * linhas, o encadeamento `.select("id")` estourou — e a suíte imprimiu
+ * "5 passed" com dois erros não tratados ao lado. (Saiu com código 1, então a
+ * CI reprovaria; o que engana é o resumo legível, não o veredito.)
+ *
+ * É declaração de função no topo de propósito: a fábrica do `vi.mock` é içada
+ * acima de qualquer `const`, e a guarda de mocks procura
+ * `^function escrita(` ancorado na coluna 0 — assim este arquivo passa a ser
+ * conferido por ela, em vez de depender de eu lembrar.
+ */
+function escrita(resultado: { error: { message: string } | null }, afetadas = 1) {
+  const p: any = Promise.resolve(resultado);
+  p.select = () =>
+    Promise.resolve({
+      data: resultado.error ? [] : Array.from({ length: afetadas }, () => ({ id: "r" })),
+      error: resultado.error,
+    });
+  return p;
+}
+
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: (table: string) => ({
@@ -39,12 +64,12 @@ vi.mock("@/integrations/supabase/client", () => ({
       insert: (values: any) => {
         insertSpy(table, values);
         logs = [...logs, { id: "l-new", ...values }];
-        return Promise.resolve({ error: null });
+        return escrita({ error: null });
       },
       update: (values: any) => ({
         eq: (_col: string, val: any) => {
           updateSpy(table, values, val);
-          return Promise.resolve({ error: null });
+          return escrita({ error: null });
         },
       }),
     }),

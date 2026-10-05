@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { aplicarEmSilencio } from "@/lib/mutate";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,17 +68,36 @@ export default function PacientePerfil() {
     if (!user) return;
     setSaving(true);
     try {
-      const { error: pErr } = await supabase
-        .from("profiles")
-        .update({ full_name: fullName, phone, birth_date: birthDate || null })
-        .eq("user_id", user.id);
-      if (pErr) throw pErr;
+      // Conferir só o `error` não vê a recusa mais provável: a RLS que não
+      // alcança a linha devolve 200 com `error: null` e ZERO linhas, e
+      // `if (pErr) throw pErr` segue em frente. A tela anunciava "Seus dados
+      // foram salvos" sobre nada escrito.
+      const salvouPerfil = await aplicarEmSilencio(
+        supabase
+          .from("profiles")
+          .update({ full_name: fullName, phone, birth_date: birthDate || null })
+          .eq("user_id", user.id)
+          .select("user_id"),
+        { falha: "Não foi possível salvar nome, telefone e data de nascimento" },
+      );
+      if (!salvouPerfil) return;
 
-      const { error: patErr } = await supabase
-        .from("patients")
-        .update({ sex: sex || null, city, uf, comorbidities })
-        .eq("user_id", user.id);
-      if (patErr) throw patErr;
+      // Sem caminho de INSERT aqui, ao contrário do `MedicoPerfil`, e o motivo
+      // é que esta tela não sabe em qual dos dois estados está: a leitura usa
+      // `.is("deleted_at", null)`, então `pat === null` significa "nunca houve
+      // linha" OU "linha encerrada pelo `encerrar_conta`". Inserir sobre a
+      // segunda bate no `UNIQUE (user_id)` e devolve um conflito cujo texto não
+      // nomeia a causa real. Relatar a falha é o conserto; criar a linha é uma
+      // decisão que exige saber qual dos dois é.
+      const salvouPaciente = await aplicarEmSilencio(
+        supabase
+          .from("patients")
+          .update({ sex: sex || null, city, uf, comorbidities })
+          .eq("user_id", user.id)
+          .select("id"),
+        { falha: "Não foi possível salvar os dados clínicos" },
+      );
+      if (!salvouPaciente) return;
 
       await refreshProfile();
       toast({ title: "Perfil atualizado", description: "Seus dados foram salvos." });

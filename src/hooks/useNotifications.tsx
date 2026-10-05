@@ -74,8 +74,24 @@ export const useNotifications = () => {
 
   const markAsReadMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("notifications").update({ read: true }).eq("id", id);
+      // O terceiro irmão deste arquivo, e o que ficou para trás: as duas
+      // mutações abaixo foram corrigidas para conferir as linhas, com o motivo
+      // escrito, e esta continuou olhando só o `error`.
+      //
+      // Zero linhas aqui NÃO é ambíguo — pediu-se para marcar UMA notificação,
+      // por id. Zero significa que ela não foi marcada, e sem o `throw` o
+      // `onSuccess` invalidava a query: o contador de não-lidas caía na tela
+      // com a notificação ainda por ler no banco. Lançando, `onSuccess` não
+      // roda, o estado local permanece e a tela continua dizendo a verdade.
+      const { data, error } = await supabase
+        .from("notifications")
+        .update({ read: true })
+        .eq("id", id)
+        .select("id");
       if (error) throw error;
+      if (!data?.length) {
+        throw new Error("Nada foi alterado. Você pode não ter permissão sobre esta notificação.");
+      }
     },
     onSuccess: invalidate,
   });

@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDoctor, doctorKey } from "@/hooks/useDoctor";
 import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
 import { supabase } from "@/integrations/supabase/client";
+import { aplicarEmSilencio } from "@/lib/mutate";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,22 +57,64 @@ export default function MedicoPerfil() {
 
   const handleSave = async () => {
     if (!user) return;
+
+    // `crm`, `crm_uf` e `specialty` são NOT NULL em `doctors`. Isto não é
+    // preciosismo de formulário: no caminho de UPDATE o Postgres aceita string
+    // vazia, e um médico já podia apagar o próprio CRM e ler "salvas"; no
+    // caminho de INSERT, abaixo, uma linha de CRM vazio ocuparia o
+    // `UNIQUE (crm, crm_uf)` e a próxima tentativa falharia por um motivo que
+    // não é o verdadeiro.
+    if (!crm.trim() || !crmUf || !specialty.trim()) {
+      toast({
+        title: "Faltam dados obrigatórios",
+        description: "CRM, UF e especialidade são exigidos pelo registro profissional.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSaving(true);
     try {
-      const { error: pErr } = await supabase
-        .from("profiles")
-        .update({ full_name: fullName, phone })
-        .eq("user_id", user.id);
-      if (pErr) throw pErr;
+      // `aplicarEmSilencio` e não `aplicar`: são duas escritas e UMA
+      // confirmação no fim, depois de o cache ser invalidado. O que o helper
+      // acrescenta aqui é a segunda forma de falhar — zero linhas com
+      // `error: null` —, que `if (pErr) throw pErr` não tinha como ver.
+      const salvouPerfil = await aplicarEmSilencio(
+        supabase
+          .from("profiles")
+          .update({ full_name: fullName, phone })
+          .eq("user_id", user.id)
+          .select("user_id"),
+        { falha: "Não foi possível salvar nome e telefone" },
+      );
+      if (!salvouPerfil) return;
 
-      const { error: dErr } = await supabase
-        .from("doctors")
-        .update({
-          crm, crm_uf: crmUf, specialty, rqe, institution, city, bio,
-          no_diretorio: noDiretorio, aceita_novos_pacientes: aceitaNovos,
-        })
-        .eq("user_id", user.id);
-      if (dErr) throw dErr;
+      const dados = {
+        crm: crm.trim(), crm_uf: crmUf, specialty: specialty.trim(),
+        rqe, institution, city, bio,
+        no_diretorio: noDiretorio, aceita_novos_pacientes: aceitaNovos,
+      };
+
+      // Sem linha em `doctors`, o UPDATE acerta ZERO linhas e o PostgREST
+      // responde 200 com `error: null`. Era exatamente por aí que esta tela
+      // dizia "Suas informações foram salvas" sem ter salvado nada — e o
+      // formulário voltava vazio no recarregamento, sem explicação.
+      //
+      // O estado é alcançável, não hipotético: o gatilho de cadastro só cria a
+      // linha `IF v_account_type = 'medico' AND v_meta->>'crm' IS NOT NULL`, e
+      // `admin_definir_papel(u, 'medico', true)` concede o papel sem criar
+      // linha nenhuma. A política "Doctor inserts own record" existe para este
+      // caso: exige `has_role(auth.uid(), 'medico')`, que esse médico tem.
+      const salvouMedico = doctor
+        ? await aplicarEmSilencio(
+            supabase.from("doctors").update(dados).eq("user_id", user.id).select("id"),
+            { falha: "Não foi possível salvar o perfil profissional" },
+          )
+        : await aplicarEmSilencio(
+            supabase.from("doctors").insert({ user_id: user.id, ...dados }).select("id"),
+            { falha: "Não foi possível criar seu registro profissional" },
+          );
+      if (!salvouMedico) return;
 
       await refreshProfile();
       // sem isto o selo de verificação e o CRM continuariam vindo do cache

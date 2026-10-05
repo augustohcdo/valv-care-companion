@@ -36,9 +36,16 @@ export type RespostaEscrita = {
 const SEM_ALCANCE =
   "Nada foi alterado. Você pode não ter permissão sobre este registro.";
 
-export async function aplicar(
+/**
+ * O veredito, num lugar só.
+ *
+ * As duas formas de falhar vivem aqui porque quem as duplica esquece a segunda:
+ * a primeira versão desta base conferia `error` em dez lugares e o número de
+ * linhas em nenhum.
+ */
+async function conferir(
   operacao: PromiseLike<RespostaEscrita>,
-  mensagens: { sucesso: string; falha: string },
+  falha: string,
 ): Promise<boolean> {
   const { error, data } = await operacao;
 
@@ -46,7 +53,7 @@ export async function aplicar(
     // A mensagem crua do Postgres não serve como texto principal — é técnica e
     // muitas vezes em inglês —, mas some por completo é pior: sem ela ninguém
     // consegue distinguir "sem permissão" de "sem internet".
-    toast.error(mensagens.falha, { description: error.message });
+    toast.error(falha, { description: error.message });
     return false;
   }
 
@@ -54,10 +61,44 @@ export async function aplicar(
   // caso não dá para saber quantas linhas mudaram, e o helper não inventa —
   // segue como sucesso, que é o que o `error: null` diz.
   if (Array.isArray(data) && data.length === 0) {
-    toast.error(mensagens.falha, { description: SEM_ALCANCE });
+    toast.error(falha, { description: SEM_ALCANCE });
     return false;
   }
 
-  toast.success(mensagens.sucesso);
   return true;
+}
+
+export async function aplicar(
+  operacao: PromiseLike<RespostaEscrita>,
+  mensagens: { sucesso: string; falha: string },
+): Promise<boolean> {
+  const ok = await conferir(operacao, mensagens.falha);
+  if (ok) toast.success(mensagens.sucesso);
+  return ok;
+}
+
+/**
+ * Igual ao `aplicar`, sem o anúncio de sucesso.
+ *
+ * Para dois casos em que o toast de sucesso é o ruído, não a informação:
+ *
+ *  1. **a escrita é um passo, não o fim.** `MedicoPerfil.handleSave` grava em
+ *     `profiles` e em `doctors` e dá UMA confirmação no fim, depois de invalidar
+ *     o cache. Com `aplicar` nas duas, o médico leria dois toasts para um
+ *     clique — e o primeiro apareceria antes de a segunda escrita acontecer.
+ *
+ *  2. **a escrita é repetitiva.** Marcar "tomei" em cada horário do dia são
+ *     três a seis toques diários. Um toast por toque é aviso que se repete sem
+ *     informação nova, e esta base já pagou por essa lição no aviso diário por
+ *     issue: quem recebe aprende a ignorar.
+ *
+ * O que NÃO muda é a falha. Antes daqui, os dois casos eram `await` cru sem
+ * olhar retorno nenhum — `logTake` não lia nem o `error`. Silêncio no sucesso é
+ * escolha de interface; silêncio na falha é a tela afirmando que fez.
+ */
+export async function aplicarEmSilencio(
+  operacao: PromiseLike<RespostaEscrita>,
+  mensagens: { falha: string },
+): Promise<boolean> {
+  return conferir(operacao, mensagens.falha);
 }

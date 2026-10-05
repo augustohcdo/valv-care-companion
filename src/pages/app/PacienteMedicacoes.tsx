@@ -4,7 +4,7 @@ import { usePatient } from "@/hooks/usePatient";
 import { format } from "date-fns";
 import { Pill, Plus, Loader2, Edit2, Trash2, Check, X, Clock, CalendarOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { aplicar } from "@/lib/mutate";
+import { aplicar, aplicarEmSilencio } from "@/lib/mutate";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { FalhaDeLeitura } from "@/components/FalhaDeLeitura";
@@ -140,18 +140,46 @@ export default function PacienteMedicacoes() {
   const logTake = async (med: any, time: string, status: "tomado" | "pulado") => {
     if (!patient) return;
     const existing = logs.find((l) => l.medication_id === med.id && l.scheduled_time === time);
+
+    /**
+     * Antes daqui estas duas escritas eram `await` cru: nem o `error` era lido.
+     * Uma recusa sumia, a lista recarregava no estado anterior e o paciente via
+     * o próprio toque desaparecer sem explicação.
+     *
+     * Isto é registro de adesão a medicamento — é dele que o médico parte para
+     * decidir se a dose não funciona ou se não foi tomada. Um buraco silencioso
+     * nessa série não aparece como buraco: aparece como falta de adesão.
+     *
+     * `aplicarEmSilencio` e não `aplicar` porque são três a seis toques por dia:
+     * um toast de sucesso em cada um é aviso que se repete sem informação nova.
+     */
+    const falha = { falha: "Não foi possível registrar esta dose" };
+    const agora = status === "tomado" ? new Date().toISOString() : null;
     if (existing) {
-      await supabase.from("medication_logs").update({ status, taken_at: status === "tomado" ? new Date().toISOString() : null }).eq("id", existing.id);
+      await aplicarEmSilencio(
+        supabase.from("medication_logs")
+          .update({ status, taken_at: agora })
+          .eq("id", existing.id)
+          .select("id"),
+        falha,
+      );
     } else {
-      await supabase.from("medication_logs").insert({
-        medication_id: med.id,
-        patient_id: patient.id,
-        log_date: today,
-        scheduled_time: time,
-        status,
-        taken_at: status === "tomado" ? new Date().toISOString() : null,
-      });
+      await aplicarEmSilencio(
+        supabase.from("medication_logs").insert({
+          medication_id: med.id,
+          patient_id: patient.id,
+          log_date: today,
+          scheduled_time: time,
+          status,
+          taken_at: agora,
+        }).select("id"),
+        falha,
+      );
     }
+
+    // `load()` acontece nos dois casos de propósito: na falha, ele devolve à
+    // tela o que o banco tem de verdade, em vez de deixar visível um estado
+    // que não foi gravado.
     load();
   };
 

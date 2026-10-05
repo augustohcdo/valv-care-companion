@@ -5,7 +5,25 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Toda escrita que passa por `aplicar()` encadeia `.select(...)`.
+ * Toda escrita que a RLS pode recusar em silêncio encadeia `.select(...)`.
+ *
+ * ## Duas regras, e o que separa uma da outra
+ *
+ * A primeira versão deste arquivo cobrava duas coisas: quem passa por
+ * `aplicar()` encadeia `.select(...)`, e quem **anuncia** sucesso precisa ter
+ * olhado as linhas. A segunda tinha um defeito que só apareceu depois:
+ * "anuncia" era uma lista de duas palavras, `toast.success` e `logAudit(`.
+ *
+ * Quatro escritas anunciavam de outros jeitos e nunca foram olhadas —
+ * `toast({ title: "Perfil atualizado" })` da outra biblioteca de toast deste
+ * mesmo repositório, `onSuccess: invalidate` do react-query, e uma que não
+ * anunciava nada e também não lia o `error`. "46 escritas varridas, 0
+ * acusadas" era verdade sobre o vocabulário que a regra conhecia, e é
+ * exatamente a forma de relatar sucesso sem ter feito o trabalho — aqui dentro
+ * da ferramenta que existe para pegar isso.
+ *
+ * A regra que ficou é sobre a garantia: **toda** escrita pede as linhas, tenha
+ * ou não anúncio, ou está dispensada por escrito. O vocabulário saiu da conta.
  *
  * ## O buraco que o próprio helper documentava
  *
@@ -86,19 +104,30 @@ export function semComentarios(texto: string): string {
  * aspas até a vírgula de nível zero. É o encadeamento da escrita; o segundo
  * argumento é o objeto de mensagens e não interessa aqui.
  */
+/**
+ * Os dois pontos de entrada do helper.
+ *
+ * `aplicarEmSilencio` nasceu depois desta guarda, e por um descuido meu ela
+ * quase não o viu: a busca era `indexOf("aplicar(")`, e em
+ * `"aplicarEmSilencio("` a substring `"aplicar("` não existe — depois de
+ * `aplicar` vem `E`, não `(`. Quer dizer que o segundo ponto de entrada
+ * atravessaria a regra do `.select` sem ser olhado, que é abrir um caminho em
+ * volta da guarda ao consertar o defeito que ela guarda.
+ *
+ * A alternativa mais longa vem primeiro na alternância de propósito.
+ */
+const CHAMADA_DO_HELPER = /\b(aplicarEmSilencio|aplicar)\s*\(/g;
+
 export function escritasPassadasParaAplicar(texto: string): string[] {
   const limpo = semComentarios(texto);
   const achadas: string[] = [];
-  let busca = 0;
-  while (true) {
-    const k = limpo.indexOf("aplicar(", busca);
-    if (k < 0) break;
-    busca = k + 8;
+  for (const m of limpo.matchAll(CHAMADA_DO_HELPER)) {
+    const k = m.index + m[0].length;
     // `function aplicar(` é a definição, não uma chamada.
-    if (/\bfunction\s+$/.test(limpo.slice(Math.max(0, k - 20), k))) continue;
+    if (/\bfunction\s+$/.test(limpo.slice(Math.max(0, m.index - 20), m.index))) continue;
 
     let nivel = 0;
-    let i = k + 8;
+    let i = k;
     let aspa: string | null = null;
     for (; i < limpo.length; i++) {
       const c = limpo[i];
@@ -112,10 +141,102 @@ export function escritasPassadasParaAplicar(texto: string): string[] {
       else if (")}]".includes(c)) { if (nivel === 0) break; nivel--; }
       else if (c === "," && nivel === 0) break;
     }
-    achadas.push(limpo.slice(k + 8, i));
+    achadas.push(limpo.slice(k, i));
   }
   return achadas;
 }
+
+/**
+ * UPDATE, DELETE e UPSERT do Supabase — a classe em que a recusa é silenciosa.
+ *
+ * Ancorada no encadeamento (`supabase…from("x").update(`) e não no nome do
+ * método, porque `.delete(` sozinho casa com `Set.prototype.delete` — e casou,
+ * no `CaseLaudoReader`, num `proximo.delete(key)` sobre um Set em memória.
+ *
+ * INSERT fica de fora, e não por esquecimento: uma inserção recusada pela RLS
+ * **levanta** (`new row violates row-level security policy`), então chega como
+ * `error` e conferir só o `error` basta. É em UPDATE/DELETE que a RLS filtra as
+ * linhas e o PostgREST responde 200 com `error: null` e zero.
+ *
+ * Conferido contra um detector solto (`/\.(update|upsert|delete)\s*\(/` com
+ * `supabase` em até 800 caracteres antes): 46 de 46, nenhuma escrita vista pelo
+ * solto e perdida por esta — a âncora não custa alcance.
+ */
+export const MUTACAO_DE_ESCRITA =
+  /\bsupabase\s*(?:\.\w+)*\.from\(\s*"[^"]+"\s*\)\s*\.(update|delete|upsert)\s*\(/gs;
+
+/** O `)` que fecha o `(` de `abertura`, respeitando aspas. */
+function fechaParentese(texto: string, abertura: number): number {
+  let nivel = 0;
+  let aspa: string | null = null;
+  for (let i = abertura; i < texto.length; i++) {
+    const c = texto[i];
+    if (aspa) {
+      if (c === "\\") { i++; continue; }
+      if (c === aspa) aspa = null;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") { aspa = c; continue; }
+    if (c === "(") nivel++;
+    else if (c === ")") { nivel--; if (nivel === 0) return i; }
+  }
+  return -1;
+}
+
+/**
+ * O encadeamento inteiro a partir da escrita: `.update({…}).eq(…).select("id")`.
+ *
+ * Lido equilibrando delimitadores em vez de recortar uma janela de N
+ * caracteres. A versão por janela desta guarda deixava o alvo escapar quando
+ * alguém quebrava a escrita em mais linhas — e guarda que perde o alvo porque
+ * o código foi reformatado não guarda nada.
+ */
+export function encadeamentoDaEscrita(texto: string, inicioDaEscrita: number): string {
+  const abre = texto.indexOf("(", inicioDaEscrita);
+  let i = fechaParentese(texto, abre);
+  if (i < 0) return texto.slice(inicioDaEscrita, inicioDaEscrita + 200);
+  i += 1;
+  for (;;) {
+    const m = /^\s*\.\s*\w+\s*\(/.exec(texto.slice(i, i + 200));
+    if (!m) return texto.slice(inicioDaEscrita, i);
+    const fecha = fechaParentese(texto, i + m[0].length - 1);
+    if (fecha < 0) return texto.slice(inicioDaEscrita, i);
+    i = fecha + 1;
+  }
+}
+
+/**
+ * Escrita em que ZERO linhas **não** é falha — uma entrada por sítio, com o
+ * custo escrito e um trecho que a identifica.
+ *
+ * `naCadeia` existe para a dispensa não valer para o arquivo inteiro: o
+ * `NovoCaso` tem duas escritas, e a outra — a promoção do rascunho a caso
+ * clínico, que é a que importa — confere as linhas. Dispensa por arquivo
+ * cobriria a próxima escrita que alguém acrescentasse ali, sem ninguém decidir.
+ */
+const ZERO_LINHAS_NAO_E_FALHA: { arquivo: string; naCadeia: string; motivo: string }[] = [
+  {
+    arquivo: "src/components/CaseChat.tsx",
+    naCadeia: "read_at",
+    motivo:
+      "recibo de leitura, marcado num efeito, sem anunciar nada e sem ramo de " +
+      "falha. Zero linhas é o caso NORMAL aqui: outro dispositivo já marcou, ou a " +
+      "lista chegou com nada por ler. Custo aceito e escrito: uma recusa de RLS " +
+      "neste ponto não aparece em lugar nenhum — o que se perde é o recibo, não " +
+      "dado clínico, e a próxima renderização tenta de novo.",
+  },
+  {
+    arquivo: "src/pages/app/NovoCaso.tsx",
+    naCadeia: 'status", "draft',
+    motivo:
+      "`persistDraft` grava o rascunho com `.eq(\"status\", \"draft\")` exatamente " +
+      "para NUNCA sobrescrever um caso já promovido. Zero linhas é a trava " +
+      "funcionando, não a RLS recusando — exigir conferência aqui seria falso " +
+      "vermelho no caminho pretendido, e guarda que pune quem fez certo é guarda " +
+      "que alguém desliga. Custo conhecido: nesse caminho o indicador mostra " +
+      "'salvo' sem ter gravado.",
+  },
+];
 
 /**
  * A **declaração** do helper de escrita dos testes, não uma menção a ele.
@@ -229,6 +350,29 @@ describe("as escritas que passam por aplicar()", () => {
       helper,
       "o helper não trata mais a lista vazia — é o caso da RLS recusando com 200",
     ).toMatch(/Array\.isArray\(data\) && data\.length === 0/);
+
+    /**
+     * E os DOIS pontos de entrada passam pela MESMA conferência.
+     *
+     * `aplicarEmSilencio` nasceu para os casos em que o toast de sucesso é
+     * ruído. Se ele conferisse por conta própria, a segunda forma de falhar
+     * seria esquecida na segunda cópia — que é precisamente como dez lugares
+     * desta base vieram a conferir `error` e nenhum a conferir linhas.
+     *
+     * Aqui só a estrutura é cobrada; que os vereditos sejam iguais está provado
+     * por execução em `mutate.test.ts`, caso por caso.
+     */
+    const semComent = semComentarios(helper);
+    for (const entrada of ["aplicar", "aplicarEmSilencio"]) {
+      const i = semComent.indexOf(`export async function ${entrada}(`);
+      expect(i, `não achei o ponto de entrada \`${entrada}\``).toBeGreaterThan(0);
+      const corpo = semComent.slice(i, i + 600);
+      expect(
+        corpo,
+        `\`${entrada}\` não chama \`conferir\` — a conferência das duas formas de falhar ` +
+          "se duplicou, e cópia de decisão divergiu toda vez nesta base",
+      ).toMatch(/\bconferir\s*\(/);
+    }
   });
 
   /**
@@ -268,8 +412,21 @@ describe("as escritas que passam por aplicar()", () => {
     // perde o alvo quando alguém quebra a linha não guarda nada.
     //
     // Com as duas correções: 46 escritas do Supabase varridas, 0 acusadas.
-    const MUTACAO =
-      /\bsupabase\s*(?:\.\w+)*\.from\(\s*"[^"]+"\s*\)\s*\.(update|delete|upsert)\s*\(/gs;
+    //
+    // ## O que esta regra NÃO alcança, e por isso existe a regra seguinte
+    //
+    // O `anuncia` abaixo é uma lista de DUAS palavras. Ela cobria os sítios
+    // conhecidos no dia em que foi escrita, e eu só descobri o tamanho do
+    // buraco depois: `MedicoPerfil` e `PacientePerfil` anunciavam com
+    // `toast({ title: "Perfil atualizado" })` — a OUTRA biblioteca de toast
+    // deste mesmo repositório, montada no mesmo `App.tsx` — e as duas gravavam
+    // sem conferir linha nenhuma. "46 varridas, 0 acusadas" era verdade sobre
+    // as palavras que esta regra conhece.
+    //
+    // Alargar a lista não resolve: seria a mesma aposta, com mais palavras.
+    // `onSuccess:` do react-query também anuncia, e `setSaveStatus("saved")`
+    // também. A regra seguinte troca o vocabulário pela garantia.
+    const MUTACAO = MUTACAO_DE_ESCRITA;
     const JANELA = 1500;
     const culpadas: string[] = [];
 
@@ -308,6 +465,177 @@ describe("as escritas que passam por aplicar()", () => {
         "linhas valem.\n\n" +
         "Passe por `aplicar(<escrita>.select(\"id\"), { sucesso, falha })`.",
     ).toEqual([]);
+  });
+
+  /**
+   * A mesma regra, agora pela GARANTIA em vez do vocabulário.
+   *
+   * ## Por que esta regra foi preciso existir
+   *
+   * A regra acima pergunta "anuncia sucesso?" e só sabe reconhecer dois jeitos
+   * de anunciar. Quatro escritas desta base anunciavam de outros jeitos e
+   * passaram por ela sem serem olhadas:
+   *
+   *   · `MedicoPerfil` e `PacientePerfil` — `toast({ title: "Perfil
+   *     atualizado", description: "Suas informações foram salvas." })`, a outra
+   *     biblioteca de toast, montada no mesmo `App.tsx`;
+   *   · `useNotifications.markAsRead` — `onSuccess: invalidate`, sem toast
+   *     nenhum: o contador de não-lidas caía na tela com a notificação ainda
+   *     por ler no banco. E as DUAS mutações vizinhas, no mesmo arquivo, já
+   *     conferiam as linhas, com o motivo escrito ao lado;
+   *   · `PacienteMedicacoes.logTake` — não anunciava nada e também não lia o
+   *     `error`: o registro de adesão a medicamento sumia em silêncio.
+   *
+   * O `MedicoPerfil` é o pior dos quatro porque o estado é alcançável de
+   * propósito: o gatilho de cadastro só cria a linha de `doctors`
+   * `IF v_account_type = 'medico' AND v_meta->>'crm' IS NOT NULL`, e
+   * `admin_definir_papel(u, 'medico', true)` concede o papel sem criar linha
+   * nenhuma. Nesse estado o UPDATE acerta zero linhas, o médico lê "Suas
+   * informações foram salvas", recarrega e o formulário volta vazio.
+   *
+   * ## A regra
+   *
+   * Não "quem anuncia precisa ter olhado", que depende de reconhecer o anúncio.
+   * **Toda** escrita que a RLS pode recusar em silêncio encadeia `.select(...)`
+   * — ou está na lista acima, com o custo escrito.
+   *
+   * ## O que esta regra NÃO garante, dito em voz alta
+   *
+   * `.select(...)` torna as linhas PERGUNTÁVEIS; não prova que alguém leu a
+   * resposta. Quem lê é o `aplicar()`/`aplicarEmSilencio()` — e aí vale o teste
+   * de unidade deles — ou o próprio chamador, nos cinco sítios que conferem na
+   * mão (`CaseAppointments`, `CaseDocuments`, `NovoCaso` na promoção e as três
+   * mutações de `useNotifications`). O que esta regra fecha é o caso em que
+   * conferir era IMPOSSÍVEL, porque ninguém pediu as linhas. Guarda cujo nome
+   * promete mais do que ela confere é pior que nenhuma.
+   */
+  it("toda escrita que a RLS pode recusar em silêncio pede as linhas", () => {
+    const sem: string[] = [];
+    const dispensasUsadas = new Set<number>();
+    const raizes = new Set<string>();
+    let total = 0;
+
+    for (const arquivo of arquivos) {
+      const limpo = semComentarios(readFileSync(arquivo, "utf8"));
+      for (const m of limpo.matchAll(MUTACAO_DE_ESCRITA)) {
+        total++;
+        raizes.add(arquivo.split("/")[1] ?? arquivo);
+        const cadeia = encadeamentoDaEscrita(limpo, m.index);
+        if (/\.select\s*\(/.test(cadeia)) continue;
+
+        const dispensa = ZERO_LINHAS_NAO_E_FALHA.findIndex(
+          (d) => d.arquivo === arquivo && cadeia.includes(d.naCadeia),
+        );
+        if (dispensa >= 0) { dispensasUsadas.add(dispensa); continue; }
+
+        const linha = limpo.slice(0, m.index).split("\n").length;
+        /**
+         * Se o arquivo TEM dispensa declarada e ela não casou, diga isso.
+         *
+         * Sem esta linha a mensagem manda a pessoa para a caça errada: a
+         * inversão em que eu troquei o `naCadeia` do `CaseChat` por um trecho
+         * inexistente reprovou aqui, acusando "o `CaseChat` não pede as linhas"
+         * — sobre um sítio que está dispensado de propósito. O veredito estava
+         * certo; o texto, não.
+         */
+        const declarada = ZERO_LINHAS_NAO_E_FALHA.find((d) => d.arquivo === arquivo);
+        const nota = declarada
+          ? ` (há dispensa para este arquivo, mas o trecho "${declarada.naCadeia}" não casa com esta cadeia)`
+          : "";
+        sem.push(`  · ${arquivo}:${linha}${nota} — ${cadeia.replace(/\s+/g, " ").slice(0, 110)}`);
+      }
+    }
+
+    // Pisos. Não "46", que é o número de hoje: apagar um componente apaga as
+    // escritas dele, e guarda que reprova quem removeu código legítimo é guarda
+    // que alguém desliga. O que estes dois pegam é a varredura que deixou de
+    // casar com tudo e passou a conferir quase nada.
+    expect(total, "a varredura achou pouca escrita — o detector pode ter parado de casar")
+      .toBeGreaterThanOrEqual(30);
+    expect(
+      [...raizes].sort(),
+      "a varredura ficou presa a um diretório de `src/` — regra amarrada à pasta onde " +
+        "o defeito apareceu é o próprio defeito, e esta base já pagou por isso",
+    ).not.toHaveLength(1);
+
+    expect(
+      sem,
+      `\n${sem.join("\n")}\n\n` +
+        "Esta escrita não pede as linhas afetadas, então NINGUÉM — nem o helper,\n" +
+        "nem o chamador — tem como saber se ela aconteceu.\n\n" +
+        "Quando a RLS recusa um UPDATE ou DELETE, o PostgREST responde 200 com\n" +
+        "`error: null` e ZERO linhas: para ele, alterar nada é sucesso. A tela\n" +
+        "segue em frente anunciando o que quer que anuncie — um toast, um\n" +
+        "`onSuccess`, um contador que zera — sobre uma escrita que não ocorreu.\n\n" +
+        'Encadeie `.select("id")` e passe por `aplicar(...)` ou\n' +
+        "`aplicarEmSilencio(...)`. Se zero linhas aqui NÃO for falha, declare o\n" +
+        "sítio em `ZERO_LINHAS_NAO_E_FALHA` com o motivo e o custo escritos.",
+    ).toEqual([]);
+
+    const velhas = ZERO_LINHAS_NAO_E_FALHA
+      .filter((_, i) => !dispensasUsadas.has(i))
+      .map((d) => `  · ${d.arquivo} — trecho "${d.naCadeia}"`);
+    expect(
+      velhas,
+      `\n${velhas.join("\n")}\n\n` +
+        "Esta dispensa não casa com escrita nenhuma. Ou o sítio foi consertado — e\n" +
+        "aí a dispensa some —, ou ele mudou de forma e deixou de ser o que foi\n" +
+        "dispensado. Dispensa que sobrevive ao seu motivo é a regra se afrouxando\n" +
+        "sem ninguém decidir.",
+    ).toEqual([]);
+  });
+
+  it("a dispensa é estreita: não cobre a outra escrita do mesmo arquivo", () => {
+    /**
+     * A inversão que importa na lista de dispensas. `NovoCaso` tem duas
+     * escritas: o autossalvamento do rascunho (dispensado, porque o
+     * `.eq("status","draft")` faz de zero linhas a trava funcionando) e a
+     * promoção a caso clínico, que é a escrita que importa e confere as linhas.
+     *
+     * Chaveando a dispensa por ARQUIVO, tirar o `.select` da promoção passaria
+     * em silêncio — a dispensa do vizinho cobriria o defeito.
+     */
+    const rascunho = 'supabase.from("clinical_cases").update(p).eq("id", d).eq("status", "draft" as any)';
+    const promocao = 'supabase.from("clinical_cases").update(p).eq("id", caseId)';
+    const dispensa = ZERO_LINHAS_NAO_E_FALHA.find((d) => d.arquivo === "src/pages/app/NovoCaso.tsx")!;
+
+    expect(dispensa, "a dispensa do rascunho desapareceu").toBeDefined();
+    expect(rascunho.includes(dispensa.naCadeia), "a dispensa não reconhece o rascunho").toBe(true);
+    expect(
+      promocao.includes(dispensa.naCadeia),
+      "a dispensa do rascunho também cobre a promoção do caso — é dispensa larga demais",
+    ).toBe(false);
+  });
+
+  it("o encadeamento é lido por delimitador, não por janela", () => {
+    // O `.select` vem depois de um objeto com chaves aninhadas e de uma quebra
+    // de linha: recortar uma janela de N caracteres, ou parar na primeira `{`,
+    // esconde-o — e foi assim que uma versão anterior desta família acusou 21
+    // arquivos corretos de 28.
+    const texto = [
+      "const r = await supabase",
+      '  .from("clinical_cases")',
+      "  .update({",
+      "    campo: 1,",
+      "    outro: { aninhado: { fundo: true } },",
+      "  })",
+      '  .eq("id", caseId)',
+      '  .select("id");',
+    ].join("\n");
+    const [m] = [...texto.matchAll(MUTACAO_DE_ESCRITA)];
+    expect(m, "o detector não viu a escrita").toBeDefined();
+    const cadeia = encadeamentoDaEscrita(texto, m.index);
+    expect(cadeia, "não chegou ao fim do encadeamento").toContain('.select("id")');
+
+    // E o outro lado: sem `.select`, a cadeia não pode inventá-lo — e não pode
+    // invadir a instrução seguinte, que é onde um `.select` alheio moraria.
+    const semSelect = [
+      'await supabase.from("notifications").update({ read: true }).eq("id", id);',
+      'const outra = await supabase.from("x").select("id");',
+    ].join("\n");
+    const [n] = [...semSelect.matchAll(MUTACAO_DE_ESCRITA)];
+    const cadeiaCurta = encadeamentoDaEscrita(semSelect, n.index);
+    expect(/\.select\s*\(/.test(cadeiaCurta), "capturou o `.select` da instrução seguinte").toBe(false);
   });
 
   /**
@@ -470,8 +798,7 @@ describe("as escritas que passam por aplicar()", () => {
     // `Set`, no `CaseLaudoReader`, com um `logAudit` legítimo mais abaixo na
     // mesma função. Sem a âncora no `supabase.from(...)`, a guarda mandava
     // conferir linhas de uma estrutura de dados em memória.
-    const MUTACAO =
-      /\bsupabase\s*(?:\.\w+)*\.from\(\s*"[^"]+"\s*\)\s*\.(update|delete|upsert)\s*\(/gs;
+    const MUTACAO = MUTACAO_DE_ESCRITA;
     const doSet = "const proximo = new Set(antes); proximo.delete(key); logAudit('x', 'y', 'z');";
     expect([...doSet.matchAll(MUTACAO)], "confundiu Set.delete com escrita").toHaveLength(0);
 
