@@ -109,12 +109,32 @@ export const CaseCollaborators = ({ caseId, isOwner }: Props) => {
       return;
     }
     setSaving(true);
-    // Buscar médico pelo CRM
+    /**
+     * Buscar o colega pelo CRM — por RPC, e não lendo `doctors`.
+     *
+     * Esta consulta era a ÚNICA coisa que a quinta porta de `pode_ver_medico`
+     * servia, e aquela porta dizia "quem é médico vê qualquer médico":
+     *
+     *     or exists (select 1 from public.doctors d2 where d2.user_id = _user_id)
+     *
+     * Quer dizer que, para localizar um colega por CRM, todo médico lia a
+     * tabela inteira — inclusive a linha de quem desmarcou "Aparecer no
+     * diretório", com CRM, RQE, cidade, instituição e biografia. A caixa é
+     * enquadrada no `MedicoPerfil` como consentimento revogável (LGPD art. 8º
+     * §5º e a anuência de publicidade médica da Resolução CFM nº 2.336/2023),
+     * e a revogação não alcançava colegas.
+     *
+     * `medico_por_crm` é `security definer`, exige que quem chama seja médico,
+     * casa CRM e UF exatos e devolve `id` e `user_id` — nada mais. Medido numa
+     * bancada PostgreSQL 16: busca por prefixo devolve 0, UF errada devolve 0,
+     * e um paciente chamando devolve 0.
+     *
+     * O que ele NÃO impede, e vale dizer: um médico continua podendo sondar
+     * números de CRM um a um — é inerente a convidar alguém por CRM. O que
+     * deixa de ser possível é ler a tabela em bloco.
+     */
     const { data: doc, error: erroBusca } = await supabase
-      .from("doctors")
-      .select("id, user_id")
-      .eq("crm", crm.trim())
-      .eq("crm_uf", crmUf)
+      .rpc("medico_por_crm", { _crm: crm.trim(), _crm_uf: crmUf })
       .maybeSingle();
 
     // A leitura descartava o erro e caía no `if (!doc)`, que responde "Médico

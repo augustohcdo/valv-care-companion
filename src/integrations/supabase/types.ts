@@ -2658,6 +2658,20 @@ export type Database = {
           topic: string
         }[]
       }
+      medico_por_crm: {
+        Args: { _crm: string; _crm_uf: string }
+        // Acrescentado à mão, como o `admin_definir_papel` acima e pelo mesmo
+        // motivo: `types:generate` fala com o projeto remoto, e a migration
+        // 20261005120000 ainda não foi aplicada lá.
+        //
+        // Devolve `id` e `user_id` e nada mais — é o que o convite de colega
+        // precisa, e é estritamente menos do que a leitura direta de `doctors`
+        // que ele substitui (que entregava CRM, RQE, cidade e biografia).
+        Returns: {
+          id: string
+          user_id: string
+        }[]
+      }
       meus_medicos: {
         Args: never
         Returns: {

@@ -4,6 +4,14 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
+// Importados em vez de recopiados: a terceira cópia de uma decisão é onde ela
+// começa a divergir. `sqlSemComentarios` existe porque uma guarda já foi
+// enganada por uma migration que CITAVA o SQL num comentário, e este arquivo
+// precisa dela pelo mesmo motivo — o cabeçalho de `20261005121000` cita, em
+// comentário, a própria linha da porta 5 que ele remove.
+import { sqlSemComentarios } from "./acessoProfissional.test";
+import { semComentarios, encadeamentoDaEscrita } from "./aplicarComSelect.test";
 
 /**
  * Guarda contra tabela nascer sem Row Level Security.
@@ -261,5 +269,187 @@ describe("cobertura de RLS", () => {
       "pode_ver_medico precisa ser security definer: política que consulta `doctors` " +
         "aplicaria a política de `doctors`, e o Postgres recusa por recursão",
     ).toMatch(/function\s+public\.pode_ver_medico[\s\S]{0,400}security\s+definer/i);
+  });
+});
+
+/**
+ * A ÚLTIMA definição de uma função nas migrations, em ordem de arquivo.
+ *
+ * Perguntar "o SQL de todas as migrations contém X?" responde outra coisa:
+ * `create or replace` substitui, então o que vale é a definição mais recente.
+ * Uma busca no texto inteiro encontraria a versão antiga e diria que a porta 5
+ * ainda está lá — ou, se eu invertesse o teste, diria que ela saiu porque a
+ * versão NOVA existe, ignorando que uma migration posterior poderia tê-la
+ * recolocado.
+ */
+export function ultimaDefinicaoDeFuncao(
+  nome: string,
+  dir = DIR,
+): { arquivo: string; corpo: string } | null {
+  const arquivos = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
+  let achada: { arquivo: string; corpo: string } | null = null;
+  for (const arquivo of arquivos) {
+    const sql = sqlSemComentarios(readFileSync(join(dir, arquivo), "utf8"));
+    const re = new RegExp(`create\\s+or\\s+replace\\s+function\\s+public\\.${nome}\\s*\\(`, "gi");
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(sql)) !== null) {
+      const fim = sql.indexOf("$$;", m.index);
+      achada = { arquivo, corpo: sql.slice(m.index, fim < 0 ? sql.length : fim + 3) };
+    }
+  }
+  return achada;
+}
+
+/**
+ * A quinta porta de `doctors`: "quem é médico vê qualquer médico".
+ *
+ * ## O que ela era
+ *
+ * A migration de setembro trocou o `using (true)` de `doctors` por uma cerca de
+ * cinco portas e registrou no cabeçalho, com todas as letras, o que NÃO fazia:
+ *
+ *   > A porta 5 mantém todo médico enxergando todo médico, inclusive quem
+ *   > desmarcou a caixa. É o que o convite de colaboração por CRM exige, e RLS
+ *   > não sabe dizer "só quando a consulta filtra por CRM exato".
+ *
+ * Quer dizer: a promessa da caixa "Aparecer no diretório" — enquadrada no
+ * `MedicoPerfil` como consentimento revogável, LGPD art. 8º §5º e Resolução
+ * CFM nº 2.336/2023 — passou a valer para pacientes e continuou não valendo
+ * para colegas.
+ *
+ * ## Medido numa bancada PostgreSQL 16, nos quatro estados
+ *
+ *                                            A lê B    A vê a tabela   P lê B
+ *   política aberta (antes de setembro)          1           3            1
+ *   cerca de setembro, porta 5 aberta            1           3            0
+ *   etapa 1 (o RPC entra)                        1           3            0
+ *   etapa 2 (a porta 5 fecha)                    0           2            0
+ *
+ * O estado do meio é o que prova que o teste exercita a mudança: sem ele,
+ * "A não lê B" poderia estar passando pelo motivo errado.
+ *
+ * E o RPC, na mesma bancada: CRM+UF exatos → 1 linha; UF errada → 0; busca por
+ * prefixo `2222` → 0; paciente chamando → 0; e, depois do convite, A volta a
+ * ler a linha de B pela porta 4.
+ */
+describe("a porta 5 de `doctors`", () => {
+  const RPC = "medico_por_crm";
+
+  it("a última definição de `pode_ver_medico` não tem a porta 5", () => {
+    const def = ultimaDefinicaoDeFuncao("pode_ver_medico");
+    expect(def, "não achei definição de `pode_ver_medico` em migration nenhuma").not.toBeNull();
+    expect(
+      def!.corpo,
+      `a porta 5 voltou em ${def!.arquivo}: "quem é médico vê qualquer médico" é leitura ` +
+        "da tabela inteira por qualquer médico, inclusive das linhas de quem desmarcou " +
+        '"Aparecer no diretório" — e a tela promete que desmarcar tira da lista',
+    ).not.toMatch(/d2\s*\.\s*user_id\s*=\s*_user_id/);
+
+    // E as quatro que ficam, nomeadas: sem isto, uma função vazia passaria.
+    for (const [porta, padrao] of [
+      ["1 (a própria linha)", /d\.id\s*=\s*_doctor_id/],
+      ["2 (o médico do paciente)", /p\.linked_doctor_id\s*=\s*_doctor_id/],
+      ["3 (o dono de um caso que vejo)", /c\.doctor_id\s*=\s*_doctor_id/],
+      ["4 (colaborador de um caso)", /cc\.doctor_id\s*=\s*_doctor_id/],
+    ] as const) {
+      expect(def!.corpo, `a porta ${porta} desapareceu junto`).toMatch(padrao);
+    }
+  });
+
+  it(`\`${RPC}\` existe, é security definer e exige que quem chama seja médico`, () => {
+    const def = ultimaDefinicaoDeFuncao(RPC);
+    expect(def, `sem o RPC, fechar a porta 5 quebra o convite de colega`).not.toBeNull();
+    expect(def!.corpo, "o RPC deixou de ser security definer").toMatch(/security\s+definer/i);
+    expect(
+      def!.corpo,
+      "o RPC não exige mais que quem chama seja médico — seria uma leitura de `doctors` " +
+        "por CRM aberta a qualquer conta autenticada, mais frouxa que a cerca que ele " +
+        "veio ajudar a fechar",
+    ).toMatch(/eu\.user_id\s*=\s*auth\.uid\(\)/);
+    // CRM e UF exatos. `like` ou `ilike` aqui viraria busca por padrão, e a
+    // tabela voltaria a ser varrível — por outro caminho.
+    expect(def!.corpo, "o RPC casa CRM por padrão em vez de igualdade").not.toMatch(/\bi?like\b/i);
+    expect(def!.corpo).toMatch(/d\.crm\s*=/);
+    expect(def!.corpo).toMatch(/d\.crm_uf\s*=/);
+  });
+
+  it("a etapa que FECHA vem depois da que CRIA o RPC", () => {
+    /**
+     * A ordem não é estética: aplicar o fechamento antes do RPC deixa o
+     * frontend publicado fazendo `select … where crm = …` contra a cerca, e a
+     * tela responde "Médico não encontrado — verifique o CRM e a UF" sobre um
+     * colega que existe. Frase falsa que joga a culpa na digitação de quem
+     * convida.
+     *
+     * Em ordem de nome de arquivo, que é a ordem em que as migrations se
+     * aplicam nesta base.
+     */
+    const criaRpc = ultimaDefinicaoDeFuncao(RPC)!.arquivo;
+    const fecha = ultimaDefinicaoDeFuncao("pode_ver_medico")!.arquivo;
+    expect(
+      criaRpc < fecha,
+      `${criaRpc} precisa vir antes de ${fecha}: fechar a porta 5 sem o RPC existir ` +
+        "deixa o convite de colega sem caminho nenhum",
+    ).toBe(true);
+  });
+
+  it("nenhum código de `src/` lê `doctors` filtrando por CRM", () => {
+    /**
+     * A regressão que reabriria a necessidade da porta 5. Qualquer tela que
+     * volte a procurar colega direto na tabela vai encontrar zero linhas — e,
+     * pelo texto do `CaseCollaborators`, dizer que o médico não existe.
+     *
+     * Lido pelo encadeamento equilibrado, não por janela de N caracteres: a
+     * cadeia `.from("doctors").select(…).eq("crm", …)` quebra em várias linhas
+     * e uma janela a perde quando alguém reformata.
+     */
+    const arquivos = execFileSync("git", ["ls-files", "src"], { encoding: "utf8" })
+      .trim().split("\n")
+      .filter((f) => /\.(ts|tsx)$/.test(f) && !/\.test\.(ts|tsx)$/.test(f) && !f.startsWith("src/test/"));
+
+    const culpadas: string[] = [];
+    let cadeiasDeDoctors = 0;
+    for (const arquivo of arquivos) {
+      const limpo = semComentarios(readFileSync(arquivo, "utf8"));
+      for (const m of limpo.matchAll(/\.from\(\s*"doctors"\s*\)/g)) {
+        cadeiasDeDoctors++;
+        const cadeia = encadeamentoDaEscrita(limpo, m.index);
+        if (/\.eq\(\s*"crm(_uf)?"/.test(cadeia)) {
+          const linha = limpo.slice(0, m.index).split("\n").length;
+          culpadas.push(`  · ${arquivo}:${linha} — ${cadeia.replace(/\s+/g, " ").slice(0, 110)}`);
+        }
+      }
+    }
+
+    // Piso: a varredura precisa estar achando as cadeias de `doctors`. Sem
+    // isto, renomear a tabela deixaria zero iterações e o teste passaria por
+    // não ter olhado nada.
+    expect(cadeiasDeDoctors, "a varredura não achou leitura de `doctors` nenhuma")
+      .toBeGreaterThanOrEqual(5);
+    expect(
+      culpadas,
+      `\n${culpadas.join("\n")}\n\n` +
+        "Leitura de `doctors` por CRM direto na tabela. Com a porta 5 fechada ela\n" +
+        "devolve zero linhas — e zero linhas aqui não se distingue de 'não existe'.\n\n" +
+        'Use `supabase.rpc("medico_por_crm", { _crm, _crm_uf })`.',
+    ).toEqual([]);
+    /**
+     * Prazo declarado porque este bloco sobe `git ls-files`.
+     * `prazoDeSubprocesso.test.ts` cobrou na hora — e com razão: o padrão do
+     * Vitest são 5 s, e numa máquina de CI disputada isso já produziu vermelho
+     * sem causa nesta base. Guarda que pune quem fez certo é guarda que alguém
+     * desliga.
+     */
+  }, 30_000);
+
+  it("o convite de colega usa o RPC", () => {
+    // O outro lado: o RPC existir e ninguém usá-lo deixaria a porta 5 fechada
+    // com o convite quebrado — e o teste acima passaria, porque não há leitura
+    // por CRM em lugar nenhum.
+    const tela = semComentarios(readFileSync("src/components/CaseCollaborators.tsx", "utf8"));
+    expect(
+      tela,
+      "o convite de colega não chama `medico_por_crm` — sem ele não há como achar o colega",
+    ).toMatch(/\.rpc\(\s*"medico_por_crm"/);
   });
 });

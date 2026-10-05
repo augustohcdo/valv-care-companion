@@ -32,9 +32,17 @@ const PARTICIPANTES = [
  */
 let buscaDeCrmFalha = false;
 
+/**
+ * O que `medico_por_crm` devolve. `null` é "não achei esse CRM"; um objeto é o
+ * colega encontrado — e o RPC devolve só `id` e `user_id`, nada mais, que é
+ * estritamente menos do que a leitura de `doctors` que ele substituiu.
+ */
+let medicoAchadoPorCrm: { id: string; user_id: string } | null = null;
+
 let collabs = [...COLLABS];
 let participantes: unknown[] = [...PARTICIPANTES];
 const updateSpy = vi.fn();
+const insertSpy = vi.fn();
 
 
 /**
@@ -54,12 +62,36 @@ function escrita(resultado: { error: { message: string } | null }, afetadas = 1)
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    rpc: (nome: string) =>
-      Promise.resolve(
+    rpc: (nome: string) => {
+      /**
+       * `medico_por_crm` não é promessa nua: o cliente real devolve um
+       * construtor de consulta, e o `CaseCollaborators` encadeia
+       * `.maybeSingle()` nele — a função SQL devolve `TABLE(...)`, ou seja uma
+       * lista, e é o `maybeSingle` que a reduz a uma linha ou `null`.
+       *
+       * Modelado como promessa nua, a tela estoura com "maybeSingle is not a
+       * function". Foi isto que apareceu quando a busca por CRM saiu da leitura
+       * direta de `doctors` e passou a vir por RPC — e apareceu porque o teste
+       * abaixo existia. Sem ele, o convite de colega teria ido para produção
+       * quebrado.
+       */
+      if (nome === "medico_por_crm") {
+        const resposta = buscaDeCrmFalha
+          ? { data: null, error: { message: "network error" } }
+          : { data: medicoAchadoPorCrm, error: null };
+        const p: any = Promise.resolve({
+          data: resposta.data ? [resposta.data] : [],
+          error: resposta.error,
+        });
+        p.maybeSingle = () => Promise.resolve(resposta);
+        return p;
+      }
+      return Promise.resolve(
         nome === "participantes_do_caso"
           ? { data: participantes, error: null }
           : { data: null, error: null },
-      ),
+      );
+    },
     from: (table: string) => ({
       select: () => {
         const chain: any = {
@@ -68,16 +100,20 @@ vi.mock("@/integrations/supabase/client", () => ({
           in: () =>
             Promise.resolve({ data: table === "doctors" ? DOCTORS : [], error: null }),
           order: () => Promise.resolve({ data: collabs, error: null }),
-          maybeSingle: () =>
-            Promise.resolve(
-              buscaDeCrmFalha
-                ? { data: null, error: { message: "network error" } }
-                : { data: null, error: null },
-            ),
+          // A busca por CRM saiu daqui: ela era um `.from("doctors").eq("crm", …)`
+          // e virou o RPC `medico_por_crm`, porque aquela leitura era a única
+          // coisa que a quinta porta de `pode_ver_medico` servia — e aquela
+          // porta deixava todo médico ler a tabela inteira. Nada mais do
+          // componente encadeia `maybeSingle` numa tabela; este ramo fica só
+          // para não quebrar quem venha a encadear.
+          maybeSingle: () => Promise.resolve({ data: null, error: null }),
         };
         return chain;
       },
-      insert: () => Promise.resolve({ error: null }),
+      insert: (values: any) => {
+        insertSpy(table, values);
+        return Promise.resolve({ error: null });
+      },
       update: (values: any) => ({
         eq: (col: string, val: any) => {
           updateSpy(values, col, val);
@@ -114,6 +150,7 @@ describe("CaseCollaborators", () => {
     participantes = [...PARTICIPANTES];
     updateSpy.mockClear();
     buscaDeCrmFalha = false;
+    medicoAchadoPorCrm = null;
     vi.clearAllMocks();
     vi.spyOn(window, "confirm").mockReturnValue(true);
   });
@@ -208,6 +245,7 @@ describe("CaseCollaborators — busca por CRM com a leitura falhando", () => {
     collabs = [...COLLABS];
     participantes = [...PARTICIPANTES];
     buscaDeCrmFalha = true;
+    medicoAchadoPorCrm = null;
     vi.clearAllMocks();
   });
 
@@ -227,5 +265,85 @@ describe("CaseCollaborators — busca por CRM com a leitura falhando", () => {
     expect(String(titulo)).not.toMatch(/médico não encontrado/i);
     // E precisa desmentir a leitura de ausência, não só relatar erro.
     expect(String(opcoes?.description ?? "")).toMatch(/não quer dizer que o médico não exista/i);
+  });
+});
+
+/**
+ * O caminho de sucesso da busca por CRM — que não tinha teste nenhum.
+ *
+ * ## Por que agora
+ *
+ * A busca saiu de `select id, user_id from doctors where crm = … and crm_uf = …`
+ * e passou para o RPC `medico_por_crm`, porque aquela leitura era a ÚNICA coisa
+ * que a quinta porta de `pode_ver_medico` servia — e aquela porta dizia "quem é
+ * médico vê qualquer médico", inclusive as linhas de quem desmarcou "Aparecer
+ * no diretório", cuja tela promete que desmarcar tira da lista (LGPD art. 8º
+ * §5º; Resolução CFM nº 2.336/2023).
+ *
+ * Trocar a forma da consulta sem teste do caminho feliz é o risco de a tela
+ * parar de achar colega nenhum e dizer "Médico não encontrado — verifique o CRM
+ * e a UF" para sempre: a mesma frase falsa que o bloco acima existe para
+ * impedir, por outra causa.
+ *
+ * ## E o segundo teste, que parece pequeno
+ *
+ * O RPC devolve exatamente dois campos, `id` e `user_id`. O `id` vira o
+ * `doctor_id` do convite; o `user_id` serve a uma coisa só: barrar convidar a
+ * si mesmo. Se o RPC parar de devolvê-lo, a trava passa a comparar `undefined`
+ * com o id de quem convida, nunca dispara, e o médico se convida para o próprio
+ * caso sem nada acusar — o `UNIQUE (case_id, doctor_id)` não pega, porque não é
+ * duplicata de nada.
+ */
+describe("CaseCollaborators — convite por CRM encontrado", () => {
+  beforeEach(() => {
+    collabs = [...COLLABS];
+    participantes = [...PARTICIPANTES];
+    buscaDeCrmFalha = false;
+    medicoAchadoPorCrm = null;
+    vi.clearAllMocks();
+  });
+
+  const convidar = async (crm = "444444") => {
+    renderComp();
+    fireEvent.click(await screen.findByRole("button", { name: /convidar/i }));
+    fireEvent.change(await screen.findByPlaceholderText("123456"), { target: { value: crm } });
+    const botoes = screen.getAllByRole("button", { name: /convidar|enviar/i });
+    fireEvent.click(botoes[botoes.length - 1]);
+  };
+
+  it("o colega que o RPC achou vira convite, com o `id` que ele devolveu", async () => {
+    medicoAchadoPorCrm = { id: "d-novo", user_id: "u-novo" };
+    await convidar();
+
+    await waitFor(() => expect(insertSpy).toHaveBeenCalled());
+    const [tabela, valores] = insertSpy.mock.calls[0];
+    expect(tabela).toBe("case_collaborators");
+    expect(valores).toMatchObject({
+      case_id: "c1",
+      doctor_id: "d-novo",
+      invited_by: "u1",
+    });
+    expect(toast.success).toHaveBeenCalledWith("Convite enviado");
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("CRM que o RPC não acha continua dizendo o que é verdade", async () => {
+    // `null` do RPC é "não existe esse CRM" — aqui a frase sobre a digitação é
+    // correta, e é por isso que a distinção entre `error` e `null` importa.
+    medicoAchadoPorCrm = null;
+    await convidar("999999");
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(String((toast.error as any).mock.calls[0][0])).toMatch(/médico não encontrado/i);
+    expect(insertSpy, "convidou sem ter achado o médico").not.toHaveBeenCalled();
+  });
+
+  it("o `user_id` do RPC é o que barra convidar a si mesmo", async () => {
+    medicoAchadoPorCrm = { id: "d-eu", user_id: "u1" }; // u1 é quem está logado
+    await convidar("111111");
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(String((toast.error as any).mock.calls[0][0])).toMatch(/não pode convidar a si mesmo/i);
+    expect(insertSpy, "deixou o médico se convidar para o próprio caso").not.toHaveBeenCalled();
   });
 });

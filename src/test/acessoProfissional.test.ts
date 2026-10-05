@@ -342,7 +342,7 @@ describe("o diretório de profissionais", () => {
  * Guarda que lê comentário não confere código; aqui o custo era pior, porque
  * ela deixava de conferir o arquivo certo sem dizer que trocou de arquivo.
  */
-function sqlSemComentarios(texto: string): string {
+export function sqlSemComentarios(texto: string): string {
   return texto
     .replace(/\/\*[\s\S]*?\*\//g, (b) => b.replace(/[^\n]/g, " "))
     .replace(/--[^\n]*/g, "");
