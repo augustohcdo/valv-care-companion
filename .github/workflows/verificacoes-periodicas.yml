@@ -42,11 +42,29 @@ name: Verificações periódicas
 # Segredos
 # ---------------------------------------------------------------------------
 #
-# Nenhum. A URL do projeto e a chave publishable saem do `.env` versionado, e as
-# duas são públicas por construção — a chave vai embutida em todo bundle que
-# qualquer visitante baixa; quem protege os dados é a RLS. Este workflow não
-# toca em `SUPABASE_ACCESS_TOKEN` nem em `SUPABASE_SERVICE_ROLE_KEY`, e não deve
-# passar a tocar: ele roda sozinho, todo dia, sem ninguém olhando.
+# Nenhum, e isso não muda: este workflow não toca em `SUPABASE_ACCESS_TOKEN` nem
+# em `SUPABASE_SERVICE_ROLE_KEY`, e não deve passar a tocar. Ele roda sozinho,
+# todo dia, sem ninguém olhando, e aquele token é root sobre a conta inteira.
+#
+# A URL do projeto e a chave publishable são PÚBLICAS por construção — a chave
+# vai embutida em todo bundle que qualquer visitante baixa; quem protege os
+# dados é a RLS. O passo "Exportar as chaves públicas" as busca em três lugares,
+# nesta ordem: as *Variables* do repositório, um `.env` local, e por fim o
+# próprio site publicado.
+#
+# ## A frase que estava aqui e era falsa
+#
+# Este cabeçalho dizia que as chaves "saem do `.env` versionado". **Não existe
+# `.env` versionado**: o `.gitignore` o exclui. O passo tinha o ramo que lê
+# `.env`, mas em CI ele nunca encontrava arquivo nenhum, caía no aviso, e três
+# das seis conferências saíam NÃO CONFERIDO — todo dia, desde 2026-10-02, com
+# dezenove comentários na issue #3 pela mesma causa.
+#
+# Um comentário afirmando uma fonte que não existe é pior que nenhum: ele faz
+# quem lê procurar o defeito no lugar errado. O terceiro caminho (ler do site)
+# é o que torna a frase verdadeira — e `scripts/chavesPublicasDoSite.mjs`
+# confere o `project_id` de `supabase/config.toml` contra o host que extraiu, de
+# modo que o site no ar não pode apontar o verificador para outro projeto.
 
 on:
   schedule:
@@ -135,17 +153,45 @@ jobs:
             exit 0
           fi
 
+          # Terceiro caminho: o próprio site publicado. A chave publishable vai
+          # embutida em todo bundle que qualquer visitante baixa, então ela pode
+          # vir de lá por HTTP, sem credencial nenhuma — e sem este workflow
+          # passar a carregar o token de gestão, que é root sobre a conta e não
+          # cabe num job diário desassistido.
+          #
+          # O script confere o `project_id` de `supabase/config.toml` contra o
+          # host que extraiu: sem isso, um site apontando para outro projeto
+          # faria as conferências falarem com o banco errado e passarem.
+          #
+          # Sai 2 quando não dá para olhar e 1 quando o projeto não bate; os
+          # dois casos caem no aviso abaixo em vez de matar o job.
+          if node scripts/chavesPublicasDoSite.mjs --saida "$GITHUB_ENV"; then
+            echo "Chaves públicas lidas do site publicado."
+            exit 0
+          fi
+
           # Sem chave, e SEM matar o job. As conferências que dependem dela
           # sairão 2 (NÃO CONFERIDO) por conta própria, e as outras cinco
           # rodam normalmente — que é o ponto inteiro da convenção de três
           # estados.
-          echo "::warning::sem VITE_SUPABASE_URL/PUBLISHABLE_KEY (nem em vars, nem em .env)."
+          echo "::warning::sem VITE_SUPABASE_URL/PUBLISHABLE_KEY (nem em vars, nem em .env, nem no site publicado)."
           echo "::warning::as conferências que falam com o banco sairão NÃO CONFERIDO; as demais rodam."
           {
             echo "### ⚠️ Chaves públicas ausentes"
             echo ""
             echo "As conferências que falam com o banco sairão **NÃO CONFERIDO**."
-            echo "Para ligá-las, defina em *Settings → Secrets and variables → Actions → Variables*:"
+            echo ""
+            echo "Os três caminhos falharam:"
+            echo ""
+            echo "1. as *Variables* do repositório não estão definidas;"
+            echo "2. não há \`.env\` local (ele é ignorado pelo git, e é assim que deve ser);"
+            echo "3. não deu para ler do site publicado — veja o motivo no log do passo."
+            echo ""
+            echo "O caminho 3 é o que normalmente resolve sozinho, e ele falhar costuma"
+            echo "significar que o site está fora do ar ou servindo outra coisa — o que a"
+            echo "conferência de rotas abaixo também vai mostrar."
+            echo ""
+            echo "Para ligar o caminho 1, defina em *Settings → Secrets and variables → Actions → Variables*:"
             echo ""
             echo "- \`VITE_SUPABASE_URL\`"
             echo "- \`VITE_SUPABASE_PUBLISHABLE_KEY\`"
