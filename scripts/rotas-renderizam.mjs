@@ -113,7 +113,9 @@
  */
 import { execSync } from "node:child_process";
 import { rotasDoApp } from "./smoke.mjs";
-import { opcoesDoChromium } from "./lib/chromium.mjs";
+import {
+  opcoesDoChromium, pareceVazia, motivoDeTelaVazia, medirRenderizacao,
+} from "./lib/chromium.mjs";
 
 async function carregarPlaywright() {
   for (const alvo of ["playwright", "@playwright/test"]) {
@@ -256,16 +258,51 @@ const pagina = await navegador.newPage({ viewport: { width: 1280, height: 900 } 
 await prepararContexto(pagina);
 
 /**
- * Espera o carregamento SAIR da tela (sem `.animate-spin`), com teto.
+ * As marcas visuais de "carregando" deste projeto. **As duas**, e é esse o
+ * conserto.
+ *
+ * A versão anterior esperava só `.animate-spin`, e o comentário dela afirmava:
+ *
+ *   > "O spinner é a marca visual do projeto para 'carregando' — tanto o
+ *   >  fallback de rota quanto o das telas usam a mesma classe."
+ *
+ * Isso é falso. O fallback de ROTA é `<Suspense fallback={<PageSkeleton …/>}>`,
+ * e o `PageSkeleton` é feito de `<Skeleton>`, que é `animate-pulse`. Nenhum
+ * `.animate-spin` aparece ali, então a espera nunca disparava e o verificador
+ * media o ESQUELETO.
+ *
+ * ## Medido nas 61 rotas, contra o preview
+ *
+ *   · 18 rotas tinham o texto CRESCENDO depois de o esqueleto sair. O script
+ *     media 1237 caracteres — invólucro, menu, rodapé e banner de cookies,
+ *     idênticos em todas — e a página de verdade tinha de 3 640 a 13 120;
+ *   · `/privacidade`: 1237 → 13 120. `/aprender`: 1237 → 7 026;
+ *   · 0 rotas deixaram de limpar o esqueleto em 12 s, então esperar por ele
+ *     não produz falso vermelho em nenhuma;
+ *   · espera máxima observada: **213 ms**. O conserto é barato.
+ *
+ * É a terceira versão desta espera, e as três erraram o mesmo alvo por motivos
+ * diferentes: a primeira não esperava nada e media `index.html`; a segunda
+ * esperava o spinner e media o esqueleto; esta espera as duas marcas. O que
+ * mudou de verdade foi parar de afirmar no comentário o que não foi conferido.
+ */
+const MARCAS_DE_CARREGAMENTO = [".animate-spin", ".animate-pulse"];
+
+/**
+ * Espera o carregamento SAIR da tela (sem nenhuma marca de carregamento), com
+ * teto.
  *
  * Extraída para ser a mesma nos dois lugares que dela precisam — a prova de
  * sessão e a varredura. Duas cópias divergiriam, e a divergência aqui seria
- * invisível: uma das duas mediria spinner de novo.
+ * invisível: uma das duas mediria esqueleto de novo.
  */
-async function esperarATela(pagina, limiteMs = 8000) {
+async function esperarATela(pagina, limiteMs = 12000) {
   const limite = Date.now() + limiteMs;
   for (;;) {
-    const carregando = await pagina.evaluate(() => !!document.querySelector(".animate-spin"));
+    const carregando = await pagina.evaluate(
+      (marcas) => marcas.some((m) => !!document.querySelector(m)),
+      MARCAS_DE_CARREGAMENTO,
+    );
     const jaQuebrou = await pagina.evaluate(
       (marcador) => document.body.innerText.includes(marcador), TEXTO_DO_BOUNDARY,
     );
@@ -365,17 +402,14 @@ for (const rota of rotas) {
   // `MedicoHome`, conferi que a quebra estava no bundle servido, e o
   // verificador aprovou a rota assim mesmo. Ele estava medindo spinner.
   //
-  // Agora espera o carregamento SAIR: sem elemento `.animate-spin` na página, ou
-  // até 8 s. O spinner é a marca visual do projeto para "carregando" — tanto o
-  // fallback de rota quanto o das telas usam a mesma classe.
-  let conteudoDoRoot = 0;
+  // Agora espera o carregamento SAIR: nenhuma das MARCAS_DE_CARREGAMENTO na
+  // página (spinner E esqueleto), ou até 12 s. A versão anterior deste
+  // comentário afirmava que as duas usam a mesma classe — não usam, e era por
+  // isso que 18 rotas eram medidas pelo esqueleto.
   let temBoundary = false;
   let aindaCarregando = false;
   if (!naoAbriu) {
     aindaCarregando = await esperarATela(pagina);
-    conteudoDoRoot = await pagina.evaluate(
-      () => document.getElementById("root")?.innerText?.trim().length ?? 0,
-    );
     temBoundary = await pagina.evaluate(
       (marcador) => document.body.innerText.includes(marcador),
       TEXTO_DO_BOUNDARY,
@@ -393,10 +427,27 @@ for (const rota of rotas) {
   if (naoAbriu) motivos.push(`a rota não abriu em 15s: ${naoAbriu.slice(0, 100)}`);
   if (excecoes.length) motivos.push(`exceção: ${excecoes[0].slice(0, 120)}`);
   if (!naoAbriu && temBoundary) motivos.push("o error boundary global apareceu");
-  if (!naoAbriu && conteudoDoRoot === 0) motivos.push("#root vazio — o app não montou nada");
-  // Oito segundos no spinner não é a tela: é o carregamento que não terminou.
-  // Contar isso como renderizada seria repetir o defeito que este bloco corrige.
-  if (aindaCarregando) motivos.push("ainda carregando depois de 8s — a tela não chegou a aparecer");
+  /**
+   * O limiar vem de `pareceVazia()`, que é a decisão COMPARTILHADA.
+   *
+   * Aqui havia `conteudoDoRoot === 0` — "reprova só se não houver NADA" —, uma
+   * segunda régua, mais frouxa, que ignorava a contagem de elementos. Uma
+   * página com 5 elementos e 30 caracteres de erro educado passava.
+   *
+   * Medido antes de trocar, nas 61 rotas e depois de o esqueleto sair: o menor
+   * valor é 237 caracteres e 28 elementos, contra o limiar de 50 e 10. Quer
+   * dizer que a troca não muda veredito nenhum — ela só tira a segunda cópia
+   * da regra de circulação.
+   */
+  const medida = naoAbriu ? { elementos: 0, texto: 0 } : await medirRenderizacao(pagina);
+  if (!naoAbriu && pareceVazia(medida)) {
+    motivos.push(`tela praticamente vazia — ${motivoDeTelaVazia(medida).split("\n")[0]}`);
+  }
+  // Doze segundos em carregamento não é a tela: é o carregamento que não
+  // terminou. Contar isso como renderizada seria repetir o defeito que este
+  // bloco corrige — e foi o que aconteceu duas vezes, com o spinner e com o
+  // esqueleto.
+  if (aindaCarregando) motivos.push("ainda carregando depois de 12s — a tela não chegou a aparecer");
   if (recursos.length) motivos.push(`recurso não carregou: ${recursos[0].slice(0, 120)}`);
 
   conferidas++;
