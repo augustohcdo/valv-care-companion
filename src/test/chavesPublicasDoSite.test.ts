@@ -161,6 +161,50 @@ describe("o workflow da agenda diária", () => {
     ).toBe(true);
   });
 
+  it("os TRÊS caminhos mascaram o valor nos logs", () => {
+    /**
+     * A execução 29 passou — e imprimiu a chave em texto claro no bloco `env:`
+     * de cada passo seguinte, num repositório público:
+     *
+     *     env:
+     *       VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_…
+     *
+     * A chave é pública e isso não expõe nada de novo. O motivo de mascarar é
+     * outro: este passo é o FUNIL ÚNICO por onde qualquer chave futura vai
+     * passar para `$GITHUB_ENV`. Quem acrescentar ali um valor que NÃO seja
+     * público herda o mascaramento em vez de ter de lembrar dele.
+     *
+     * O `rotas-autenticadas.yml` já escreve o princípio sobre o token de
+     * sessão: "cinto e suspensório — o script não imprime o token, mas se
+     * algum dia imprimir, sai mascarado".
+     *
+     * A regra é sobre os TRÊS ramos, não sobre o que eu acrescentei: um ramo
+     * sem máscara é a chave aparecendo de novo pelo caminho que ninguém olhou.
+     */
+    const passo = yml.slice(yml.indexOf("- name: Exportar as chaves públicas"));
+    const corpo = passo.slice(0, passo.indexOf("- name:", 10));
+
+    expect(
+      corpo,
+      "o passo não define a função que mascara o valor escrito",
+    ).toMatch(/mascarar_o_que_foi_escrito\(\)\s*\{[\s\S]*?add-mask/);
+
+    // Cada `exit 0` de sucesso precisa ter sido precedido por uma chamada.
+    const ramos = corpo.split(/\n\s*exit 0\b/).slice(0, -1);
+    expect(ramos.length, "não achei os três ramos de sucesso").toBeGreaterThanOrEqual(3);
+    const semMascara = ramos
+      .map((trecho, i) => ({ i, chama: /mascarar_o_que_foi_escrito\s*$|mascarar_o_que_foi_escrito\n/.test(trecho) }))
+      .filter((r) => !r.chama)
+      .map((r) => `  · o ramo ${r.i + 1} sai sem mascarar`);
+    expect(
+      semMascara,
+      `\n${semMascara.join("\n")}\n\n` +
+        "Um ramo que escreve em `$GITHUB_ENV` sem mascarar faz o valor aparecer\n" +
+        "em texto claro no bloco `env:` de todos os passos seguintes — e este\n" +
+        "repositório é público.",
+    ).toEqual([]);
+  });
+
   it("continua sem tocar no token de gestão nem na service_role", () => {
     /**
      * A frase do cabeçalho — "não deve passar a tocar: ele roda sozinho, todo
