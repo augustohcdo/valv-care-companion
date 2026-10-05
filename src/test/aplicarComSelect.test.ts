@@ -153,10 +153,19 @@ export function escritasPassadasParaAplicar(texto: string): string[] {
  * método, porque `.delete(` sozinho casa com `Set.prototype.delete` — e casou,
  * no `CaseLaudoReader`, num `proximo.delete(key)` sobre um Set em memória.
  *
- * INSERT fica de fora, e não por esquecimento: uma inserção recusada pela RLS
- * **levanta** (`new row violates row-level security policy`), então chega como
- * `error` e conferir só o `error` basta. É em UPDATE/DELETE que a RLS filtra as
- * linhas e o PostgREST responde 200 com `error: null` e zero.
+ * INSERT fica de fora, e não por esquecimento. A assimetria foi medida num
+ * PostgreSQL 16, com um papel sem alcance sobre a linha:
+ *
+ *     update t set v = 99 where dono = 'outro';                  → UPDATE 0, sem erro
+ *     update t set v = 99 where dono = 'outro' returning id;     → (0 rows)
+ *     insert into t (dono, v) values ('outro', 7);               → ERROR: new row
+ *                                      violates row-level security policy for table "t"
+ *     delete from t where dono = 'outro';                        → DELETE 0, sem erro
+ *
+ * Quer dizer: em UPDATE e DELETE a recusa é silenciosa e o `RETURNING` — que é
+ * o `.select(...)` do PostgREST — é o que a torna visível. No INSERT ela
+ * levanta, chega como `error`, e conferir o `error` basta. Conferido: todos os
+ * 23 INSERTs de `src/` leem o erro ou passam pelo helper.
  *
  * Conferido contra um detector solto (`/\.(update|upsert|delete)\s*\(/` com
  * `supabase` em até 800 caracteres antes): 46 de 46, nenhuma escrita vista pelo
