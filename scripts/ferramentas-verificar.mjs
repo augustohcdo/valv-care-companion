@@ -599,8 +599,38 @@ if (!CHAVE) {
   const comMercado = new Set(
     linhas.filter((l) => l.mercado_br).map((l) => `${l.manufacturer}|${l.model_name}`),
   );
+  /**
+   * O rótulo diz PRESENÇA CONFIRMADA, e não "quantas já foram conferidas".
+   *
+   * A frase anterior era `quantas famílias já foram conferidas (21 de 40)`, com
+   * limiar "qualquer número acima de zero". Ela lê-se como barra de progresso
+   * rumo a 40, e as duas palavras estão erradas desde 2026-09-03:
+   *
+   *   · "conferidas" — as 19 restantes FORAM olhadas. O que a migration
+   *     `20260903020000_mercado_br_sem_afirmacao_de_ausencia` removeu foi a
+   *     afirmação, não a busca: `nao_confirmado` vinha de "não achei nada", e
+   *     ausência de evidência não é evidência de ausência. A tela mostrava
+   *     "registro brasileiro não confirmado" ao cardiologista sobre produtos
+   *     que ele implanta toda semana;
+   *   · "de 40" — 40 nunca volta a ser a meta por este caminho. A base da
+   *     ANVISA está atrás de desafio do Cloudflare e não se contorna; catálogo
+   *     de distribuidor prova presença e NUNCA prova ausência. Um método que só
+   *     confirma não produz a informação "não vendida no Brasil".
+   *
+   * Eu li esse rótulo como "19 pendentes, sem bloqueio técnico" e carreguei
+   * isso numa fila por uma sessão inteira, reportando ao usuário como tarefa em
+   * aberto. Rótulo que convida à leitura errada de um estado deliberado é
+   * defeito do rótulo — e a prova de que ele engana é que enganou quem escreveu
+   * as outras conferências deste mesmo arquivo.
+   *
+   * O que o limiar cobra continua sendo o que importa: que o caminho da
+   * confirmação ainda produza dado. Zero aqui significaria que ninguém
+   * confirmou presença de nada, e aí há o que investigar.
+   */
   conferir(
-    `mercado BR: quantas famílias já foram conferidas (${comMercado.size} de ${porFamilia.size})`,
+    `mercado BR: famílias com presença CONFIRMADA (${comMercado.size}; ` +
+      `as outras ${porFamilia.size - comMercado.size} ficam NULAS de propósito — ` +
+      "ver 20260903020000_mercado_br_sem_afirmacao_de_ausencia)",
     comMercado.size,
     /^[1-9]/,
   );
