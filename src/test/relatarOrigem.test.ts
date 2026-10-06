@@ -2,7 +2,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import ts from "typescript";
-// @ts-expect-error -- `.mjs` sem tipos; é script de verificação, não código do app.
 import { criarRelator, daTela } from "../../scripts/lib/relatar.mjs";
 
 /**
