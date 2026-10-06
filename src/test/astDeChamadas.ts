@@ -332,3 +332,251 @@ export function resultadosDescartados(fonte: ts.SourceFile): Achado[] {
   anda(fonte);
   return achados;
 }
+
+// ===========================================================================
+// Leituras cegas, medidas por AST — a segunda opinião
+// ===========================================================================
+
+/**
+ * O MESMO fato que `detectorDeChamadasCegas.ts` mede por expressão regular:
+ * leitura do cliente do Supabase cujo `error` ninguém recebe.
+ *
+ * ## Por que medir duas vezes
+ *
+ * Porque o número do detector por texto é a DÍVIDA DECLARADA do projeto
+ * (`DIVIDA_CONHECIDA` em `readErrors.test.ts`), e ele tem fragilidades que se
+ * veem a olho nu: trunca o statement em 12 linhas, procura a desestruturação
+ * num contexto que inclui COMENTÁRIOS, e caça `<nome>.error` numa janela de 8
+ * linhas. Nenhuma dessas é um defeito hipotético — nesta sessão um analisador
+ * por expressão regular se perdeu num delimitador dez vezes, duas delas em
+ * medidores que eu mesmo escrevi no mesmo dia, e em todas o número saiu errado
+ * para baixo.
+ *
+ * Dois métodos que não dividem analisador medem a mesma garantia por caminhos
+ * diferentes. Quando os dois dão zero, o zero vale mais. Quando divergem, a
+ * divergência aponta o defeito de um dos dois — informação que nenhum produz
+ * sozinho.
+ *
+ * ## O que foi medido quando isto foi escrito
+ *
+ * 129 leituras em `src` e 69 em `supabase/functions`, todas com o `error`
+ * recebido. **Zero cegas pelos dois métodos.** As duas acusações do detector por
+ * texto são as duas chamadas de `AdminUsuarios.tsx` que passam a promessa para
+ * o helper `executar` — ele é que faz `const { error } = await chamada`. O
+ * `readErrors.test.ts` já as declarava falsos positivos; o que faltava era isso
+ * ser medido, e não lido por mim.
+ */
+export type ClassificacaoDaLeitura =
+  /** O `error` chega a quem chamou, em qualquer das formas reconhecidas. */
+  | "ok"
+  /** Alguém recebe o resultado e o `error` não aparece. */
+  | "cega"
+  /** O resultado é jogado fora por inteiro (ver `resultadosDescartados`). */
+  | "descartada"
+  /** Devolvida, ou passada adiante como promessa: o `error` é de outro. */
+  | "repassada"
+  /** Forma que este detector não sabe ler. Relatada, nunca engolida. */
+  | "nao-classificada";
+
+export interface LeituraMedida extends Achado {
+  classificacao: ClassificacaoDaLeitura;
+}
+
+const LEITURAS = new Set(["select", "rpc"]);
+const ESCRITAS_DO_CLIENTE = new Set(["insert", "update", "upsert", "delete"]);
+
+function desembrulhar(no: ts.Node): ts.Node {
+  let atual = no;
+  for (;;) {
+    if (ts.isParenthesizedExpression(atual) || ts.isNonNullExpression(atual) ||
+        ts.isAwaitExpression(atual) || ts.isAsExpression(atual)) {
+      atual = atual.expression;
+      continue;
+    }
+    return atual;
+  }
+}
+
+function raizDesembrulhada(no: ts.Node): string | null {
+  let atual = desembrulhar(no);
+  for (;;) {
+    if (ts.isCallExpression(atual)) { atual = desembrulhar(atual.expression); continue; }
+    if (ts.isPropertyAccessExpression(atual) || ts.isElementAccessExpression(atual)) {
+      atual = desembrulhar(atual.expression);
+      continue;
+    }
+    break;
+  }
+  return ts.isIdentifier(atual) ? atual.text : null;
+}
+
+function metodosDesembrulhados(no: ts.Node): string[] {
+  const nomes: string[] = [];
+  let atual = desembrulhar(no);
+  for (;;) {
+    if (ts.isCallExpression(atual)) {
+      const e = desembrulhar(atual.expression);
+      if (ts.isPropertyAccessExpression(e)) nomes.push(e.name.text);
+      atual = e;
+      continue;
+    }
+    if (ts.isPropertyAccessExpression(atual)) {
+      nomes.push(atual.name.text);
+      atual = desembrulhar(atual.expression);
+      continue;
+    }
+    break;
+  }
+  return nomes;
+}
+
+/** O padrão de desestruturação liga `error`? */
+function ligaOErro(padrao: ts.BindingName): boolean {
+  return ts.isObjectBindingPattern(padrao) &&
+    padrao.elements.some((e) => (e.propertyName ?? e.name).getText() === "error");
+}
+
+/** Alguém lê `<nome>.error`, ou desestrutura `error` de `<nome>`, no escopo? */
+function alguemOlhaOErroDe(nome: string, escopo: ts.Node): boolean {
+  let achou = false;
+  const anda = (no: ts.Node) => {
+    if (achou) return;
+    if (ts.isPropertyAccessExpression(no) && no.name.text === "error" &&
+        ts.isIdentifier(no.expression) && no.expression.text === nome) {
+      achou = true;
+      return;
+    }
+    if (ts.isVariableDeclaration(no) && ts.isObjectBindingPattern(no.name) && no.initializer) {
+      const fonteDoValor = desembrulhar(no.initializer);
+      if (ts.isIdentifier(fonteDoValor) && fonteDoValor.text === nome && ligaOErro(no.name)) {
+        achou = true;
+        return;
+      }
+    }
+    ts.forEachChild(no, anda);
+  };
+  anda(escopo);
+  return achou;
+}
+
+/** A função que contém o nó — ou o arquivo. */
+function funcaoQueContem(no: ts.Node): ts.Node {
+  let atual: ts.Node | undefined = no.parent;
+  while (atual && !ts.isFunctionDeclaration(atual) && !ts.isFunctionExpression(atual) &&
+         !ts.isArrowFunction(atual) && !ts.isMethodDeclaration(atual) && !ts.isSourceFile(atual)) {
+    atual = atual.parent;
+  }
+  return atual ?? no;
+}
+
+/**
+ * É a PONTA da cadeia?
+ *
+ * Sem isto cada cadeia é contada uma vez por elo: para
+ * `supabase.from("t").select("id").eq("id", 1)`, as três chamadas têm `select`
+ * entre os métodos e a raiz `supabase`.
+ */
+function ehPontaDaCadeia(no: ts.Node): boolean {
+  const pai = no.parent;
+  if (!pai) return true;
+  if (ts.isPropertyAccessExpression(pai) && pai.expression === no) return false;
+  if (ts.isElementAccessExpression(pai) && pai.expression === no) return false;
+  if (ts.isNonNullExpression(pai)) return false;
+  return true;
+}
+
+/** `.then(({ error }) => …)` observa o erro. */
+function thenObservaOErro(no: ts.CallExpression): boolean {
+  const alvo = desembrulhar(no.expression);
+  if (!ts.isPropertyAccessExpression(alvo) || alvo.name.text !== "then") return false;
+  const cb = no.arguments[0];
+  if (!cb || (!ts.isArrowFunction(cb) && !ts.isFunctionExpression(cb))) return false;
+  const p = cb.parameters[0];
+  return p !== undefined && ligaOErro(p.name);
+}
+
+export function leiturasMedidas(fonte: ts.SourceFile): LeituraMedida[] {
+  const medidas: LeituraMedida[] = [];
+
+  const anda = (no: ts.Node) => {
+    if (ts.isCallExpression(no) && ehPontaDaCadeia(no)) {
+      const raiz = raizDesembrulhada(no);
+      const metodos = metodosDesembrulhados(no);
+      const ehLeitura = raiz !== null && CLIENTES.test(raiz) &&
+        metodos.some((m) => LEITURAS.has(m)) &&
+        !metodos.some((m) => ESCRITAS_DO_CLIENTE.has(m));
+
+      if (ehLeitura) {
+        const { line } = fonte.getLineAndCharacterOfPosition(no.getStart(fonte));
+        const base: Achado = {
+          arquivo: fonte.fileName,
+          linha: line + 1,
+          nome: metodos.filter((m) => LEITURAS.has(m)).join("/"),
+          trecho: no.getText(fonte).replace(/\s+/g, " ").slice(0, 110),
+        };
+        const anotar = (classificacao: ClassificacaoDaLeitura) =>
+          medidas.push({ ...base, classificacao });
+
+        if (thenObservaOErro(no)) {
+          anotar("ok");
+        } else {
+          // Sobe por `await`, parênteses e ternário até achar quem recebe: a
+          // forma `cond ? await supabase…select(…) : { data: [], error: null }`
+          // existe quatro vezes nesta base, e o destino está do lado de fora.
+          let atual: ts.Node = no;
+          let pai: ts.Node | undefined = no.parent;
+          for (;;) {
+            if (!pai) break;
+            if (ts.isAwaitExpression(pai) || ts.isParenthesizedExpression(pai) ||
+                ts.isAsExpression(pai)) {
+              atual = pai; pai = pai.parent; continue;
+            }
+            if (ts.isConditionalExpression(pai) &&
+                (pai.whenTrue === atual || pai.whenFalse === atual)) {
+              atual = pai; pai = pai.parent; continue;
+            }
+            break;
+          }
+
+          if (pai && ts.isVariableDeclaration(pai)) {
+            if (ts.isObjectBindingPattern(pai.name)) anotar(ligaOErro(pai.name) ? "ok" : "cega");
+            else if (ts.isIdentifier(pai.name)) {
+              anotar(alguemOlhaOErroDe(pai.name.text, funcaoQueContem(no)) ? "ok" : "cega");
+            } else anotar("nao-classificada");
+          } else if (pai && ts.isExpressionStatement(pai)) {
+            anotar("descartada");
+          } else if (pai && ts.isArrayLiteralExpression(pai)) {
+            // `const [{ data, error }, …] = await Promise.all([…])`: o destino
+            // é o padrão de array de fora, e a posição é que liga os dois.
+            const chamadaDeFora = pai.parent;
+            let topo: ts.Node | undefined =
+              ts.isCallExpression(chamadaDeFora) ? chamadaDeFora.parent : undefined;
+            while (topo && (ts.isAwaitExpression(topo) || ts.isParenthesizedExpression(topo))) {
+              topo = topo.parent;
+            }
+            const elemento = topo && ts.isVariableDeclaration(topo) &&
+              ts.isArrayBindingPattern(topo.name)
+              ? topo.name.elements[pai.elements.indexOf(atual as ts.Expression)]
+              : undefined;
+            if (elemento && ts.isBindingElement(elemento)) {
+              if (ts.isObjectBindingPattern(elemento.name)) {
+                anotar(ligaOErro(elemento.name) ? "ok" : "cega");
+              } else if (ts.isIdentifier(elemento.name)) {
+                anotar(alguemOlhaOErroDe(elemento.name.text, funcaoQueContem(no)) ? "ok" : "cega");
+              } else anotar("nao-classificada");
+            } else anotar("nao-classificada");
+          } else if (pai && (ts.isReturnStatement(pai) || ts.isCallExpression(pai) ||
+                     ts.isPropertyAssignment(pai) || ts.isArrowFunction(pai) ||
+                     ts.isBinaryExpression(pai) || ts.isSpreadElement(pai))) {
+            anotar("repassada");
+          } else {
+            anotar("nao-classificada");
+          }
+        }
+      }
+    }
+    ts.forEachChild(no, anda);
+  };
+  anda(fonte);
+  return medidas;
+}

@@ -60,6 +60,60 @@ export function walk(dir: string, out: string[] = []): string[] {
 }
 
 /**
+ * Lê o arquivo SEM comentários, preservando as linhas.
+ *
+ * ## O caso que obrigou isto
+ *
+ * Um arquivo novo em `src/test/` trouxe, numa docstring, o exemplo
+ * `supabase.from("t").select("id").eq("id", 1)`. O detector casou o
+ * `supabase.` do COMENTÁRIO, achou o `.select(` na janela do statement, pegou
+ * uma declaração qualquer do contexto como destino e acusou — e a dívida
+ * declarada do projeto subiu de 2 para 3 por causa de uma frase explicativa.
+ *
+ * Guarda que lê comentário não confere código. É a décima vez que esta lição
+ * aparece nesta sessão, e aqui ela custava um número que o projeto trata como
+ * medida: `DIVIDA_CONHECIDA`, em `readErrors.test.ts`.
+ *
+ * As linhas são preservadas uma a uma porque o detector relata
+ * `arquivo:linha`. Trocar um bloco de comentário por vazio faria tudo abaixo
+ * subir e a acusação apontaria a linha errada — já aconteceu nesta base, com a
+ * inversão dizendo 150 e o defeito na 158.
+ *
+ * ## O limite, medido
+ *
+ * Isto é um limpador por expressão regular, não um analisador: um `//` DENTRO
+ * de um literal de texto também é decepado. O `[^:]` cobre `https://…`, e nada
+ * mais. Varri as duas raízes pelo AST procurando literais com `//` que não
+ * fossem URL: são **treze**, e todas em `src/test/` — que agora fica fora da
+ * varredura por outro motivo. Em código de produção, zero.
+ *
+ * Não é frouxidão a consertar aqui: o efeito de decepar um literal é esticar a
+ * janela do statement em algumas linhas, nunca apagar uma chamada (uma chamada
+ * dentro de um texto não é chamada). E quem quiser a conta exata tem o detector
+ * por AST em `astDeChamadas.ts`, que é justamente a segunda opinião.
+ */
+export function lerSemComentarios(arquivo: string): string {
+  return readFileSync(arquivo, "utf8")
+    // Bloco: cada caractere dele vira espaço, nunca uma linha a menos.
+    .replace(/\/\*[\s\S]*?\*\//g, (bloco) => bloco.replace(/[^\n]/g, " "))
+    // De linha: o `[^:]` antes evita decapitar `https://…` dentro de um texto.
+    .replace(/(^|[^:])\/\/[^\n]*/g, (m, antes) => antes + " ".repeat(m.length - antes.length));
+}
+
+/**
+ * O diretório dos TESTES fica fora de toda varredura deste módulo.
+ *
+ * Não é só `*.test.ts`: os helpers daqui — este arquivo, `astDeChamadas.ts`,
+ * `resultadoDescartado.ts` — carregam material plantado e exemplos em texto
+ * para provar que os detectores acusam. Varrer o material de prova acusa a
+ * prova, e pior: faz um arquivo de TESTE novo mexer no número que o projeto
+ * trata como dívida de produção. Foi o que aconteceu.
+ */
+export function ehArquivoDeTeste(rel: string): boolean {
+  return /\.test\.tsx?$/.test(rel) || /(^|\/)src\/test\//.test(rel);
+}
+
+/**
  * O padrão de destino da ÚLTIMA declaração do texto: o que vem entre
  * `const`/`let`/`var` e o `=`, com colchetes e chaves equilibrados, atravessando
  * quebras de linha. Devolve `null` quando não há declaração nenhuma.
@@ -151,9 +205,9 @@ export function encontrarCegas({ raiz, nomesDoCliente }: Varredura): string[] {
 
   for (const arquivo of walk(raiz)) {
     const rel = arquivo.replace(/\\/g, "/");
-    if (/\.test\.tsx?$/.test(rel)) continue;
+    if (ehArquivoDeTeste(rel)) continue;
 
-    const texto = readFileSync(arquivo, "utf8");
+    const texto = lerSemComentarios(arquivo);
     const clientes = nomesDoCliente(texto, rel);
     if (clientes.length === 0) continue;
 
@@ -233,9 +287,9 @@ export function encontrarEscritasCegas({ raiz, nomesDoCliente }: Varredura): str
 
   for (const arquivo of walk(raiz)) {
     const rel = arquivo.replace(/\\/g, "/");
-    if (/\.test\.tsx?$/.test(rel)) continue;
+    if (ehArquivoDeTeste(rel)) continue;
 
-    const texto = readFileSync(arquivo, "utf8");
+    const texto = lerSemComentarios(arquivo);
     const clientes = nomesDoCliente(texto, rel);
     if (clientes.length === 0) continue;
 
@@ -306,10 +360,10 @@ function cegasPorPadrao(
 
   for (const arquivo of walk(raiz)) {
     const rel = arquivo.replace(/\\/g, "/");
-    if (/\.test\.tsx?$/.test(rel)) continue;
+    if (ehArquivoDeTeste(rel)) continue;
     if (/\/node_modules\//.test(rel)) continue;
 
-    const texto = readFileSync(arquivo, "utf8");
+    const texto = lerSemComentarios(arquivo);
     const clientes = nomesDoCliente(texto, rel);
     if (clientes.length === 0) continue;
 
