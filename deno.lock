@@ -87,7 +87,12 @@
         "npm:vite@^8.2.0",
         "npm:vitest@^4.1.10",
         "npm:zod@^3.25.76"
-      ]
+      ],
+      "overrides": {
+        "exceljs": {
+          "uuid": "^11.1.1"
+        }
+      }
     }
   }
 }

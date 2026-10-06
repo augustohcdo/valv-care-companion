@@ -156,3 +156,64 @@ export function montarResumo(m: Metricas, tarefas: SaudeTarefa[]): Resumo {
 
   return { assunto, corpo: linhas.join("\n"), resumoCurto, pendencias: acoes.length };
 }
+
+/**
+ * Se o resumo CHEGOU — o veredito que vai para `job_runs.ok`.
+ *
+ * ## Por que isto é função pura, aqui, e não três linhas no `index.ts`
+ *
+ * Porque era um `ok: true` cravado, e um literal não tem como ser provado
+ * errado. `job_runs.ok` é o campo que diz se a tarefa agendada fez o trabalho,
+ * e os dois leitores dele filtram por `.eq("ok", true)` sem olhar
+ * `items_failed`. O comentário do `job-watchdog` diz o que ele acredita estar
+ * garantindo:
+ *
+ *   > "A última execução BEM SUCEDIDA. Uma tarefa que roda todo dia e falha
+ *   >  todo dia não pode passar por saudável só porque rodou."
+ *
+ * Com o literal, um resumo cujas notificações todas falharam e cujo e-mail não
+ * saiu deixava uma linha de SUCESSO — e o vigia a lia como prova de que o
+ * canal de aviso do administrador está de pé.
+ *
+ * Separada e pura, a regra vira coisa que os testes cobram caso a caso. É o
+ * mesmo motivo pelo qual `montarResumo` mora aqui.
+ *
+ * ## Os dois motivos que NÃO são falha, e por quê
+ *
+ * `sem_destinatario` — nenhum administrador cadastrado. É estado do sistema, e
+ * alarmar sobre isso esconderia que a tarefa está funcionando.
+ *
+ * `not_configured` — o ambiente não tem `RESEND_API_KEY`. Também é estado do
+ * sistema, e as notificações no app entraram. Alarme semanal sobre uma chave
+ * que ninguém pretende configurar é como se ensina a ignorar o e-mail semanal,
+ * e aí o alarme verdadeiro morre junto. Fica visível em `details.email_motivo`.
+ *
+ * `send_failed` — o provedor recusou ou caiu. Aí o canal que o administrador de
+ * fato lê não entregou, e isso é falha.
+ */
+export function vereditoDaEntrega(e: {
+  /** Quantos administradores deveriam receber. */
+  destinatarios: number;
+  /** Para quantos a notificação no app de fato entrou. */
+  notificados: number;
+  /** `envio.reason`, ou `null` quando o e-mail saiu. */
+  motivoDoEmail: string | null;
+  /** `envio.detail`, para a linha que o vigia imprime. */
+  detalheDoEmail?: string | null;
+}): { ok: boolean; erro: string | null } {
+  const naoNotificados = e.destinatarios - e.notificados;
+  const emailFalhou = e.motivoDoEmail === "send_failed";
+  if (naoNotificados <= 0 && !emailFalhou) return { ok: true, erro: null };
+  return {
+    ok: false,
+    // O vigia imprime este campo (`última execução falhou: …`). Sem ele a linha
+    // diria "falhou" e nada mais, e quem abrir o e-mail do vigia teria de ir ao
+    // painel para descobrir o quê.
+    erro: [
+      naoNotificados > 0
+        ? `${naoNotificados} de ${e.destinatarios} notificações não entraram`
+        : null,
+      emailFalhou ? `e-mail não saiu (${e.detalheDoEmail ?? "sem detalhe"})` : null,
+    ].filter(Boolean).join("; "),
+  };
+}

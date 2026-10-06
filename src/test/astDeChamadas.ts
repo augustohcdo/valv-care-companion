@@ -226,6 +226,75 @@ function metodosDaCadeia(no: ts.Node): string[] {
 }
 
 /**
+ * `recordJobRun({ ok: true, … })` com contagem de itens falhados ao lado.
+ *
+ * ## A contradição que isto procura
+ *
+ * `job_runs.ok` é o campo que diz se a tarefa agendada fez o trabalho, e os
+ * dois leitores dele — `job-watchdog` e o próprio resumo do administrador —
+ * filtram por `.eq("ok", true)` sem olhar `items_failed`. O comentário do vigia
+ * diz o que ele acha que está garantindo:
+ *
+ *   > "A última execução BEM SUCEDIDA. Uma tarefa que roda todo dia e falha
+ *   >  todo dia não pode passar por saudável só porque rodou."
+ *
+ * Quem grava `ok: true` literal e `itemsFailed: N` na mesma chamada contou as
+ * falhas e gravou sucesso. Não é descuido de quem lê: é a linha de sucesso
+ * existindo sobre um trabalho que não foi feito, no campo cuja única função é
+ * dizer que foi.
+ *
+ * O detector é propositalmente estreito: só acusa a CONTRADIÇÃO — `ok` literal
+ * `true` junto de um `itemsFailed`. `ok: false` literal é legítimo (é o caminho
+ * de falha), `ok` derivado é o que se quer, e uma tarefa sem noção de item não
+ * passa `itemsFailed` e não é acusada. Guarda que pune quem fez certo é guarda
+ * que alguém desliga.
+ */
+export function okCravadoComItensFalhados(fonte: ts.SourceFile): {
+  achados: Achado[];
+  chamadas: number;
+} {
+  const achados: Achado[] = [];
+  let chamadas = 0;
+  const anda = (no: ts.Node) => {
+    if (
+      ts.isCallExpression(no) &&
+      ts.isIdentifier(no.expression) &&
+      no.expression.text === "recordJobRun"
+    ) {
+      chamadas++;
+      const arg = no.arguments[0];
+      if (arg && ts.isObjectLiteralExpression(arg)) {
+        const campo = (nome: string) =>
+          arg.properties.find(
+            (p) =>
+              (ts.isPropertyAssignment(p) || ts.isShorthandPropertyAssignment(p)) &&
+              p.name !== undefined &&
+              p.name.getText(fonte) === nome,
+          );
+        const ok = campo("ok");
+        const itens = campo("itemsFailed");
+        const cravado =
+          ok !== undefined &&
+          ts.isPropertyAssignment(ok) &&
+          ok.initializer.kind === ts.SyntaxKind.TrueKeyword;
+        if (cravado && itens !== undefined) {
+          const { line } = fonte.getLineAndCharacterOfPosition(no.getStart(fonte));
+          achados.push({
+            arquivo: fonte.fileName,
+            linha: line + 1,
+            nome: "ok: true + itemsFailed",
+            trecho: itens.getText(fonte).replace(/\s+/g, " ").slice(0, 100),
+          });
+        }
+      }
+    }
+    ts.forEachChild(no, anda);
+  };
+  anda(fonte);
+  return { achados, chamadas };
+}
+
+/**
  * Chamada ao cliente cujo resultado é jogado fora por inteiro.
  *
  * O critério é sintático e exato: a expressão `await …` é um STATEMENT — não

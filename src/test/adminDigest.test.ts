@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   montarResumo,
+  vereditoDaEntrega,
   type Metricas,
   type SaudeTarefa,
 } from "../../supabase/functions/_shared/adminDigest";
@@ -134,5 +135,73 @@ describe("resumo semanal do administrador", () => {
     expect(montarResumo(base, emDia).corpo).not.toContain("aguardando confirmação");
     expect(montarResumo({ ...base, contas_pendentes: 4 }, emDia).corpo)
       .toContain("4 aguardando confirmação");
+  });
+});
+
+describe("o resumo chegou, ou não — o `ok` de `job_runs`", () => {
+  /**
+   * Era `ok: true` cravado, com `itemsFailed` contando as notificações que não
+   * entraram na mesma chamada. `job_runs.ok` é o campo por onde se sabe se a
+   * tarefa fez o trabalho, e os dois leitores filtram por `.eq("ok", true)` sem
+   * olhar `items_failed` — então um resumo que não chegou a ninguém deixava uma
+   * linha de SUCESSO, e o `job-watchdog` a lia como prova de que o canal de
+   * aviso do administrador está de pé.
+   *
+   * Cada caso abaixo é um estado que de fato acontece. Os dois últimos são os
+   * que NÃO podem alarmar: alarme falso no semanal é como se ensina alguém a
+   * não ler o semanal, e aí o alarme verdadeiro morre junto.
+   */
+  it("entregou a todos: ok", () => {
+    const v = vereditoDaEntrega({ destinatarios: 3, notificados: 3, motivoDoEmail: null });
+    expect(v).toEqual({ ok: true, erro: null });
+  });
+
+  it("nenhuma notificação entrou e o e-mail não saiu: NÃO ok, e diz as duas coisas", () => {
+    const v = vereditoDaEntrega({
+      destinatarios: 3, notificados: 0,
+      motivoDoEmail: "send_failed", detalheDoEmail: "422 domain not verified",
+    });
+    expect(v.ok).toBe(false);
+    expect(v.erro).toContain("3 de 3 notificações não entraram");
+    expect(v.erro).toContain("422 domain not verified");
+  });
+
+  it("uma única notificação faltando já é falha", () => {
+    // Zero tolerância, como os outros cinco `recordJobRun` desta base fazem
+    // (`ok: failed === 0`). Um administrador que não recebeu é um administrador
+    // que decide sem a informação.
+    const v = vereditoDaEntrega({ destinatarios: 3, notificados: 2, motivoDoEmail: null });
+    expect(v.ok).toBe(false);
+    expect(v.erro).toContain("1 de 3");
+  });
+
+  it("notificações entraram mas o provedor recusou o e-mail: NÃO ok", () => {
+    // O e-mail é o canal que atravessa — quem não abrir o app não soube.
+    const v = vereditoDaEntrega({ destinatarios: 2, notificados: 2, motivoDoEmail: "send_failed" });
+    expect(v.ok).toBe(false);
+    expect(v.erro).toContain("e-mail não saiu");
+    expect(v.erro, "não há notificação faltando; não invente uma").not.toContain("notificações");
+  });
+
+  it("sem administrador cadastrado: ok, porque não é falha desta tarefa", () => {
+    // Estado do sistema, não defeito. Alarmar aqui esconderia que a tarefa
+    // está funcionando.
+    const v = vereditoDaEntrega({ destinatarios: 0, notificados: 0, motivoDoEmail: "sem_destinatario" });
+    expect(v).toEqual({ ok: true, erro: null });
+  });
+
+  it("ambiente sem `RESEND_API_KEY`: ok, porque as notificações no app entraram", () => {
+    // `not_configured` é ambiente, não falha de execução. Semanalmente
+    // alarmando sobre uma chave que ninguém pretende configurar, o e-mail do
+    // vigia vira ruído. O motivo continua visível em `details.email_motivo`.
+    const v = vereditoDaEntrega({ destinatarios: 2, notificados: 2, motivoDoEmail: "not_configured" });
+    expect(v).toEqual({ ok: true, erro: null });
+  });
+
+  it("mas sem a chave E com notificação faltando: NÃO ok", () => {
+    // O que absolve o `not_configured` é justamente as notificações terem
+    // entrado. Sem elas, ninguém soube de nada.
+    const v = vereditoDaEntrega({ destinatarios: 2, notificados: 1, motivoDoEmail: "not_configured" });
+    expect(v.ok).toBe(false);
   });
 });

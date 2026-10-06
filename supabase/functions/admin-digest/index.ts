@@ -13,7 +13,9 @@ import { buildCorsHeaders } from "../_shared/cors.ts";
 import { logError } from "../_shared/logError.ts";
 import { recordJobRun, quemDisparou } from "../_shared/jobRun.ts";
 import { sendEmail } from "../_shared/sendEmail.ts";
-import { montarResumo, type Metricas, type SaudeTarefa } from "../_shared/adminDigest.ts";
+import {
+  montarResumo, vereditoDaEntrega, type Metricas, type SaudeTarefa,
+} from "../_shared/adminDigest.ts";
 
 const JOB = "admin-digest";
 const DIA_MS = 86_400_000;
@@ -162,14 +164,31 @@ Deno.serve(async (req) => {
       ? await sendEmail({ to: enderecos, subject: resumo.assunto, text: resumo.corpo })
       : { sent: false, reason: "sem_destinatario" as const };
 
+    const naoNotificados = destinatarios.length - notificados;
+    /**
+     * O `ok` de `job_runs` sai de `vereditoDaEntrega`, e não de um literal.
+     *
+     * Era `ok: true` fixo, com `itemsFailed` logo abaixo contando as
+     * notificações que não entraram: a mesma chamada contava as falhas e
+     * gravava sucesso. O motivo de isso ser grave, os dois casos que não contam
+     * como falha e o porquê de cada um estão escritos em `_shared/adminDigest.ts`,
+     * junto da função — que é pura e tem os casos cobertos um a um em
+     * `src/test/adminDigest.test.ts`. Literal não tem como ser provado errado;
+     * função pura tem.
+     */
+    const veredito = vereditoDaEntrega({
+      destinatarios: destinatarios.length,
+      notificados,
+      motivoDoEmail: envio.reason ?? null,
+      detalheDoEmail: "detail" in envio ? envio.detail ?? null : null,
+    });
+    const entregou = veredito.ok;
     await recordJobRun({
       job: JOB, startedAt,
-      // Sem administrador cadastrado não há a quem enviar, e isso não é falha
-      // desta tarefa — é estado do sistema. Falhar aqui esconderia que a tarefa
-      // está funcionando; o número de destinatários é que conta a história.
-      ok: true,
+      ok: entregou,
       itemsOk: notificados,
-      itemsFailed: destinatarios.length - notificados,
+      itemsFailed: naoNotificados,
+      error: veredito.erro,
       details: {
         administradores: destinatarios.length,
         pendencias: resumo.pendencias,
@@ -180,9 +199,12 @@ Deno.serve(async (req) => {
     });
 
     return new Response(JSON.stringify({
-      ok: true,
+      // `ok` diz se o resumo CHEGOU, e não se a função rodou até o fim. Quem
+      // chama à mão para conferir o canal recebe a resposta honesta.
+      ok: entregou,
       administradores: destinatarios.length,
       notificados,
+      nao_notificados: naoNotificados,
       pendencias: resumo.pendencias,
       assunto: resumo.assunto,
       email: envio,
