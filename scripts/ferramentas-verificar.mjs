@@ -46,6 +46,7 @@
  * chunks que ela serve.
  */
 import { execSync } from "node:child_process";
+import { criarRelator, daTela } from "./lib/relatar.mjs";
 import {
   opcoesDoChromium, pareceVazia, motivoDeTelaVazia, medirRenderizacao,
 } from "./lib/chromium.mjs";
@@ -81,34 +82,14 @@ function euroscoreMinimo(idade, feminino) {
   return (100 * Math.exp(y)) / (1 + Math.exp(y));
 }
 
-const casos = [];
-const falhas = [];
 /**
- * Confere um valor LIDO DA TELA. O rótulo diz "tela" e precisa ser verdade.
- *
- * Havia conferências passando por aqui com valor vindo do RPC, e a saída
- * anunciava "tela: Medtronic" sobre um número que ninguém tinha lido da página.
- * Rótulo que mente sobre a própria origem é a versão pequena do defeito que este
- * script existe para pegar. Para valor calculado, use `conferirDado`.
+ * Os relatores moram em `lib/relatar.mjs`, e o motivo está escrito lá: este
+ * arquivo tem `await` no topo, abre o Chromium e fala com produção, então nada
+ * dele é importável por um teste. A regra que importa — `conferir` só aceita
+ * valor embrulhado por `daTela()` — é exercitada de verdade em
+ * `src/test/relatarOrigem.test.ts`, inclusive o prefixo impresso.
  */
-function conferir(nome, obtido, esperado, tolerancia = 0) {
-  const ok = typeof esperado === "number"
-    ? Math.abs(obtido - esperado) <= tolerancia
-    : esperado.test(String(obtido));
-  casos.push({ nome, obtido, esperado: String(esperado), ok });
-  if (!ok) falhas.push(nome);
-  console.log(`${ok ? "✓" : "✗"} ${nome}\n     tela: ${obtido}\n     esperado: ${esperado}`);
-}
-
-/** Confere um valor CALCULADO a partir do RPC — não veio da tela, e o diz. */
-function conferirDado(nome, obtido, esperado, tolerancia = 0) {
-  const ok = typeof esperado === "number"
-    ? Math.abs(obtido - esperado) <= tolerancia
-    : esperado.test(String(obtido));
-  casos.push({ nome, obtido, esperado: String(esperado), ok });
-  if (!ok) falhas.push(nome);
-  console.log(`${ok ? "✓" : "✗"} ${nome}\n     dado: ${obtido}\n     esperado: ${esperado}`);
-}
+const { casos, falhas, conferir, conferirDado, quantasDe } = criarRelator();
 
 /**
  * Duas configurações que não são detalhe:
@@ -239,13 +220,13 @@ const textoEuro = await pagina.locator("main").innerText();
 const casada = textoEuro.match(/(\d+,\d+)\s*%/);
 conferir(
   "EuroSCORE II: mortalidade prevista de mulher de 72 anos, resto na referência",
-  casada ? Number(casada[1].replace(",", ".")) : NaN,
+  daTela(casada ? Number(casada[1].replace(",", ".")) : NaN),
   euroscoreMinimo(IDADE, FEMININO),
   0.05,
 );
 conferir(
   "EuroSCORE II: a tela diz que o resultado é faixa enquanto faltam variáveis",
-  textoEuro.replace(/\s+/g, " "),
+  daTela(textoEuro.replace(/\s+/g, " ")),
   /faixa|melhor caso|pior caso|faltam|não informad/i,
 );
 
@@ -266,7 +247,7 @@ const textoBsa = await pagina.locator("main").innerText();
 const casadaBsa = textoBsa.match(/(\d,\d{2})\s*m²/);
 conferir(
   `superfície corporal de ${ALTURA} cm / ${PESO} kg pela fórmula de DuBois`,
-  casadaBsa ? Number(casadaBsa[1].replace(",", ".")) : NaN,
+  daTela(casadaBsa ? Number(casadaBsa[1].replace(",", ".")) : NaN),
   bsa,
   0.006,
 );
@@ -294,7 +275,7 @@ const textoDepois = await pagina.locator("main").innerText();
 const casadaCont = textoDepois.match(/continuidade: (\d+,\d+) cm²/);
 conferir(
   `continuidade: VSVE ${D_VSVE} mm, VTI ${VTI_VSVE} → ${VTI_PROT} cm`,
-  casadaCont ? Number(casadaCont[1].replace(",", ".")) : NaN,
+  daTela(casadaCont ? Number(casadaCont[1].replace(",", ".")) : NaN),
   eoaContinuidade,
   0.006,
 );
@@ -302,14 +283,14 @@ conferir(
 // obstrução provável; entre 0,25 e 0,29, possível. Aqui está acima dos dois.
 conferir(
   "DVI aórtica calculada como VTI da VSVE dividido pelo da prótese",
-  (textoDepois.match(/DVI calculado \(VTI VSVE ÷ VTI prótese\):\s*(\d+,\d+)/) ?? [null, "(não achou)"])[1],
+  daTela((textoDepois.match(/DVI calculado \(VTI VSVE ÷ VTI prótese\):\s*(\d+,\d+)/) ?? [null, "(não achou)"])[1]),
   new RegExp(`^${(VTI_VSVE / VTI_PROT).toFixed(2).replace(".", ",")}$`),
 );
 // iEOA medida = EOA da continuidade ÷ superfície corporal.
 const casadaMedida = textoDepois.match(/(\d,\d{2})\s*cm²\/m²/);
 conferir(
   "mismatch medido: iEOA é a EOA da continuidade indexada pela superfície corporal",
-  casadaMedida ? Number(casadaMedida[1].replace(",", ".")) : NaN,
+  daTela(casadaMedida ? Number(casadaMedida[1].replace(",", ".")) : NaN),
   eoaContinuidade / bsa,
   0.006,
 );
@@ -356,21 +337,21 @@ if (!CHAVE) {
     body: "{}",
   });
   const linhas = await resp.json();
-  conferir("catálogo: o RPC público responde sem sessão", resp.status, 200);
-  conferir("catálogo: e devolve linhas", Array.isArray(linhas) ? linhas.length : 0, /^[1-9]\d+$/);
+  conferirDado("catálogo: o RPC público responde sem sessão", resp.status, 200);
+  conferirDado("catálogo: e devolve linhas", Array.isArray(linhas) ? linhas.length : 0, /^[1-9]\d+$/);
 
   const comEoa = linhas.filter((l) => l.effective_orifice_area != null);
-  conferir(
+  conferirDado(
     "catálogo: nenhuma EOA gravada sem fonte citável",
     comEoa.filter((l) => !l.eoa_source_url).length,
     0,
   );
-  conferir(
+  conferirDado(
     "catálogo: nenhum tamanho acima de 42 mm",
     linhas.filter((l) => Number(l.size) > 42).length,
     0,
   );
-  conferir(
+  conferirDado(
     "catálogo: todo alerta traz link e data",
     linhas.filter((l) => l.advisory && (!l.advisory_url || !l.advisory_date)).length,
     0,
@@ -387,7 +368,7 @@ if (!CHAVE) {
    * lista de escolha de prótese que mistura as duas responde a uma pergunta que
    * não é a desta tela.
    */
-  conferir(
+  conferirDado(
     "catálogo: nenhuma prótese transcateter no que a tela serve",
     linhas.filter((l) => l.type === "tavi").length,
     0,
@@ -410,7 +391,7 @@ if (!CHAVE) {
    * sem depender de haver caso real no catálogo.
    */
   const ativasComAlerta = linhas.filter((l) => l.advisory);
-  conferir(
+  conferirDado(
     `alertas: nenhuma linha ativa do catálogo está sob alerta que impeça indicação` +
       (ativasComAlerta.length
         ? ` — apareceu: ${[...new Set(ativasComAlerta.map((l) => l.model_name))].join(", ")}`
@@ -425,23 +406,23 @@ if (!CHAVE) {
     body: "{}",
   });
   const foraDeLinha = historica.ok ? await historica.json() : [];
-  conferir("referência histórica: a função responde sem sessão", historica.status, 200);
-  conferir(
+  conferirDado("referência histórica: a função responde sem sessão", historica.status, 200);
+  conferirDado(
     "referência histórica: a Trifecta GT continua acessível para quem já a tem implantada",
     foraDeLinha.filter((l) => l.model_name === "Trifecta GT").length,
     /^[1-9]/,
   );
-  conferir(
+  conferirDado(
     "referência histórica: a Perimount continua acessível, e é a comparadora dos estudos atuais",
     foraDeLinha.filter((l) => l.model_name === "Perimount").length,
     /^[1-9]/,
   );
-  conferir(
+  conferirDado(
     "referência histórica: toda linha diz quando e com que fonte saiu de linha",
     foraDeLinha.filter((l) => !l.discontinued_at || !l.discontinued_source_url).length,
     0,
   );
-  conferir(
+  conferirDado(
     // A separação é o ponto: fora de linha NÃO pode continuar sendo oferecida.
     "referência histórica: nenhuma delas voltou para o catálogo",
     foraDeLinha.filter((h) =>
@@ -454,7 +435,7 @@ if (!CHAVE) {
     (l) => SUB.has(l.type) && l.valve_position === "aortica" &&
       l.effective_orifice_area != null && l.effective_orifice_area / bsaCaso > 0.85,
   );
-  conferir(
+  conferirDado(
     "recomendador: há opção que evita mismatch numa paciente de 1,55 m / 60 kg",
     passam.length,
     /^[1-9]/,
@@ -490,17 +471,17 @@ if (!CHAVE) {
   const comFotoComMotivo = [...porFamilia].filter(([k, tem]) => tem && declarados.has(k)).map(([k]) => k);
   const motivoDeFamiliaInexistente = [...declarados].filter((k) => !porFamilia.has(k));
 
-  conferir(
+  conferirDado(
     `fotos: família sem foto tem motivo registrado${semFotoSemMotivo.length ? ` — falta: ${semFotoSemMotivo.join(", ")}` : ""}`,
     semFotoSemMotivo.length,
     0,
   );
-  conferir(
+  conferirDado(
     `fotos: nenhum motivo sobrevive à foto que o desmente${comFotoComMotivo.length ? ` — sobrou: ${comFotoComMotivo.join(", ")}` : ""}`,
     comFotoComMotivo.length,
     0,
   );
-  conferir(
+  conferirDado(
     `fotos: nenhum motivo aponta para família fora do catálogo${motivoDeFamiliaInexistente.length ? ` — órfão: ${motivoDeFamiliaInexistente.join(", ")}` : ""}`,
     motivoDeFamiliaInexistente.length,
     0,
@@ -532,17 +513,17 @@ if (!CHAVE) {
        VARREDURA_DE_ALERTAS.semAlerta.includes(k)].filter(Boolean).length > 1,
   );
 
-  conferir(
+  conferirDado(
     `alertas: a varredura cobre as ${porFamilia.size} famílias do catálogo${naoVarridas.length ? ` — falta: ${naoVarridas.join(", ")}` : ""}`,
     naoVarridas.length,
     0,
   );
-  conferir(
+  conferirDado(
     `alertas: nenhuma família varrida saiu do catálogo${varreuFantasma.length ? ` — fantasma: ${varreuFantasma.join(", ")}` : ""}`,
     varreuFantasma.length,
     0,
   );
-  conferir(
+  conferirDado(
     // "Com alerta" e "sem achado" ao mesmo tempo faria a contagem da tela somar
     // mais famílias do que existem, e a tela pareceria conferida demais.
     `alertas: nenhuma família em duas listas ao mesmo tempo${emDuasListas.length ? ` — duplicada: ${emDuasListas.join(", ")}` : ""}`,
@@ -569,7 +550,7 @@ if (!CHAVE) {
     for (const modelo of dados.ativas ?? []) auditadas.add(`${fab}|${modelo}`);
   }
   const semAuditoria = [...porFamilia.keys()].filter((k) => !auditadas.has(k));
-  conferir(
+  conferirDado(
     `nomes: toda família do catálogo consta da auditoria de portfólio${semAuditoria.length ? ` — falta: ${semAuditoria.join(", ")}` : ""}`,
     semAuditoria.length,
     0,
@@ -585,13 +566,13 @@ if (!CHAVE) {
   const mercadoInvalido = linhas.filter(
     (l) => l.mercado_br && !["confirmado", "nao_confirmado"].includes(l.mercado_br),
   );
-  conferir("mercado BR: nenhum estado fora dos dois previstos", mercadoInvalido.length, 0);
-  conferir(
+  conferirDado("mercado BR: nenhum estado fora dos dois previstos", mercadoInvalido.length, 0);
+  conferirDado(
     "mercado BR: toda afirmação vem com a data em que foi conferida",
     linhas.filter((l) => Boolean(l.mercado_br) !== Boolean(l.mercado_br_conferido_em)).length,
     0,
   );
-  conferir(
+  conferirDado(
     "mercado BR: registro da ANVISA só onde a venda no Brasil foi confirmada",
     linhas.filter((l) => l.anvisa_registro && l.mercado_br !== "confirmado").length,
     0,
@@ -627,7 +608,7 @@ if (!CHAVE) {
    * confirmação ainda produza dado. Zero aqui significaria que ninguém
    * confirmou presença de nada, e aí há o que investigar.
    */
-  conferir(
+  conferirDado(
     `mercado BR: famílias com presença CONFIRMADA (${comMercado.size}; ` +
       `as outras ${porFamilia.size - comMercado.size} ficam NULAS de propósito — ` +
       "ver 20260903020000_mercado_br_sem_afirmacao_de_ausencia)",
@@ -680,7 +661,31 @@ if (relevantes.length) {
 
 await navegador.close();
 
-console.log(`\n${casos.length - falhas.length} de ${casos.length} conferências passaram — ${BASE}`);
+/**
+ * O resumo diz QUANTAS olharam a tela, e não só quantas passaram.
+ *
+ * Antes todas as linhas saíam com o prefixo `tela:` — 24 das 30 sobre dados
+ * que vieram do RPC por `fetch`, nunca da página —, e a última linha dizia
+ * "31 de 31 conferências passaram" logo abaixo. Lido de manhã, isso é
+ * "o site foi conferido trinta e uma vezes".
+ *
+ * A rota por `fetch` é deliberada e o motivo está escrito na parte 3: o
+ * Chromium deste contêiner recebe `ERR_CONNECTION_RESET` no RPC do catálogo
+ * (~150 kB) e a tela fica em "Carregando o catálogo…" para sempre. O próprio
+ * comentário de lá diz: "fingir que mediu isso num navegador que não alcança o
+ * banco seria justamente o verde vazio que este script existe para impedir" —
+ * e o prefixo `tela:` fazia esse fingimento de todo jeito, trinta linhas
+ * acima da frase que o proíbe.
+ *
+ * Não é defeito da rota: é defeito do rótulo. A rota continua, a proporção
+ * passa a ficar à vista.
+ */
+console.log(
+  `\n${casos.length - falhas.length} de ${casos.length} conferências passaram — ${BASE}\n` +
+    `  ${quantasDe("tela")} leram o texto da PÁGINA; ` +
+    `${quantasDe("dado")} leram a API ou foram calculadas aqui ` +
+    "(ver a nota da parte 3: o navegador deste contêiner não alcança o catálogo).",
+);
 if (falhas.length) {
   console.log("\nFALHOU:");
   for (const f of falhas) console.log("  · " + f);
