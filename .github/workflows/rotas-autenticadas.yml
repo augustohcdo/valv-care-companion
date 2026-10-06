@@ -197,6 +197,48 @@ jobs:
             node scripts/rotas-renderizam.mjs http://127.0.0.1:4173 \
             | tee /tmp/rotas-${{ matrix.tipo }}.log
 
+      # ------------------------------------------------------------------
+      # A cerca de `doctors`, provada pelo caminho do usuário
+      # ------------------------------------------------------------------
+      #
+      # A migration de setembro trocou o `using (true)` de `doctors` por uma
+      # cerca de cinco portas, e isso foi provado numa bancada PostgreSQL 16 —
+      # réplica das tabelas, das políticas e dos dados. Bancada prova que o SQL
+      # faz o que diz; não prova que o SQL que faz isso é o que está rodando.
+      #
+      # Este passo fecha a distância pelo caminho do usuário: a sessão que já
+      # existe aqui, contra o PostgREST de produção, com a chave PÚBLICA. A
+      # `service_role` NÃO entra: ela ignora toda a RLS e leria tudo por
+      # construção, o que tornaria a conferência sem sentido — seria medir a
+      # própria chave, não a cerca.
+      #
+      # `always()`: a cerca é independente da varredura de rotas, e perdê-la
+      # porque uma tela quebrou seria deixar de conferir o que dá para conferir.
+      # Sem sessão o script sai 2, que é a verdade do caso.
+      - name: Conferir a cerca de doctors
+        if: always()
+        env:
+          ROTAS_SUPABASE_URL: https://qwiojyfxzvdcfbbexyxg.supabase.co
+        run: |
+          set -o pipefail
+          if [ ! -f /tmp/sessao.json ]; then
+            echo "NÃO CONFERIDO: não há sessão nesta execução — nada a conferir."
+            exit 2
+          fi
+          # A chave sai do `.env` que o build já montou. `add-mask` porque ela
+          # é pública mas log é copiado sem contexto, e porque este é o padrão
+          # que o passo da sessão acima já segue.
+          chave=$(grep '^VITE_SUPABASE_PUBLISHABLE_KEY=' .env | cut -d= -f2-)
+          if [ -z "$chave" ]; then
+            echo "NÃO CONFERIDO: o .env do build não tem a chave pública."
+            exit 2
+          fi
+          echo "::add-mask::$chave"
+          ROTAS_SESSAO="$(cat /tmp/sessao.json)" \
+            VITE_SUPABASE_PUBLISHABLE_KEY="$chave" \
+            node scripts/cercaDeDoctors.mjs --tipo "${{ matrix.tipo }}" \
+            | tee /tmp/cerca-${{ matrix.tipo }}.log
+
       # `always()`: é este passo que impede a conta de sobrar de pé na produção
       # quando algo acima falha — que é justamente quando ninguém está olhando.
       # O script confere a remoção em vez de confiar no 200 do DELETE.
