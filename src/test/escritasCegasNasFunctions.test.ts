@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
-import { statSync } from "node:fs";
+import { statSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { encontrarEscritasCegas, clientesCriadosNoArquivo } from "./detectorDeChamadasCegas";
 
 /**
@@ -46,38 +47,74 @@ import { encontrarEscritasCegas, clientesCriadosNoArquivo } from "./detectorDeCh
  * O mesmo limite da varredura de leitura, e vale repetir porque é fácil
  * confundir cobertura com garantia: ela cobra que o `error` seja OBSERVADO, não
  * que a função faça a coisa certa com ele. É o piso.
+ *
+ * ## O vão que ela TINHA, e que custou sete chamadas
+ *
+ * O detector olha `.from(…).insert/update/upsert/delete`. **`.rpc(…)` ficava
+ * fora** — e uma função SQL que faz DML é escrita igual, só por outro caminho.
+ *
+ * Medido: `log_integration_event` é chamada sete vezes nas edge functions, e
+ * **nenhuma das sete recebia o resultado**. Zero de sete. É a trilha que
+ * registra qual hospital leu ou gravou dados de qual paciente — a mesma de onde
+ * sai a prova em auditoria de LGPD, e a tabela que está fora de toda lista de
+ * expurgo desta base justamente porque é tratada como prova.
+ *
+ * Esta guarda existia, rodava, e passava: o alcance dela não incluía o caminho
+ * pelo qual a escrita acontecia. Cobertura não é garantia nem quando a guarda é
+ * boa — é garantia só sobre o que ela olha.
+ *
+ * O bloco "nenhum `.rpc(` descarta o resultado", abaixo, fecha esse vão.
  */
 
 const RAIZ = "supabase/functions";
+
+/**
+ * Tira comentários antes de varrer.
+ *
+ * Esta base já pagou nove vezes por guarda que lê comentário em vez de código,
+ * e aqui o risco é concreto: os cabeçalhos das próprias funções CITAM chamadas
+ * de RPC para explicar o que fazem.
+ */
+function semComentariosDeTs(texto: string): string {
+  return texto
+    .replace(/\/\*[\s\S]*?\*\//g, (b) => b.replace(/[^\n]/g, " "))
+    .replace(/(^|[^:])\/\/[^\n]*/g, (_m, p1) => p1);
+}
 
 /**
  * Exceções deliberadas. Cada uma precisa de motivo escrito — a regra é a mesma
  * do `writeErrors.test.ts`: se não dá para escrever o motivo, é esquecimento, e
  * não decisão.
  */
-const EXCECOES: Record<string, string> = {
-  // O registrador de erros não pode reportar a própria falha: ele é quem as
-  // outras funções chamam PARA reportar. Se falhar ao gravar, não há canal —
-  // chamar a si mesmo em cima de uma falha sua é laço, não tratamento. Ele já
-  // roda dentro de try/catch e nunca lança para quem chamou.
-  "supabase/functions/_shared/logError.ts":
-    "é o próprio canal de reporte; reportar a falha dele seria recursão",
-
-  // `hospital_api_keys.last_used_at` é carimbo de uso, escrito depois de a
-  // resposta já estar formada. Conferido: NADA lê essa coluna hoje — nem tela,
-  // nem função, nem migration. Uma falha aqui deixa o carimbo velho e não muda
-  // decisão nenhuma.
-  //
-  // Fica como exceção, e não como conserto, porque tratar o erro exigiria
-  // decidir o que fazer com ele — e não há nada sensato a fazer: recusar a
-  // resposta FHIR ao hospital por causa de um carimbo seria punir o hospital
-  // por uma falha nossa de telemetria. Se um dia alguém passar a ler a coluna
-  // para revogar chave ociosa, esta isenção precisa cair junto.
-  "supabase/functions/fhir-read/index.ts":
-    "só o carimbo last_used_at, que ninguém lê; falha não muda decisão",
-  "supabase/functions/fhir-ingest/index.ts":
-    "só o carimbo last_used_at, que ninguém lê; falha não muda decisão",
-};
+/**
+ * **Vazia**, e isto é o estado a defender — não um descuido.
+ *
+ * Havia três isenções, e as três caíram de uma vez quando as escritas foram
+ * consertadas. A regra "toda exceção é usada", abaixo, foi quem avisou: ela
+ * reprovou dizendo "está em EXCECOES mas não tem mais escrita cega — tire a
+ * isenção". Guarda que cobra a limpeza da própria lista de permissões.
+ *
+ * O raciocínio delas fica registrado, porque ele é o que explica a FORMA do
+ * conserto:
+ *
+ *  · `_shared/logError.ts` — "é o próprio canal de reporte; reportar a falha
+ *    dele seria recursão". Verdade, e é por isso que o conserto não chama
+ *    `logError` de dentro de `logError`: ele confere as duas escritas, grita no
+ *    `console.error` e DEVOLVE se gravou. Quem chama decide — o `report-error`
+ *    decide, e responde `{ ok: registrou }` em vez de `{ ok: true }` fixo;
+ *
+ *  · `fhir-read` e `fhir-ingest` — "só o carimbo `last_used_at`, que ninguém
+ *    lê; falha não muda decisão", com a observação de que tratar o erro
+ *    exigiria decidir o que fazer, e "recusar a resposta FHIR ao hospital por
+ *    causa de um carimbo seria punir o hospital por uma falha nossa de
+ *    telemetria". Também verdade — e havia um terceiro caminho que a isenção
+ *    não considerou: `console.error`. Não derruba a resposta, não pune ninguém,
+ *    e o carimbo velho deixa de envelhecer calado.
+ *
+ * Acrescentar uma entrada aqui exige escrever o motivo. O que estas três
+ * ensinaram é que vale perguntar antes se existe um canal que avisa sem punir.
+ */
+const EXCECOES: Record<string, string> = {};
 
 const cegas = encontrarEscritasCegas({ raiz: RAIZ, nomesDoCliente: clientesCriadosNoArquivo });
 const foraDasExcecoes = cegas.filter((c) => !(c.split(":")[0] in EXCECOES));
@@ -104,6 +141,60 @@ describe("escritas cegas nas edge functions", () => {
       expect(() => statSync(caminho), `EXCECOES aponta para ${caminho}`).not.toThrow();
     }
   });
+
+  it("nenhum `.rpc(` descarta o resultado", () => {
+    /**
+     * O vão que deixou sete chamadas passarem.
+     *
+     * Uma função SQL que faz DML é escrita igual a um INSERT, só por outro
+     * caminho — e o detector acima não olha `.rpc(`. `log_integration_event`,
+     * chamada sete vezes, não era recebida em nenhuma delas.
+     *
+     * A regra é a forma da chamada: `await x.rpc(` sem atribuição descarta o
+     * `{ data, error }` que o cliente devolve. Decidir por PROXIMIDADE não
+     * serve, e eu tentei: a primeira medição procurava um `error` nos 150
+     * caracteres anteriores e contou o `error` do INSERT logo acima como se
+     * fosse a conferência do RPC. Disse "18 de 21 conferem"; o certo era zero
+     * de sete. Proximidade não é posse — e o número errado era mais
+     * tranquilizador que o certo.
+     */
+    const arquivos = execFileSync("git", ["ls-files", RAIZ], { encoding: "utf8" })
+      .trim().split("\n")
+      .filter((f) => f.endsWith(".ts"));
+
+    const descartados: string[] = [];
+    let total = 0;
+    for (const arquivo of arquivos) {
+      const limpo = semComentariosDeTs(readFileSync(arquivo, "utf8"));
+      for (const m of limpo.matchAll(/\.rpc\(\s*["'`]([^"'`]+)["'`]/g)) {
+        total++;
+        // A instrução começa depois do último `;` ou `{` de nível de bloco. Se
+        // ela contém um `=` antes do `.rpc`, o resultado foi recebido.
+        const inicio = Math.max(
+          limpo.lastIndexOf(";", m.index),
+          limpo.lastIndexOf("{", m.index),
+          limpo.lastIndexOf("}", m.index),
+        );
+        const instrucao = limpo.slice(inicio + 1, m.index);
+        if (!instrucao.includes("=")) {
+          const linha = limpo.slice(0, m.index).split("\n").length;
+          descartados.push(`  · ${arquivo}:${linha} — ${m[1]}`);
+        }
+      }
+    }
+
+    expect(total, "a varredura não achou `.rpc(` nenhum").toBeGreaterThanOrEqual(10);
+    expect(
+      descartados,
+      `\n${descartados.join("\n")}\n\n` +
+        "`await x.rpc(…)` sem atribuição descarta o `{ data, error }`. Uma função\n" +
+        "SQL que faz DML é escrita igual a um INSERT: se ela recusar, nada entra,\n" +
+        "a edge function responde 200 e ninguém sabe.\n\n" +
+        "Foi assim que as sete chamadas de `log_integration_event` — a trilha de\n" +
+        "onde sai a prova em auditoria de LGPD — ficaram sem conferência nenhuma.\n\n" +
+        "Receba o resultado: `const { error } = await admin.rpc(…)`.",
+    ).toEqual([]);
+  }, 30_000);
 
   it("toda exceção é usada — isenção que não isenta nada é lixo acumulando", () => {
     // Quando uma escrita isenta é consertada, a isenção precisa SAIR. Senão a

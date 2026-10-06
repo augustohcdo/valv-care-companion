@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     if (typeof body.lineno === "number") metadata.lineno = body.lineno;
     if (typeof body.colno === "number") metadata.colno = body.colno;
 
-    await logError({
+    const registrou = await logError({
       source: "client",
       context: route,
       message,
@@ -69,7 +69,25 @@ Deno.serve(async (req) => {
       metadata: Object.keys(metadata).length ? metadata : null,
     });
 
-    return new Response(JSON.stringify({ ok: true }), {
+    /**
+     * `ok` diz se o erro foi REGISTRADO, e não se a requisição chegou.
+     *
+     * Antes era `{ ok: true }` fixo: o `logError` não devolvia nada, e uma
+     * gravação recusada — que o cliente do Supabase entrega como `{ error }`,
+     * sem lançar — virava "ok" aqui. O endpoint cujo trabalho é tornar falhas
+     * visíveis respondia sucesso sobre o próprio fracasso.
+     *
+     * O status fica 200 de propósito, e isso NÃO é descuido: quem chama este
+     * endpoint é o tratador de erros do app. Um 500 aqui pode virar outro erro,
+     * que vira outro reporte — e o laço some com o erro original. A verdade vai
+     * no corpo, como o `offsite-copy` já faz com `alerta_enviado`.
+     *
+     * Quem lê: `reportError` no cliente é best-effort e não olha a resposta, de
+     * propósito. Mas o `console.error` do `logError` lá dentro grita no log da
+     * função, e quem chamar este endpoint à mão — para conferir se o caminho
+     * está de pé — recebe a resposta honesta.
+     */
+    return new Response(JSON.stringify({ ok: registrou }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { ipDoChamador, ipPermitido } from "../_shared/ipDoChamador.ts";
 import { logError } from "../_shared/logError.ts";
+import { registrarEventoDeIntegracao } from "../_shared/trilhaDeIntegracao.ts";
 import {
   buildSummary, extractPatientId, extractResources, parseResource,
   MAX_RESOURCES_PER_REQUEST,
@@ -102,7 +103,7 @@ Deno.serve(async (req) => {
     // essa palavra. A trilha passaria a dizer que não havia consentimento numa
     // noite em que havia, e é dela que sai a prova em auditoria de LGPD.
     if (erroGrant) {
-      await admin.rpc("log_integration_event", {
+      await registrarEventoDeIntegracao(admin, {
         _hospital_id: keyRow.hospital_id, _patient_id: patientId, _actor: null, _api_key: keyRow.id,
         _action: "fhir_ingest_denied", _resource_type: rt, _resource_id: null,
         _success: false, _error: `grant_check_failed: ${erroGrant.message}`,
@@ -111,7 +112,7 @@ Deno.serve(async (req) => {
       results.push({ ok: false, error: "grant_check_failed", patientId }); continue;
     }
     if (!grant) {
-      await admin.rpc("log_integration_event", {
+      await registrarEventoDeIntegracao(admin, {
         _hospital_id: keyRow.hospital_id, _patient_id: patientId, _actor: null, _api_key: keyRow.id,
         _action: "fhir_ingest_denied", _resource_type: rt, _resource_id: null,
         _success: false, _error: "no_active_grant", _ip: ip, _ua: ua, _meta: { fhir_id: r.id ?? null },
@@ -143,7 +144,7 @@ Deno.serve(async (req) => {
 
     if (error) { results.push({ ok: false, error: error.message }); continue; }
 
-    await admin.rpc("log_integration_event", {
+    await registrarEventoDeIntegracao(admin, {
       _hospital_id: keyRow.hospital_id, _patient_id: patientId, _actor: null, _api_key: keyRow.id,
       _action: "fhir_ingest", _resource_type: rt, _resource_id: inserted.id,
       _success: true, _error: null, _ip: ip, _ua: ua, _meta: { fhir_id: r.id ?? null },
@@ -152,7 +153,25 @@ Deno.serve(async (req) => {
     results.push({ ok: true, id: inserted.id, resourceType: rt });
   }
 
-  await admin.from("hospital_api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", keyRow.id);
+  {
+    /**
+     * `last_used_at` é escrituração, não o trabalho — mas escrituração que
+     * ninguém confere é escrituração que envelhece calada. Quem olha "última
+     * vez usada" para decidir rotação de chave decidiria com data velha.
+     *
+     * Não derruba a resposta: o dado já foi lido/gravado, e falhar aqui faria o
+     * hospital reenviar por causa de um carimbo de data.
+     */
+    const { error: erroCarimbo } = await admin
+      .from("hospital_api_keys")
+      .update({ last_used_at: new Date().toISOString() })
+      .eq("id", keyRow.id);
+    if (erroCarimbo) {
+      console.error(
+        `last_used_at NÃO atualizado para a chave ${keyRow.id}: ${erroCarimbo.message}`,
+      );
+    }
+  }
 
   return json({ accepted: results.filter(r => r.ok).length, total: results.length, results }, 200);
   } catch (e) {

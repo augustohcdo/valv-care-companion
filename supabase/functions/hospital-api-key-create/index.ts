@@ -3,6 +3,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { logError } from "../_shared/logError.ts";
+import { registrarEventoDeIntegracao } from "../_shared/trilhaDeIntegracao.ts";
 
 async function sha256Hex(s: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -78,7 +79,7 @@ Deno.serve(async (req) => {
 
   if (error) return json({ error: error.message }, 500);
 
-  await admin.rpc("log_integration_event", {
+  await registrarEventoDeIntegracao(admin, {
     _hospital_id: hospital_id, _patient_id: null, _actor: userId, _api_key: data.id,
     _action: "key_created", _resource_type: null, _resource_id: data.id,
     _success: true, _error: null, _ip: null, _ua: null, _meta: { name },

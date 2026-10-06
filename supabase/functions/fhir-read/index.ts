@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { ipDoChamador, ipPermitido } from "../_shared/ipDoChamador.ts";
 import { logError } from "../_shared/logError.ts";
+import { registrarEventoDeIntegracao } from "../_shared/trilhaDeIntegracao.ts";
 import { isValidPatientId, resolveAllowedTypes } from "../_shared/fhirSchema.ts";
 
 async function sha256Hex(s: string) {
@@ -82,7 +83,7 @@ Deno.serve(async (req) => {
     return json({ error: "grant_check_failed", detail: erroGrant.message }, 503);
   }
   if (!grant) {
-    await admin.rpc("log_integration_event", {
+    await registrarEventoDeIntegracao(admin, {
       _hospital_id: keyRow.hospital_id, _patient_id: patientId, _actor: null, _api_key: keyRow.id,
       _action: "fhir_read_denied", _resource_type: null, _resource_id: null,
       _success: false, _error: "no_active_grant", _ip: ip, _ua: ua, _meta: null,
@@ -265,7 +266,7 @@ Deno.serve(async (req) => {
   // se fosse falta de autorização: as duas coisas aparecem no mesmo lugar e
   // quem for auditar depois precisa saber qual foi.
   if (falhas.length) {
-    await admin.rpc("log_integration_event", {
+    await registrarEventoDeIntegracao(admin, {
       _hospital_id: keyRow.hospital_id, _patient_id: patientId, _actor: null, _api_key: keyRow.id,
       _action: "fhir_read_incomplete", _resource_type: null, _resource_id: null,
       _success: false, _error: falhas.join(" | "), _ip: ip, _ua: ua, _meta: null,
@@ -338,12 +339,30 @@ Deno.serve(async (req) => {
     });
   }
 
-  await admin.rpc("log_integration_event", {
+  await registrarEventoDeIntegracao(admin, {
     _hospital_id: keyRow.hospital_id, _patient_id: patientId, _actor: null, _api_key: keyRow.id,
     _action: "fhir_read", _resource_type: null, _resource_id: null,
     _success: true, _error: null, _ip: ip, _ua: ua, _meta: { types: allowed, count: entries.length },
   });
-  await admin.from("hospital_api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", keyRow.id);
+  {
+    /**
+     * `last_used_at` é escrituração, não o trabalho — mas escrituração que
+     * ninguém confere é escrituração que envelhece calada. Quem olha "última
+     * vez usada" para decidir rotação de chave decidiria com data velha.
+     *
+     * Não derruba a resposta: o dado já foi lido/gravado, e falhar aqui faria o
+     * hospital reenviar por causa de um carimbo de data.
+     */
+    const { error: erroCarimbo } = await admin
+      .from("hospital_api_keys")
+      .update({ last_used_at: new Date().toISOString() })
+      .eq("id", keyRow.id);
+    if (erroCarimbo) {
+      console.error(
+        `last_used_at NÃO atualizado para a chave ${keyRow.id}: ${erroCarimbo.message}`,
+      );
+    }
+  }
 
   return json(bundle, 200);
   } catch (e) {
