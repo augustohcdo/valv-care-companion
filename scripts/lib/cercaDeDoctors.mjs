@@ -87,15 +87,38 @@ export function vereditoDoMedico({ lidasNaTabela, meuUserId, userIdsLidos }) {
         "se a linha que o médico leu é a dele.",
     };
   }
+  /**
+   * Zero linhas é AMBÍGUO, e tratá-lo como divergência foi falso vermelho meu.
+   *
+   * A conta de verificação do tipo `medico` é criada sem CRM nos metadados, e
+   * `handle_new_user` só insere em `doctors`
+   * `IF v_account_type = 'medico' AND v_meta->>'crm' IS NOT NULL`. Quer dizer
+   * que ela não TEM registro profissional — ler 0 é o estado correto dela, não
+   * uma cerca quebrada.
+   *
+   * As duas causas de 0 são indistinguíveis daqui: "não tem linha" e "tem linha
+   * e a porta 1 fechou". Afirmar qualquer uma seria inventar.
+   */
+  if (lidasNaTabela === 0) {
+    return {
+      estado: 2,
+      mensagem:
+        "NÃO CONFERIDO: esta conta leu 0 linhas de `doctors`, e daqui não dá para\n" +
+        "distinguir \"não tem registro profissional\" de \"tem e a porta 1 fechou\".\n" +
+        "A conta de verificação do tipo `medico` nasce SEM CRM — o gatilho de\n" +
+        "cadastro só cria a linha quando o CRM vem nos metadados —, então o\n" +
+        "esperado para ela é exatamente este 0, e a porta 1 fica sem ser exercida.",
+    };
+  }
   if (!userIdsLidos.includes(meuUserId)) {
     return {
       estado: 1,
       mensagem:
         `DIVERGE: o médico leu ${lidasNaTabela} linha(s) de \`doctors\` e a dele ` +
         "não está entre elas.\n" +
-        "É a porta 1 da cerca — \"a própria linha\" — e sem ela o `MedicoPerfil`\n" +
-        "abre o formulário em branco sobre um cadastro que existe, convidando o\n" +
-        "médico a reescrever o próprio CRM.",
+        "Vê as dos outros e não a própria: é a porta 1 da cerca — \"a própria\n" +
+        "linha\" —, e sem ela o `MedicoPerfil` abre o formulário em branco sobre um\n" +
+        "cadastro que existe, convidando o médico a reescrever o próprio CRM.",
     };
   }
   return {

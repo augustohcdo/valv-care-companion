@@ -1,231 +1,214 @@
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
+import { execFileSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 
 /**
- * O verificador de rotas espera as animações que SIGNIFICAM "carregando" — e
- * não espera as outras.
+ * O verificador de rotas espera o fallback de rota SAIR — e nada além dele.
  *
- * ## O defeito, e o comentário que o escondia
+ * ## Quatro versões desta espera, e os quatro jeitos de errar
  *
- * `scripts/rotas-renderizam.mjs` existe porque uma versão anterior relatava
- * "60 de 61 renderizaram" medindo o `index.html`. Consertado, passou a esperar
- * o spinner sair — e o comentário afirmava, com todas as letras:
+ * 1ª — não esperava nada: media o `index.html`.
  *
- *   > "O spinner é a marca visual do projeto para 'carregando' — tanto o
- *   >  fallback de rota quanto o das telas usam a mesma classe."
+ * 2ª — esperava `.animate-spin`, com o comentário afirmando que "tanto o
+ *      fallback de rota quanto o das telas usam a mesma classe". Falso: o
+ *      fallback de rota é `<Suspense fallback={<PageSkeleton …/>}>`, feito de
+ *      `<Skeleton>`, que é `animate-pulse`. A espera nunca disparava e o
+ *      verificador media o ESQUELETO — 18 das 61 rotas com 1237 caracteres de
+ *      invólucro, contra páginas de 3 640 a 13 120.
  *
- * Não usam. O fallback de rota é `<Suspense fallback={<PageSkeleton …/>}>`, e o
- * `PageSkeleton` é feito de `<Skeleton>`, que é `animate-pulse`. Nenhum
- * `.animate-spin` aparece ali. A espera nunca disparava, e o verificador media
- * o ESQUELETO.
+ * 3ª — esperava as duas classes. **Minha regressão, e o erro foi de método.**
+ *      Eu medi "0 de 61 rotas mantêm o esqueleto depois de 12 s" e concluí que
+ *      era seguro. A amostra excluía todas as telas autenticadas: sem sessão,
+ *      as 39 rotas de `/app/*` redirecionam para o login e nunca foram
+ *      medidas. E `animate-pulse` é ENFEITE em quatro lugares — três em
+ *      `PacienteHome` e `MedicoHome`, um blob de `animationDuration: 6s` e dois
+ *      pontinhos —, que são exatamente as duas telas da prova de sessão.
  *
- * ## O que foi medido, nas 61 rotas contra o preview
+ *      Em produção: `/app/paciente ficou 15s no spinner`, sobre uma tela que
+ *      renderiza. O número estava certo sobre o que mediu e errado sobre o uso
+ *      que eu fiz dele: medir 61 rotas não é medir as rotas que importam.
  *
- *   · **18 rotas** tinham o texto crescendo depois de o esqueleto sair: o
- *     script media 1237 caracteres — invólucro, menu, rodapé e banner de
- *     cookies, idênticos em todas — e a página real tinha de 3 640 a 13 120.
- *     `/privacidade`: 1237 → 13 120. `/aprender`: 1237 → 7 026;
- *   · **0 rotas** deixaram de limpar `animate-pulse` em 12 s, então esperar por
- *     ele não produz falso vermelho. Espera máxima: 213 ms;
- *   · e o veredito de uma rota estava errado: `/auth/callback` era contada como
- *     "renderizou a tela pedida" sendo um redirecionamento para `/auth/login`.
- *     O script media antes de o redirecionamento acontecer.
+ * 4ª — esta. Classe de animação não distingue "estou carregando" de "sou
+ *      decorativo", então a espera passa a olhar um ATRIBUTO dedicado que só o
+ *      fallback de rota carrega: `data-carregando`.
  *
- * ## A regra, e a regra INVERSA que me corrigiu
+ * ## As regras
  *
- * A primeira versão desta guarda cobrava "toda classe `animate-*` do fallback
- * está na lista de espera". Ela reprovou, apontando `animate-fade-in` — e tinha
- * razão em apontar e estava errada em exigir.
- *
- * `animate-fade-in` é entrada, não carregamento: `fade-in 0.4s ease-out`, uma
- * vez, e a classe FICA no elemento depois. Medido em quatro rotas, 5 s após
- * abrir: `animate-fade*` = 1 elemento em todas, `pulse` e `spin` = 0. Esperar
- * por ela nunca terminaria — falso vermelho em 61 de 61 rotas.
- *
- * Então são duas regras, e a segunda é a que importa mais:
- *
- *   A. toda animação **infinita** do fallback está entre as marcas esperadas —
- *      senão o verificador mede a tela enquanto o esqueleto está lá;
- *   B. nenhuma animação **de uma vez** está entre elas — senão a espera não
- *      termina e toda rota vira "ainda carregando".
- *
- * A distinção é mecânica: `infinite` na definição da animação. O que não se
- * consegue classificar entra numa lista de NÃO CONFERIDO que precisa estar
- * vazia — "não sei" não é "está tudo bem".
+ *   A. o fallback de rota carrega a marca que o verificador espera;
+ *   B. a marca é EXCLUSIVA do fallback — nenhum outro arquivo de `src/` a usa,
+ *      senão enfeite volta a envenenar a espera pelo caminho novo;
+ *   C. toda CLASSE na lista de espera foi conferida como só-de-carregamento, e
+ *      a conferência está escrita;
+ *   D. a espera consulta a lista, e não uma classe fixa;
+ *   E. o limiar de tela vazia é o compartilhado, não uma segunda régua.
  *
  * ## O que esta guarda NÃO garante
  *
- * Que o verificador meça a tela certa — disso cuida o próprio script. E ela
- * olha UM nível de importação a partir do componente de fallback (ele e os
- * primitivos de `components/ui` que ele traz). Um esqueleto montado três
- * camadas abaixo escapa; está escrito para ninguém supor alcance que não existe.
+ * Que o verificador meça a tela certa — disso cuida o próprio script. E ela não
+ * olha telas autenticadas, que é justamente onde a 3ª versão falhou: para isso
+ * existe o `rotas-autenticadas.yml`, que cunha sessão e varre de verdade. Uma
+ * guarda que lê arquivo não substitui a que abre o navegador.
  */
 
 const APP = "src/App.tsx";
 const VERIFICADOR = "scripts/rotas-renderizam.mjs";
-const TAILWIND = "tailwind.config.ts";
+const MARCA = "data-carregando";
 
 /**
- * As animações do Tailwind que rodam para sempre, e não estão no config do
- * projeto porque vêm do próprio Tailwind.
+ * Classes que o verificador pode esperar, cada uma com a conferência escrita.
  *
- * Fonte: `tailwindcss/src/public/default-theme` — `animate-spin`,
- * `animate-ping`, `animate-pulse` e `animate-bounce` são todas `infinite`.
+ * Acrescentar uma classe aqui obriga a dizer por que ela significa "carregando"
+ * e nada mais. Foi a falta disso que deixou `animate-pulse` entrar.
  */
-const INFINITAS_DO_TAILWIND = new Set(["spin", "ping", "pulse", "bounce"]);
-
-/**
- * Classes de animação de um texto.
- *
- * `[a-z0-9-]+` e não `[a-z]+`: a primeira versão capturava `animate-fade` de
- * `animate-fade-in`, porque `\b` depois de `[a-z]+` casa no hífen. Nome errado
- * é guarda apontando para coisa que não existe.
- */
-export function classesDeAnimacao(texto: string): string[] {
-  return [...new Set([...texto.matchAll(/\banimate-([a-z0-9-]+)/g)].map((m) => m[1]))];
-}
+const CLASSES_CONFERIDAS: Record<string, string> = {
+  "animate-spin":
+    "92 ocorrências em `src/`, todas `Loader2` dentro de estado de carregamento " +
+    "— inclusive a do `ProtectedRoute`, que é o que a prova de sessão precisa " +
+    "esperar. Nenhuma decorativa.",
+};
 
 /** O componente que o `App.tsx` usa como fallback de Suspense de rota. */
 export function componenteDeFallback(appTsx: string): string | null {
   return /<Suspense\s+fallback=\{\s*<(\w+)/.exec(appTsx)?.[1] ?? null;
 }
 
-/** Os caminhos de `@/components/...` que um arquivo importa. */
-export function importesDeComponentes(texto: string): string[] {
-  return [...texto.matchAll(/from\s+"@\/components\/([\w/.-]+)"/g)]
-    .map((m) => `src/components/${m[1]}.tsx`);
-}
-
 /**
- * A animação roda para sempre? `null` quando não se consegue dizer.
+ * Os seletores dentro de `MARCAS_DE_CARREGAMENTO`.
  *
- * Três estados de propósito: esperar por uma animação de uma vez travaria o
- * verificador, e não esperar por uma infinita o faria medir esqueleto. Chutar
- * qualquer um dos dois lados é pior que relatar que não se sabe.
+ * Ancorado no `];` e não em `[^\]]*`: a lista contém `"[data-carregando]"`, e
+ * um `[^\]]*` para no `]` de DENTRO da string, devolvendo só o primeiro
+ * seletor. Foi o que aconteceu, e a guarda reprovou dizendo que o verificador
+ * não espera pela marca — sobre um verificador que espera.
+ *
+ * Mesma classe de erro que esta base já pagou três vezes no mesmo arquivo de
+ * `prazoDeSubprocesso`: delimitador contado sem olhar se está dentro de string.
  */
-export function eInfinita(nome: string, tailwindConfig: string): boolean | null {
-  if (INFINITAS_DO_TAILWIND.has(nome)) return true;
-  // No config do projeto: `"pulse-soft": "pulse-soft 2.5s ease-in-out infinite"`
-  const linha = new RegExp(`["']${nome}["']\\s*:\\s*["']([^"']+)["']`).exec(tailwindConfig);
-  if (!linha) return null;
-  return /\binfinite\b/.test(linha[1]);
+export function marcasEsperadas(verificador: string): string[] {
+  const lista = /const MARCAS_DE_CARREGAMENTO\s*=\s*\[([\s\S]*?)\]\s*;/.exec(verificador)?.[1] ?? "";
+  return [...lista.matchAll(/["'`]([^"'`]+)["'`]/g)].map((m) => m[1]);
 }
 
-/** Tira comentários de um arquivo JS/TS, preservando as quebras de linha. */
+/** Tira comentários, preservando as quebras de linha. */
 function semComentarios(texto: string): string {
   return texto
     .replace(/\/\*[\s\S]*?\*\//g, (b) => b.replace(/[^\n]/g, " "))
     .replace(/(^|[^:])\/\/[^\n]*/g, (_m, p1) => p1);
 }
 
+const app = readFileSync(APP, "utf8");
+/**
+ * Sem comentários: o próprio script EXPLICA, em comentário, as classes que
+ * deixou de esperar e por quê. Uma guarda que lê comentário não confere código
+ * — foi a oitava vez nesta base, e a primeira em que eu plantei a armadilha e
+ * caí nela no mesmo dia.
+ */
+const verificador = semComentarios(readFileSync(VERIFICADOR, "utf8"));
+const esperadas = marcasEsperadas(verificador);
+
 describe("as marcas de carregamento que o verificador de rotas espera", () => {
-  const app = readFileSync(APP, "utf8");
-  const verificadorCru = readFileSync(VERIFICADOR, "utf8");
-  /**
-   * Sem comentários, e o motivo é imediato: o próprio script EXPLICA num
-   * comentário o que ele deixou de fazer, citando `conteudoDoRoot === 0`. A
-   * primeira versão desta guarda casou com essa explicação e reprovou o
-   * conserto. Guarda que lê comentário não confere código — oitava vez nesta
-   * base, e a primeira em que eu plantei a armadilha e caí nela no mesmo dia.
-   */
-  const verificador = semComentarios(verificadorCru);
-  const tailwind = readFileSync(TAILWIND, "utf8");
-
-  /** As animações que o fallback de rota realmente usa, com a classificação. */
-  const doFallback = (() => {
+  it("A) o fallback de rota carrega a marca que o verificador espera", () => {
     const nome = componenteDeFallback(app);
-    if (nome === null) return null;
+    expect(nome, "não achei `<Suspense fallback={<...}>` no App.tsx").not.toBeNull();
     const arquivo = `src/components/${nome}.tsx`;
-    if (!existsSync(arquivo)) return null;
-    const texto = readFileSync(arquivo, "utf8");
-    const fontes = [arquivo];
-    for (const dep of importesDeComponentes(texto)) if (existsSync(dep)) fontes.push(dep);
-    const classes = [...new Set(fontes.flatMap((f) => classesDeAnimacao(readFileSync(f, "utf8"))))];
-    return { nome, fontes, classes };
-  })();
+    expect(existsSync(arquivo), `${arquivo} não existe`).toBe(true);
 
-  const esperadas =
-    /const MARCAS_DE_CARREGAMENTO\s*=\s*\[([^\]]*)\]/.exec(verificador)?.[1] ?? "";
-
-  it("o `App.tsx` usa um componente de fallback que existe", () => {
-    // Sem isto, a varredura abaixo não teria o que ler e passaria por vazio —
-    // que é o jeito mais limpo de uma guarda não guardar nada.
-    expect(componenteDeFallback(app), "não achei `<Suspense fallback={<...}>` no App.tsx")
-      .not.toBeNull();
-    expect(doFallback, "o componente de fallback não existe em src/components").not.toBeNull();
-    expect(
-      doFallback!.classes.length,
-      `nenhuma classe \`animate-*\` saiu de ${doFallback!.fontes.join(", ")}`,
-    ).toBeGreaterThanOrEqual(1);
-    expect(esperadas.trim().length, "não achei `MARCAS_DE_CARREGAMENTO` no verificador")
-      .toBeGreaterThan(0);
-  });
-
-  it("toda animação que não termina é classificável — nenhuma fica no escuro", () => {
-    const naoSei = doFallback!.classes.filter((c) => eInfinita(c, tailwind) === null);
-    expect(
-      naoSei,
-      `\n  ${naoSei.map((c) => `· animate-${c}`).join("\n  ")}\n\n` +
-        "⚠️ NÃO CONFERIDO — não achei a definição destas animações nem entre as\n" +
-        "infinitas do Tailwind nem no `tailwind.config.ts`, então não sei se elas\n" +
-        "terminam.\n\n" +
-        "Chutar os dois lados custa: esperar por uma que não termina travaria o\n" +
-        "verificador em TODA rota; não esperar por uma infinita o faria medir o\n" +
-        "esqueleto, que foi o defeito original.",
-    ).toEqual([]);
-  });
-
-  it("A) toda animação INFINITA do fallback está entre as marcas esperadas", () => {
-    const infinitas = doFallback!.classes.filter((c) => eInfinita(c, tailwind) === true);
-    expect(
-      infinitas.length,
-      "o fallback não tem animação infinita nenhuma — ou ele mudou, ou a leitura quebrou",
-    ).toBeGreaterThanOrEqual(1);
-
-    const faltando = infinitas.filter((c) => !esperadas.includes(`animate-${c}`));
-    expect(
-      faltando,
-      `\n  ${faltando.map((c) => `· .animate-${c}`).join("\n  ")}\n\n` +
-        `O fallback de rota (${doFallback!.nome}) usa estas animações que rodam para\n` +
-        "sempre, e o verificador de rotas não espera por elas: ele mede a tela\n" +
-        "ENQUANTO o esqueleto está lá, e aprova o invólucro como se fosse a página.\n\n" +
-        "Medido quando isto aconteceu: 18 das 61 rotas eram medidas pelo esqueleto,\n" +
-        "com 1237 caracteres idênticos, e a página real tinha até 13 120. Uma delas,\n" +
-        "`/auth/callback`, era contada como renderizada sendo um redirecionamento.\n\n" +
-        `Acrescente \`.animate-${faltando[0] ?? "x"}\` em MARCAS_DE_CARREGAMENTO, em ${VERIFICADOR}.`,
-    ).toEqual([]);
-  });
-
-  it("B) nenhuma animação DE UMA VEZ está entre as marcas esperadas", () => {
     /**
-     * A regra que me corrigiu. `animate-fade-in` é `fade-in 0.4s ease-out`:
-     * roda uma vez e a classe FICA no elemento. Medido em quatro rotas, 5 s
-     * após abrir: `animate-fade*` = 1 em todas, `pulse` e `spin` = 0.
+     * SEM comentários, e a inversão me cobrou isto na hora: o próprio
+     * `PageSkeleton` EXPLICA no docstring por que carrega `data-carregando`.
+     * Lendo o arquivo cru, tirar o atributo das quatro variantes não reprovava
+     * — a menção no comentário satisfazia a regra.
      *
-     * Esperando por ela, `esperarATela` nunca retornaria e as 61 rotas virariam
-     * "ainda carregando depois de 12s". Falso vermelho custa igual ao falso
-     * verde: guarda que pune quem fez certo é guarda que alguém desliga.
+     * Nona vez nesta base que uma guarda lê comentário em vez de código, e a
+     * segunda no mesmo dia em que fui eu quem plantou a armadilha.
      */
-    const deUmaVez = doFallback!.classes.filter((c) => eInfinita(c, tailwind) === false);
-    const indevidas = deUmaVez.filter((c) => esperadas.includes(`animate-${c}`));
+    const fallback = semComentarios(readFileSync(arquivo, "utf8"));
     expect(
-      indevidas,
-      `\n  ${indevidas.map((c) => `· .animate-${c}`).join("\n  ")}\n\n` +
-        "Estas animações rodam UMA vez e a classe fica no elemento. Esperar por\n" +
-        "elas não termina nunca: toda rota passa a ser relatada como 'ainda\n" +
-        "carregando', e o verificador deixa de dizer qualquer coisa sobre o site.\n\n" +
-        "Tire de MARCAS_DE_CARREGAMENTO: ali só entra animação `infinite`.",
+      fallback,
+      `o fallback de rota (${nome}) não carrega \`${MARCA}\`. Sem a marca o ` +
+        "verificador não tem como saber que o conteúdo da rota ainda não chegou, e " +
+        "volta a medir o esqueleto — 1237 caracteres de invólucro em 18 das 61 rotas.",
+    ).toContain(MARCA);
+    expect(
+      esperadas,
+      `o verificador não espera por \`[${MARCA}]\``,
+    ).toContain(`[${MARCA}]`);
+  });
+
+  it("B) a marca é exclusiva do fallback — enfeite não a carrega", () => {
+    /**
+     * A regra que a 3ª versão não tinha. `animate-pulse` entrou na espera e
+     * travou a prova de sessão porque a mesma classe serve o esqueleto E um
+     * blob decorativo. Com um atributo dedicado isso não acontece — desde que
+     * ele continue dedicado.
+     */
+    const nome = componenteDeFallback(app)!;
+    const doFallback = `src/components/${nome}.tsx`;
+    const arquivos = execFileSync("git", ["ls-files", "src"], { encoding: "utf8" })
+      .trim().split("\n")
+      .filter((f) => /\.(ts|tsx)$/.test(f) && !/\.test\.tsx?$/.test(f) && !f.startsWith("src/test/"));
+
+    const intrusos = arquivos
+      .filter((f) => f !== doFallback)
+      // Também sem comentários: um arquivo que MENCIONA a marca para explicar a
+      // regra não a carrega. Punir quem documentou é o falso vermelho que esta
+      // base já pagou meia dúzia de vezes.
+      .filter((f) => semComentarios(readFileSync(f, "utf8")).includes(MARCA));
+
+    expect(arquivos.length, "a varredura não achou arquivo nenhum").toBeGreaterThanOrEqual(200);
+    expect(
+      intrusos.map((f) => `  · ${f}`),
+      `\n${intrusos.map((f) => `  · ${f}`).join("\n")}\n\n` +
+        `\`${MARCA}\` só pode existir no fallback de rota (${doFallback}).\n` +
+        "Fora dele, a espera do verificador passa a travar em qualquer elemento que\n" +
+        "carregue a marca — que é exatamente o que aconteceu com `animate-pulse`,\n" +
+        "usado como enfeite em `PacienteHome` e `MedicoHome`, as duas telas da\n" +
+        "prova de sessão.",
+    ).toEqual([]);
+  }, 30_000);
+
+  it("C) toda CLASSE esperada foi conferida como só-de-carregamento", () => {
+    const classes = esperadas.filter((s) => s.startsWith("."));
+    expect(classes.length, "nenhuma classe na lista — a leitura quebrou?")
+      .toBeGreaterThanOrEqual(1);
+
+    const semConferencia = classes
+      .map((s) => s.slice(1))
+      .filter((c) => !(c in CLASSES_CONFERIDAS));
+    expect(
+      semConferencia.map((c) => `  · .${c}`),
+      `\n${semConferencia.map((c) => `  · .${c}`).join("\n")}\n\n` +
+        "Esta classe entrou na lista de espera sem conferência escrita. Antes de\n" +
+        "acrescentar uma, conte os usos dela em `src/` e diga por que TODOS\n" +
+        "significam carregamento.\n\n" +
+        "`animate-pulse` entrou sem isso e travou a prova de sessão em produção:\n" +
+        "é a animação do `<Skeleton>` e também de um blob decorativo de 6 s em\n" +
+        "`PacienteHome` e `MedicoHome`.",
     ).toEqual([]);
   });
 
-  it("a espera usa a lista, e não uma classe escrita à mão", () => {
-    /**
-     * A lista existir e ninguém consultá-la seria pior que não existir: as
-     * regras acima ficariam verdes sobre uma espera que continua olhando só o
-     * spinner. É a mesma distinção entre declarar e cumprir que esta base cobra
-     * do `aplicar()` e do `ipDoChamador()`.
-     */
+  it("C.2) `animate-pulse` NÃO é esperada, e o motivo continua valendo", () => {
+    expect(
+      esperadas,
+      "`animate-pulse` voltou para a lista de espera. Ela é a animação do " +
+        "`<Skeleton>` E de elementos decorativos: esperar por ela faz a espera " +
+        "nunca terminar nas telas que têm enfeite.",
+    ).not.toContain(".animate-pulse");
+
+    // E o motivo é medido, não lembrado: se um dia não houver mais enfeite com
+    // essa classe, esta contagem cai e a exclusão pode ser revista com dado.
+    const decorativos = execFileSync(
+      "git", ["grep", "-l", "animate-pulse", "--", "src/pages", "src/components"],
+      { encoding: "utf8" },
+    ).trim().split("\n").filter((f) => f && !f.endsWith("ui/skeleton.tsx"));
+    expect(
+      decorativos.length,
+      "nenhum uso decorativo de `animate-pulse` foi achado — a premissa da " +
+        "exclusão mudou, e vale remedir antes de confiar nela",
+    ).toBeGreaterThanOrEqual(1);
+  }, 30_000);
+
+  it("D) a espera consulta a lista, e não uma classe fixa", () => {
     const corpo = /async function esperarATela\(([\s\S]*?)\n\}/.exec(verificador)?.[1] ?? "";
     expect(corpo.length, "não achei o corpo de `esperarATela`").toBeGreaterThan(50);
     expect(corpo, "`esperarATela` não consulta MARCAS_DE_CARREGAMENTO")
@@ -233,32 +216,22 @@ describe("as marcas de carregamento que o verificador de rotas espera", () => {
     expect(
       corpo,
       "`esperarATela` voltou a procurar uma classe fixa em vez da lista",
-    ).not.toMatch(/querySelector\(\s*["'`]\.animate-/);
+    ).not.toMatch(/querySelector\(\s*["'`]\./);
   });
 
-  it("o limiar de tela vazia é o compartilhado, não uma segunda régua", () => {
+  it("E) o limiar de tela vazia é o compartilhado, não uma segunda régua", () => {
     /**
-     * O verificador tinha `conteudoDoRoot === 0` — "reprova só se não houver
-     * NADA" —, mais frouxo que o `pareceVazia()` de `scripts/lib/chromium.mjs`
+     * Era `conteudoDoRoot === 0` — "reprova só se não houver NADA" —, mais
+     * frouxo que o `pareceVazia()` de `scripts/lib/chromium.mjs`
      * (`elementos < 10 || texto < 50`) e cego para a contagem de elementos.
      *
-     * Medido antes de trocar, nas 61 rotas e depois de o esqueleto sair: menor
-     * valor 237 caracteres e 28 elementos. A troca não mudou veredito nenhum —
-     * só tirou a segunda régua de circulação.
+     * Medido nas 61 rotas depois de o esqueleto sair: menor valor 237
+     * caracteres e 28 elementos. A troca não mudou veredito nenhum.
      */
     expect(verificador, "o verificador não usa mais `pareceVazia()`").toMatch(/\bpareceVazia\(/);
     expect(
       verificador,
       "voltou a decidir tela vazia por conta própria, com `=== 0`",
     ).not.toMatch(/conteudoDoRoot\s*===\s*0/);
-  });
-
-  it("`eInfinita` separa os dois casos, e diz quando não sabe", () => {
-    // As contraprovas da classificação, que é o coração das duas regras.
-    expect(eInfinita("pulse", tailwind), "`animate-pulse` do Tailwind é infinita").toBe(true);
-    expect(eInfinita("spin", tailwind)).toBe(true);
-    expect(eInfinita("fade-in", tailwind), "`fade-in 0.4s ease-out` roda uma vez").toBe(false);
-    expect(eInfinita("pulse-soft", tailwind), "declarada `infinite` no config").toBe(true);
-    expect(eInfinita("inventada-por-mim", tailwind), "não sei não pode virar false").toBeNull();
   });
 });

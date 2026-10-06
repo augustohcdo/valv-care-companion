@@ -215,8 +215,24 @@ jobs:
       # `always()`: a cerca é independente da varredura de rotas, e perdê-la
       # porque uma tela quebrou seria deixar de conferir o que dá para conferir.
       # Sem sessão o script sai 2, que é a verdade do caso.
+      #
+      # ## Só a perna do PACIENTE, e o motivo é mensurável
+      #
+      # A conta de verificação do tipo `medico` nasce SEM CRM nos metadados, e
+      # `handle_new_user` só cria a linha de `doctors`
+      # `IF v_account_type = 'medico' AND v_meta->>'crm' IS NOT NULL`. Ela não
+      # tem registro profissional, então ler 0 linhas é o estado CORRETO dela — e
+      # a porta 1 da cerca ("a própria linha") fica sem ser exercida.
+      #
+      # Rodar a conferência ali daria NÃO CONFERIDO em toda execução, e guarda
+      # permanentemente amarela ensina a ignorar guarda. A porta 1 segue coberta
+      # pela bancada e por `MedicoPerfil.test.tsx`.
+      #
+      # O dia em que a conta de verificação passar a nascer com CRM, o teste
+      # `cercaDeDoctors.test.ts` reprova e manda tirar esta restrição — a guarda
+      # aponta para a melhoria em vez de escondê-la.
       - name: Conferir a cerca de doctors
-        if: always()
+        if: always() && matrix.tipo == 'paciente'
         env:
           ROTAS_SUPABASE_URL: https://qwiojyfxzvdcfbbexyxg.supabase.co
         run: |

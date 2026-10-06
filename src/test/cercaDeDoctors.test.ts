@@ -85,7 +85,25 @@ describe("a cerca de `doctors` pelo lado do médico", () => {
     expect(v.estado).toBe(0);
   });
 
-  it("o médico SEM a própria linha é divergência — falso vermelho custa igual", () => {
+  it("o médico com ZERO linhas é NÃO CONFERIDO — e isto foi falso vermelho meu", () => {
+    /**
+     * A primeira versão devolvia 1 (DIVERGE) aqui, e reprovou em produção
+     * contra uma cerca que está certa.
+     *
+     * A conta de verificação do tipo `medico` nasce SEM CRM nos metadados, e
+     * `handle_new_user` só cria a linha de `doctors`
+     * `IF v_account_type = 'medico' AND v_meta->>'crm' IS NOT NULL`. Ela não
+     * tem registro profissional: ler 0 é o estado correto dela.
+     *
+     * As duas causas de 0 são indistinguíveis daqui — "não tem linha" e "tem e
+     * a porta 1 fechou" —, e afirmar qualquer uma seria inventar.
+     */
+    const v = vereditoDoMedico({ lidasNaTabela: 0, meuUserId: EU, userIdsLidos: [] });
+    expect(v.estado, "zero linhas voltou a ser afirmado como divergência").toBe(2);
+    expect(v.mensagem.replace(/\s+/g, " ")).toContain("nasce SEM CRM");
+  });
+
+  it("vendo as dos OUTROS e não a própria: aí é divergência", () => {
     /**
      * A cerca apertada além da conta deixa o médico sem o próprio registro, e o
      * `MedicoPerfil` abre o formulário em branco sobre um cadastro que existe —
@@ -152,19 +170,52 @@ describe("o `user_id` da sessão", () => {
 describe("o workflow conferiu a cerca nos dois tipos de conta", () => {
   const yml = readFileSync(WORKFLOW, "utf8");
 
-  it("o passo roda para a matriz inteira, e não só para um tipo", () => {
+  it("o passo roda na perna do paciente, e o tipo vem da matriz", () => {
     const passo = yml.slice(yml.indexOf("- name: Conferir a cerca de doctors"));
     const corpo = passo.slice(0, passo.indexOf("- name:", 10));
     expect(corpo, "o passo não chama o script").toMatch(/cercaDeDoctors\.mjs/);
     expect(
       corpo,
-      "o tipo está cravado em vez de vir da matriz — a conferência valeria para " +
-        "um lado só, e é justamente o lado do PACIENTE que faltava",
+      "o tipo está cravado em vez de vir da matriz",
     ).toMatch(/--tipo "\$\{\{ matrix\.tipo \}\}"/);
-    // A matriz precisa continuar tendo os dois.
+    /**
+     * Restrito ao paciente, e o motivo é mensurável: a conta do tipo `medico`
+     * nasce sem CRM e portanto sem linha em `doctors`, então a porta 1 não é
+     * exercível com ela. Rodar ali daria NÃO CONFERIDO em toda execução, e
+     * guarda permanentemente amarela ensina a ignorar guarda.
+     */
+    expect(
+      corpo,
+      "o passo deixou de se restringir à perna do paciente",
+    ).toMatch(/matrix\.tipo == 'paciente'/);
+    // A matriz continua com os dois: a varredura de rotas vale para ambos.
     const matriz = yml.slice(yml.indexOf("matrix:"), yml.indexOf("steps:"));
     expect(matriz).toMatch(/tipo:\s*medico/);
     expect(matriz).toMatch(/tipo:\s*paciente/);
+  });
+
+  it("a restrição ao paciente tem prazo: ela cai quando a conta ganhar CRM", () => {
+    /**
+     * A guarda aponta para a melhoria em vez de escondê-la.
+     *
+     * Hoje `conta-de-verificacao.mjs` cria a conta de médico com
+     * `user_metadata: { full_name, account_type }` e nada mais — sem CRM. No dia
+     * em que alguém acrescentar um, a linha de `doctors` passa a existir, a
+     * porta 1 fica exercível, e este teste reprova mandando tirar o
+     * `matrix.tipo == 'paciente'` do workflow.
+     */
+    const criador = readFileSync("scripts/conta-de-verificacao.mjs", "utf8");
+    const metadados = criador.slice(
+      criador.indexOf("user_metadata:"),
+      criador.indexOf("}", criador.indexOf("user_metadata:")) + 1,
+    );
+    expect(metadados.length, "não achei os metadados da conta criada").toBeGreaterThan(20);
+    expect(
+      /\bcrm\b/.test(metadados),
+      "a conta de verificação passou a nascer com CRM: agora ela TEM linha em " +
+        "`doctors`, a porta 1 virou exercível, e a restrição " +
+        "`matrix.tipo == 'paciente'` no workflow pode (e deve) sair.",
+    ).toBe(false);
   });
 
   it("a `service_role` NÃO entra no passo da cerca", () => {

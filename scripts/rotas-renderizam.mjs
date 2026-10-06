@@ -258,35 +258,41 @@ const pagina = await navegador.newPage({ viewport: { width: 1280, height: 900 } 
 await prepararContexto(pagina);
 
 /**
- * As marcas visuais de "carregando" deste projeto. **As duas**, e é esse o
- * conserto.
+ * As marcas de "carregando" deste projeto — e a quarta versão desta espera.
  *
- * A versão anterior esperava só `.animate-spin`, e o comentário dela afirmava:
+ * ## A história, porque as três primeiras erraram o mesmo alvo
  *
- *   > "O spinner é a marca visual do projeto para 'carregando' — tanto o
- *   >  fallback de rota quanto o das telas usam a mesma classe."
+ * 1ª — não esperava nada, e media o `index.html`.
  *
- * Isso é falso. O fallback de ROTA é `<Suspense fallback={<PageSkeleton …/>}>`,
- * e o `PageSkeleton` é feito de `<Skeleton>`, que é `animate-pulse`. Nenhum
- * `.animate-spin` aparece ali, então a espera nunca disparava e o verificador
- * media o ESQUELETO.
+ * 2ª — esperava `.animate-spin`, com o comentário afirmando que "tanto o
+ *      fallback de rota quanto o das telas usam a mesma classe". Falso: o
+ *      fallback de rota é `<Suspense fallback={<PageSkeleton …/>}>`, feito de
+ *      `<Skeleton>`, que é `animate-pulse`. A espera nunca disparava e o
+ *      verificador media o ESQUELETO. Medido: 18 das 61 rotas eram medidas com
+ *      1237 caracteres — invólucro, menu, rodapé e banner —, e a página real
+ *      tinha de 3 640 a 13 120. `/privacidade`: 1237 → 13 120.
  *
- * ## Medido nas 61 rotas, contra o preview
+ * 3ª — esperava `.animate-spin` E `.animate-pulse`. Eu medi "0 de 61 rotas
+ *      mantêm o esqueleto depois de 12 s" e concluí que era seguro. **A
+ *      amostra excluía todas as telas autenticadas**: sem sessão, as 39 rotas
+ *      de `/app/*` redirecionam para o login, então nunca foram medidas. E
+ *      `animate-pulse` é ENFEITE em quatro lugares — três deles em
+ *      `PacienteHome` e `MedicoHome`, um blob de `animationDuration: 6s` e dois
+ *      pontinhos. São exatamente as duas telas da prova de sessão. Resultado em
+ *      produção: "ficou 15s no spinner" sobre telas que renderizam.
  *
- *   · 18 rotas tinham o texto CRESCENDO depois de o esqueleto sair. O script
- *     media 1237 caracteres — invólucro, menu, rodapé e banner de cookies,
- *     idênticos em todas — e a página de verdade tinha de 3 640 a 13 120;
- *   · `/privacidade`: 1237 → 13 120. `/aprender`: 1237 → 7 026;
- *   · 0 rotas deixaram de limpar o esqueleto em 12 s, então esperar por ele
- *     não produz falso vermelho em nenhuma;
- *   · espera máxima observada: **213 ms**. O conserto é barato.
+ *      O número estava certo sobre o que mediu e errado sobre o uso que eu fiz
+ *      dele. Medir 61 rotas não é medir as rotas que importam.
  *
- * É a terceira versão desta espera, e as três erraram o mesmo alvo por motivos
- * diferentes: a primeira não esperava nada e media `index.html`; a segunda
- * esperava o spinner e media o esqueleto; esta espera as duas marcas. O que
- * mudou de verdade foi parar de afirmar no comentário o que não foi conferido.
+ * 4ª — esta. Classe de animação não distingue "carregando" de "decorativo",
+ *      então a espera deixa de olhar classe e passa a olhar um ATRIBUTO
+ *      dedicado, que só o fallback de rota carrega: `data-carregando`.
+ *
+ * `.animate-spin` fica, e está conferido: as 92 ocorrências em `src/` são
+ * `Loader2` dentro de estado de carregamento — inclusive a do `ProtectedRoute`,
+ * que é justamente o que a prova de sessão precisa esperar. Nenhuma decorativa.
  */
-const MARCAS_DE_CARREGAMENTO = [".animate-spin", ".animate-pulse"];
+const MARCAS_DE_CARREGAMENTO = [".animate-spin", "[data-carregando]"];
 
 /**
  * Espera o carregamento SAIR da tela (sem nenhuma marca de carregamento), com
