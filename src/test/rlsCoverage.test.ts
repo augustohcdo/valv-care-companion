@@ -10,7 +10,9 @@ import { execFileSync } from "node:child_process";
 // enganada por uma migration que CITAVA o SQL num comentário, e este arquivo
 // precisa dela pelo mesmo motivo — o cabeçalho de `20261005121000` cita, em
 // comentário, a própria linha da porta 5 que ele remove.
-import { sqlSemComentarios } from "./acessoProfissional.test";
+import {
+  sqlSemComentarios, tabelasVivas, tabelasVivasDeSql, tabelasDoSchemaGerado,
+} from "./sqlDeMigrations";
 import { semComentarios, encadeamentoDaEscrita } from "./aplicarComSelect.test";
 
 /**
@@ -139,40 +141,121 @@ export function politicasVivas(dir = DIR): PoliticaRls[] {
   return [...vivas.values()];
 }
 
+/**
+ * Todas as migrations num texto só, SEM comentário.
+ *
+ * O `sqlSemComentarios` entrou aqui depois: a única asserção que usa esta
+ * função cobra que `pode_ver_medico` seja `security definer`, e o cabeçalho de
+ * mais de uma migration deste repositório CITA SQL em prosa. Uma guarda de
+ * segurança satisfeita por um comentário é a forma mais pura do defeito que
+ * esta sessão persegue — e eu já a vi acontecer hoje, num detector cuja dívida
+ * declarada subiu por causa de uma docstring minha.
+ */
 function sqlDeTodasAsMigrations(): string {
   return readdirSync(DIR)
     .filter((f) => f.endsWith(".sql"))
     .sort()
-    .map((f) => readFileSync(join(DIR, f), "utf8"))
+    .map((f) => sqlSemComentarios(readFileSync(join(DIR, f), "utf8")))
     .join("\n")
     .toLowerCase();
 }
 
 describe("cobertura de RLS", () => {
-  const sql = sqlDeTodasAsMigrations();
+  /**
+   * As tabelas saem de `tabelasVivas`, com noção de ORDEM e sem comentário.
+   *
+   * A versão anterior era um `new Set(sql.matchAll(/create table …/))` sobre a
+   * concatenação CRUA de todas as migrations, mais outro para
+   * `enable row level security`. Sem `drop table`, sem `disable`, e lendo
+   * comentário como código. O motivo de isso importar está escrito em
+   * `sqlDeMigrations.ts`, junto da medida: ela contava `backup_runs`, apagada
+   * há dois meses — e o jeito de doer é uma tabela criada com RLS, apagada, e
+   * recriada depois SEM RLS com o mesmo nome, que ela aprovaria.
+   *
+   * A função irmã deste mesmo arquivo, `politicasVivas`, já tinha aprendido
+   * isso para `drop policy`. A de tabelas, não.
+   */
+  const { vivas, rlsOrfao, criacoesLidas } = tabelasVivas(DIR);
+  const doSchema = tabelasDoSchemaGerado();
 
-  const criadas = new Set(
-    [...sql.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?"?([a-z_]+)"?/g)]
-      .map((m) => m[1]),
-  );
-  const comRls = new Set(
-    [...sql.matchAll(/alter\s+table\s+(?:public\.)?"?([a-z_]+)"?\s+enable\s+row\s+level\s+security/g)]
-      .map((m) => m[1]),
-  );
-
-  it("encontra as migrations e as tabelas criadas nelas", () => {
-    expect(criadas.size).toBeGreaterThan(20);
+  it("encontra as migrations e as tabelas que ainda existem", () => {
+    expect(criacoesLidas, "nenhum `create table` lido — o extrator parou de casar")
+      .toBeGreaterThan(20);
+    expect(vivas.size, "nenhuma tabela viva — o extrator apagou tudo").toBeGreaterThan(20);
   });
 
-  it("toda tabela criada em migration habilita RLS", () => {
-    const desprotegidas = [...criadas]
-      .filter((t) => !comRls.has(t) && !(t in SEM_RLS_JUSTIFICADO))
+  it("nenhum `enable row level security` fica órfão", () => {
+    // Terceiro estado. No Postgres, ligar RLS numa tabela que não existe é
+    // erro; aqui quer dizer que a leitura perdeu o `create table`. Engolir isso
+    // transformaria uma falha do extrator em silêncio, e o zero da regra
+    // seguinte passaria a valer só para o que ele conseguiu ler.
+    expect(
+      rlsOrfao,
+      `\n${rlsOrfao.join("\n")}\n\n` +
+        "Isto não acusa o SQL: acusa o extrator. Ele viu `enable row level\n" +
+        "security` numa tabela cujo `create table` não leu, então a cobertura\n" +
+        "abaixo não cobre essa tabela.",
+    ).toEqual([]);
+  });
+
+  it("toda tabela que ainda existe habilita RLS", () => {
+    const desprotegidas = [...vivas.values()]
+      .filter((t) => !t.rls && !(t.tabela in SEM_RLS_JUSTIFICADO))
+      .map((t) => `  · ${t.tabela} (criada em ${t.criadaEm})`)
       .sort();
 
     expect(
       desprotegidas,
-      `Tabelas criadas sem "enable row level security": ${desprotegidas.join(", ")}.\n` +
-        `Sem RLS, a tabela fica legível por quem tiver a chave pública do site.`,
+      `\nTabelas sem "enable row level security":\n${desprotegidas.join("\n")}\n\n` +
+        "Sem RLS, a tabela fica legível por quem tiver a chave pública do site —\n" +
+        "que vai no pacote servido a todo visitante, de propósito.",
+    ).toEqual([]);
+  });
+
+  it("a lista das migrations bate com as tabelas que existem de verdade", () => {
+    /**
+     * O cruzamento que faltava, e a lição que ele fecha: cobertura não é
+     * garantia — é garantia só sobre o que a guarda olha.
+     *
+     * A regra acima cobre as tabelas que as MIGRATIONS criam. Uma tabela criada
+     * à mão no painel do Supabase, ou vinda de um caminho não versionado, nunca
+     * apareceria ali — e passaria a vida inteira sem ninguém conferir se tem
+     * RLS, com a guarda verde.
+     *
+     * `src/integrations/supabase/types.ts` é gerado do banco de produção e é a
+     * única lista aqui que não depende de as migrations terem sido aplicadas.
+     * `backupCoverage.test.ts` já a usava por isso. Medido quando esta regra foi
+     * escrita: 47 tabelas no schema, 47 vivas pelas migrations, e as duas
+     * listas iguais.
+     *
+     * Se divergirem, qualquer das duas direções é notícia:
+     *
+     *   · só no schema → tabela que nenhuma migration deste repositório cria.
+     *     A regra de RLS acima não a cobre, e o `db.yml` não a recria num banco
+     *     novo;
+     *   · só nas migrations → ou os tipos estão velhos (rode a geração), ou a
+     *     migration não foi aplicada em produção.
+     */
+    const vivasOrdenadas = [...vivas.keys()].sort();
+    const soNoSchema = doSchema.filter((t) => !vivas.has(t)).sort();
+    const soNasMigrations = vivasOrdenadas.filter((t) => !doSchema.includes(t));
+
+    expect(doSchema.length, "não achei tabela nenhuma nos tipos gerados")
+      .toBeGreaterThan(20);
+    expect(
+      soNoSchema,
+      `\nEstas tabelas existem no banco e nenhuma migration daqui as cria:\n` +
+        `  ${soNoSchema.join(", ")}\n\n` +
+        "A regra de RLS deste arquivo NÃO as cobre — ela olha o que as\n" +
+        "migrations criam. E num banco recriado do zero elas não voltam.",
+    ).toEqual([]);
+    expect(
+      soNasMigrations,
+      `\nEstas tabelas são criadas por migration e não estão nos tipos gerados:\n` +
+        `  ${soNasMigrations.join(", ")}\n\n` +
+        "Ou os tipos estão velhos — gere-os de novo —, ou a migration não foi\n" +
+        "aplicada em produção. Nos dois casos, uma das duas fontes está mentindo\n" +
+        "sobre o estado do banco.",
     ).toEqual([]);
   });
 
@@ -269,6 +352,141 @@ describe("cobertura de RLS", () => {
       "pode_ver_medico precisa ser security definer: política que consulta `doctors` " +
         "aplicaria a política de `doctors`, e o Postgres recusa por recursão",
     ).toMatch(/function\s+public\.pode_ver_medico[\s\S]{0,400}security\s+definer/i);
+  });
+});
+
+describe("o extrator de tabelas, conferido contra material plantado", () => {
+  /**
+   * A contraprova, e por que ela não existia.
+   *
+   * Duas inversões desta rodada falharam: mutar o tratamento de
+   * `disable row level security` e o do `enable` órfão não derrubava nada.
+   * Motivo: NENHUMA migration deste repositório tem esses dois casos, então as
+   * duas linhas estavam sem teste e as duas regras passavam por vazio.
+   *
+   * É a lição que esta sessão repete: cobertura não é garantia — é garantia só
+   * sobre o que a guarda olha. Aqui o material é plantado em texto, para a
+   * varredura do repositório nunca o encontrar.
+   */
+  const ler = (...entradas: Array<[string, string]>) =>
+    tabelasVivasDeSql(entradas.map(([arquivo, sql]) => ({ arquivo, sql })));
+
+  it("`create` + `enable` deixa a tabela viva e protegida", () => {
+    const { vivas, rlsOrfao } = ler([
+      "001.sql",
+      "create table public.t (id uuid);\nalter table public.t enable row level security;",
+    ]);
+    expect([...vivas.keys()]).toEqual(["t"]);
+    expect(vivas.get("t")!.rls).toBe(true);
+    expect(rlsOrfao).toEqual([]);
+  });
+
+  it("`disable` depois do `enable` desprotege", () => {
+    // A linha que a inversão provou estar sem teste.
+    const { vivas } = ler([
+      "001.sql",
+      "create table public.t (id uuid);\n" +
+        "alter table public.t enable row level security;\n" +
+        "alter table public.t disable row level security;",
+    ]);
+    expect(vivas.get("t")!.rls, "o `disable` foi ignorado").toBe(false);
+    expect(vivas.get("t")!.rlsEm).toBeNull();
+  });
+
+  it("a ORDEM decide, e não a presença", () => {
+    // `disable` antes do `enable` deixa protegida; o contrário, não. Um
+    // extrator que só olhasse presença daria o mesmo resultado para os dois.
+    const antes = ler([
+      "001.sql",
+      "create table public.t (id uuid);\n" +
+        "alter table public.t disable row level security;\n" +
+        "alter table public.t enable row level security;",
+    ]);
+    expect(antes.vivas.get("t")!.rls).toBe(true);
+  });
+
+  it("`drop table` apaga, e a tabela some da conta", () => {
+    const { vivas, criacoesLidas } = ler([
+      "001.sql", "create table public.t (id uuid);\ndrop table if exists public.t;",
+    ]);
+    expect([...vivas.keys()], "a tabela apagada continuou na lista").toEqual([]);
+    // A criação foi LIDA — o piso mede trabalho do extrator, não tabelas vivas.
+    expect(criacoesLidas).toBe(1);
+  });
+
+  it("recriada depois do `drop` volta SEM o RLS de antes", () => {
+    /**
+     * O falso verde que a versão anterior desta guarda tinha. Ela guardava
+     * `criadas` e `comRls` em dois conjuntos sem ordem: a tabela entrava nos
+     * dois na primeira criação, e a recriação sem RLS era aprovada.
+     */
+    const { vivas } = ler([
+      "001.sql",
+      "create table public.t (id uuid);\n" +
+        "alter table public.t enable row level security;\n" +
+        "drop table if exists public.t;\n" +
+        "create table public.t (id uuid, dado_de_pessoa text);",
+    ]);
+    expect(vivas.get("t")!.rls, "o RLS da encarnação anterior sobreviveu").toBe(false);
+  });
+
+  it("o `drop` de uma migration posterior também conta", () => {
+    // Entre arquivos, e não só dentro de um. `backup_runs` é exatamente este
+    // caso: criada em 20260801130000 e apagada em 20260801160000.
+    const { vivas } = ler(
+      ["001.sql", "create table public.t (id uuid);\nalter table public.t enable row level security;"],
+      ["002.sql", "drop table if exists public.t;"],
+    );
+    expect([...vivas.keys()]).toEqual([]);
+  });
+
+  it("`enable` sem `create` antes é ÓRFÃO, e é relatado", () => {
+    // A outra linha que a inversão provou estar sem teste. No Postgres isto é
+    // erro; aqui quer dizer que o extrator perdeu o `create table`.
+    const { vivas, rlsOrfao } = ler([
+      "001.sql", "alter table public.ninguem_criou enable row level security;",
+    ]);
+    expect(vivas.size).toBe(0);
+    expect(rlsOrfao).toHaveLength(1);
+    expect(rlsOrfao[0]).toContain("ninguem_criou");
+  });
+
+  it("comentário não cria tabela nem liga RLS", () => {
+    const { vivas, rlsOrfao, criacoesLidas } = ler([
+      "001.sql",
+      "create table public.t (id uuid);\n" +
+        "-- alter table public.t enable row level security;\n" +
+        "/* create table public.fantasma (id uuid);\n" +
+        "   alter table public.fantasma enable row level security; */",
+    ]);
+    expect([...vivas.keys()], "o comentário criou uma tabela").toEqual(["t"]);
+    expect(vivas.get("t")!.rls, "o comentário ligou o RLS").toBe(false);
+    expect(rlsOrfao).toEqual([]);
+    expect(criacoesLidas).toBe(1);
+  });
+
+  it("`if not exists` repetido não duplica, e não reseta o RLS", () => {
+    const { vivas, criacoesLidas } = ler(
+      ["001.sql", "create table if not exists public.t (id uuid);\nalter table public.t enable row level security;"],
+      ["002.sql", "create table if not exists public.t (id uuid);"],
+    );
+    expect(vivas.size).toBe(1);
+    expect(vivas.get("t")!.rls, "o segundo `if not exists` desligou o RLS").toBe(true);
+    expect(criacoesLidas).toBe(2);
+  });
+
+  it("lê nome de tabela com dígito", () => {
+    // O regex antigo era `[a-z_]+`: `fhir_r4` virava `fhir_r`. Duas tabelas que
+    // só diferissem pelo dígito colapsariam numa, e o RLS de uma valeria pela
+    // outra.
+    const { vivas } = ler([
+      "001.sql",
+      "create table public.fhir_r4 (id uuid);\nalter table public.fhir_r4 enable row level security;\n" +
+        "create table public.fhir_r5 (id uuid);",
+    ]);
+    expect([...vivas.keys()].sort()).toEqual(["fhir_r4", "fhir_r5"]);
+    expect(vivas.get("fhir_r4")!.rls).toBe(true);
+    expect(vivas.get("fhir_r5")!.rls, "o dígito foi truncado e o RLS vazou").toBe(false);
   });
 });
 

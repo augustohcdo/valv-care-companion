@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { sqlSemComentarios } from "./sqlDeMigrations";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 
@@ -342,11 +343,11 @@ describe("o diretório de profissionais", () => {
  * Guarda que lê comentário não confere código; aqui o custo era pior, porque
  * ela deixava de conferir o arquivo certo sem dizer que trocou de arquivo.
  */
-export function sqlSemComentarios(texto: string): string {
-  return texto
-    .replace(/\/\*[\s\S]*?\*\//g, (b) => b.replace(/[^\n]/g, " "))
-    .replace(/--[^\n]*/g, "");
-}
+// A função mora em `sqlDeMigrations.ts`, importada no topo. Ela estava aqui, e
+// havia uma segunda cópia em `mercadoBrSemAfirmarAusencia.test.ts`: as duas
+// apagavam o comentário de linha ENCURTANDO a linha, a canônica troca por
+// espaços e preserva as posições. Três cópias de uma decisão é onde ela começa
+// a divergir — e a terceira fui eu que escrevi.
 
 describe("o vínculo depende do médico", () => {
   function migrationDoVinculo(): string {

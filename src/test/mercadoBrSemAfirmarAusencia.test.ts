@@ -1,5 +1,6 @@
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
+import { sqlSemComentarios } from "./sqlDeMigrations";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -65,12 +66,10 @@ const O_RECUO = "20260903020000_mercado_br_sem_afirmacao_de_ausencia.sql";
  */
 const PODEM_AFIRMAR_AUSENCIA: Record<string, string> = {};
 
-/** Tira comentários de SQL, preservando as quebras de linha. */
-export function sqlSemComentarios(texto: string): string {
-  return texto
-    .replace(/\/\*[\s\S]*?\*\//g, (b) => b.replace(/[^\n]/g, " "))
-    .replace(/--[^\n]*/g, "");
-}
+// `sqlSemComentarios` vem de `sqlDeMigrations.ts`, importado no topo. Era
+// definido aqui e em `acessoProfissional.test.ts`, as duas iguais; a canônica
+// preserva as POSIÇÕES ao apagar o comentário de linha, que é o que esta guarda
+// precisa — ela classifica a ocorrência pelo índice dela na instrução.
 
 /**
  * Apaga o CONTEÚDO dos literais de texto, preservando as posições.
