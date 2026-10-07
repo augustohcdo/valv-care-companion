@@ -1,5 +1,6 @@
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
+import { semComentariosDeCodigo as semComentarios } from "./semComentariosDeCodigo";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
@@ -54,11 +55,12 @@ const HELPER = `${FUNCOES}/_shared/trilhaDeIntegracao.ts`;
 const LOG_ERROR = `${FUNCOES}/_shared/logError.ts`;
 
 /** Tira comentários, preservando quebras de linha. */
-function semComentarios(texto: string): string {
-  return texto
-    .replace(/\/\*[\s\S]*?\*\//g, (b) => b.replace(/[^\n]/g, " "))
-    .replace(/(^|[^:])\/\/[^\n]*/g, (_m, p1) => p1);
-}
+// `semComentarios` mora em `semComentariosDeCodigo.ts`, pelo PARSER do
+// TypeScript. Havia OITO cópias disto no projeto, em duas famílias, e
+// nenhuma estava correta: a família regex apaga `//` de dentro de literal de
+// texto, e a família varredor quebra em literal de REGEX — `/\\/\\*…\\*\\//g` faz
+// ela ler começo de comentário e apagar o resto da linha. Guardas que existem
+// para não ler comentário como código não podem ler literal como comentário.
 
 /** Os `index.ts` das edge functions, pelo git. */
 function arquivosDeFuncoes(): string[] {
@@ -78,7 +80,7 @@ describe("a trilha de integração", () => {
     let varridos = 0;
     for (const arquivo of arquivosDeFuncoes()) {
       varridos++;
-      const limpo = semComentarios(readFileSync(arquivo, "utf8"));
+      const limpo = semComentarios(readFileSync(arquivo, "utf8"), arquivo);
       for (const m of limpo.matchAll(/\.rpc\(\s*["'`]log_integration_event["'`]/g)) {
         const linha = limpo.slice(0, m.index).split("\n").length;
         culpadas.push(`  · ${arquivo}:${linha}`);
@@ -101,7 +103,7 @@ describe("a trilha de integração", () => {
   }, 30_000);
 
   it("o helper existe, confere o `error` e grita quando não grava", () => {
-    const helper = semComentarios(readFileSync(HELPER, "utf8"));
+    const helper = semComentarios(readFileSync(HELPER, "utf8"), HELPER);
     expect(helper, "o helper não chama o RPC").toMatch(/\.rpc\(\s*"log_integration_event"/);
     expect(
       helper,
@@ -145,7 +147,7 @@ describe("a trilha de integração", () => {
      * trilha e espalha o dado por um caminho que não foi desenhado para ele.
      * O `hospital_id` basta para localizar o problema.
      */
-    const helper = semComentarios(readFileSync(HELPER, "utf8"));
+    const helper = semComentarios(readFileSync(HELPER, "utf8"), HELPER);
     const metadata = helper.slice(helper.indexOf("metadata:"), helper.indexOf("});", helper.indexOf("metadata:")));
     expect(metadata.length, "não achei o `metadata` do relato").toBeGreaterThan(20);
     expect(
@@ -168,7 +170,7 @@ describe("o canal que relata as perdas", () => {
      * promessa não tinha nada por trás, e a função cujo trabalho é tornar
      * falhas visíveis podia perder a falha.
      */
-    const logError = semComentarios(readFileSync(LOG_ERROR, "utf8"));
+    const logError = semComentarios(readFileSync(LOG_ERROR, "utf8"), LOG_ERROR);
 
     expect(logError, "`logError` não devolve mais se gravou").toMatch(/Promise<boolean>/);
 
@@ -218,7 +220,7 @@ describe("o canal que relata as perdas", () => {
   });
 
   it("`report-error` responde se REGISTROU, não se a requisição chegou", () => {
-    const fonte = semComentarios(readFileSync(`${FUNCOES}/report-error/index.ts`, "utf8"));
+    const fonte = semComentarios(readFileSync(`${FUNCOES}/report-error/index.ts`, "utf8"), "index.ts");
     expect(
       fonte,
       "`report-error` voltou a responder `{ ok: true }` fixo: o endpoint cujo " +

@@ -1,5 +1,6 @@
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
+import { semComentariosDeCodigo as semComentarios } from "./semComentariosDeCodigo";
 import { execFileSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 
@@ -90,11 +91,12 @@ export function marcasEsperadas(verificador: string): string[] {
 }
 
 /** Tira comentários, preservando as quebras de linha. */
-function semComentarios(texto: string): string {
-  return texto
-    .replace(/\/\*[\s\S]*?\*\//g, (b) => b.replace(/[^\n]/g, " "))
-    .replace(/(^|[^:])\/\/[^\n]*/g, (_m, p1) => p1);
-}
+// `semComentarios` mora em `semComentariosDeCodigo.ts`, pelo PARSER do
+// TypeScript. Havia OITO cópias disto no projeto, em duas famílias, e
+// nenhuma estava correta: a família regex apaga `//` de dentro de literal de
+// texto, e a família varredor quebra em literal de REGEX — `/\\/\\*…\\*\\//g` faz
+// ela ler começo de comentário e apagar o resto da linha. Guardas que existem
+// para não ler comentário como código não podem ler literal como comentário.
 
 const app = readFileSync(APP, "utf8");
 /**
@@ -103,7 +105,7 @@ const app = readFileSync(APP, "utf8");
  * — foi a oitava vez nesta base, e a primeira em que eu plantei a armadilha e
  * caí nela no mesmo dia.
  */
-const verificador = semComentarios(readFileSync(VERIFICADOR, "utf8"));
+const verificador = semComentarios(readFileSync(VERIFICADOR, "utf8"), VERIFICADOR);
 const esperadas = marcasEsperadas(verificador);
 
 describe("as marcas de carregamento que o verificador de rotas espera", () => {
@@ -122,7 +124,7 @@ describe("as marcas de carregamento que o verificador de rotas espera", () => {
      * Nona vez nesta base que uma guarda lê comentário em vez de código, e a
      * segunda no mesmo dia em que fui eu quem plantou a armadilha.
      */
-    const fallback = semComentarios(readFileSync(arquivo, "utf8"));
+    const fallback = semComentarios(readFileSync(arquivo, "utf8"), arquivo);
     expect(
       fallback,
       `o fallback de rota (${nome}) não carrega \`${MARCA}\`. Sem a marca o ` +
@@ -153,7 +155,7 @@ describe("as marcas de carregamento que o verificador de rotas espera", () => {
       // Também sem comentários: um arquivo que MENCIONA a marca para explicar a
       // regra não a carrega. Punir quem documentou é o falso vermelho que esta
       // base já pagou meia dúzia de vezes.
-      .filter((f) => semComentarios(readFileSync(f, "utf8")).includes(MARCA));
+      .filter((f) => semComentarios(readFileSync(f, "utf8"), f).includes(MARCA));
 
     expect(arquivos.length, "a varredura não achou arquivo nenhum").toBeGreaterThanOrEqual(200);
     expect(

@@ -1,5 +1,6 @@
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
+import { sqlSemComentarios as semComentarios } from "./sqlDeMigrations";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -83,11 +84,8 @@ export interface FuncaoDoBanco {
  * dela mesma — e só apareceu porque a inversão foi feita, e refeita quando a
  * própria asserção da mutação acusou a mesma coisa.
  */
-function semComentarios(sql: string): string {
-  return sql
-    .replace(/\/\*[\s\S]*?\*\//g, (b) => b.replace(/[^\n]/g, " "))
-    .replace(/--[^\n]*/g, "");
-}
+// Este é SQL: o limpador canônico está em `sqlDeMigrations.ts`, e preserva as
+// POSIÇÕES ao apagar o comentário de linha. Era a oitava cópia da mesma decisão.
 
 /**
  * As funções do banco, na definição que VALE.

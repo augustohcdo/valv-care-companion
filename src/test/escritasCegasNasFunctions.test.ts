@@ -1,5 +1,6 @@
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
+import { semComentariosDeCodigo as semComentariosDeTs } from "./semComentariosDeCodigo";
 import { statSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { encontrarEscritasCegas, clientesCriadosNoArquivo } from "./detectorDeChamadasCegas";
@@ -75,11 +76,12 @@ const RAIZ = "supabase/functions";
  * e aqui o risco é concreto: os cabeçalhos das próprias funções CITAM chamadas
  * de RPC para explicar o que fazem.
  */
-function semComentariosDeTs(texto: string): string {
-  return texto
-    .replace(/\/\*[\s\S]*?\*\//g, (b) => b.replace(/[^\n]/g, " "))
-    .replace(/(^|[^:])\/\/[^\n]*/g, (_m, p1) => p1);
-}
+// `semComentarios` mora em `semComentariosDeCodigo.ts`, pelo PARSER do
+// TypeScript. Havia OITO cópias disto no projeto, em duas famílias, e
+// nenhuma estava correta: a família regex apaga `//` de dentro de literal de
+// texto, e a família varredor quebra em literal de REGEX — `/\\/\\*…\\*\\//g` faz
+// ela ler começo de comentário e apagar o resto da linha. Guardas que existem
+// para não ler comentário como código não podem ler literal como comentário.
 
 /**
  * Exceções deliberadas. Cada uma precisa de motivo escrito — a regra é a mesma
@@ -165,7 +167,7 @@ describe("escritas cegas nas edge functions", () => {
     const descartados: string[] = [];
     let total = 0;
     for (const arquivo of arquivos) {
-      const limpo = semComentariosDeTs(readFileSync(arquivo, "utf8"));
+      const limpo = semComentariosDeTs(readFileSync(arquivo, "utf8"), arquivo);
       for (const m of limpo.matchAll(/\.rpc\(\s*["'`]([^"'`]+)["'`]/g)) {
         total++;
         // A instrução começa depois do último `;` ou `{` de nível de bloco. Se

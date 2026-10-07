@@ -45,18 +45,17 @@ export function varrerFontes(dir: string, out: string[] = []): string[] {
 }
 
 /**
- * Tira comentários preservando as LINHAS.
+ * Reexportado de `semComentariosDeCodigo.ts`, que faz isto pelo PARSER.
  *
- * Trocar um bloco de comentário por vazio faz tudo abaixo subir, e a guarda
- * passa a apontar uma linha que não é a do defeito. Já aconteceu nesta sessão:
- * a inversão dizia 150 com o defeito na 158. Por isso cada bloco vira o mesmo
- * número de quebras de linha que ocupava.
+ * Aqui havia uma das oito cópias. Esta trocava o bloco de comentário pelo mesmo
+ * número de QUEBRAS DE LINHA — o motivo estava escrito e continua valendo ("a
+ * inversão dizia 150 com o defeito na 158") —, e a canônica vai além:
+ * preserva caractere a caractere, então coluna e índice também batem.
+ *
+ * O reexport fica porque `okDeJobRunEhMedido.test.ts` importa daqui.
  */
-export function semComentarios(texto: string): string {
-  return texto
-    .replace(/\/\*[\s\S]*?\*\//g, (bloco) => "\n".repeat((bloco.match(/\n/g) ?? []).length))
-    .replace(/(^|[^:])\/\/.*$/gm, "$1");
-}
+import { semComentariosDeCodigo as semComentarios } from "./semComentariosDeCodigo";
+export { semComentarios };
 
 export interface ChamadaDescartada {
   linha: number;
@@ -78,8 +77,13 @@ const escapar = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  * `nomes` é a lista de funções em que descartar o resultado é defeito — as que
  * dizem "fiz o trabalho lá fora" e só o retorno sabe se fizeram.
  */
-export function chamadasDescartadas(original: string, nomes: string[]): ChamadaDescartada[] {
-  const limpo = semComentarios(original).split("\n");
+export function chamadasDescartadas(
+  original: string,
+  nomes: string[],
+  /** O caminho, para o parser saber se é `.tsx`/`.mjs`. */
+  arquivo?: string,
+): ChamadaDescartada[] {
+  const limpo = semComentarios(original, arquivo).split("\n");
   const cru = original.split("\n");
   const achadas: ChamadaDescartada[] = [];
   const padrao = new RegExp(`^(?:await\\s+)?(${nomes.map(escapar).join("|")})\\s*\\(`);
@@ -110,7 +114,7 @@ export function chamadasDescartadas(original: string, nomes: string[]): ChamadaD
 }
 
 /** Toda menção à chamada, para o sanity check da varredura. */
-export function totalDeChamadas(original: string, nomes: string[]): number {
+export function totalDeChamadas(original: string, nomes: string[], arquivo?: string): number {
   const padrao = new RegExp(`\\b(?:${nomes.map(escapar).join("|")})\\s*\\(`);
-  return semComentarios(original).split("\n").filter((l) => padrao.test(l)).length;
+  return semComentarios(original, arquivo).split("\n").filter((l) => padrao.test(l)).length;
 }

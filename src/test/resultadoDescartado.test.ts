@@ -81,8 +81,8 @@ describe("nenhuma chamada joga o resultado fora", () => {
 
     for (const arquivo of arquivos) {
       const original = readFileSync(arquivo, "utf8");
-      total += totalDeChamadas(original, NOMES);
-      for (const c of chamadasDescartadas(original, NOMES)) {
+      total += totalDeChamadas(original, NOMES, arquivo);
+      for (const c of chamadasDescartadas(original, NOMES, arquivo)) {
         ruins.push(`  · ${arquivo}:${c.linha} — \`${c.nome}\`: ${OBRIGATORIAS[c.nome]}`);
       }
     }
@@ -111,7 +111,7 @@ describe("nenhuma chamada joga o resultado fora", () => {
     const contagem: Record<string, number> = Object.fromEntries(NOMES.map((n) => [n, 0]));
     for (const arquivo of arquivos) {
       const texto = readFileSync(arquivo, "utf8");
-      for (const nome of NOMES) contagem[nome] += totalDeChamadas(texto, [nome]);
+      for (const nome of NOMES) contagem[nome] += totalDeChamadas(texto, [nome], arquivo);
     }
     const semNenhuma = NOMES.filter((n) => contagem[n] === 0);
     expect(
@@ -128,7 +128,7 @@ describe("nenhuma chamada joga o resultado fora", () => {
     try {
       const caminho = join(dir, "x.mjs");
       writeFileSync(caminho, linhas.join("\n"));
-      return chamadasDescartadas(readFileSync(caminho, "utf8"), NOMES);
+      return chamadasDescartadas(readFileSync(caminho, "utf8"), NOMES, caminho);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

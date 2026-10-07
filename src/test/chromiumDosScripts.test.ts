@@ -1,5 +1,6 @@
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
+import { semComentariosDeCodigo as semComentarios } from "./semComentariosDeCodigo";
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 // O módulo é `.mjs` sem tipos. O `typecheck:strict` resolve o import sozinho,
@@ -113,7 +114,7 @@ describe("o Chromium dos scripts", () => {
      */
     const ruins: string[] = [];
     for (const full of scriptsQueSobemNavegador()) {
-      if (/executablePath\s*:/.test(semComentarios(readFileSync(full, "utf8")))) {
+      if (/executablePath\s*:/.test(semComentarios(readFileSync(full, "utf8"), full))) {
         ruins.push(`  · ${full} — decide o caminho por conta própria`);
       }
     }
@@ -181,7 +182,7 @@ describe("o Chromium dos scripts", () => {
      */
     const cegos: string[] = [];
     for (const full of scriptsQueSobemNavegador()) {
-      const texto = semComentarios(readFileSync(full, "utf8"));
+      const texto = semComentarios(readFileSync(full, "utf8"), full);
       const pergunta = /getElementById\(\s*["']root["']\s*\)/.test(texto)
         || /\bpareceVazia\b/.test(texto);
       if (!pergunta) cegos.push(`  · ${full} — afirma sobre a tela sem conferir se ela montou`);
@@ -264,11 +265,12 @@ const PRAZO_COM_SUBPROCESSO = 30_000;
  * truque, noutro detector desta base, colapsava os comentários de bloco e fazia
  * a varredura apontar a linha 150 para um defeito que estava na 158.
  */
-function semComentarios(texto: string): string {
-  return texto
-    .replace(/\/\*[\s\S]*?\*\//g, (bloco) => bloco.replace(/[^\n]/g, " "))
-    .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
-}
+// `semComentarios` mora em `semComentariosDeCodigo.ts`, pelo PARSER do
+// TypeScript. Havia OITO cópias disto no projeto, em duas famílias, e
+// nenhuma estava correta: a família regex apaga `//` de dentro de literal de
+// texto, e a família varredor quebra em literal de REGEX — `/\\/\\*…\\*\\//g` faz
+// ela ler começo de comentário e apagar o resto da linha. Guardas que existem
+// para não ler comentário como código não podem ler literal como comentário.
 
 /**
  * Os scripts que sobem navegador — a varredura das duas regras acima.

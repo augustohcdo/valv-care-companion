@@ -1,6 +1,7 @@
 // Este teste lê o disco; tsconfig.app.json restringe `types`, daí a referência.
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
+import { semComentariosDeCodigo as semComentarios } from "./semComentariosDeCodigo";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -74,30 +75,19 @@ function varrer(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** Tira comentários de linha e de bloco, preservando o tamanho das strings. */
-export function semComentarios(texto: string): string {
-  let fora = "";
-  let i = 0;
-  let aspa: string | null = null;
-  while (i < texto.length) {
-    const c = texto[i];
-    const prox = texto[i + 1];
-    if (aspa) {
-      if (c === "\\") { fora += texto.slice(i, i + 2); i += 2; continue; }
-      if (c === aspa) aspa = null;
-      fora += c; i++; continue;
-    }
-    if (c === '"' || c === "'" || c === "`") { aspa = c; fora += c; i++; continue; }
-    if (c === "/" && prox === "/") { while (i < texto.length && texto[i] !== "\n") i++; continue; }
-    if (c === "/" && prox === "*") {
-      i += 2;
-      while (i < texto.length && !(texto[i] === "*" && texto[i + 1] === "/")) i++;
-      i += 2; continue;
-    }
-    fora += c; i++;
-  }
-  return fora;
-}
+/**
+ * Reexportado de `semComentariosDeCodigo.ts`, que faz isto pelo PARSER.
+ *
+ * Aqui morava a melhor das oito cópias: um varredor caractere a caractere que
+ * rastreava aspas, e por isso NÃO apagava `//` de dentro de literal de texto —
+ * ao contrário das seis cópias por expressão regular. Mas ele quebrava em
+ * literal de REGEX: em `/\/\*[\s\S]*?\*\//g`, a sequência `\/` seguida de `/`
+ * virava começo de comentário e ele apagava o resto da linha. Esse literal
+ * existe neste repositório — é o próprio limpador por regex, citado num teste.
+ *
+ * O reexport fica porque `rlsCoverage.test.ts` importa daqui.
+ */
+export { semComentarios };
 
 /**
  * O PRIMEIRO argumento de cada `aplicar(...)` — equilibrando `()`, `{}`, `[]` e
@@ -440,7 +430,7 @@ describe("as escritas que passam por aplicar()", () => {
     const culpadas: string[] = [];
 
     for (const arquivo of arquivos) {
-      const limpo = semComentarios(readFileSync(arquivo, "utf8"));
+      const limpo = semComentarios(readFileSync(arquivo, "utf8"), arquivo);
       for (const m of limpo.matchAll(MUTACAO)) {
         const antes = limpo.slice(Math.max(0, m.index! - 300), m.index!);
         // dentro de um `aplicar(...)`? então a regra de cima já cobre.
@@ -525,7 +515,7 @@ describe("as escritas que passam por aplicar()", () => {
     let total = 0;
 
     for (const arquivo of arquivos) {
-      const limpo = semComentarios(readFileSync(arquivo, "utf8"));
+      const limpo = semComentarios(readFileSync(arquivo, "utf8"), arquivo);
       for (const m of limpo.matchAll(MUTACAO_DE_ESCRITA)) {
         total++;
         raizes.add(arquivo.split("/")[1] ?? arquivo);

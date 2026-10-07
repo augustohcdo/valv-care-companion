@@ -1,5 +1,7 @@
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
+import { sqlSemComentarios } from "./sqlDeMigrations";
+import { semComentariosDeCodigo } from "./semComentariosDeCodigo";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -57,11 +59,15 @@ import { join } from "node:path";
 const MIGRATIONS = "supabase/migrations";
 
 /** Comentários fora, linhas preservadas. Guarda que lê comentário não confere código. */
-function semComentarios(t: string): string {
-  return t
-    .replace(/\/\*[\s\S]*?\*\//g, (b) => b.replace(/[^\n]/g, " "))
-    .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
-}
+// Esta guarda lê DUAS linguagens e tinha um limpador só, que não servia para
+// nenhuma das duas: ele tirava `//` e `/* */`, então nas migrations ele deixava
+// TODO comentário `--` passar por código — numa guarda que afirma revogação de
+// UPDATE por coluna. Medido antes de trocar: com `--` removido, as duas listas
+// (`revogadas` e `concedidas`) saem idênticas, então a fragilidade não tinha
+// alcance hoje. Fragilidade sem alcance ainda é fragilidade.
+//
+// Agora cada linguagem tem o seu: `sqlSemComentarios` para as migrations,
+// `semComentariosDeCodigo` (pelo parser) para o TypeScript.
 
 export interface GrantsDeColuna {
   /** Tabelas cujo UPDATE de tabela foi revogado de `authenticated`. */
@@ -75,7 +81,7 @@ export function grantsDeColuna(dir = MIGRATIONS): GrantsDeColuna {
   const concedidas = new Map<string, Set<string>>();
 
   for (const arquivo of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
-    const sql = semComentarios(readFileSync(join(dir, arquivo), "utf8"));
+    const sql = sqlSemComentarios(readFileSync(join(dir, arquivo), "utf8"));
 
     for (const m of sql.matchAll(
       /revoke\s+[^;]*\bupdate\b[^;]*on\s+(?:public\.)?(\w+)\s+from\s+([^;]+);/gi,
@@ -155,7 +161,7 @@ export function escritasDoCliente(raiz = "src"): EscritaDoCliente[] {
       if (statSync(full).isDirectory()) { varrer(full); continue; }
       if (!/\.tsx?$/.test(nome) || nome.includes(".test.")) continue;
 
-      const texto = semComentarios(readFileSync(full, "utf8"));
+      const texto = semComentariosDeCodigo(readFileSync(full, "utf8"), full);
       for (const m of texto.matchAll(/\.update\s*\(\s*\{/g)) {
         // A tabela é o `.from("x")` mais próximo ANTES, sem cruzar fim de
         // instrução. Janela de N caracteres já enganou este repositório quando
