@@ -363,6 +363,16 @@ jobs:
           {
             echo "## Verificações periódicas"
             echo ""
+            # O ramo e o disparo, pelo mesmo motivo que estão no corpo da issue:
+            # um disparo manual de outro ramo já passou por "a agenda está
+            # verde", e nada no relatório desmentia. A agenda que vale roda em
+            # `main`, pelo cron.
+            echo "Medido em \`$GITHUB_REF_NAME\` por \`$GITHUB_EVENT_NAME\`."
+            if [ "$GITHUB_REF_NAME" != "main" ]; then
+              echo ""
+              echo "> ℹ️ Este NÃO é o veredito da agenda diária, que roda em \`main\`."
+            fi
+            echo ""
             echo "| Verificação | Estado |"
             echo "| --- | --- |"
             cat /tmp/tabela.md
@@ -442,7 +452,14 @@ jobs:
             const issue = achada ? { number: achada.number, body: achada.body } : null;
 
             const decisao = decidirAviso({ falhou, assinatura, issue });
-            const corpo = corpoDaIssue({ assinatura, link, tabela });
+            // `ramo` e `evento` entram no corpo porque um disparo manual de
+            // outro ramo passou por "agenda verde" uma vez, e o relatório não
+            // tinha como desmentir. O motivo completo está em `avisoPorIssue.mjs`.
+            const corpo = corpoDaIssue({
+              assinatura, link, tabela,
+              ramo: context.payload?.ref ?? context.ref ?? null,
+              evento: context.eventName ?? null,
+            });
 
             switch (decisao.acao) {
               case "nada":

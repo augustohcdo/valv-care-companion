@@ -99,11 +99,42 @@ export function diferencas(antes, depois) {
 }
 
 /** O corpo da issue: a tabela de hoje, o link, e a assinatura escondida. */
-export function corpoDaIssue({ assinatura, link, tabela }) {
+/**
+ * O corpo da issue — e o que ele passou a dizer.
+ *
+ * ## Por que o RAMO e o EVENTO entraram aqui
+ *
+ * Em 2026-10-05 eu disparei esta agenda à mão, do ramo de trabalho, e ela
+ * passou. Reportei "agenda verde, issue fechada". Era verdade **do ramo** e
+ * falso da agenda: as execuções AGENDADAS rodam em `main`, e lá ela reprovou
+ * naquele mesmo dia e nos dois seguintes.
+ *
+ * Nada no relatório dizia qual das duas coisas havia sido medida. O link da
+ * execução carrega o ramo, mas quem lê a tabela não abre o link — foi
+ * exatamente o que eu não fiz.
+ *
+ * É a mesma classe de defeito que esta sessão perseguiu no prefixo `tela:` da
+ * conferência de ferramentas: o relatório não dizia a origem do número, e a
+ * leitura errada virou afirmação. Aqui o custo foi eu afirmar ao usuário que a
+ * agenda dele estava verde enquanto ela reprovava todo dia.
+ *
+ * `ramo` e `evento` são opcionais de propósito: uma issue criada antes desta
+ * mudança não tem como tê-los, e inventar "main" por omissão seria repetir o
+ * defeito em outra forma.
+ */
+export function corpoDaIssue({ assinatura, link, tabela, ramo, evento }) {
+  const origem = [
+    ramo ? `ramo \`${ramo}\`` : null,
+    evento ? `disparo \`${evento}\`` : null,
+  ].filter(Boolean).join(", ");
   return [
     "As verificações periódicas do que está no ar reprovaram.",
     "",
     `Última execução: ${link}`,
+    origem
+      ? `Medido no ${origem}. **A agenda diária roda em \`main\`** — veredito de ` +
+        "outro ramo não diz nada sobre o que está no ar."
+      : "",
     "",
     tabela?.trim() ? "| Verificação | Estado |\n| --- | --- |\n" + tabela.trim() : "",
     "",

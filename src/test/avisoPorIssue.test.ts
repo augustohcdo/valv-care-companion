@@ -231,3 +231,82 @@ describe("o workflow usa a decisão, e não uma segunda cópia dela", () => {
     expect(trecho, "o ramo que deveria ficar calado cria comentário").not.toMatch(/createComment/);
   });
 });
+
+describe("o corpo da issue diz ONDE foi medido", () => {
+  /**
+   * O defeito, e ele foi meu.
+   *
+   * Em 2026-10-05 eu disparei a agenda à mão, do ramo de trabalho, e ela
+   * passou. Reportei ao usuário "agenda verde, issue fechada". Era verdade do
+   * RAMO e falso da agenda: as execuções agendadas rodam em `main`, e lá ela
+   * reprovou naquele mesmo dia e nos dois seguintes — três dias de vermelho que
+   * eu não vi porque estava olhando o CI, não a agenda.
+   *
+   * Nada no relatório dizia qual das duas coisas havia sido medida. O link da
+   * execução carrega o ramo; quem lê a tabela não abre o link, que foi
+   * exatamente o que eu não fiz.
+   *
+   * Mesma classe do prefixo `tela:` que esta sessão consertou na conferência de
+   * ferramentas: o relatório não dizia a origem do número, e a leitura errada
+   * virou afirmação. Aqui o custo foi eu afirmar que a agenda do usuário estava
+   * verde enquanto ela reprovava todo dia.
+   */
+  const base = { assinatura: "a=0", link: "https://exemplo/1", tabela: "" };
+
+  it("diz o ramo e o disparo quando os conhece", () => {
+    const corpo = corpoDaIssue({ ...base, ramo: "main", evento: "schedule" });
+    expect(corpo).toContain("ramo `main`");
+    expect(corpo).toContain("disparo `schedule`");
+  });
+
+  it("avisa que veredito de outro ramo não diz nada sobre o que está no ar", () => {
+    // Um nome de ramo qualquer, e não o nome real do ramo de trabalho: o caso
+    // precisa de "um ramo que não é `main`", nada mais.
+    //
+    // Cravar o nome verdadeiro fez a guarda da independência do projeto antigo
+    // reprovar — aquele nome de ramo carrega a palavra que o usuário pediu para
+    // sair do repositório e ficar fora, e ela varre comentário também. A guarda
+    // estava certa duas vezes: primeiro sobre o nome no caso, depois sobre a
+    // minha tentativa de explicar o conserto citando a própria palavra.
+    const corpo = corpoDaIssue({
+      ...base, ramo: "trabalho/um-ramo-qualquer", evento: "workflow_dispatch",
+    });
+    expect(corpo).toContain("trabalho/um-ramo-qualquer");
+    expect(
+      corpo,
+      "o corpo não lembra que a agenda que vale roda em `main`",
+    ).toMatch(/agenda diária roda em `main`/);
+  });
+
+  it("omite a linha quando não sabe, em vez de supor `main`", () => {
+    // Issue criada antes desta mudança não tem como carregar a origem.
+    // Escrever "main" por omissão repetiria o defeito em outra forma: o
+    // relatório afirmaria uma origem que ninguém mediu.
+    const corpo = corpoDaIssue(base);
+    expect(corpo).not.toContain("Medido no");
+    expect(corpo, "o resto do corpo se perdeu").toContain("Última execução:");
+    expect(corpo).toContain("<!-- assinatura: a=0 -->");
+  });
+
+  it("o workflow passa o ramo e o disparo para o corpo", () => {
+    // A ponta solta óbvia: a função aceitar os campos e o workflow não os
+    // passar deixaria os três casos acima verdes sobre um relatório que
+    // continua calado. É a mesma ponta que `textoDoComentario` já cobre.
+    const passo = readFileSync(".github/workflows/verificacoes-periodicas.yml", "utf8");
+    const chamada = passo.slice(passo.indexOf("corpoDaIssue({"), passo.indexOf("switch (decisao"));
+    expect(chamada.length, "não achei a chamada a `corpoDaIssue`").toBeGreaterThan(20);
+    expect(chamada, "o workflow não passa o ramo").toMatch(/ramo:/);
+    expect(chamada, "o workflow não passa o evento").toMatch(/evento:/);
+  });
+
+  it("o resumo do passo `Conferir` também declara a origem", () => {
+    // Quem abre a execução vê o resumo, não a issue. As duas superfícies
+    // precisam dizer a mesma coisa, senão a mais visível continua calada.
+    const wf = readFileSync(".github/workflows/verificacoes-periodicas.yml", "utf8");
+    expect(wf, "o resumo não diz em que ramo mediu").toMatch(/Medido em .*GITHUB_REF_NAME/);
+    expect(
+      wf,
+      "o resumo não avisa quando o ramo não é `main`",
+    ).toMatch(/NÃO é o veredito da agenda diária/);
+  });
+});
