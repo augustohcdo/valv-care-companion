@@ -346,6 +346,19 @@ jobs:
           roda "Citações PubMed (pmids)"             npm run pmids
           roda "Links MMCTS (mmcts)"                 npm run mmcts
           roda "Calculadoras no navegador"           node scripts/ferramentas-verificar.mjs http://127.0.0.1:4173
+          # `mobile.mjs` existia e NENHUM workflow o rodava. Ele abre as páginas
+          # públicas em viewport de iPhone e falha listando quem passa da largura
+          # da tela — e existe porque um `overflow-x: hidden` no `index.css`
+          # estava APAGANDO o texto que transbordava: no iPhone as linhas
+          # terminavam cortadas no meio da palavra, sem barra de rolagem para
+          # denunciar, e o defeito atravessou semanas. Script de verificação que
+          # não roda é guarda que ninguém executa.
+          #
+          # Contra o BUILD LOCAL, como as calculadoras, e o rótulo diz isso: o
+          # transbordo vem do CSS e do markup deste commit, então é ele o
+          # assunto. Medir produção aqui misturaria "o layout quebrou" com
+          # "o site está fora do ar", que o passo da porta de entrada já cobre.
+          roda "Layout no celular (390px, build local)" node scripts/mobile.mjs http://127.0.0.1:4173
 
           {
             echo "## Verificações periódicas"
