@@ -321,7 +321,20 @@ function SourcesList({ sources }: { sources: Source[] }) {
             <span className="flex-1">
               <span className="font-medium text-foreground">{s.organization} {s.year}</span>
               <span className="text-muted-foreground"> · {s.title}</span>
-              {s.review_status === "ai_generated" && (
+              {/* `!== "reviewed"`, e não `=== "ai_generated"`.
+
+                  A coluna admite TRÊS valores, e `knowledge_sources` nasce com
+                  `DEFAULT 'pending'`: uma fonte inserida sem estado explícito —
+                  o caso normal — saía daqui SEM aviso, exatamente como uma
+                  revisada por médico. E `pending` quer dizer, nas palavras do
+                  próprio selo, "cadastrado, ainda não revisado".
+
+                  `Referencias.tsx` já escreveu o princípio: "silêncio nesse
+                  ponto é lido como 'revisado' — o mesmo engano do selo, por
+                  omissão". Então a marcação sai para tudo que não é
+                  exatamente `reviewed`, que é a garantia, em vez de para um
+                  valor específico, que é vocabulário. */}
+              {s.review_status !== "reviewed" && (
                 <span className="ml-1.5 text-[9px] uppercase font-semibold text-destructive">· gerado por IA · base em diretriz</span>
               )}
               {s.url && (

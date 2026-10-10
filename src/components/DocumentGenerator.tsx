@@ -58,7 +58,8 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
   const [truncado, setTruncado] = useState(false);
   /**
    * As fontes que sustentaram a resposta, e quantas delas ainda são
-   * PRELIMINARES (`review_status: "ai_generated"`).
+   * PRELIMINARES (tudo que não é `review_status: "reviewed"` — a coluna tem
+   * três valores, e `pending` também não foi revisado).
    *
    * A `clinical-ai` devolve `sources` em todos os modos menos o de orientação
    * de alta, e esta tela as descartava. O `ClinicalAIPanel`, ao lado, marca
@@ -127,7 +128,13 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
         Array.isArray(data?.sources) ? data.sources : [];
       setPreliminares(
         fontes
-          .filter((f) => f.review_status === "ai_generated")
+          // `!== "reviewed"`: a coluna admite três valores, e
+          // `knowledge_sources` nasce com `DEFAULT 'pending'`. Uma fonte
+          // `pending` ficava FORA desta lista — num documento cujo cabeçalho
+          // afirma que as fontes listadas são as preliminares, e que é o
+          // documento que um médico assina. Omitir é afirmar que o resto foi
+          // revisado.
+          .filter((f) => f.review_status !== "reviewed")
           .map((f) => `${f.organization ?? "fonte"} ${f.year ?? ""}`.trim()),
       );
       if (data?.truncado) {
