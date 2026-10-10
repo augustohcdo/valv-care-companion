@@ -10,6 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { type ModoPainel } from "@/lib/aiModes";
+import {
+  BASE_NAO_CONSULTADA, type MotivoDaBase, type MotivoDaLiteratura,
+} from "@/lib/aiMotivos";
 import { traduzirFalhaIA } from "@/lib/aiErros";
 import { hasActiveConsent, registerConsent } from "@/lib/consent";
 import { toast } from "sonner";
@@ -19,9 +22,14 @@ type Source = { title: string; organization: string; year: number; scope: "br" |
 type Mode = ModoPainel;
 /** Camada externa: artigo indexado, com o desenho do estudo à vista. */
 type Artigo = { pmid: string; titulo: string; revista: string; ano: string; tipos: string[]; url: string };
-type MotivoPesquisa =
-  | "sem_fonte_automatica" | "sem_termo" | "sem_resultado" | "servico_indisponivel"
-  | "fontes_ilegiveis";
+/**
+ * As duas uniões vêm de `src/lib/aiMotivos.ts`, que é conferido contra as
+ * uniões declaradas nas edge functions. Estavam escritas à mão aqui, e a de
+ * literatura é chave de um `Record<…, string>`: um estado novo do lado da
+ * função fazia a busca devolver `undefined` e o parágrafo de explicação
+ * renderizar VAZIO — sem erro, sem aviso, só sem o texto.
+ */
+type MotivoPesquisa = MotivoDaLiteratura;
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
 interface Props {
@@ -34,6 +42,8 @@ export function ClinicalAIPanel({ caseId }: Props) {
   const [results, setResults] = useState<Record<string, string>>({});
   const [sourcesByMode, setSourcesByMode] = useState<Record<string, Source[]>>({});
   const [ragHitByMode, setRagHitByMode] = useState<Record<string, boolean>>({});
+  /** POR QUE não veio trecho da base, por modo. Ver `AvisoDaBase`. */
+  const [ragMotivoByMode, setRagMotivoByMode] = useState<Record<string, MotivoDaBase | null>>({});
   const [artigosByMode, setArtigosByMode] = useState<Record<string, Artigo[]>>({});
   const [chatArtigos, setChatArtigos] = useState<Artigo[]>([]);
   const [motivoByMode, setMotivoByMode] = useState<Record<string, MotivoPesquisa | null>>({});
@@ -45,6 +55,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
   const [chatHistory, setChatHistory] = useState<ChatMsg[]>([]);
   const [chatSources, setChatSources] = useState<Source[]>([]);
   const [chatRagHit, setChatRagHit] = useState<boolean | null>(null);
+  const [chatRagMotivo, setChatRagMotivo] = useState<MotivoDaBase | null>(null);
   const [chatInput, setChatInput] = useState("");
   const [aiConsent, setAiConsent] = useState<boolean | null>(null);
   const [grantingConsent, setGrantingConsent] = useState(false);
@@ -95,6 +106,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
       }
       return data as {
         content: string; sources?: Source[]; rag_hit?: boolean;
+        rag_motivo?: MotivoDaBase | null;
         external_sources?: Artigo[];
         modelo?: string; modelo_reserva?: boolean;
         pesquisa_motivo?: MotivoPesquisa | null;
@@ -117,6 +129,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
       setResults((prev) => ({ ...prev, [m]: limparNotacaoMatematica(res.content) }));
       setSourcesByMode((prev) => ({ ...prev, [m]: res.sources ?? [] }));
       setRagHitByMode((prev) => ({ ...prev, [m]: !!res.rag_hit }));
+      setRagMotivoByMode((prev) => ({ ...prev, [m]: res.rag_motivo ?? null }));
       setArtigosByMode((prev) => ({ ...prev, [m]: res.external_sources ?? [] }));
       setMotivoByMode((prev) => ({ ...prev, [m]: res.pesquisa_motivo ?? null }));
       setReserva(!!res.modelo_reserva);
@@ -134,6 +147,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
       setChatHistory([...newHistory, { role: "assistant", content: limparNotacaoMatematica(res.content) }]);
       setChatSources(res.sources ?? []);
       setChatRagHit(!!res.rag_hit);
+      setChatRagMotivo(res.rag_motivo ?? null);
       setChatArtigos(res.external_sources ?? []);
       setChatMotivo(res.pesquisa_motivo ?? null);
       setReserva(!!res.modelo_reserva);
@@ -197,10 +211,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
               {results[m] ? (
                 <>
                   {ragHitByMode[m] === false && (
-                    <div className="flex items-start gap-2 text-xs bg-destructive/10 border border-destructive/40 rounded-lg p-2.5 text-destructive">
-                      <ShieldAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                      <p><strong>Sem trecho ancorado.</strong> A base ValvePath não retornou referência para este tópico. A resposta abaixo é conhecimento geral do modelo — verifique em fonte primária antes de qualquer decisão.</p>
-                    </div>
+                    <AvisoDaBase motivo={ragMotivoByMode[m] ?? null} />
                   )}
                   <div className="prose prose-sm max-w-none dark:prose-invert bg-secondary/30 border border-border rounded-lg p-4">
                     <ReactMarkdown>{results[m]}</ReactMarkdown>
@@ -254,10 +265,7 @@ export function ClinicalAIPanel({ caseId }: Props) {
             {chatHistory.length > 0 && (
               <>
                 {chatRagHit === false && (
-                  <div className="flex items-start gap-2 text-xs bg-destructive/10 border border-destructive/40 rounded-lg p-2.5 text-destructive">
-                    <ShieldAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                    <p><strong>Última resposta sem trecho ancorado</strong> — verifique em fonte primária.</p>
-                  </div>
+                  <AvisoDaBase motivo={chatRagMotivo} ultima />
                 )}
                 <SourcesList sources={chatSources} />
                 <ArtigosList artigos={chatArtigos} pediu={pesquisar} motivo={chatMotivo} />
@@ -386,6 +394,87 @@ const MOTIVO_TEXTO: Record<MotivoPesquisa, string> = {
     "chegou a ser feita. Isso NÃO quer dizer que a busca esteja desligada nem que não " +
     "exista artigo — tente de novo daqui a pouco.",
 };
+
+/**
+ * O aviso de que a resposta saiu sem trecho da base ValvePath — dizendo QUAL
+ * dos quatro motivos.
+ *
+ * ## O que havia aqui
+ *
+ * Um parágrafo fixo, para qualquer motivo:
+ *
+ *   > "**Sem trecho ancorado.** A base ValvePath **não retornou referência para
+ *   >  este tópico.** A resposta abaixo é conhecimento geral do modelo."
+ *
+ * A função devolvia só `rag_hit: false`, e quatro caminhos chegam a esse
+ * `false`. Em dois deles — embedding que falhou, credencial ausente — a base
+ * **nunca foi consultada**, e a frase afirma algo sobre o CONTEÚDO dela que
+ * ninguém verificou.
+ *
+ * A diferença muda a conduta de quem lê. "A base não tem recomendação sobre
+ * isto" convida a cadastrar a diretriz que falta, ou a concluir que as
+ * diretrizes são silentes no assunto. "Não deu para consultar a base" pede
+ * repetir em cinco minutos e não autoriza nenhuma das duas conclusões.
+ *
+ * O desenho é o de `MOTIVO_TEXTO`, logo abaixo, que a camada externa de
+ * literatura já tinha — pelo mesmo motivo, escrito lá: "'busca desligada' e
+ * 'busca sem resultado' chegam idênticas à tela".
+ */
+const MOTIVO_BASE_TEXTO: Record<MotivoDaBase, string> = {
+  sem_resultado:
+    "A base ValvePath foi consultada e não retornou referência para este tópico. A resposta " +
+    "abaixo é conhecimento geral do modelo — verifique em fonte primária antes de qualquer " +
+    "decisão.",
+  consulta_falhou:
+    "A base ValvePath NÃO PÔDE SER CONSULTADA agora — a busca por similaridade não chegou a " +
+    "ser feita. Isso NÃO quer dizer que não exista recomendação sobre o tópico na base: não " +
+    "foi verificado. A resposta abaixo é conhecimento geral do modelo; vale repetir a " +
+    "consulta daqui a pouco e, de todo modo, verificar em fonte primária.",
+  sem_credencial:
+    "A base ValvePath não está acessível nesta instalação — falta configuração do servidor. " +
+    "Nenhuma consulta à base foi feita, então nada se pode afirmar sobre o conteúdo dela. A " +
+    "resposta abaixo é conhecimento geral do modelo. Avise quem administra o sistema.",
+  nao_pedida:
+    "Este modo não consulta a base de diretrizes, de propósito. A resposta abaixo é " +
+    "conhecimento geral do modelo.",
+};
+
+function AvisoDaBase({ motivo, ultima }: { motivo: MotivoDaBase | null; ultima?: boolean }) {
+  /**
+   * Sem motivo, o aviso continua saindo — e sem afirmar nada.
+   *
+   * Uma resposta de antes desta mudança, ou uma versão da função que ainda não
+   * manda `rag_motivo`, cai aqui. Escolher um dos quatro por padrão seria
+   * exatamente o defeito consertado: afirmar o estado mais provável em vez do
+   * medido. "Não sei por quê" é o que se diz.
+   */
+  const texto = motivo
+    ? MOTIVO_BASE_TEXTO[motivo]
+    : "A resposta abaixo saiu sem trecho da base ValvePath, e esta versão não informou o " +
+      "motivo — não dá para dizer se a base foi consultada. Verifique em fonte primária.";
+  // "Não deu para consultar" é problema de quem administra, além de quem lê, e
+  // fica no tom mais forte; "consultei e não achei" é resultado legítimo da
+  // consulta. Os dois continuam visíveis.
+  const naoConsultou = !motivo || (BASE_NAO_CONSULTADA as readonly string[]).includes(motivo);
+  return (
+    <div
+      className={`flex items-start gap-2 text-xs rounded-lg p-2.5 border ${
+        naoConsultou
+          ? "bg-destructive/10 border-destructive/40 text-destructive"
+          : "bg-warning/10 border-warning/50 text-warning"
+      }`}
+    >
+      <ShieldAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+      <p>
+        <strong>
+          {ultima ? "Última resposta sem trecho ancorado" : "Sem trecho ancorado"}
+          {naoConsultou && motivo !== "nao_pedida" ? " — a base não foi consultada" : ""}.
+        </strong>{" "}
+        {texto}
+      </p>
+    </div>
+  );
+}
 
 function ArtigosList({
   artigos, pediu, motivo,

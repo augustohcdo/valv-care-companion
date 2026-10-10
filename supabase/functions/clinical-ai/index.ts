@@ -12,6 +12,7 @@ import { permitida } from "../_shared/pesquisaExterna.ts";
 import type {
   FonteConfiavel, ArtigoEncontrado, MotivoSemLiteratura,
 } from "../_shared/pesquisaExterna.ts";
+import { AVISO_AO_MODELO, motivoSemTrecho } from "../_shared/motivoDaBase.ts";
 
 /**
  * Trava de rajada — **e não cota de uso**.
@@ -174,7 +175,7 @@ REGRAS ABSOLUTAS DE CITAÇÃO (RAG):
 - Cada trecho recuperado traz "(revisão: X)", onde X é o estado de revisão. Só o valor exato "reviewed" significa revisado por médico com CRM. Ao citar, pela primeira vez na resposta, qualquer trecho cujo X NÃO seja exatamente "reviewed" — inclusive "pending" ou qualquer valor que você não reconheça —, acrescente o sufixo "(texto gerado por IA com base na diretriz oficial, aguardando revisão médica)" logo após a citação. Nunca omita essa marcação nem a apresente como se fosse revisão médica concluída. Na dúvida sobre o estado, marque: afirmar revisão que não houve é pior do que repetir a marcação.
 - Se a base ValvePath incluir a Diretriz Brasileira de Valvopatias, destaque-a como referência primária para o contexto brasileiro e mostre lado a lado quando divergir de ACC/AHA ou ESC/EACTS (formato "ESC/EACTS 2025: Classe I | SBC: Classe IIa — motivo: X").
 - A diretriz valvar vigente é a **ESC/EACTS 2025** (Eur Heart J 2025;46(44):4635-4736). Trechos da ESC/EACTS 2021 continuam na base como referência do que mudou: ao usar um deles, diga que foi superado pela 2025 naquele ponto e dê o número atual. Nunca apresente a edição de 2021 como a recomendação em vigor.
-- Se NENHUM trecho relevante for retornado, escreva explicitamente: "⚠️ Não encontrei essa recomendação na base carregada da ValvePath. A resposta abaixo baseia-se no conhecimento geral do modelo e deve ser verificada em fonte primária antes de qualquer decisão." — e só então responda.
+- Sem trecho recuperado, o prompt traz um bloco "⚠️ AVISO PARA VOCÊ (assistente)" dizendo O QUE ACONTECEU, e você usa o disclaimer EXATO que ele indicar. Dois fatos distintos chegam por aqui e não podem ser escritos igual: "a base foi consultada e não tem este assunto" e "a base NÃO PÔDE ser consultada". NUNCA afirme que a recomendação não existe na base quando o aviso disser que a consulta não foi feita — ninguém verificou isso, e é afirmação sobre o conteúdo da base. Se não vier trecho nem aviso, diga que não é possível saber se a base foi consultada e que a resposta é conhecimento geral do modelo, a verificar em fonte primária.
 - NUNCA invente número de página, DOI, ou trecho literal que não esteja nas referências recuperadas.
 
 AS TRÊS CAMADAS DE FONTE — nunca as misture, e sempre diga de qual veio:
@@ -1004,10 +1005,24 @@ ${commonRules}`;
     let ragBlock = "";
     let sourcesOut: Array<{ title: string; organization: string; year: number; scope: string; url: string | null; similarity: number; review_status: string }> = [];
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    /**
+     * Os dois fatos de que o motivo é feito, e por que são variáveis.
+     *
+     * `temEmbedding` e `achou` começam em `false`, e só o caminho que de fato
+     * consultou a base os liga. Antes, "não gerei o vetor" e "consultei e não
+     * achei" caíam os dois num `ragBlock` vazio e num `rag_hit: false` — e a
+     * tela afirmava, em cima dos dois, que "a base ValvePath não retornou
+     * referência para este tópico". Nos caminhos em que a base nunca foi
+     * consultada, isso é uma afirmação sobre o conteúdo dela que ninguém
+     * verificou. `_shared/motivoDaBase.ts` tem o porquê inteiro.
+     */
+    let temEmbedding = false;
+    let achou = false;
     // A orientação de alta é para o paciente: trecho de diretriz e regra de
     // citação são material do médico, e é deles que vinha o vazamento.
     if (SERVICE_ROLE && mode !== "patient_discharge") {
       const embedding = await embedQuery(GEMINI_API_KEY, ragQuery);
+      temEmbedding = !!embedding;
       if (embedding) {
         const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
         const { data: matches, error: matchErr } = await admin.rpc("match_knowledge", {
@@ -1016,7 +1031,8 @@ ${commonRules}`;
           filter_topic: topic,
         });
         if (matchErr) console.error("match_knowledge error", matchErr);
-        if (matches && matches.length > 0) {
+        achou = !!(matches && matches.length > 0);
+        if (achou) {
           ragBlock = "\n\nREFERÊNCIAS RECUPERADAS DA BASE ValvePath (use estas como fonte primária):\n" +
             matches.map((m: any, i: number) =>
               `[${i + 1}] ${m.source_organization} ${m.source_year} — ${m.section ?? m.topic} (revisão: ${m.review_status}):\n"${m.content}"`
@@ -1026,11 +1042,25 @@ ${commonRules}`;
             scope: m.source_scope, url: m.source_url, similarity: Number(m.similarity?.toFixed(3) ?? 0),
             review_status: m.review_status,
           }));
-        } else {
-          ragBlock = "\n\n⚠️ AVISO PARA VOCÊ (assistente): Nenhum trecho relevante foi encontrado na base ValvePath para esta consulta. INICIE sua resposta com o disclaimer: \"⚠️ Não encontrei essa recomendação na base carregada da ValvePath. A resposta abaixo baseia-se no conhecimento geral do modelo e deve ser verificada em fonte primária antes de qualquer decisão.\"";
         }
       }
     }
+
+    // O motivo sai de uma função pura, porque nada deste bloco se exercita num
+    // teste: ele depende de rede, de credencial e de um RPC com vetor de 768
+    // posições. A decisão, sim.
+    const ragMotivo = motivoSemTrecho({
+      pedeBase: mode !== "patient_discharge",
+      temCredencial: !!SERVICE_ROLE,
+      temEmbedding,
+      achou,
+    });
+    // E o aviso ao modelo passa a sair nos TRÊS motivos que pedem aviso, com
+    // texto diferente em cada um. Antes só o caminho benigno avisava: quando a
+    // base não podia ser consultada, o modelo respondia de conhecimento geral
+    // sem uma palavra a respeito — a falha mais grave era a silenciosa.
+    const avisoDaBase = ragMotivo ? AVISO_AO_MODELO[ragMotivo] : null;
+    if (avisoDaBase) ragBlock = avisoDaBase;
 
     // ============================================================
     // Pesquisa externa: literatura indexada, dentro da cerca de domínios.
@@ -1159,6 +1189,11 @@ ${commonRules}`;
       truncado: candidate.finishReason === "MAX_TOKENS",
       sources: sourcesOut,
       rag_hit: sourcesOut.length > 0,
+      // POR QUE não veio trecho da base. Sem isto, "consultei e não achei" e
+      // "não deu para consultar" chegam idênticos à tela — e a tela afirmava o
+      // primeiro em cima dos dois. É o mesmo desenho de `pesquisa_motivo`,
+      // quatro linhas abaixo, aplicado à camada que sustenta a recomendação.
+      rag_motivo: ragMotivo,
       // Camada externa, separada de `sources` de propósito: a tela mostra as
       // duas em listas distintas, porque elas não têm o mesmo peso.
       modelo: modeloUsado,

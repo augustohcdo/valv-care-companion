@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { hasActiveConsent } from "@/lib/consent";
 import { type ModoDocumento } from "@/lib/aiModes";
+import { BASE_NAO_CONSULTADA, type MotivoDaBase } from "@/lib/aiMotivos";
 import { toast } from "sonner";
 
 export const prosthesisKey = (prosthesisId?: string | null) =>
@@ -70,6 +71,18 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
    * médico revisou.
    */
   const [preliminares, setPreliminares] = useState<string[]>([]);
+  /**
+   * Se a geração saiu SEM trecho ancorado da base ValvePath, e por quê.
+   *
+   * Esta tela lia `sources` e `truncado` e **ignorava `rag_hit`**. O
+   * `ClinicalAIPanel`, ao lado, mostra um aviso vermelho exatamente para esse
+   * estado; aqui, onde sai o documento que o médico assina e arquiva no
+   * prontuário, não havia nada. Um parecer pré-operatório inteiro podia ser
+   * gerado só com conhecimento geral do modelo, sem uma linha dizendo isso — e
+   * é este texto, não a tela, que vira registro.
+   */
+  const [semAncora, setSemAncora] = useState(false);
+  const [ragMotivo, setRagMotivo] = useState<MotivoDaBase | null>(null);
   const [kind, setKind] = useState<DocKind | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -105,6 +118,8 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
     setText("");
     setTruncado(false);
     setPreliminares([]);
+    setSemAncora(false);
+    setRagMotivo(null);
     try {
       const { data, error } = await supabase.functions.invoke("clinical-ai", {
         body: { mode, caseId: caso.id },
@@ -124,6 +139,10 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
       if (data?.error) { toast.error(data.error); setKind(null); return; }
       setText(limparNotacaoMatematica(data.content ?? ""));
       setTruncado(!!data?.truncado);
+      // `rag_hit === false` quer dizer "nenhum trecho da base sustentou isto";
+      // `rag_motivo` diz se a base foi consultada ou não pôde ser.
+      setSemAncora(data?.rag_hit === false);
+      setRagMotivo((data?.rag_motivo as MotivoDaBase | null) ?? null);
       const fontes: Array<{ organization?: string; year?: number; review_status?: string }> =
         Array.isArray(data?.sources) ? data.sources : [];
       setPreliminares(
@@ -175,6 +194,23 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
         `PRELIMINAR, gerados por IA a partir de diretriz e ainda NÃO revisados por ` +
         `médico (${preliminares.join("; ")}). Confira na fonte primária antes de ` +
         "arquivar em prontuário ou entregar ao paciente.",
+      );
+    }
+    /**
+     * O modo do paciente não entra: ele não consulta a base de propósito, e uma
+     * ressalva sobre base de diretriz no papel que o paciente leva para casa é
+     * justamente o material que esta base decidiu não deixar vazar para lá.
+     */
+    if (semAncora && ragMotivo !== "nao_pedida") {
+      notas.push(
+        ragMotivo && (BASE_NAO_CONSULTADA as readonly string[]).includes(ragMotivo)
+          ? "ATENÇÃO: a base de diretrizes da ValvePath NÃO PÔDE SER CONSULTADA nesta " +
+            "geração — nenhuma busca foi feita, e nada se pode afirmar sobre o que ela " +
+            "contém. O texto acima apoia-se apenas no conhecimento geral do modelo. " +
+            "Confira em fonte primária antes de arquivar em prontuário."
+          : "ATENÇÃO: a base de diretrizes da ValvePath foi consultada e não retornou " +
+            "nenhum trecho para este caso. O texto acima apoia-se apenas no conhecimento " +
+            "geral do modelo. Confira em fonte primária antes de arquivar em prontuário.",
       );
     }
     if (!notas.length) return text;
@@ -237,6 +273,39 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
                   <strong>Documento incompleto.</strong> O modelo atingiu o limite de tamanho e
                   parou no meio — o final está faltando. Gere de novo ou complete manualmente
                   antes de anexar ao prontuário.
+                </p>
+              </div>
+            )}
+            {semAncora && ragMotivo !== "nao_pedida" && (
+              /* O terceiro aviso, e o que faltava inteiro: esta tela ignorava
+                 `rag_hit`. "Consultei e não achei" fica em amarelo — é
+                 resultado legítimo da consulta; "não pude consultar" fica em
+                 vermelho, porque aí ninguém olhou e há algo a consertar. */
+              <div
+                className={`flex items-start gap-2 rounded-md border px-3 py-2 ${
+                  ragMotivo && (BASE_NAO_CONSULTADA as readonly string[]).includes(ragMotivo)
+                    ? "border-destructive/40 bg-destructive/10"
+                    : "border-warning/40 bg-warning/10"
+                }`}
+              >
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-foreground" />
+                <p className="text-xs text-foreground">
+                  {ragMotivo && (BASE_NAO_CONSULTADA as readonly string[]).includes(ragMotivo) ? (
+                    <>
+                      <strong>A base de diretrizes não foi consultada.</strong>{" "}
+                      A busca na base ValvePath não chegou a ser feita nesta geração, então
+                      <strong> nada se pode afirmar sobre o que ela contém</strong>. O texto
+                      abaixo apoia-se apenas no conhecimento geral do modelo.
+                    </>
+                  ) : (
+                    <>
+                      <strong>Sem trecho da base.</strong>{" "}
+                      A base ValvePath foi consultada e não retornou nenhum trecho para este
+                      caso. O texto abaixo apoia-se apenas no conhecimento geral do modelo.
+                    </>
+                  )}{" "}
+                  Confira em fonte primária antes de arquivar. A ressalva vai junto no texto
+                  copiado.
                 </p>
               </div>
             )}
