@@ -75,9 +75,23 @@ semeiam dado próprio — o catálogo de próteses nasce com 246 linhas só de
 aplicar o schema. Sem limpar, o resultado tem 492 e ninguém percebe, porque
 "carregou tudo" continua verdadeiro.
 
-O script termina comparando linha a linha com o `_manifest.json` e sai com
-código diferente de zero se algo divergir. **Se ele disser "Tudo bateu", bateu
-de verdade; se não disser, não considere restaurado.**
+O script termina comparando, linha a linha, o `_manifest.json` com o que está no
+alvo — as 38 tabelas de `public`, as contas, os vínculos de login e, com
+`--com-arquivos`, os anexos dos exames. Nada do que ele se propôs a fazer fica
+fora da conta. **Se ele disser "Tudo bateu", bateu de verdade; se não disser,
+não considere restaurado.**
+
+Os códigos de saída, na convenção dos conferidores deste projeto:
+
+| Saída | Quer dizer |
+|---|---|
+| 0 | tudo bateu com o manifesto |
+| 1 | **divergiu** — o alvo tem outra quantidade que o backup |
+| 2 | **não deu para conferir** — o manifesto registra erro do export naquele arquivo, ou algo não foi medido. Não é o mesmo que bater: é não saber |
+
+`ALVO_SERVICE_KEY` é obrigatória com `--com-arquivos`, e o script recusa sem ela.
+Sem a chave, todo upload de anexo volta 401 e nenhum exame chega — e esse era
+exatamente o jeito de a cópia dos exames falhar inteira sem aparecer no veredito.
 
 #### 3b. Quando o projeto de origem não existe mais
 

@@ -23,9 +23,20 @@
  * O que ele NÃO faz, e está no RECOVERY.md: criar o projeto, aplicar as
  * migrations, publicar as edge functions, gravar segredos, recriar os
  * agendamentos do pg_cron e reapontar a Vercel. Este script cuida só dos dados.
+ *
+ * O veredito do fim é a parte que importa, e mora em
+ * `lib/veredito-restauracao.mjs` — separado para poder ser exercitado por teste,
+ * porque este script roda uma vez na vida, sob pressão. Saída 0 é "bateu com o
+ * manifesto", 1 é "divergiu" e 2 é "não deu para conferir".
  */
 import { argv, env, exit } from "node:process";
 import { webcrypto } from "node:crypto";
+import {
+  INVENTARIO,
+  NAO_SAO_TABELAS,
+  marcaDoEstado,
+  vereditoDaRestauracao,
+} from "./lib/veredito-restauracao.mjs";
 
 /** Hashes do `_offsite_manifest.json`, preenchidos no início de `main()`. */
 let offsiteHashes = null;
@@ -49,6 +60,15 @@ const arg = (nome, obrigatorio = true) => {
  * ela é a última coisa que resta.
  */
 const OFFSITE = argv.includes("--offsite");
+
+/**
+ * Se esta execução vai copiar os anexos dos exames.
+ *
+ * Uma const, e não três `argv.includes` espalhados: é ela que decide se o
+ * veredito cobra o inventário, e a decisão não pode ser lida de um jeito num
+ * lugar e de outro em outro.
+ */
+const COM_ARQUIVOS = argv.includes("--com-arquivos");
 
 const TOKEN = env.SUPABASE_ACCESS_TOKEN;
 const ORIGEM_KEY = env.ORIGEM_SERVICE_KEY;
@@ -79,11 +99,21 @@ const PARA = arg("para");
 const DATA = arg("data");
 const BUCKET = "clinical-exports";
 
-if (OFFSITE && argv.includes("--com-arquivos")) {
+if (OFFSITE && COM_ARQUIVOS) {
   // A cópia externa leva as linhas do banco, não os anexos dos exames — está
   // escrito no RECOVERY.md. Aceitar a combinação em silêncio faria a
   // restauração parecer completa quando não é.
   console.error("--com-arquivos não vale com --offsite: a cópia externa não leva os anexos.");
+  exit(1);
+}
+
+// `--com-arquivos` sem a chave do alvo era a receita do falso verde: todo POST
+// de upload volta 401, nenhum exame chega, e — antes do veredito cobrir os
+// anexos — a última linha era "Tudo bateu com o manifesto.". Recusar aqui é
+// melhor que detectar no fim: o operador descobre em um segundo, não depois de
+// carregar 38 tabelas.
+if (COM_ARQUIVOS && !env.ALVO_SERVICE_KEY) {
+  console.error("Com --com-arquivos, defina ALVO_SERVICE_KEY (service_role do projeto novo).");
   exit(1);
 }
 
@@ -288,10 +318,9 @@ async function main() {
   if (!manifesto) throw new Error(`não achei o manifesto de ${DATA}`);
   console.log(`Manifesto gerado em ${manifesto.generated_at}, ${Object.keys(manifesto.tables).length} arquivos.\n`);
 
-  // Arquivos do manifesto que NÃO são tabela de `public`. Sem esta lista o
+  // `NAO_SAO_TABELAS` vem de `lib/veredito-restauracao.mjs`. Sem esta lista o
   // carregador tentaria `select count(*) from public.storage_inventory` e
   // quebraria a restauração inteira num nome que nunca foi tabela.
-  const NAO_SAO_TABELAS = new Set(["auth_users", "auth_identities", "storage_inventory"]);
   const tabelasAlvo = Object.keys(manifesto.tables).filter((t) => !NAO_SAO_TABELAS.has(t));
 
   if (argv.includes("--limpar")) {
@@ -372,17 +401,17 @@ async function main() {
   const ordem = await ordemPorDependencia(tabelasAlvo);
   console.log(`\nCarregando ${ordem.length} tabelas na ordem das dependências.\n`);
 
-  const carregado = {};
+  // `erroDeCarga` guarda o MOTIVO. A versão anterior gravava a mensagem num
+  // mapa `carregado` que ninguém lia depois: a conferência mostrava "esperado
+  // 50, no alvo 0" e o `insert` tinha dito exatamente por quê, numa string que
+  // o script jogou fora. Às três da manhã, o motivo é a metade útil.
+  const erroDeCarga = {};
   for (const tabela of ordem) {
     const linhas = ndjson(await baixar(`${tabela}.ndjson`));
     try {
-      carregado[tabela] = await inserir(
-        `public.${tabela}`,
-        linhas,
-        DERIVADAS_DO_GATILHO[tabela] ?? null,
-      );
+      await inserir(`public.${tabela}`, linhas, DERIVADAS_DO_GATILHO[tabela] ?? null);
     } catch (e) {
-      carregado[tabela] = `ERRO: ${e.message.slice(0, 120)}`;
+      erroDeCarga[tabela] = e.message.slice(0, 200);
     }
   }
 
@@ -392,8 +421,8 @@ async function main() {
   // cópia externa cobre. O que o backup guarda é o inventário — e o
   // procedimento já pressupõe a origem de pé, então dá para copiar direto de
   // lá na hora da restauração.
-  let arquivos = { copiados: 0, faltando: 0 };
-  if (argv.includes("--com-arquivos")) {
+  const arquivos = { copiados: 0, ausentesNaOrigem: 0, falhaAoSubir: 0 };
+  if (COM_ARQUIVOS) {
     const inventario = ndjson(await baixar("storage_inventory.ndjson"));
     console.log(`\nCopiando ${inventario.length} arquivo(s) da origem.`);
     for (const item of inventario) {
@@ -404,7 +433,7 @@ async function main() {
         // o alarme de "documento sem arquivo" existe para pegar. Aqui ele
         // aparece de novo, e precisa aparecer alto.
         console.warn(`  ausente na origem: ${item.bucket_id}/${item.name}`);
-        arquivos.faltando++;
+        arquivos.ausentesNaOrigem++;
         continue;
       }
       const bytes = new Uint8Array(await r.arrayBuffer());
@@ -421,35 +450,86 @@ async function main() {
       if (up.ok) arquivos.copiados++;
       else {
         console.warn(`  falha ao subir ${item.name}: ${up.status}`);
-        arquivos.faltando++;
+        arquivos.falhaAoSubir++;
       }
     }
-    console.log(`Arquivos: ${arquivos.copiados} copiados, ${arquivos.faltando} com problema.`);
+    // Os dois motivos separados de propósito: "ausente na origem" é dado que já
+    // tinha sumido antes de a restauração começar — é o que o alarme de
+    // "documento no prontuário sem arquivo" existe para pegar — e "falha ao
+    // subir" é falha desta execução. Os dois deixam o alvo incompleto, e pedem
+    // providências diferentes.
+    console.log(
+      `Arquivos: ${arquivos.copiados} copiados, ` +
+      `${arquivos.ausentesNaOrigem} ausente(s) na origem, ` +
+      `${arquivos.falhaAoSubir} falha(s) ao subir.`,
+    );
   }
 
   // ---- 3. Conferência ----------------------------------------------------
+  //
   // Sem comparar com o manifesto, este script "funciona" do mesmo jeito que o
   // backup "funcionava": relatando sucesso sem responder quanto voltou.
-  console.log("Tabela                    esperado  no alvo");
-  let divergentes = 0;
+  //
+  // E a conferência tem de cobrir TUDO o que esta execução se propôs a fazer.
+  // Ela cobria as tabelas de `public` e mais nada: os vínculos de login não
+  // apareciam, as contas eram comparadas com o próprio arquivo baixado
+  // (`contas === usuarios.length` — zero contra zero sempre bate) e os anexos
+  // copiados com `--com-arquivos` não entravam no veredito nem no código de
+  // saída. O porquê e a prova de cada um estão em
+  // `lib/veredito-restauracao.mjs` e em `src/test/vereditoDaRestauracao.test.ts`.
+  const medido = {};
   for (const tabela of ordem) {
-    const esperado = manifesto.tables[tabela]?.rows ?? 0;
     const [{ n }] = await sql(`select count(*)::int as n from public.${tabela};`);
-    const marca = n === esperado ? " " : "!";
-    if (n !== esperado) divergentes++;
-    console.log(`${marca} ${tabela.padEnd(24)} ${String(esperado).padStart(8)} ${String(n).padStart(8)}`);
+    medido[tabela] = n;
   }
   const [{ n: contas }] = await sql("select count(*)::int as n from auth.users;");
-  const marcaContas = contas === usuarios.length ? " " : "!";
-  if (contas !== usuarios.length) divergentes++;
-  console.log(`${marcaContas} ${"auth.users".padEnd(24)} ${String(usuarios.length).padStart(8)} ${String(contas).padStart(8)}`);
+  medido.auth_users = contas;
+  const [{ n: vinculos }] = await sql("select count(*)::int as n from auth.identities;");
+  medido.auth_identities = vinculos;
+  if (COM_ARQUIVOS) medido[INVENTARIO] = arquivos.copiados;
 
-  console.log(
-    divergentes === 0
-      ? "\nTudo bateu com o manifesto."
-      : `\n${divergentes} divergência(s) — investigue antes de considerar restaurado.`,
-  );
-  exit(divergentes === 0 ? 0 : 1);
+  const veredito = vereditoDaRestauracao({
+    manifesto, medido, pediuArquivos: COM_ARQUIVOS,
+  });
+
+  console.log("  artefato                 no backup    no alvo");
+  for (const l of veredito.linhas) {
+    console.log(
+      `${marcaDoEstado(l.estado)} ${l.nome.padEnd(24)} ` +
+      `${String(l.esperado).padStart(9)} ${(l.obtido === null ? "—" : String(l.obtido)).padStart(10)}` +
+      (l.estado === "nao-pedido" ? "   (não pedido nesta execução)" : "") +
+      (l.detalhe ? `   ${l.detalhe}` : ""),
+    );
+  }
+
+  // O motivo, logo abaixo do número que ele explica.
+  const comErro = Object.keys(erroDeCarga);
+  if (comErro.length) {
+    console.log("\nTabelas que recusaram a carga, e por quê:");
+    for (const t of comErro) console.log(`  · ${t}: ${erroDeCarga[t]}`);
+  }
+
+  if (COM_ARQUIVOS && (arquivos.ausentesNaOrigem || arquivos.falhaAoSubir)) {
+    console.log(
+      `\nAnexos: ${arquivos.ausentesNaOrigem} ausente(s) na origem e ` +
+      `${arquivos.falhaAoSubir} falha(s) ao subir — o alvo está incompleto nos exames.`,
+    );
+  }
+
+  if (veredito.divergentes) {
+    console.log(`\n${veredito.divergentes} divergência(s) — investigue antes de considerar restaurado.`);
+  }
+  if (veredito.naoConferidos) {
+    console.log(
+      `\n${veredito.naoConferidos} artefato(s) que NÃO DÁ PARA CONFERIR — veja as linhas com "?".` +
+      "\nNão é o mesmo que bater: é não saber. Onde o manifesto registra erro do" +
+      "\nexport, o dado não existe nem no backup, e zero no alvo não prova nada.",
+    );
+  }
+  if (!veredito.divergentes && !veredito.naoConferidos) {
+    console.log("\nTudo bateu com o manifesto.");
+  }
+  exit(veredito.codigo);
 }
 
 main().catch((e) => {
