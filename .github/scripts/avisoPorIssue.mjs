@@ -122,17 +122,33 @@ export function diferencas(antes, depois) {
  * mudança não tem como tê-los, e inventar "main" por omissão seria repetir o
  * defeito em outra forma.
  */
-export function corpoDaIssue({ assinatura, link, tabela, ramo, evento }) {
+/**
+ * Os três pedaços de prosa que variam entre as agendas que usam este módulo.
+ *
+ * Parametrizados, e não copiados: a varredura SEMANAL das rotas autenticadas
+ * passou a avisar pelo mesmo caminho, e duplicar esta função seria a terceira
+ * cópia de uma decisão — o que esta base avisa, por escrito, ser onde a decisão
+ * começa a divergir. Os padrões são os da agenda diária, para os chamadores
+ * antigos não mudarem de comportamento.
+ */
+const TEXTO_PADRAO = {
+  intro: "As verificações periódicas do que está no ar reprovaram.",
+  agenda: "A agenda diária roda em `main`",
+  periodo: "dia",
+};
+
+export function corpoDaIssue({ assinatura, link, tabela, ramo, evento, texto }) {
+  const { intro, agenda, periodo } = { ...TEXTO_PADRAO, ...(texto ?? {}) };
   const origem = [
     ramo ? `ramo \`${ramo}\`` : null,
     evento ? `disparo \`${evento}\`` : null,
   ].filter(Boolean).join(", ");
   return [
-    "As verificações periódicas do que está no ar reprovaram.",
+    intro,
     "",
     `Última execução: ${link}`,
     origem
-      ? `Medido no ${origem}. **A agenda diária roda em \`main\`** — veredito de ` +
+      ? `Medido no ${origem}. **${agenda}** — veredito de ` +
         "outro ramo não diz nada sobre o que está no ar."
       : "",
     "",
@@ -146,7 +162,7 @@ export function corpoDaIssue({ assinatura, link, tabela, ramo, evento }) {
     '  Não é divergência: é ausência de resposta. Reprova porque "não sei" não é "está tudo bem".',
     "",
     "Esta issue fecha sozinha na primeira execução que passar. **Comentário novo**",
-    "só aparece quando o conjunto de vereditos muda — dia igual ao anterior",
+    `só aparece quando o conjunto de vereditos muda — ${periodo} igual ao anterior`,
     "atualiza este corpo e fica calado, porque aviso repetido sem informação nova",
     "ensina a ignorar o aviso.",
     "",
