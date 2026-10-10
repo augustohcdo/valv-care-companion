@@ -1,6 +1,7 @@
 // Este teste lê o disco; tsconfig.app.json restringe `types`, daí a referência.
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
+import { textoEfetivoDoWorkflow } from "./textoDoWorkflow";
 import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -97,7 +98,12 @@ const WORKFLOW = ".github/workflows/verificacoes-periodicas.yml";
 const SAUDE = "scripts/saude-do-site.mjs";
 
 const ler = (p: string) => (existsSync(p) ? readFileSync(p, "utf8") : "");
-const yml = ler(WORKFLOW);
+// O texto EFETIVO: o workflow mais as ações locais que ele usa. As 89 linhas
+// das chaves públicas saíram para `.github/actions/chaves-publicas` quando a
+// varredura semanal passou a precisar delas, e três asserções deste arquivo
+// reprovaram na hora — com razão, do ponto de vista delas. `uses: ./…` é parte
+// do que o workflow faz.
+const yml = textoEfetivoDoWorkflow(WORKFLOW);
 const saude = ler(SAUDE);
 
 /**

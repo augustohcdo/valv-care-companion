@@ -315,6 +315,50 @@ jobs:
         run: node scripts/conta-de-verificacao.mjs --varrer-restos
 
   # ------------------------------------------------------------------------
+  # As fontes do catálogo ainda resolvem?
+  #
+  # A conferência diária tinha uma linha chamada "catálogo: nenhuma EOA gravada
+  # sem fonte citável", e o que ela media era se o CAMPO estava preenchido. Uma
+  # URL que devolve 404 passava por citável.
+  #
+  # Não é defeito hipotético: o cabeçalho do `conferir-mmcts.mjs` registra
+  # "links da Corcym que devolviam 404 depois de o site ser reorganizado". São
+  # 82 URLs únicas, em 16 domínios, quase todas de fabricante — e quem clica é
+  # um cardiologista conferindo a procedência da área efetiva de orifício que
+  # ele usa para escolher tamanho de prótese.
+  #
+  # Job separado, e SEMANAL: são 82 requisições a sites de terceiros. Diário
+  # seria incômodo para eles e inútil para nós — link de fabricante apodrece em
+  # reorganização de site, que acontece em meses.
+  #
+  # Só a chave PÚBLICA, pela ação composta. Este job não recebe
+  # `SUPABASE_ACCESS_TOKEN`: ele não precisa, e o token é root sobre a conta.
+  # ------------------------------------------------------------------------
+  fontes:
+    name: Fontes do catálogo ainda resolvem
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Exportar as chaves públicas
+        uses: ./.github/actions/chaves-publicas
+        with:
+          url-de-vars: ${{ vars.VITE_SUPABASE_URL }}
+          chave-de-vars: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+
+      # Sem `npm ci`: o script usa só `fetch` do Node. Instalar 900 pacotes para
+      # bater em 82 URLs seria gastar minuto de runner por nada.
+      - name: Conferir as fontes
+        run: node scripts/conferir-fontes.mjs
+
+  # ------------------------------------------------------------------------
   # O aviso que faltava — e por que ele é um job separado.
   #
   # Esta varredura roda aos domingos e reportava SÓ no `$GITHUB_STEP_SUMMARY`,
@@ -337,7 +381,7 @@ jobs:
   # ------------------------------------------------------------------------
   avisar:
     name: Avisar se a varredura reprovou
-    needs: varrer
+    needs: [varrer, fontes]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -359,21 +403,32 @@ jobs:
             const ETIQUETA = "rotas-autenticadas";
             const link = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
-            // A assinatura, perna por perna. `needs.varrer.result` só dá o
-            // agregado, e agregado não distingue "o médico quebrou" de "o
-            // paciente quebrou" — que é justamente a informação que faz o
+            // A assinatura, job por job. `needs.*.result` só dá o agregado, e
+            // agregado não distingue "o médico quebrou" de "as fontes do
+            // catálogo morreram" — que é justamente a informação que faz o
             // comentário valer a pena. Os jobs da própria execução dão o resto.
+            //
+            // TODO job que não é este entra, e isso é de propósito: a primeira
+            // versão filtrava por `name.startsWith("Varrer as rotas como ")`, e
+            // quando o job das fontes do catálogo foi acrescentado ele ficaria
+            // FORA da assinatura e da tabela — o aviso dispararia (porque
+            // `needs` o inclui) sem dizer o que quebrou. Filtro por nome
+            // envelhece a cada job novo; a negativa não.
+            const EU = "Avisar se a varredura reprovou";
             const jobs = await github.paginate(
               github.rest.actions.listJobsForWorkflowRun,
               { ...context.repo, run_id: context.runId, per_page: 50 },
             );
             const pernas = jobs
-              .filter((j) => j.name.startsWith("Varrer as rotas como "))
+              .filter((j) => j.name !== EU)
               .map((j) => ({
-                rotulo: j.name.replace("Varrer as rotas como ", "").trim(),
-                // `success` → 0, para a assinatura falar a mesma língua da
-                // agenda diária (0 ok, 2 não conferido, resto diverge).
-                estado: j.conclusion === "success" ? "0" : j.conclusion,
+                rotulo: j.name,
+                // `success` → 0 e `skipped` → 2, para a assinatura falar a
+                // mesma língua da agenda diária: 0 ok, 2 não conferido, resto
+                // diverge. Job pulado não é job que passou — é job que não
+                // rodou, e "não sei" não é "está tudo bem".
+                estado: j.conclusion === "success" ? "0"
+                  : j.conclusion === "skipped" ? "2" : j.conclusion,
               }))
               .sort((a, b) => a.rotulo.localeCompare(b.rotulo));
 
@@ -384,10 +439,15 @@ jobs:
               ? pernas.map((p) => `${p.rotulo}=${p.estado}`).join("\n")
               : "(não achei as pernas da matriz nesta execução)";
             const tabela = pernas
-              .map((p) => `| ${p.rotulo} | ${p.estado === "0" ? "✅ ok" : `❌ ${p.estado}`} |`)
+              .map((p) => `| ${p.rotulo} | ${
+                p.estado === "0" ? "✅ ok" : p.estado === "2" ? "⚠️ NÃO CONFERIDO (pulado)" : `❌ ${p.estado}`
+              } |`)
               .join("\n");
 
-            const falhou = "${{ needs.varrer.result }}" !== "success";
+            // Derivado dos jobs, e não de `needs.*.result`: um job novo entra
+            // na conta sozinho. A condição escrita à mão é o que fez a primeira
+            // versão desta linha olhar só a matriz.
+            const falhou = pernas.some((p) => p.estado !== "0");
 
             const abertas = await github.rest.issues.listForRepo({
               ...context.repo, state: "open", labels: ETIQUETA, per_page: 10,

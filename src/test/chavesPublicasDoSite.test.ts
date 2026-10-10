@@ -1,5 +1,6 @@
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
+import { textoEfetivoDoWorkflow } from "./textoDoWorkflow";
 import { readFileSync } from "node:fs";
 import {
   candidatosDeBundle, chavesDoTexto, refDoConfig, conferirProjeto,
@@ -141,7 +142,12 @@ describe("as chaves públicas lidas do site publicado", () => {
 });
 
 describe("o workflow da agenda diária", () => {
-  const yml = readFileSync(WORKFLOW, "utf8");
+  // O texto EFETIVO: o workflow mais as ações locais que ele usa. As 89 linhas
+// das chaves públicas saíram para `.github/actions/chaves-publicas` quando a
+// varredura semanal passou a precisar delas, e três asserções deste arquivo
+// reprovaram na hora — com razão, do ponto de vista delas. `uses: ./…` é parte
+// do que o workflow faz.
+const yml = textoEfetivoDoWorkflow(WORKFLOW);
 
   it("tenta o site publicado ANTES de desistir", () => {
     /**

@@ -341,8 +341,24 @@ if (!CHAVE) {
   conferirDado("catálogo: e devolve linhas", Array.isArray(linhas) ? linhas.length : 0, /^[1-9]\d+$/);
 
   const comEoa = linhas.filter((l) => l.effective_orifice_area != null);
+  /**
+   * "tem URL de fonte", e NÃO "fonte citável" — que era o que dizia antes.
+   *
+   * A medida é `!l.eoa_source_url`: o campo está preenchido ou não. Uma URL que
+   * devolve 404 passa por aqui, e o rótulo antigo a chamava de citável.
+   *
+   * Isso não é defeito hipotético nesta base. O cabeçalho do
+   * `conferir-mmcts.mjs` registra: "links da Corcym que devolviam 404 depois de
+   * o site ser reorganizado". São 82 URLs únicas de fonte no catálogo, em 16
+   * domínios, quase todas de fabricante — e quem clica é um cardiologista
+   * conferindo a procedência de um número clínico.
+   *
+   * Quem confere se elas RESOLVEM é o `conferir-fontes.mjs`, na varredura
+   * semanal. Aqui fica a parte que esta conferência de fato mede, com o nome
+   * que corresponde: presença.
+   */
   conferirDado(
-    "catálogo: nenhuma EOA gravada sem fonte citável",
+    "catálogo: toda EOA gravada tem URL de fonte (presença, não alcance — ver conferir-fontes)",
     comEoa.filter((l) => !l.eoa_source_url).length,
     0,
   );

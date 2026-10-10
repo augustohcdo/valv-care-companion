@@ -1,0 +1,127 @@
+name: Chaves públicas do Supabase
+description: >
+  Exporta VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY para o ambiente dos
+  passos seguintes, por três caminhos em ordem, e mascara o que escreveu.
+
+# ---------------------------------------------------------------------------
+# Por que isto é uma ação, e não um passo copiado.
+#
+# A lógica nasceu dentro de `verificacoes-periodicas.yml` e tem 89 linhas de
+# raciocínio: três caminhos em ordem de confiança, o mascaramento no funil
+# único, e a decisão de NÃO matar o job quando nenhum caminho dá chave — porque
+# a convenção de três estados deixa cada conferência dizer NÃO CONFERIDO por
+# conta própria, e as outras rodam.
+#
+# Quando a varredura semanal passou a precisar das mesmas chaves, copiar seria a
+# segunda cópia de tudo isso. Este repositório já pagou por cópia de decisão: a
+# lista de tabelas do backup ficou quinze tabelas atrasada porque existia em
+# dois lugares, e o detector de chamada cega saiu de dentro do teste pelo mesmo
+# motivo.
+#
+# `vars` vem por INPUT em vez de ser lido aqui dentro: o contexto `vars` dentro
+# de ação composta é um detalhe de plataforma que já mudou, e passar
+# explicitamente deixa visível, no workflow, quem oferece qual caminho.
+# ---------------------------------------------------------------------------
+
+inputs:
+  url-de-vars:
+    description: "vars.VITE_SUPABASE_URL do workflow que chama, se houver"
+    required: false
+    default: ""
+  chave-de-vars:
+    description: "vars.VITE_SUPABASE_PUBLISHABLE_KEY do workflow que chama, se houver"
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Exportar as chaves públicas
+      shell: bash
+      env:
+        URL_DE_VARS: ${{ inputs.url-de-vars }}
+        CHAVE_DE_VARS: ${{ inputs.chave-de-vars }}
+      run: |
+        set -o pipefail
+        # Mascarar o valor nos logs do runner. A chave é PÚBLICA — vai
+        # embutida em todo bundle que qualquer visitante baixa —, e sem isto
+        # ela aparece em texto claro no bloco `env:` de cada passo seguinte.
+        # Foi o que aconteceu na execução 29, num repositório público.
+        #
+        # Mascarar não é por causa desta chave: é porque este passo é o FUNIL
+        # ÚNICO por onde qualquer chave futura vai passar, e o
+        # `rotas-autenticadas.yml` já registra o princípio — "cinto e
+        # suspensório: o script não imprime o token, mas se algum dia
+        # imprimir, sai mascarado".
+        mascarar_o_que_foi_escrito() {
+          chave=$(grep '^VITE_SUPABASE_PUBLISHABLE_KEY=' "$GITHUB_ENV" | tail -1 | cut -d= -f2-)
+          [ -n "$chave" ] && echo "::add-mask::$chave"
+        }
+
+        if [ -n "$URL_DE_VARS" ] && [ -n "$CHAVE_DE_VARS" ]; then
+          {
+            echo "VITE_SUPABASE_URL=$URL_DE_VARS"
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY=$CHAVE_DE_VARS"
+          } >> "$GITHUB_ENV"
+          mascarar_o_que_foi_escrito
+          echo "Chaves públicas vindas das variáveis do repositório."
+          exit 0
+        fi
+
+        if [ -f .env ]; then
+          grep -E '^VITE_SUPABASE_(URL|PUBLISHABLE_KEY)=' .env \
+            | tr -d '"' >> "$GITHUB_ENV"
+          quantas=$(grep -cE '^VITE_SUPABASE_(URL|PUBLISHABLE_KEY)=' .env || true)
+          mascarar_o_que_foi_escrito
+          echo "Chaves públicas vindas do .env local: $quantas de 2."
+          exit 0
+        fi
+
+        # Terceiro caminho: o próprio site publicado. A chave publishable vai
+        # embutida em todo bundle que qualquer visitante baixa, então ela pode
+        # vir de lá por HTTP, sem credencial nenhuma — e sem este workflow
+        # passar a carregar o token de gestão, que é root sobre a conta e não
+        # cabe num job diário desassistido.
+        #
+        # O script confere o `project_id` de `supabase/config.toml` contra o
+        # host que extraiu: sem isso, um site apontando para outro projeto
+        # faria as conferências falarem com o banco errado e passarem.
+        #
+        # Sai 2 quando não dá para olhar e 1 quando o projeto não bate; os
+        # dois casos caem no aviso abaixo em vez de matar o job.
+        if node scripts/chavesPublicasDoSite.mjs --saida "$GITHUB_ENV"; then
+          mascarar_o_que_foi_escrito
+          echo "Chaves públicas lidas do site publicado."
+          exit 0
+        fi
+
+        # Sem chave, e SEM matar o job. As conferências que dependem dela
+        # sairão 2 (NÃO CONFERIDO) por conta própria, e as outras cinco
+        # rodam normalmente — que é o ponto inteiro da convenção de três
+        # estados.
+        echo "::warning::sem VITE_SUPABASE_URL/PUBLISHABLE_KEY (nem em vars, nem em .env, nem no site publicado)."
+        echo "::warning::as conferências que falam com o banco sairão NÃO CONFERIDO; as demais rodam."
+        {
+          echo "### ⚠️ Chaves públicas ausentes"
+          echo ""
+          echo "As conferências que falam com o banco sairão **NÃO CONFERIDO**."
+          echo ""
+          echo "Os três caminhos falharam:"
+          echo ""
+          echo "1. as *Variables* do repositório não estão definidas;"
+          echo "2. não há \`.env\` local (ele é ignorado pelo git, e é assim que deve ser);"
+          echo "3. não deu para ler do site publicado — veja o motivo no log do passo."
+          echo ""
+          echo "O caminho 3 é o que normalmente resolve sozinho, e ele falhar costuma"
+          echo "significar que o site está fora do ar ou servindo outra coisa — o que a"
+          echo "conferência de rotas abaixo também vai mostrar."
+          echo ""
+          echo "Para ligar o caminho 1, defina em *Settings → Secrets and variables → Actions → Variables*:"
+          echo ""
+          echo "- \`VITE_SUPABASE_URL\`"
+          echo "- \`VITE_SUPABASE_PUBLISHABLE_KEY\`"
+          echo ""
+          echo "São chaves **públicas** — já vão embutidas no bundle que qualquer visitante baixa."
+          echo "São *variables*, nunca *secrets*."
+          echo ""
+        } >> "$GITHUB_STEP_SUMMARY"

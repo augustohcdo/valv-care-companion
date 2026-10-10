@@ -60,6 +60,11 @@ interface Fluxo {
   etiqueta: string | null;
   criaIssue: boolean;
   temIssuesWrite: boolean;
+  /** Os jobs do workflow, pela chave na indentação de job. */
+  jobs: string[];
+  /** O `needs` do job que avisa; `[]` quando ele não declara nenhum. */
+  needsDoAviso: string[] | null;
+  nomeDoJobDoAviso: string | null;
 }
 
 export function lerFluxo(nome: string, bruto: string): Fluxo {
@@ -73,6 +78,39 @@ export function lerFluxo(nome: string, bruto: string): Fluxo {
     etiqueta: /const\s+ETIQUETA\s*=\s*"([^"]+)"/.exec(texto)?.[1] ?? null,
     criaIssue: /issues\.create\s*\(/.test(texto),
     temIssuesWrite: /^\s*issues:\s*write\s*$/m.test(texto),
+    // Só a partir de `jobs:`: `schedule:` e `workflow_dispatch:` moram na
+    // MESMA indentação, dentro de `on:`, e a primeira versão desta extração os
+    // contou como jobs — a regra passou a exigir que o aviso esperasse por
+    // `schedule`. Chave na indentação certa, na seção errada.
+    jobs: (() => {
+      const i = texto.search(/^jobs:\s*$/m);
+      if (i < 0) return [];
+      return [...texto.slice(i).matchAll(/^ {2}([A-Za-z_][\w-]*):\s*$/gm)].map((m) => m[1]);
+    })(),
+    // `needs: [a, b]` ou `needs: a`, do job que contém o `issues.create`.
+    needsDoAviso: (() => {
+      const i = texto.indexOf("issues.create");
+      if (i < 0) return null;
+      const antes = texto.slice(0, i);
+      const linhas = antes.split("\n");
+      let inicio = 0;
+      for (let n = linhas.length - 1; n >= 0; n--) {
+        if (/^ {2}[A-Za-z_][\w-]*:\s*$/.test(linhas[n])) { inicio = n; break; }
+      }
+      const m = /^ {4}needs:\s*(.+)$/m.exec(linhas.slice(inicio).join("\n"));
+      if (!m) return [];
+      return m[1].replace(/[[\]]/g, "").split(",").map((x) => x.trim()).filter(Boolean);
+    })(),
+    nomeDoJobDoAviso: (() => {
+      const i = texto.indexOf("issues.create");
+      if (i < 0) return null;
+      const linhas = texto.slice(0, i).split("\n");
+      for (let n = linhas.length - 1; n >= 0; n--) {
+        const m = /^ {2}([A-Za-z_][\w-]*):\s*$/.exec(linhas[n]);
+        if (m) return m[1];
+      }
+      return null;
+    })(),
   };
 }
 
@@ -215,6 +253,76 @@ describe("toda agenda tem como avisar", () => {
         "existir aviso.\n\n" +
         "`always()` em outro passo do mesmo job não serve: cada passo tem a sua\n" +
         "própria condição.",
+    ).toEqual([]);
+  });
+
+  it("o aviso espera por TODOS os jobs do workflow", () => {
+    /**
+     * O buraco que isto fecha, e ele apareceu nesta própria rodada.
+     *
+     * A varredura semanal ganhou um job novo — as fontes do catálogo. O aviso
+     * dela declarava `needs: varrer`, e com isso o job novo poderia reprovar
+     * sem o aviso nem esperar por ele: a issue não abriria, e o workflow
+     * apareceria como "falhou" em silêncio, que é o estado de antes de existir
+     * aviso.
+     *
+     * Não é hipótese: foi a primeira versão do job de fontes, antes de eu
+     * corrigir o `needs`. E o mesmo vale para a assinatura, que filtrava os
+     * jobs por `name.startsWith("Varrer as rotas como ")` — o job novo
+     * disparava o aviso e não aparecia na tabela.
+     *
+     * Filtro ou `needs` escrito à mão envelhece a cada job novo. A regra é:
+     * todo job, menos o próprio aviso.
+     *
+     * ## O que esta regra NÃO cobre
+     *
+     * Ela cobra o `needs` — que é a metade que decide se o aviso RODA. A outra
+     * metade, se o job novo aparece na ASSINATURA e na tabela, está no
+     * JavaScript do passo e não é conferível daqui sem executá-lo. O que fiz em
+     * vez de prometer: o filtro da assinatura passou a ser por exclusão do
+     * próprio aviso, de modo que job novo entra sozinho — e o comentário de lá
+     * registra por quê. Guarda que promete mais do que confere é pior do que
+     * guarda nenhuma, então fica dito: aqui se confere o `needs`.
+     */
+    const descobertos: string[] = [];
+    // Conta quantos pares (workflow, job) o LAÇO de fato comparou. O piso
+    // abaixo lê esta variável, e não `comAviso`: a primeira versão do piso
+    // media a lista de entrada, então esvaziar o laço passava por fora dele.
+    let comparados = 0;
+    for (const f of comAviso) {
+      if (f.needsDoAviso === null) continue;
+      const esperados = f.jobs.filter((j) => j !== f.nomeDoJobDoAviso).sort();
+      comparados += esperados.length;
+      const faltando = esperados.filter((j) => !f.needsDoAviso!.includes(j));
+      if (faltando.length) {
+        descobertos.push(`  · ${f.nome}: o aviso não espera por ${faltando.join(", ")}`);
+      }
+    }
+    /**
+     * O PISO, e ele veio de uma inversão que a regra não derrubava.
+     *
+     * Esvaziar o laço — um `continue` logo na entrada — fazia a regra passar
+     * por construção: sem nada examinado, `descobertos` fica vazio e o
+     * `toEqual([])` aprova. É o verde vazio que esta sessão persegue, dentro da
+     * regra recém-escrita.
+     *
+     * Então a regra declara quanto examinou: pelo menos um workflow com um
+     * `needs` de verdade, e pelo menos um job esperado.
+     */
+    expect(
+      comparados,
+      "o laço não comparou par nenhum (workflow, job) — a regra passaria por " +
+        "vazio, aprovando qualquer `needs`",
+    ).toBeGreaterThan(0);
+
+    expect(
+      descobertos,
+      `\n${descobertos.join("\n")}\n\n` +
+        "O job que abre a issue não declara `needs` para todos os outros jobs\n" +
+        "deste workflow. O job de fora pode reprovar sem o aviso esperar por\n" +
+        "ele: a issue não abre, e o workflow aparece como falhou em silêncio.\n\n" +
+        "Um workflow de job único passa por aqui sem exigência — não há por\n" +
+        "quem esperar.",
     ).toEqual([]);
   });
 
