@@ -5,8 +5,20 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { logError } from "../_shared/logError.ts";
 
-// Tabelas cujo `patient_id` referencia `patients.id` (não auth.users.id).
-const PATIENT_ID_TABLES = ["clinical_cases", "patient_documents", "symptom_entries", "medications", "medication_logs"];
+/**
+ * Tabelas cujo `patient_id` referencia `patients.id` (não auth.users.id).
+ *
+ * `patient_link_requests` entrou nesta rodada: ela guarda os pedidos de vínculo
+ * que o titular enviou, com a mensagem que escreveu e o desfecho. Era uma das
+ * sete tabelas com chave de titular que o export não tocava — e a cobertura
+ * destas listas não era conferida por ninguém, que é exatamente como a lista de
+ * tabelas do backup ficou quinze tabelas atrasada. Agora
+ * `src/test/dpoCobertura.test.ts` compara as três listas com o schema gerado.
+ */
+const PATIENT_ID_TABLES = [
+  "clinical_cases", "patient_documents", "symptom_entries", "medications", "medication_logs",
+  "patient_link_requests",
+];
 
 // Tabelas cujo `patient_id` referencia auth.users.id diretamente (convenção
 // diferente — RLS usa `patient_id = auth.uid()`, não um join via `patients`).
@@ -18,7 +30,41 @@ const USER_AS_PATIENT_ID_TABLES = [
 const USER_ID_TABLES = [
   "profiles", "doctors", "patients", "user_consents", "consent_audit_log",
   "notifications", "saved_filters", "dpo_requests",
+  /**
+   * As quatro que faltavam, e o que cada uma guarda do titular:
+   *
+   *   · `access_requests` — nome, e-mail, telefone, CRM, CRM/UF, RQE,
+   *     especialidade, instituição, cidade, a mensagem que ele escreveu e o
+   *     MOTIVO DA RECUSA, se houve. É a mais rica das sete, e um pedido de
+   *     acesso que a omite não responde "que dados vocês têm sobre mim";
+   *   · `user_roles` — o que ele é no sistema. Material: decide o que ele vê;
+   *   · `hospital_members` — vínculo com instituição, e se está ativo;
+   *   · `pseudonym_map` — o valor ORIGINAL que foi pseudonimizado. A tabela
+   *     nasce com RLS e nenhuma policy, só `service_role`, e a decisão escrita
+   *     é que "quem precisa reidentificar passa pelo processo do DPO, que deixa
+   *     rastro". Este export É esse processo, e o valor é o do próprio titular —
+   *     que já vai no arquivo, vindo de `profiles`.
+   */
+  "access_requests", "user_roles", "hospital_members", "pseudonym_map",
 ];
+
+/**
+ * Tabela com chave de titular deliberadamente FORA do export, com o motivo.
+ *
+ * Uma só, e o motivo é técnico: `client_errors` é coalescida por
+ * `(source, context, message)` — **sem `user_id`** (ver o índice
+ * `idx_client_errors_dedupe` e o `logError`). Quer dizer que uma linha soma
+ * `occurrences` de usuários DIFERENTES e carrega o `user_id` de quem a criou
+ * primeiro. Filtrar por `user_id` erraria nos dois sentidos: entregaria ao
+ * titular contagens que não são dele, e deixaria de fora erros dele que foram
+ * somados na linha de outra pessoa.
+ *
+ * Exportar assim seria pior do que não exportar: afirmaria completude sobre uma
+ * atribuição que a própria tabela não sustenta.
+ */
+const NAO_EXPORTADAS: Record<string, string> = {
+  client_errors: "registro técnico de erro agrupado por mensagem, sem atribuição confiável a uma pessoa: a linha soma ocorrências de usuários diferentes",
+};
 
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
@@ -164,6 +210,9 @@ Deno.serve(async (req) => {
       { chave: "case_collaborators", tabela: "case_collaborators", coluna: "doctor_id" },
       { chave: "case_comments", tabela: "case_comments", coluna: "author_doctor_id" },
       { chave: "clinical_cases_as_doctor", tabela: "clinical_cases", coluna: "doctor_id" },
+      // O outro lado do vínculo: os pedidos que chegaram para ESTE médico. Sem
+      // ele, um titular médico recebia só os pedidos em que é paciente.
+      { chave: "patient_link_requests_as_doctor", tabela: "patient_link_requests", coluna: "doctor_id" },
     ];
     for (const { chave, tabela, coluna } of DO_LADO_MEDICO) {
       if (!doctorId) { gathered[chave] = []; continue; }
@@ -178,7 +227,10 @@ Deno.serve(async (req) => {
       ...((gathered["clinical_cases"] as any[]) ?? []).map((c) => c.id),
       ...((gathered["clinical_cases_as_doctor"] as any[]) ?? []).map((c) => c.id),
     ];
-    for (const table of ["case_events", "case_exams", "case_messages", "case_documents"]) {
+    // `appointments` entrou aqui: ela liga ao titular por `case_id`, igual às
+    // outras quatro, e guarda data, local e as anotações da consulta. Ficava de
+    // fora do export por não estar nesta linha — e nada acusava.
+    for (const table of ["case_events", "case_exams", "case_messages", "case_documents", "appointments"]) {
       if (!caseIds.length) { gathered[table] = []; continue; }
       const { data, error } = await admin.from(table).select("*").in("case_id", caseIds);
       if (error) { falhas.push(`${table}: ${error.message}`); continue; }
@@ -201,6 +253,15 @@ Deno.serve(async (req) => {
       dpo_request_id,
       right_type: reqRow.right_type,
       subject_user_id: targetUserId,
+      /**
+       * O que NÃO entrou, e por quê — dentro do próprio arquivo.
+       *
+       * Um export que lista o que trouxe e silencia sobre o que deixou de fora
+       * se parece com completo. Quem recebe não tem como saber que havia uma
+       * decisão, muito menos qual. Escrito aqui, a decisão viaja com o arquivo
+       * e pode ser contestada — que é o ponto de um pedido de acesso.
+       */
+      nao_incluido: NAO_EXPORTADAS,
       data: gathered,
     };
     const path = `dpo-exports/${dpo_request_id}-${Date.now()}.json`;
