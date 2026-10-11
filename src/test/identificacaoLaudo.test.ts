@@ -145,9 +145,20 @@ describe("laudo anexado ao caso: quem autoriza é a RLS", () => {
   it("a leitura do laudo anexado também exige consentimento de IA", () => {
     // Mesmo caminho, mesmo envio: o documento inteiro vai ao provedor.
     const leitor = readFileSync(resolve(raiz, "src/components/CaseLaudoReader.tsx"), "utf8");
-    const consentimento = leitor.indexOf('hasActiveConsent("ai_processing")');
+    /**
+     * Qualquer uma das duas formas de conferir, e não o nome de uma delas: a
+     * regra é "o consentimento é conferido ANTES de invocar". A primeira versão
+     * fixava `hasActiveConsent("ai_processing")` e reprovou quando a checagem
+     * passou a devolver o ESTADO em vez de um booleano — a garantia não havia
+     * mudado, só o nome.
+     */
+    const consentimento = Math.min(
+      ...['hasActiveConsent("ai_processing")', 'consentimentoDoUsuario("ai_processing")']
+        .map((t) => leitor.indexOf(t))
+        .filter((i) => i > 0),
+    );
     const chamada = leitor.indexOf('invoke("clinical-ai"');
-    expect(consentimento).toBeGreaterThan(0);
+    expect(consentimento, "o leitor de laudo não confere consentimento").toBeLessThan(Infinity);
     expect(consentimento).toBeLessThan(chamada);
   });
 });

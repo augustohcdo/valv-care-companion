@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { compararComExame, type ComparacaoComExame } from "@/lib/caseFields";
 import { logAudit } from "@/lib/auditLog";
 import { aplicar } from "@/lib/mutate";
-import { hasActiveConsent, AVISO_CONSENTIMENTO_IA } from "@/lib/consent";
+import { AVISO_POR_ESTADO, consentimentoDoUsuario } from "@/lib/consent";
 import { LaudoIdentificacao } from "@/components/LaudoIdentificacao";
 import type { IdentificacaoDoLaudo } from "@/lib/laudoIdentificacao";
 import { MODO_EXTRACAO } from "@/lib/aiModes";
@@ -76,8 +76,13 @@ export function CaseLaudoReader({
     // O documento inteiro vai ao provedor de IA — com o que estiver impresso
     // nele. O servidor recusa sem consentimento; esta checagem existe para a
     // recusa chegar como explicação, e não como erro cru.
-    if (!(await hasActiveConsent("ai_processing"))) {
-      toast.error(AVISO_CONSENTIMENTO_IA.titulo, { description: AVISO_CONSENTIMENTO_IA.descricao });
+    // Os quatro motivos de uma recusa, cada um com o seu texto. Antes eram um
+    // só: "ative o consentimento" — dito também a quem já tinha consentido (o
+    // texto mudou de versão) e a quem o sistema não conseguiu consultar.
+    const consentimento = await consentimentoDoUsuario("ai_processing");
+    if (consentimento.estado !== "ok") {
+      const aviso = AVISO_POR_ESTADO[consentimento.estado];
+      toast.error(aviso.titulo, { description: aviso.descricao });
       return;
     }
     setAberto(true);

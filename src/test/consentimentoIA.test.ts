@@ -74,9 +74,19 @@ describe("consentimento de IA no cliente", () => {
   });
 
   it("todo chamador confere o consentimento antes de invocar", () => {
-    const sem = chamadores.filter(
-      (f) => !readFileSync(f, "utf8").includes("hasActiveConsent(\"ai_processing\")"),
-    );
+    /**
+     * As duas formas valem, e a regra é a garantia: alguma checagem de
+     * `ai_processing` acontece antes do `invoke`. `hasActiveConsent` devolve um
+     * booleano; `consentimentoDoUsuario` devolve o ESTADO — nunca consentiu,
+     * retirou, o texto mudou de versão, ou não deu para ler o registro — e é
+     * essa que as telas usam, porque as quatro recusas pedem quatro
+     * providências. Fixar um nome fazia a guarda reprovar uma melhora.
+     */
+    const FORMAS = ['hasActiveConsent("ai_processing")', 'consentimentoDoUsuario("ai_processing")'];
+    const sem = chamadores.filter((f) => {
+      const t = readFileSync(f, "utf8");
+      return !FORMAS.some((forma) => t.includes(forma));
+    });
     expect(sem.map((f) => f.replace(raiz + "/", "")),
       "chamadores da IA sem checagem de consentimento").toEqual([]);
   });

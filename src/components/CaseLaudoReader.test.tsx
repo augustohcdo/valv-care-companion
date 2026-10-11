@@ -36,10 +36,23 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-let temConsentimento = true;
+/**
+ * O estado do consentimento, e não um booleano.
+ *
+ * O portão passou a distinguir quatro motivos de recusa — nunca consentiu,
+ * retirou, o texto mudou de versão, e não deu para ler o registro. Um `false` só
+ * dizia o primeiro para os quatro.
+ */
+let estadoDoConsentimento: "ok" | "ausente" | "revogado" | "versao_antiga" | "nao_conferido" = "ok";
 vi.mock("@/lib/consent", () => ({
-  hasActiveConsent: () => Promise.resolve(temConsentimento),
-  AVISO_CONSENTIMENTO_IA: { titulo: "Consentimento necessário", descricao: "..." },
+  consentimentoDoUsuario: () =>
+    Promise.resolve({ estado: estadoDoConsentimento, versaoAceita: "2.3", versaoVigente: "2.3" }),
+  AVISO_POR_ESTADO: {
+    ausente: { titulo: "Consentimento necessário", descricao: "..." },
+    revogado: { titulo: "Consentimento retirado", descricao: "..." },
+    versao_antiga: { titulo: "O texto do consentimento mudou", descricao: "..." },
+    nao_conferido: { titulo: "Não foi possível conferir o consentimento", descricao: "..." },
+  },
 }));
 vi.mock("@/lib/auditLog", () => ({ logAudit: vi.fn() }));
 vi.mock("sonner", () => ({
@@ -80,7 +93,7 @@ beforeEach(() => {
   vi.mocked(logAudit).mockClear();
   vi.mocked(toast.error).mockClear();
   afetadas = 1;
-  temConsentimento = true;
+  estadoDoConsentimento = "ok";
   invoke.mockResolvedValue({ data: LAUDO_COMPLETO, error: null });
 });
 
@@ -110,7 +123,7 @@ describe("ler o laudo já anexado", () => {
   });
 
   it("sem consentimento de IA, o documento nem é enviado", async () => {
-    temConsentimento = false;
+    estadoDoConsentimento = "ausente";
     montar();
     abrir();
     await waitFor(() => expect(toast.error).toHaveBeenCalled());

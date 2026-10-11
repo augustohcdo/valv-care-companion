@@ -24,7 +24,7 @@ import {
 } from "@/lib/clinicalLabels";
 import { traduzirFalhaIA } from "@/lib/aiErros";
 import { logAudit } from "@/lib/auditLog";
-import { hasActiveConsent, AVISO_CONSENTIMENTO_IA } from "@/lib/consent";
+import { AVISO_POR_ESTADO, consentimentoDoUsuario } from "@/lib/consent";
 import { useAuth } from "@/hooks/useAuth";
 import { useCatalogoProteses } from "@/hooks/useCatalogoProteses";
 import { LaudoIdentificacao } from "@/components/LaudoIdentificacao";
@@ -221,8 +221,13 @@ export default function NovoCaso() {
     // único caminho da IA sem nenhuma checagem de consentimento, nem aqui nem
     // no servidor. O servidor agora recusa; esta checagem existe para a recusa
     // chegar como explicação, não como erro cru.
-    if (!(await hasActiveConsent("ai_processing"))) {
-      toast.error(AVISO_CONSENTIMENTO_IA.titulo, { description: AVISO_CONSENTIMENTO_IA.descricao });
+    // Os quatro motivos de uma recusa, cada um com o seu texto. Antes eram um
+    // só: "ative o consentimento" — dito também a quem já tinha consentido (o
+    // texto mudou de versão) e a quem o sistema não conseguiu consultar.
+    const consentimento = await consentimentoDoUsuario("ai_processing");
+    if (consentimento.estado !== "ok") {
+      const aviso = AVISO_POR_ESTADO[consentimento.estado];
+      toast.error(aviso.titulo, { description: aviso.descricao });
       return;
     }
     setEchoExtracting(true);

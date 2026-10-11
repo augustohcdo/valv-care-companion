@@ -13,6 +13,9 @@ import type {
   FonteConfiavel, ArtigoEncontrado, MotivoSemLiteratura,
 } from "../_shared/pesquisaExterna.ts";
 import { AVISO_AO_MODELO, motivoSemTrecho } from "../_shared/motivoDaBase.ts";
+import {
+  VERSAO_CONSENTIMENTO_IA, estadoDoConsentimento,
+} from "../_shared/consentimentoIA.ts";
 
 /**
  * Trava de rajada — **e não cota de uso**.
@@ -344,17 +347,31 @@ Deno.serve(async (req) => {
     // A leitura usa o cliente do próprio usuário, então a RLS garante que ele
     // só enxergue o próprio consentimento — e ausência de linha é recusa.
     // ============================================================
+    // `document_version` entra na leitura, e isto é o conserto: a coluna existe
+    // desde a primeira migration, é gravada em todo registro e não era lida por
+    // ninguém. O texto do `ai_processing` mudou de sentido — dizia "sem meu
+    // nome", falso para o laudo anexado, que vai inteiro — e a versão própria
+    // (2.3) foi criada para o registro não afirmar um aceite que não houve. O
+    // portão ignorava a versão, então o aceite do texto antigo passava como
+    // consentimento para o novo. `_shared/consentimentoIA.ts` tem o porquê.
     const { data: consentimento, error: erroConsentimento } = await supabase
       .from("user_consents")
-      .select("granted, revoked_at")
+      .select("granted, revoked_at, document_version")
       .eq("user_id", userId)
       .eq("consent_type", "ai_processing")
       .maybeSingle();
+
+    const veredito = estadoDoConsentimento({
+      linha: consentimento,
+      erro: erroConsentimento,
+      versaoVigente: VERSAO_CONSENTIMENTO_IA,
+    });
+
     // Ausência de linha é recusa, e continua sendo — é a regra certa. Mas
     // FALHA DE LEITURA não é ausência de linha: sem observar o erro, quem
     // consentiu era informado de que não consentiu, e o médico ia procurar na
     // tela de privacidade do paciente uma revogação que nunca houve.
-    if (erroConsentimento) {
+    if (veredito.estado === "nao_conferido") {
       return new Response(
         JSON.stringify({
           error: "Não foi possível conferir o consentimento para uso de IA. " +
@@ -364,7 +381,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!consentimento || consentimento.granted !== true || consentimento.revoked_at) {
+    // Código próprio para a versão: "nunca consentiu" e "consentiu com outro
+    // texto" pedem telas diferentes, e dizer a primeira a quem fez a segunda é
+    // o sistema negando uma decisão que a pessoa tomou.
+    if (veredito.estado === "versao_antiga") {
+      return new Response(JSON.stringify({
+        error: "consent_outdated",
+        message: "O texto do consentimento \"Processamento por IA clínica\" mudou desde o " +
+          "seu aceite. Leia a versão atual e confirme de novo em Privacidade e segurança.",
+        versao_aceita: veredito.versaoAceita,
+        versao_vigente: VERSAO_CONSENTIMENTO_IA,
+      }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (veredito.estado !== "ok") {
       return new Response(JSON.stringify({
         error: "consent_required",
         message: "O processamento por IA clínica exige o consentimento específico " +

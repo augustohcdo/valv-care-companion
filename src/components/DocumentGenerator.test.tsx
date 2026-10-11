@@ -41,7 +41,21 @@ vi.mock("@/integrations/supabase/client", () => ({
     }),
   },
 }));
-vi.mock("@/lib/consent", () => ({ hasActiveConsent: () => mocks.consent() }));
+// `mocks.consent()` devolve o ESTADO, não um booleano: o portão distingue
+// quatro motivos de recusa, e dizer "ative o consentimento" a quem já consentiu
+// com outra versão do texto é negar uma decisão que a pessoa tomou.
+vi.mock("@/lib/consent", () => ({
+  consentimentoDoUsuario: async () => ({
+    estado: (await mocks.consent()) ? "ok" : "ausente",
+    versaoAceita: "2.3", versaoVigente: "2.3",
+  }),
+  AVISO_POR_ESTADO: {
+    ausente: { titulo: "Consentimento necessário", descricao: "..." },
+    revogado: { titulo: "Consentimento retirado", descricao: "..." },
+    versao_antiga: { titulo: "O texto do consentimento mudou", descricao: "..." },
+    nao_conferido: { titulo: "Não foi possível conferir o consentimento", descricao: "..." },
+  },
+}));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), message: vi.fn() },
 }));

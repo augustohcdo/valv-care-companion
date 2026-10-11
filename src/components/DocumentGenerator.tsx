@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { hasActiveConsent } from "@/lib/consent";
+import { AVISO_POR_ESTADO, consentimentoDoUsuario } from "@/lib/consent";
 import { type ModoDocumento } from "@/lib/aiModes";
 import { BASE_NAO_CONSULTADA, type MotivoDaBase } from "@/lib/aiMotivos";
 import { toast } from "sonner";
@@ -106,11 +106,14 @@ export function DocumentGenerator({ caso, riskScore }: Props) {
   };
 
   const generateAi = async (mode: ModoDocumento) => {
-    const consented = await hasActiveConsent("ai_processing");
-    if (!consented) {
-      toast.error("Consentimento necessário", {
-        description: "Ative \"Processamento por IA clínica\" em Privacidade e segurança para gerar documentos com IA.",
-      });
+    // Os quatro motivos de uma recusa, cada um com o seu texto. Esta tela tinha
+    // ainda o seu próprio texto escrito à mão — quarta cópia da mesma frase —, e
+    // dizia "ative o consentimento" também a quem já havia consentido com uma
+    // versão anterior do texto e a quem o sistema não conseguiu consultar.
+    const consentimento = await consentimentoDoUsuario("ai_processing");
+    if (consentimento.estado !== "ok") {
+      const aviso = AVISO_POR_ESTADO[consentimento.estado];
+      toast.error(aviso.titulo, { description: aviso.descricao });
       return;
     }
     setLoading(true);

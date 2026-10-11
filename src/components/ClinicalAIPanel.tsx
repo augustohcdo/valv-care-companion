@@ -14,7 +14,10 @@ import {
   BASE_NAO_CONSULTADA, type MotivoDaBase, type MotivoDaLiteratura,
 } from "@/lib/aiMotivos";
 import { traduzirFalhaIA } from "@/lib/aiErros";
-import { hasActiveConsent, registerConsent } from "@/lib/consent";
+import {
+  AVISO_POR_ESTADO, consentimentoDoUsuario, registerConsent,
+  textoDoConsentimentoDeIA, type EstadoDoConsentimento,
+} from "@/lib/consent";
 import { toast } from "sonner";
 
 type Source = { title: string; organization: string; year: number; scope: "br" | "international"; url: string | null; similarity: number; review_status: string };
@@ -57,13 +60,21 @@ export function ClinicalAIPanel({ caseId }: Props) {
   const [chatRagHit, setChatRagHit] = useState<boolean | null>(null);
   const [chatRagMotivo, setChatRagMotivo] = useState<MotivoDaBase | null>(null);
   const [chatInput, setChatInput] = useState("");
-  const [aiConsent, setAiConsent] = useState<boolean | null>(null);
+  /**
+   * O estado do consentimento — `null` enquanto carrega.
+   *
+   * Era um booleano, e os QUATRO motivos de um `false` chegavam à tela como um
+   * só: "ative o consentimento". Dito também a quem já consentiu com uma versão
+   * anterior do texto, e a quem o sistema não conseguiu consultar.
+   */
+  const [consentimento, setConsentimento] =
+    useState<{ estado: EstadoDoConsentimento; versaoAceita: string | null } | null>(null);
   const [grantingConsent, setGrantingConsent] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    hasActiveConsent("ai_processing").then((ok) => {
-      if (!cancelled) setAiConsent(ok);
+    consentimentoDoUsuario("ai_processing").then((v) => {
+      if (!cancelled) setConsentimento({ estado: v.estado, versaoAceita: v.versaoAceita });
     });
     return () => { cancelled = true; };
   }, []);
@@ -72,7 +83,9 @@ export function ClinicalAIPanel({ caseId }: Props) {
     setGrantingConsent(true);
     try {
       await registerConsent({ type: "ai_processing", granted: true, source: "clinical_ai_panel" });
-      setAiConsent(true);
+      // `registerConsent` grava a versão vigente (`versaoDoConsentimento`),
+      // então o estado passa a `ok` — inclusive quando o motivo era a versão.
+      setConsentimento({ estado: "ok", versaoAceita: null });
     } catch (e) {
       console.error(e);
       toast.error("Não foi possível registrar o consentimento");
@@ -93,10 +106,22 @@ export function ClinicalAIPanel({ caseId }: Props) {
           "Erro ao consultar IA clínica",
           (error as Error)?.message,
         );
-        // O servidor pode ter passado a exigir o consentimento — ele pode ter
-        // sido revogado noutra aba desde que esta tela carregou. Trazer a
-        // parede de volta é mais útil que um erro genérico.
-        if (falha.consentimento) setAiConsent(false);
+        /**
+         * O servidor pode ter passado a exigir o consentimento — ele pode ter
+         * sido revogado noutra aba desde que esta tela carregou. Trazer a
+         * parede de volta é mais útil que um erro genérico.
+         *
+         * E a parede volta com o motivo MEDIDO, não com um chute: antes isto
+         * fazia `setAiConsent(false)`, que o muro lia como "nunca consentiu".
+         * O servidor agora recusa com dois códigos (`consent_required` e
+         * `consent_outdated`), e dizer o primeiro a quem está no segundo é o
+         * sistema negando uma decisão que a pessoa tomou.
+         */
+        if (falha.consentimento) {
+          consentimentoDoUsuario("ai_processing").then((v) =>
+            setConsentimento({ estado: v.estado, versaoAceita: v.versaoAceita }),
+          );
+        }
         toast.error(falha.titulo, { description: falha.descricao });
         return null;
       }
@@ -163,19 +188,45 @@ export function ClinicalAIPanel({ caseId }: Props) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {aiConsent === null ? (
+        {consentimento === null ? (
           <div className="flex items-center justify-center py-6 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>
-        ) : aiConsent === false ? (
+        ) : consentimento.estado !== "ok" ? (
           <div className="flex flex-col items-start gap-3 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 p-4 text-sm">
-            <p className="text-foreground">
-              Para usar a IA clínica, seus dados de caso (idade, sexo, sintomas, comorbidades, achados de exames e anotações — sem o seu nome) precisam ser enviados ao Google (API Gemini) para processamento. Isso exige seu consentimento específico.
+            {/**
+              * O MURO dizia, por conta própria: "seus dados de caso (…) — SEM O
+              * SEU NOME — precisam ser enviados ao Google". É a frase que esta
+              * base já identificou como FALSA e tirou do catálogo: quando o
+              * médico anexa o laudo para leitura automática, o arquivo vai
+              * inteiro, com nome, data de nascimento e número de registro
+              * impressos. A guarda proibia `/sem meu nome/` e só olhava o
+              * catálogo; aqui estava escrito "sem o seu nome", quinta cópia do
+              * texto, no único lugar onde a pessoa DECIDE.
+              *
+              * Agora renderiza o texto do catálogo — o mesmo que fica
+              * registrado. É o remédio que o `directory_listing` já tinha: "o
+              * formulário renderiza daqui; antes ele tinha uma cópia manual com
+              * outras palavras, e o profissional lia uma coisa enquanto o
+              * sistema guardava outra".
+              */}
+            <p className="text-foreground">{textoDoConsentimentoDeIA()}</p>
+            {/* E o motivo da recusa, que eram quatro tratados como um. */}
+            <p className="text-xs text-muted-foreground">
+              <strong>{AVISO_POR_ESTADO[consentimento.estado].titulo}.</strong>{" "}
+              {AVISO_POR_ESTADO[consentimento.estado].descricao}
             </p>
-            <Button size="sm" onClick={grantAiConsent} disabled={grantingConsent}>
-              {grantingConsent && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Ativar processamento por IA
-            </Button>
+            {/* "Não deu para ler o registro" não se resolve consentindo de
+                novo: consentir ali gravaria um "concedido" na trilha de
+                auditoria para um consentimento que nunca foi retirado. */}
+            {consentimento.estado !== "nao_conferido" && (
+              <Button size="sm" onClick={grantAiConsent} disabled={grantingConsent}>
+                {grantingConsent && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                {consentimento.estado === "versao_antiga"
+                  ? "Confirmar o texto atual"
+                  : "Ativar processamento por IA"}
+              </Button>
+            )}
           </div>
         ) : (
         <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
