@@ -11,6 +11,8 @@ import {
   CONSENT_CATALOG,
   ConsentType,
   registerConsent,
+  versaoCobre,
+  versaoDoConsentimento,
 } from "@/lib/consent";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -194,6 +196,25 @@ export function PrivacyPreferencesPanel() {
               {items.map((def) => {
                 const state = stateOf(def.type);
                 const granted = state?.granted ?? false;
+                /**
+                 * O texto mostrado é o VIGENTE; o aceite registrado pode ser de
+                 * outra versão.
+                 *
+                 * Esta tela renderizava `def.description` — o texto de hoje —
+                 * com "Aceito em <data> · versão 2.2" logo abaixo e o selo verde
+                 * "Ativo" ao lado. Quem lê conclui que aceitou AQUELE texto. No
+                 * `ai_processing` ele mudou de sentido: a versão anterior dizia
+                 * que os dados iam ao Google "sem meu nome", falso para o laudo
+                 * anexado, que vai inteiro.
+                 *
+                 * É a tela da transparência — é aqui que o titular exerce o
+                 * art. 18 e vê a que consentiu. Afirmar "Ativo" sobre um
+                 * processamento descrito por um texto que ele não aceitou é o
+                 * controlador afirmando um consentimento que não tem.
+                 */
+                const vigente = versaoDoConsentimento(def.type);
+                const desatualizado =
+                  granted && !versaoCobre(state?.document_version ?? null, vigente);
                 return (
                   <div
                     key={def.type}
@@ -207,7 +228,11 @@ export function PrivacyPreferencesPanel() {
                             Obrigatório
                           </Badge>
                         )}
-                        {granted ? (
+                        {desatualizado ? (
+                          <Badge className="text-[10px] bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-200">
+                            <AlertTriangle className="h-3 w-3 mr-1" /> Precisa confirmar
+                          </Badge>
+                        ) : granted ? (
                           <Badge className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
                             <Check className="h-3 w-3 mr-1" /> Ativo
                           </Badge>
@@ -232,6 +257,25 @@ export function PrivacyPreferencesPanel() {
                             ? `Revogado em ${format(new Date(state.revoked_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`
                             : null}
                           {" · "}versão {state.document_version}
+                          {desatualizado && (
+                            <>
+                              {" · "}
+                              <span className="text-amber-700 dark:text-amber-400">
+                                o texto acima é a versão {vigente}, e não a que você aceitou
+                              </span>
+                            </>
+                          )}
+                        </p>
+                      )}
+                      {desatualizado && (
+                        /* O que fazer, e por quê — a tela não pode só marcar o
+                           problema. Desligar e ligar de novo é o caminho que já
+                           existe aqui, e `registerConsent` grava a versão
+                           vigente. */
+                        <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+                          O texto deste consentimento mudou desde o seu aceite. Enquanto não for
+                          confirmado, ele não vale para o que o sistema faz hoje. Desligue e ligue
+                          de novo, acima, para registrar o aceite da versão {vigente}.
                         </p>
                       )}
                     </div>
