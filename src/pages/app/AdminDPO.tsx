@@ -48,30 +48,93 @@ const STATUS_META: Record<DpoStatus, { label: string; color: string; icon: typeo
 };
 
 /**
+ * Rótulo legível de cada contagem do relatório.
+ *
+ * Chave desconhecida NÃO é descartada: ela sai com o nome cru. Omitir seria o
+ * defeito desta rodada repetido — a resposta ficaria mais curta e mais bonita,
+ * sem dizer que houve um número que ninguém soube nomear.
+ */
+const ROTULO_DA_CONTAGEM: Record<string, string> = {
+  casos_pseudonimizados: "Casos do prontuário com o nome substituído por código",
+  perfil: "Cadastros de perfil anonimizados",
+  paciente: "Cadastros de paciente com cidade e UF removidas",
+  medico: "Perfis profissionais com bio, instituição e cidade removidas",
+  autorizacoes_revogadas: "Autorizações de acesso a dados revogadas",
+  filtros_apagados: "Filtros salvos apagados",
+  notificacoes_apagadas: "Notificações apagadas",
+  papeis_removidos: "Papéis de acesso removidos",
+  vinculos_hospitalares_removidos: "Vínculos com instituições removidos",
+  pedidos_de_acesso_anonimizados: "Pedidos de acesso anonimizados",
+  pedidos_dpo_anonimizados: "Pedidos ao DPO anonimizados",
+  relatorios_de_erro_desvinculados: "Relatórios de erro desvinculados da conta",
+};
+
+/**
  * Transforma o relatório do encerramento no texto que o titular vai ler.
  *
  * O relatório vem do próprio RPC que executou a ação, então a resposta descreve
  * o que aconteceu de fato — e não o que alguém lembrou de escrever.
+ *
+ * ## O que estava errado aqui
+ *
+ * O filtro era `v !== null && v !== undefined && v !== 0 && v !== ""`. O
+ * `v !== 0` **descartava a contagem zero** — e zero é o número que mais importa
+ * neste relatório: `casos_pseudonimizados: 0` quer dizer que o nome do titular
+ * CONTINUA no prontuário. A resposta oficial a um pedido de eliminação
+ * simplesmente não falava do assunto, enquanto o bloco `mantido` dizia que "a
+ * correspondência do pseudônimo fica em base restrita" — do que se conclui que
+ * houve pseudônimo.
+ *
+ * Agora: a prosa sai quando existe (o RPC só a emite para passo que de fato
+ * mudou linha), as CONTAGENS saem todas, inclusive as zeradas, e o bloco
+ * `limites` sai sempre — é ele que diz o que a operação não alcança.
  */
 export function textoDaResposta(relatorio: unknown): string {
-  const r = relatorio as { apagado?: Record<string, unknown>; mantido?: Record<string, unknown> } | null;
+  const r = relatorio as {
+    apagado?: Record<string, unknown>;
+    linhas?: Record<string, unknown>;
+    mantido?: Record<string, unknown>;
+    limites?: Record<string, unknown>;
+  } | null;
   if (!r?.apagado && !r?.mantido) return "Conta encerrada.";
 
-  const linhas = (obj: Record<string, unknown> = {}) =>
+  /** Frases. `null` é passo que não mudou nada e não deve ser afirmado. */
+  const prosa = (obj: Record<string, unknown> = {}) =>
     Object.values(obj)
-      .filter((v) => v !== null && v !== undefined && v !== 0 && v !== "")
-      .map((v) => `• ${String(v)}`)
+      .filter((v): v is string => typeof v === "string" && v.trim() !== "")
+      .map((v) => `• ${v}`)
       .join("\n");
 
-  return [
+  /** Contagens. Zero SAI, com todas as letras. */
+  const contagens = (obj: Record<string, unknown> = {}) =>
+    Object.entries(obj)
+      .filter(([, v]) => typeof v === "number" && Number.isFinite(v))
+      .map(([k, v]) => `• ${ROTULO_DA_CONTAGEM[k] ?? k}: ${v}`)
+      .join("\n");
+
+  const limites = r.limites ?? {};
+  const textoDosLimites = Object.entries(limites)
+    .filter(([, v]) => typeof v === "string" && v.trim() !== "")
+    .map(([, v]) => `• ${String(v)}`)
+    .join("\n");
+
+  const partes = [
     "Sua solicitação foi atendida. A conta foi encerrada.",
     "",
     "Apagado:",
-    linhas(r.apagado),
-    "",
-    "Mantido, por obrigação legal:",
-    linhas(r.mantido),
-  ].join("\n");
+    prosa(r.apagado),
+  ];
+
+  const numeros = contagens(r.linhas);
+  if (numeros) partes.push("", "Quantidades, como executadas:", numeros);
+
+  partes.push("", "Mantido, por obrigação legal:", prosa(r.mantido));
+
+  if (textoDosLimites) {
+    partes.push("", "Limite desta operação:", textoDosLimites);
+  }
+
+  return partes.join("\n");
 }
 
 const fmtDate = (iso: string) =>

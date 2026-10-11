@@ -201,7 +201,10 @@ export function SecurityCenter() {
           <p className="text-xs text-muted-foreground leading-relaxed">
             Direito de eliminação (Art. 18, VI da LGPD). O acesso é revogado e os dados de
             cadastro são apagados. O registro clínico é mantido porque a lei obriga a guardá-lo
-            por 20 anos — seu nome deixa de aparecer nele, substituído por um código.
+            por 20 anos; nos casos <strong>vinculados a esta conta</strong>, seu nome nele é
+            substituído por um código. Nos casos em que o médico digitou o nome à mão, sem
+            vínculo com a conta, o nome continua no registro — a lista completa está no aviso
+            de confirmação.
           </p>
           <EncerrarContaDialog
             confirmarComEmail={user?.email ?? undefined}

@@ -27,7 +27,29 @@ const APAGADO = [
   "Cidade e estado do perfil",
   "Acesso à conta: o login deixa de funcionar e as sessões abertas caem",
   "Filtros salvos, notificações e autorizações de compartilhamento com hospitais",
-  "O nome deixa de aparecer no prontuário, substituído por um código",
+  "Papéis de acesso e vínculos com instituições",
+  "Pedidos de acesso e pedidos ao DPO perdem a identificação e mantêm o registro",
+  /**
+   * A linha que estava errada.
+   *
+   * Ela dizia: "O nome deixa de aparecer no prontuário, substituído por um
+   * código" — sem ressalva, num texto lido ANTES de uma confirmação
+   * irreversível.
+   *
+   * O `encerrar_conta` só troca o nome nos casos VINCULADOS à conta
+   * (`clinical_cases.patient_id`), e o comentário dele diz por quê: "caso
+   * digitado à mão, sem vínculo de conta, não pode ser atribuído ao titular com
+   * segurança — e fingir cobertura total seria pior que declarar o limite".
+   *
+   * A decisão está certa: trocar por semelhança de nome alteraria o prontuário
+   * de outra pessoa. O errado era ONDE o limite foi declarado — num comentário
+   * de SQL, enquanto esta lista prometia cobertura.
+   *
+   * E o limite não é raro: medido no repositório, NENHUM caminho do aplicativo
+   * ou das migrations escreve `clinical_cases.patient_id`. Hoje o vínculo é
+   * sempre nulo, então a promessa não se cumpria nunca.
+   */
+  "Nos casos vinculados a esta conta, o nome no prontuário é substituído por um código",
 ];
 
 const MANTIDO = [
@@ -35,6 +57,7 @@ const MANTIDO = [
   "CRM e UF, quando a conta é de médico: é a assinatura do registro clínico",
   "A trilha de auditoria e de consentimentos, como prova do que aconteceu",
   "A correspondência entre o código e o nome, em base restrita, acessível só pelo DPO",
+  "Nos casos em que o médico digitou o nome à mão, sem vínculo com esta conta, o nome CONTINUA no prontuário: não há como atribuí-los com segurança, e trocar por semelhança alteraria o registro de outra pessoa. A remoção nesses casos passa por pedido ao DPO, caso a caso",
 ];
 
 interface Props {
