@@ -18,7 +18,7 @@
  *   npm run mobile -- http://127.0.0.1:4173    # preview local
  */
 import { execSync } from "node:child_process";
-import { opcoesDoChromium, pareceVazia } from "./lib/chromium.mjs";
+import { abrirEEsperarMontar, opcoesDoChromium, pareceVazia } from "./lib/chromium.mjs";
 
 /**
  * O Playwright não é dependência do projeto — seria peso grande para um script
@@ -132,7 +132,24 @@ console.log(`Medindo ${PAGINAS.length} páginas em ${IPHONE.viewport.width}px �
 for (const caminho of PAGINAS) {
   const pagina = await contexto.newPage();
   try {
-    await pagina.goto(BASE + caminho, { waitUntil: "networkidle", timeout: 30_000 });
+    /**
+     * `domcontentloaded` + espera ATIVA pela montagem, e não `networkidle`.
+     *
+     * Era `networkidle`, e na primeira execução na CI duas das onze páginas
+     * estouraram os 30 s: `/auth/login` e `/medicos`. As duas levam o widget do
+     * Turnstile, que carrega script de `challenges.cloudflare.com` e mantém a
+     * rede conversando — o silêncio que `networkidle` espera nunca chega. O
+     * script relatava NÃO CONFERIDO, honestamente, e a agenda ficaria vermelha
+     * todo dia por duas páginas que renderizam perfeitamente. Aviso que não
+     * distingue é aviso que se aprende a ignorar.
+     *
+     * A espera mora em `lib/chromium.mjs` porque o
+     * `ferramentas-verificar.mjs` já fazia a mesma coisa com código próprio —
+     * escrever de novo aqui seria a terceira cópia da mesma decisão.
+     */
+    // A medida que vale é a de depois do scroll, logo abaixo; o retorno desta
+    // chamada é descartado de propósito.
+    await abrirEEsperarMontar(pagina, BASE + caminho);
     // As seções entram por animação de scroll; sem isso a medição pega a página
     // pela metade.
     await pagina.evaluate(() => window.scrollTo(0, document.body.scrollHeight));

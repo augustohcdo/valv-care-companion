@@ -275,6 +275,76 @@ describe("a suíte roda o que existe", () => {
   });
 });
 
+/**
+ * Toda guarda que VARRE o disco e aprova por lista vazia tem piso.
+ *
+ * ## O defeito, medido nos 156 arquivos de teste
+ *
+ * A forma é sempre a mesma: a guarda varre arquivos, filtra os culpados, e
+ * afirma `expect(culpados).toEqual([])`. Se a varredura parar de achar — raiz
+ * renomeada, filtro que deixou de casar, lista de alvos esvaziada —, não há
+ * culpados porque não houve o que examinar, e a guarda aprova. É exatamente o
+ * formato do defeito que esta sessão persegue, aplicado às guardas.
+ *
+ * Varrido: três das 156 aprovavam por lista vazia sem piso nenhum —
+ * `softDelete`, `writeErrors` e `functionsCarregam`. As duas primeiras ganharam
+ * piso pelo número de SÍTIOS QUE O LAÇO CLASSIFICOU, que é a medida certa:
+ * contar arquivos lidos não pega o filtro que parou de casar.
+ *
+ * ## O limite desta regra
+ *
+ * Ela reconhece "varre" e "tem piso" por texto, e não entende a intenção. Um
+ * piso expresso de outra forma — `toContain`, `toHaveLength` — conta, e está na
+ * lista. Uma guarda que varre de um jeito que esta regra não reconhece passa
+ * sem ser cobrada; é um piso, não uma garantia.
+ */
+describe("guarda que varre tem piso", () => {
+  /** Sinais de que o arquivo constrói a lista varrendo o disco ou o git. */
+  const VARRE = /readdirSync|git ls-files|arquivosDeCodigo|arquivosComMjs|arquivosDe\(|walk\(/;
+  /** Sinais de que há um limite inferior afirmado em algum lugar do arquivo. */
+  const PISO = /toBeGreaterThan|toBeGreaterThanOrEqual|toContain\(|toHaveLength\(|\.length\)\.toBe\(/;
+  /** Aprova afirmando que a lista de culpados está vazia. */
+  const APROVA_POR_VAZIO = /toEqual\(\[\]\)/;
+
+  /**
+   * Dispensas, com o motivo. Vazio, e é o estado a defender.
+   */
+  const SEM_PISO_JUSTIFICADO: Record<string, string> = {};
+
+  const varredoras = arquivos.filter((a) => {
+    const t = readFileSync(a, "utf8");
+    return VARRE.test(t) && APROVA_POR_VAZIO.test(t);
+  });
+
+  it("existem guardas varredoras para cobrar", () => {
+    // Sem isto, a regra abaixo passaria por não ter achado varredora nenhuma —
+    // o mesmo defeito que ela persegue, nela mesma.
+    expect(varredoras.length, "nenhuma guarda varredora encontrada").toBeGreaterThan(10);
+  });
+
+  it("toda varredora que aprova por lista vazia tem piso", () => {
+    const semPiso = varredoras
+      .filter((a) => !PISO.test(readFileSync(a, "utf8")))
+      .filter((a) => !(a in SEM_PISO_JUSTIFICADO));
+    expect(
+      semPiso,
+      `\n${semPiso.join("\n")}\n\n` +
+        "Estas guardas varrem o disco e aprovam quando a lista de culpados está\n" +
+        "vazia — mas nada garante que a varredura ACHOU algo. Se a raiz, o filtro\n" +
+        "ou a lista de alvos quebrar, elas aprovam sobre zero sítios examinados.\n\n" +
+        "Acrescente um piso, de preferência pelo número de sítios que o LAÇO\n" +
+        "classificou — contar arquivos lidos não pega o filtro que parou de casar.",
+    ).toEqual([]);
+  });
+
+  it("toda dispensa aponta para varredora que de fato não tem piso", () => {
+    for (const [arquivo, motivo] of Object.entries(SEM_PISO_JUSTIFICADO)) {
+      expect(motivo.length, `a dispensa de ${arquivo} não tem motivo escrito`).toBeGreaterThan(40);
+      expect(varredoras, `${arquivo} está dispensado e não varre mais`).toContain(arquivo);
+    }
+  });
+});
+
 describe("os pisos desta varredura", () => {
   /**
    * Quatro zeros afirmados acima, e zero é o que uma varredura que não acha

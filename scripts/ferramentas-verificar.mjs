@@ -48,7 +48,7 @@
 import { execSync } from "node:child_process";
 import { criarRelator, daTela } from "./lib/relatar.mjs";
 import {
-  opcoesDoChromium, pareceVazia, motivoDeTelaVazia, medirRenderizacao,
+  abrirEEsperarMontar, opcoesDoChromium, pareceVazia, motivoDeTelaVazia,
 } from "./lib/chromium.mjs";
 
 async function carregarPlaywright() {
@@ -164,8 +164,14 @@ async function encerrarNaoConferido(texto) {
  */
 async function irPara(caminho) {
   const url = `${BASE}${caminho}`;
+  let medida;
   try {
-    await pagina.goto(url, { waitUntil: "domcontentloaded" });
+    // A abertura E a espera pela montagem, as duas em `lib/chromium.mjs`. Este
+    // arquivo tinha a sua própria cópia do laço de espera e o `mobile.mjs`
+    // passou a precisar da mesma coisa — e é a quarta vez nesta dupla de
+    // arquivos que uma lição aprendida num deles falta no outro, como o
+    // comentário logo acima já registra.
+    medida = await abrirEEsperarMontar(pagina, url);
   } catch (e) {
     const motivo = String(e?.message ?? e).split("\n")[0];
     await encerrarNaoConferido(
@@ -180,14 +186,8 @@ async function irPara(caminho) {
   }
 
   // O app monta em `#root`. Damos tempo ao React; o que não damos é o benefício
-  // da dúvida a uma tela vazia. O limiar e o diagnóstico moram em
-  // `lib/chromium.mjs`, junto com o do `mobile.mjs`.
-  const limite = Date.now() + 15000;
-  let medida = await medirRenderizacao(pagina);
-  while (pareceVazia(medida) && Date.now() < limite) {
-    await pagina.waitForTimeout(250);
-    medida = await medirRenderizacao(pagina);
-  }
+  // da dúvida a uma tela vazia. O limiar, o diagnóstico e a espera moram em
+  // `lib/chromium.mjs`, junto com os do `mobile.mjs`.
   if (pareceVazia(medida)) {
     await encerrarNaoConferido(
       `${url} abriu, mas o app não montou\n  ` +

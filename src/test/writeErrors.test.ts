@@ -52,9 +52,19 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** Escritas que anunciam sucesso sem observar o erro. */
-function encontrarCegas(): string[] {
+/**
+ * Escritas que anunciam sucesso sem observar o erro.
+ *
+ * Devolve TAMBÉM quantas escritas o laço chegou a classificar. Sem esse número,
+ * a guarda não tinha piso nenhum: se `walk` deixasse de achar arquivo, se
+ * `ESCRITAS` parasse de casar, ou se a junção do statement quebrasse, a
+ * varredura passaria a examinar ZERO escritas e a lista de achados ficaria
+ * vazia — "nenhuma escrita cega" por não ter olhado escrita nenhuma. É o mesmo
+ * formato do defeito que esta guarda existe para pegar, uma camada acima.
+ */
+function encontrarCegas(): { achados: string[]; examinadas: number } {
   const achados: string[] = [];
+  let examinadas = 0;
 
   for (const arquivo of walk(RAIZ)) {
     const rel = arquivo.replace(/\\/g, "/");
@@ -70,6 +80,9 @@ function encontrarCegas(): string[] {
       const bloco = linhas.slice(i, i + JANELA).join("\n");
       const statement = bloco.slice(0, bloco.indexOf(";") + 1 || bloco.length);
       if (!ESCRITAS.test(statement)) continue;
+      // Daqui para baixo a escrita FOI classificada: ela conta para o piso,
+      // tenha sido acusada ou absolvida.
+      examinadas++;
 
       // O `=` pode estar ACIMA do `await`, na forma ternária:
       //   const { error } = editingId
@@ -101,12 +114,35 @@ function encontrarCegas(): string[] {
       achados.push(`${rel}:${i + 1} escreve sem checar o erro e anuncia sucesso`);
     }
   }
-  return achados;
+  return { achados, examinadas };
 }
 
+const { achados: cegas, examinadas } = encontrarCegas();
+
 describe("escritas que anunciam sucesso", () => {
+  it("a varredura de fato examinou escritas", () => {
+    /**
+     * O piso. Zero achados só significa algo se houve o que examinar — e esta
+     * varredura depende de quatro coisas que podem quebrar caladas: o `walk`, o
+     * casamento de `await supabase`, a junção do statement e o `ESCRITAS`.
+     *
+     * Medido: **19** escritas classificadas em `src/`. O número é baixo porque a
+     * maior parte das escritas desta base passou a ir por `aplicar()`
+     * (`src/lib/mutate.ts`), que confere o erro E a contagem de linhas por
+     * construção — são 48 chamadas. Esta varredura cobre o que sobrou: quem
+     * ainda escreve com `await supabase` direto.
+     *
+     * (Eu escrevi "139" aqui na primeira versão, sem medir. O piso reprovou e
+     * mostrou 19. Número posto num comentário sem medição é o mesmo defeito que
+     * esta guarda persegue, uma camada acima.)
+     *
+     * O piso é folgado para não reprovar quando alguém migra mais uma tela para
+     * `aplicar()`, e apertado o bastante para pegar o colapso da varredura.
+     */
+    expect(examinadas, "a varredura não classificou escrita nenhuma").toBeGreaterThan(10);
+  });
+
   it("nenhuma escreve sem checar o erro antes de dizer que deu certo", () => {
-    const cegas = encontrarCegas();
     expect(
       cegas,
       `\n${cegas.join("\n")}\n\n` +

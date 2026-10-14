@@ -55,10 +55,20 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** Leituras (`.from(tabela).…select(…)`) que não filtram `deleted_at`. */
-function findUnfilteredReads(): string[] {
+/**
+ * Leituras (`.from(tabela).…select(…)`) que não filtram `deleted_at`.
+ *
+ * Devolve TAMBÉM quantas leituras o laço chegou a classificar. Sem esse número a
+ * guarda não tinha piso: se `walk` deixasse de achar arquivo, se
+ * `SOFT_DELETE_TABLES` esvaziasse, ou se a extração da cadeia quebrasse, a
+ * varredura passaria a examinar ZERO leituras e a lista de culpados ficaria
+ * vazia — "toda leitura filtra" por não ter olhado leitura nenhuma. É o formato
+ * do defeito que esta guarda existe para pegar, uma camada acima.
+ */
+function findUnfilteredReads(): { offenders: string[]; examinadas: number } {
   const pattern = new RegExp(`\\.from\\("(${SOFT_DELETE_TABLES.join("|")})"\\)`, "g");
   const offenders: string[] = [];
+  let examinadas = 0;
 
   for (const root of ROOTS) {
     for (const file of walk(root)) {
@@ -79,6 +89,9 @@ function findUnfilteredReads(): string[] {
         // devolve a linha recém-criada, que por definição não está apagada.
         if (!chain.includes(".select(")) continue;
         if (/\.(insert|update|upsert|delete)\(/.test(chain.slice(0, chain.indexOf(".select(")))) continue;
+        // Daqui para baixo a leitura FOI classificada: conta para o piso, tenha
+        // sido acusada ou absolvida pelo `deleted_at`.
+        examinadas++;
         if (chain.includes("deleted_at")) continue;
 
         const line = source.slice(0, match.index).split("\n").length;
@@ -86,12 +99,31 @@ function findUnfilteredReads(): string[] {
       }
     }
   }
-  return offenders;
+  return { offenders, examinadas };
 }
 
+const { offenders, examinadas } = findUnfilteredReads();
+
 describe("soft-delete", () => {
+  it("a varredura de fato examinou leituras", () => {
+    // Zero culpados só significa algo se houve o que examinar.
+    expect(SOFT_DELETE_TABLES.length, "a lista de tabelas com soft-delete esvaziou")
+      .toBeGreaterThan(5);
+    /**
+     * Medido: **11** leituras classificadas. O número é baixo porque a maior
+     * parte das telas lê por hooks e helpers que já filtram, e porque muitas
+     * consultas destas tabelas são escritas — que esta varredura exclui de
+     * propósito (o `.select()` depois de um `insert` devolve a linha nova, que
+     * por definição não está apagada).
+     *
+     * Cheguei a este número lendo a mensagem de falha de um piso absurdo, depois
+     * de uma busca por `sed` que corrompeu outras asserções do arquivo e me deu
+     * um resultado errado. Medir é ler o número, não inferi-lo de um laço.
+     */
+    expect(examinadas, "a varredura não classificou leitura nenhuma").toBeGreaterThan(6);
+  });
+
   it("toda leitura de tabela com soft-delete filtra deleted_at", () => {
-    const offenders = findUnfilteredReads();
     expect(offenders, `\n${offenders.join("\n")}\n`).toEqual([]);
   });
 

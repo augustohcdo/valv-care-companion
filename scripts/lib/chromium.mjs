@@ -121,3 +121,53 @@ export async function medirRenderizacao(pagina) {
     texto: (document.body.innerText || "").trim().length,
   }));
 }
+
+/**
+ * Abre a página e ESPERA o app montar — sem depender de a rede ficar quieta.
+ *
+ * ## O defeito que isto fecha
+ *
+ * `mobile.mjs` era o único dos três scripts de navegador a usar
+ * `waitUntil: "networkidle"`. Na primeira execução dele na CI, duas das onze
+ * páginas estouraram os 30 s: `/auth/login` e `/medicos`.
+ *
+ * As duas levam o widget do Turnstile, que carrega script de
+ * `challenges.cloudflare.com` e mantém a rede conversando. `networkidle` espera
+ * silêncio de rede que **nunca chega** — então o `goto` estoura, e o script
+ * relata NÃO CONFERIDO. Honesto, e inútil: a agenda diária ficaria vermelha
+ * todo dia por duas páginas que renderizam perfeitamente.
+ *
+ * É o aviso que apodrece, e este repositório já escreveu a frase, sobre a
+ * periodicidade do conferidor de fontes: "uma indisponibilidade passageira
+ * viraria ⚠️ todo dia, que é como se ensina alguém a ignorar o aviso".
+ *
+ * ## Por que não bastava trocar para `domcontentloaded`
+ *
+ * `domcontentloaded` dispara antes de o React montar. Medir ali é medir
+ * `#root` vazio — e uma página em branco nunca transborda, o que faria o
+ * `mobile.mjs` APROVAR onze páginas em branco. É exatamente o defeito que
+ * `pareceVazia` existe para pegar, e trocar o `waitUntil` sem a espera o
+ * reintroduziria por outra porta.
+ *
+ * Então: `domcontentloaded` para não depender de terceiro, e depois espera
+ * ATIVA até o app aparecer. Quem decide se apareceu é `pareceVazia`, o mesmo
+ * limiar dos outros scripts.
+ *
+ * Devolve a medida final. Cabe a quem chamou decidir o que fazer quando ela
+ * ainda parece vazia — `ferramentas-verificar.mjs` encerra como NÃO CONFERIDO,
+ * `mobile.mjs` marca a página como não medida e segue para as outras.
+ */
+export async function abrirEEsperarMontar(
+  pagina,
+  url,
+  { aberturaMs = 20_000, montagemMs = 15_000, intervaloMs = 250 } = {},
+) {
+  await pagina.goto(url, { waitUntil: "domcontentloaded", timeout: aberturaMs });
+  const limite = Date.now() + montagemMs;
+  let medida = await medirRenderizacao(pagina);
+  while (pareceVazia(medida) && Date.now() < limite) {
+    await pagina.waitForTimeout(intervaloMs);
+    medida = await medirRenderizacao(pagina);
+  }
+  return medida;
+}
