@@ -229,6 +229,20 @@ describe("a guarda que carrega as edge functions", () => {
       })
       .filter((nome) => !existsSync(`${RAIZ_FUNCTIONS}/${nome}/index.ts`));
 
+    /**
+     * O piso. `readdirSync` estoura se a raiz mudar de nome — essa falha é
+     * ruidosa. O que seria silencioso é um dos dois `filter` parar de casar: a
+     * lista sairia vazia e a regra aprovaria sobre ZERO pastas examinadas.
+     *
+     * Contar as pastas de função é a medida certa: são 18 hoje, e o piso
+     * folgado não reprova quando alguém remove uma.
+     */
+    const pastas = readdirSync(RAIZ_FUNCTIONS).filter((nome) => {
+      if (nome.startsWith("_") || nome === "node_modules") return false;
+      try { return statSync(`${RAIZ_FUNCTIONS}/${nome}`).isDirectory(); } catch { return false; }
+    });
+    expect(pastas.length, "a varredura não achou pasta de function nenhuma").toBeGreaterThan(10);
+
     expect(semEntrada, `pasta(s) de function sem index.ts: ${semEntrada.join(", ")}`).toEqual([]);
   });
 });
