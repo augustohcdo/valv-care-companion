@@ -289,14 +289,26 @@ describe("o corpo da issue diz ONDE foi medido", () => {
   });
 
   it("o workflow passa o ramo e o disparo para o corpo", () => {
-    // A ponta solta óbvia: a função aceitar os campos e o workflow não os
-    // passar deixaria os três casos acima verdes sobre um relatório que
-    // continua calado. É a mesma ponta que `textoDoComentario` já cobre.
+    /**
+     * A ponta solta óbvia: a função aceitar os campos e o workflow não os
+     * passar deixaria os três casos acima verdes sobre um relatório que
+     * continua calado. É a mesma ponta que `textoDoComentario` já cobre.
+     *
+     * A regra é a GARANTIA — os dois campos chegam à chamada —, e não a forma.
+     * A primeira versão exigia `ramo:` e `evento:` DENTRO do `corpoDaIssue({…})`,
+     * e reprovou quando os dois foram içados para `const` (porque passaram a
+     * ser necessários também nos comentários e no fechamento). A garantia não
+     * havia mudado; só o lugar onde o valor é calculado.
+     */
     const passo = readFileSync(".github/workflows/verificacoes-periodicas.yml", "utf8");
-    const chamada = passo.slice(passo.indexOf("corpoDaIssue({"), passo.indexOf("switch (decisao"));
-    expect(chamada.length, "não achei a chamada a `corpoDaIssue`").toBeGreaterThan(20);
-    expect(chamada, "o workflow não passa o ramo").toMatch(/ramo:/);
-    expect(chamada, "o workflow não passa o evento").toMatch(/evento:/);
+    const i = passo.indexOf("const decisao = decidirAviso");
+    const j = passo.indexOf("switch (decisao");
+    expect(i, "não achei o trecho da decisão no workflow").toBeGreaterThan(0);
+    const trecho = passo.slice(i, j);
+    expect(trecho, "o workflow não calcula o ramo").toMatch(/ramo\s*=\s*context|ramo:/);
+    expect(trecho, "o workflow não calcula o evento").toMatch(/evento\s*=\s*context|evento:/);
+    expect(trecho, "o ramo e o evento não chegam ao corpo da issue")
+      .toMatch(/corpoDaIssue\(\{[^}]*ramo[^}]*evento|corpoDaIssue\(\{[\s\S]{0,200}?ramo:/);
   });
 
   it("o resumo do passo `Conferir` também declara a origem", () => {

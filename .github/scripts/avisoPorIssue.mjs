@@ -203,8 +203,39 @@ export function decidirAviso({ falhou, assinatura, issue }) {
   };
 }
 
+/**
+ * Onde a execução mediu, em uma linha — ou nada, se não souber.
+ *
+ * ## O defeito que isto conserta, e ele é o MESMO de antes
+ *
+ * O `corpoDaIssue` ganhou `ramo` e `evento` porque eu havia reportado "agenda
+ * verde" sobre um disparo manual do ramo de trabalho enquanto a agendada
+ * reprovava em `main`. A docstring de lá conta a história inteira.
+ *
+ * Os COMENTÁRIOS ficaram de fora, e o de fechamento é o que afirma mais:
+ *
+ *     Voltou a passar.
+ *
+ * Em 2026-10-14 isso aconteceu de verdade. Disparei a agenda do ramo de
+ * trabalho, ela passou, e a issue #5 fechou com essa frase — enquanto `main`
+ * continuava reprovando havia dez dias. Quem abrisse a issue fechada leria
+ * "voltou a passar" sem nada que dissesse de onde.
+ *
+ * Mesma classe, uma camada fora do conserto anterior: o corpo passou a dizer a
+ * origem, e o comentário que anuncia o desfecho não. É o terceiro lugar nesta
+ * sessão em que um relatório afirma sem dizer sobre o que mediu.
+ */
+export function origemDaMedida({ ramo, evento }) {
+  const partes = [
+    ramo ? `ramo \`${ramo}\`` : null,
+    evento ? `disparo \`${evento}\`` : null,
+  ].filter(Boolean);
+  return partes.length ? `Medido no ${partes.join(", ")}.` : "";
+}
+
 /** O texto do comentário, quando há um a fazer. */
-export function textoDoComentario({ mudancas, primeiraVez, link }) {
+export function textoDoComentario({ mudancas, primeiraVez, link, ramo, evento }) {
+  const origem = origemDaMedida({ ramo, evento });
   if (primeiraVez) {
     return [
       "Continua reprovando. A partir de agora este comentário só aparece quando o",
@@ -212,7 +243,8 @@ export function textoDoComentario({ mudancas, primeiraVez, link }) {
       "issue e fica calado.",
       "",
       `Execução: ${link}`,
-    ].join("\n");
+      origem,
+    ].filter(Boolean).join("\n");
   }
   return [
     "**Mudou o que está reprovando:**",
@@ -220,5 +252,31 @@ export function textoDoComentario({ mudancas, primeiraVez, link }) {
     ...mudancas,
     "",
     `Execução: ${link}`,
-  ].join("\n");
+    origem,
+  ].filter(Boolean).join("\n");
+}
+
+/**
+ * O texto que fecha a issue.
+ *
+ * Mora aqui, e não solto no `script:` do workflow, por duas razões que são a
+ * mesma: nenhum teste alcança string escrita dentro de YAML, e as duas agendas
+ * tinham a sua própria versão da frase — "Voltou a passar." numa, "Voltou a
+ * passar. Fechando." na outra. Divergência pequena hoje, e o lugar onde a
+ * próxima mudança só chega a uma delas.
+ *
+ * E a frase passou a dizer ONDE passou. Sem isso, ela afirma o desfecho mais
+ * forte do fluxo sem dizer sobre o que mediu — ver `origemDaMedida`.
+ */
+export function textoDeFechamento({ link, ramo, evento, agenda }) {
+  const origem = origemDaMedida({ ramo, evento });
+  const ressalva = origem && agenda
+    ? `${origem} **${agenda}** — veredito de outro ramo não diz nada sobre o que está no ar.`
+    : origem;
+  return [
+    "Voltou a passar. Fechando.",
+    "",
+    `Execução: ${link}`,
+    ressalva,
+  ].filter(Boolean).join("\n");
 }

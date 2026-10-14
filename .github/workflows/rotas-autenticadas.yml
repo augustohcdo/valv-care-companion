@@ -396,7 +396,7 @@ jobs:
         with:
           script: |
             const {
-              decidirAviso, corpoDaIssue, textoDoComentario,
+              decidirAviso, corpoDaIssue, textoDoComentario, textoDeFechamento,
             } = await import(`${process.env.GITHUB_WORKSPACE}/.github/scripts/avisoPorIssue.mjs`);
 
             const TITULO = "🔴 Varredura semanal das rotas autenticadas falhando";
@@ -461,11 +461,10 @@ jobs:
               periodo: "domingo",
             };
             const decisao = decidirAviso({ falhou, assinatura, issue });
-            const corpo = corpoDaIssue({
-              assinatura, link, tabela, texto,
-              ramo: context.payload?.ref ?? context.ref ?? null,
-              evento: context.eventName ?? null,
-            });
+            const ramo = context.payload?.ref ?? context.ref ?? null;
+            const evento = context.eventName ?? null;
+            const AGENDA = texto.agenda;
+            const corpo = corpoDaIssue({ assinatura, link, tabela, texto, ramo, evento });
 
             switch (decisao.acao) {
               case "nada":
@@ -497,7 +496,7 @@ jobs:
                 });
                 await github.rest.issues.createComment({
                   ...context.repo, issue_number: decisao.numero,
-                  body: textoDoComentario({ ...decisao, link }),
+                  body: textoDoComentario({ ...decisao, link, ramo, evento }),
                 });
                 core.notice(decisao.primeiraVez
                   ? `Issue #${decisao.numero}: sem assinatura anterior para comparar — ` +
@@ -507,7 +506,7 @@ jobs:
               case "fechar":
                 await github.rest.issues.createComment({
                   ...context.repo, issue_number: decisao.numero,
-                  body: `Voltou a passar. Fechando.\n\nExecução: ${link}`,
+                  body: textoDeFechamento({ link, ramo, evento, agenda: AGENDA }),
                 });
                 await github.rest.issues.update({
                   ...context.repo, issue_number: decisao.numero, state: "closed",

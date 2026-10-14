@@ -348,7 +348,7 @@ jobs:
             // mesma frase sobre issues duplicadas.
             const fs = require("node:fs");
             const {
-              decidirAviso, corpoDaIssue, textoDoComentario,
+              decidirAviso, corpoDaIssue, textoDoComentario, textoDeFechamento,
             } = await import(`${process.env.GITHUB_WORKSPACE}/.github/scripts/avisoPorIssue.mjs`);
 
             const TITULO = "🔴 Verificações periódicas falhando";
@@ -374,14 +374,16 @@ jobs:
             const issue = achada ? { number: achada.number, body: achada.body } : null;
 
             const decisao = decidirAviso({ falhou, assinatura, issue });
-            // `ramo` e `evento` entram no corpo porque um disparo manual de
-            // outro ramo passou por "agenda verde" uma vez, e o relatório não
-            // tinha como desmentir. O motivo completo está em `avisoPorIssue.mjs`.
-            const corpo = corpoDaIssue({
-              assinatura, link, tabela,
-              ramo: context.payload?.ref ?? context.ref ?? null,
-              evento: context.eventName ?? null,
-            });
+            // `ramo` e `evento` entram no corpo E NOS COMENTÁRIOS porque um
+            // disparo manual de outro ramo passou por "agenda verde" uma vez, e
+            // o relatório não tinha como desmentir. Em 2026-10-14 aconteteu de
+            // novo, uma camada fora: a issue FECHOU com "Voltou a passar." num
+            // disparo do ramo de trabalho, com `main` reprovando havia dez dias.
+            // O motivo completo está em `avisoPorIssue.mjs`.
+            const ramo = context.payload?.ref ?? context.ref ?? null;
+            const evento = context.eventName ?? null;
+            const AGENDA = "A agenda diária roda em `main`";
+            const corpo = corpoDaIssue({ assinatura, link, tabela, ramo, evento });
 
             switch (decisao.acao) {
               case "nada":
@@ -414,7 +416,7 @@ jobs:
                 });
                 await github.rest.issues.createComment({
                   ...context.repo, issue_number: decisao.numero,
-                  body: textoDoComentario({ ...decisao, link }),
+                  body: textoDoComentario({ ...decisao, link, ramo, evento }),
                 });
                 // Os dois casos caem neste ramo, e dizem coisas diferentes:
                 // "mudou" afirma uma comparação que o primeiro não fez.
@@ -427,7 +429,10 @@ jobs:
               case "fechar":
                 await github.rest.issues.createComment({
                   ...context.repo, issue_number: decisao.numero,
-                  body: `Voltou a passar.\n\nExecução: ${link}`,
+                  // O texto mora em `avisoPorIssue.mjs`, onde um teste o
+                  // alcança — e diz em que ramo passou. Fechado sem isso, o
+                  // desfecho mais forte do fluxo não dizia sobre o que mediu.
+                  body: textoDeFechamento({ link, ramo, evento, agenda: AGENDA }),
                 });
                 await github.rest.issues.update({
                   ...context.repo, issue_number: decisao.numero, state: "closed",
