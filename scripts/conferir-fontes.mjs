@@ -68,6 +68,14 @@ const PAUSA_MS = 150;
  */
 const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
 
+/**
+ * Estamos no executor do GitHub Actions?
+ *
+ * É o ambiente que `FORA_DE_ALCANCE` nomeia, e por isso o único em que a
+ * dispensa vale. `GITHUB_ACTIONS` é a variável que o próprio runner define.
+ */
+const NO_EXECUTOR_DO_GITHUB = !!process.env["GITHUB_ACTIONS"];
+
 const argumentos = process.argv.slice(2);
 const limite = (() => {
   const i = argumentos.indexOf("--limite");
@@ -108,14 +116,102 @@ export function urlsDoCatalogo(linhas) {
   return mapa;
 }
 
-/** Traduz a resposta num dos três estados. */
+/**
+ * Hosts que ESTE executor não alcança — com o motivo e a medição.
+ *
+ * ## Por que esta lista existe
+ *
+ * Primeira execução do job na CI: **68 ok, 0 mortas, 14 não conferidas**. As 14
+ * eram `fetch failed` em dois domínios, e só nesses dois. `fetch failed` é
+ * falha de REDE: o executor não chegou a falar com o host.
+ *
+ * Medido no mesmo dia, de uma rede que alcança o Brasil: os dois respondem
+ * **HTTP 200**. As fontes estão vivas. Quem não alcança é o executor do GitHub
+ * Actions, que roda nos Estados Unidos.
+ *
+ * Sem esta lista, a varredura semanal sai 2 — NÃO CONFERIDO — toda semana, para
+ * sempre, pelas mesmas 14 URLs. Isso é verdade e é inútil: um aviso que nunca
+ * muda é como se ensina alguém a ignorar o aviso. Este repositório escreveu a
+ * frase sobre a periodicidade desta mesma conferência, e no `lib/chromium.mjs`
+ * sobre o `networkidle` — a terceira vez que ela aparece.
+ *
+ * ## O que a lista NÃO faz
+ *
+ * Não declara as 14 URLs conferidas. Declara que **não são conferidas aqui**, e
+ * o relatório diz isso com todas as letras, com o denominador à vista. Quem
+ * quiser cobri-las roda `node scripts/conferir-fontes.mjs` de uma rede que
+ * alcance o Brasil — é o que foi feito para preencher esta lista.
+ *
+ * E ela é remedida nas duas direções: host da lista que VOLTAR a ser alcançável
+ * é relatado (para sair daqui), e host fora da lista que não for alcançado
+ * continua reprovando.
+ */
+export const FORA_DE_ALCANCE = {
+  "braile.com.br":
+    "o executor do GitHub Actions (EUA) não alcança este host — `fetch failed` nas 9 URLs. "
+    + "Conferido à mão em 2026-10-15, de rede com alcance ao Brasil: HTTP 200.",
+  "medicicor.com.br":
+    "o executor do GitHub Actions (EUA) não alcança este host — `fetch failed` nas 5 URLs. "
+    + "Conferido à mão em 2026-10-15, de rede com alcance ao Brasil: HTTP 200.",
+};
+
+/**
+ * A dispensa vale NESTE ambiente?
+ *
+ * O motivo escrito em `FORA_DE_ALCANCE` nomeia o ambiente: "o executor do
+ * GitHub Actions (EUA) não alcança este host". Então a dispensa só pode valer
+ * lá. De qualquer outra rede, as URLs são conferidas normalmente.
+ *
+ * Isto saiu de uma execução de verdade: rodado do contêiner de
+ * desenvolvimento — que alcança o Brasil —, o script entrou no ramo "a lista
+ * envelheceu" e saiu 2, pedindo para tirar da lista dois hosts que o executor
+ * do GitHub de fato não alcança. A declaração estava certa; o escopo dela,
+ * errado. Limite de ambiente que não diz de qual ambiente é vira alarme no
+ * ambiente errado.
+ */
+export function dispensaVale({ host, noExecutorDoGitHub }) {
+  return !!noExecutorDoGitHub && host !== null && host in FORA_DE_ALCANCE;
+}
+
+/** O host de uma URL, sem `www.`, ou `null` se não der para ler. */
+export function hostDe(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Traduz a resposta num dos QUATRO estados.
+ *
+ * `naoAlcancado` saiu de dentro de `naoConferido`, e a diferença é de fato, não
+ * de grau: num 403 o host RESPONDEU e recusou; num `fetch failed` ninguém
+ * falou com ele. Confundir os dois fazia a lista de "não conferidas" misturar
+ * "o site me barrou" com "não cheguei no site" — e só o segundo é propriedade
+ * do executor, não da fonte.
+ */
 export function estadoDaResposta({ status, erro }) {
-  if (erro) return { estado: "naoConferido", detalhe: erro };
+  if (erro) return { estado: "naoAlcancado", detalhe: erro };
   if (status >= 200 && status < 300) return { estado: "ok", detalhe: String(status) };
   if (status === 404 || status === 410) return { estado: "morta", detalhe: String(status) };
   // 403/429 é proteção; 5xx é problema do outro lado. Nenhum dos dois diz que
   // a página deixou de existir, e nenhum dos dois se contorna.
   return { estado: "naoConferido", detalhe: `HTTP ${status}` };
+}
+
+/**
+ * O veredito final, a partir das contagens. Puro.
+ *
+ * `foraDeAlcance` NÃO reprova, e é a única concessão: é limite declarado, com
+ * motivo escrito e medição, não resultado desconhecido. A ordem dos outros é a
+ * de sempre — morta (1) é pior que não conferida (2).
+ */
+export function vereditoDasFontes({ mortas, naoConferidas, foraDeAlcance, voltaramAoAlcance }) {
+  if (mortas > 0) return { codigo: 1, motivo: "morta" };
+  if (naoConferidas > 0) return { codigo: 2, motivo: "naoConferido" };
+  if (voltaramAoAlcance > 0) return { codigo: 2, motivo: "listaEnvelhecida" };
+  return { codigo: 0, motivo: foraDeAlcance > 0 ? "okComLimite" : "ok" };
 }
 
 async function sondar(url) {
@@ -168,18 +264,30 @@ async function principal() {
 
   const mortas = [];
   const naoConferidas = [];
+  const foraDeAlcance = [];
+  /** Host DECLARADO fora de alcance que respondeu: a declaração envelheceu. */
+  const voltaramAoAlcance = new Set();
   let ok = 0;
 
   for (const url of alvos) {
     const { estado, detalhe } = await sondar(url);
     const { campos, familias } = urls.get(url);
     const resumo = `[${[...campos].join("+")}] ${url}`;
+    const host = hostDe(url);
+    const declarado = dispensaVale({ host, noExecutorDoGitHub: NO_EXECUTOR_DO_GITHUB });
+
     if (estado === "ok") {
       ok++;
       console.log(`✓ ${resumo}`);
+      // Host na lista que respondeu: a lista está errada, e dizer isso é a
+      // metade que impede a dispensa de virar permanente por inércia.
+      if (declarado) voltaramAoAlcance.add(host);
     } else if (estado === "morta") {
       mortas.push({ url, detalhe, campos: [...campos], familias: [...familias] });
       console.log(`✗ MORTA (${detalhe}) ${resumo}`);
+    } else if (estado === "naoAlcancado" && declarado) {
+      foraDeAlcance.push({ url, detalhe, host });
+      console.log(`· fora de alcance deste executor (${detalhe}) ${resumo}`);
     } else {
       naoConferidas.push({ url, detalhe, campos: [...campos] });
       console.log(`⚠ não conferida (${detalhe}) ${resumo}`);
@@ -187,7 +295,11 @@ async function principal() {
     if (PAUSA_MS) await new Promise((r) => setTimeout(r, PAUSA_MS));
   }
 
-  console.log(`\n${ok} ok · ${mortas.length} morta(s) · ${naoConferidas.length} não conferida(s)`);
+  // O DENOMINADOR à vista. "68 ok" sozinho é lido como "68 de 68"; são 68 de 82.
+  console.log(
+    `\n${alvos.length} URL(s) no catálogo: ${ok} ok · ${mortas.length} morta(s) · ` +
+    `${naoConferidas.length} não conferida(s) · ${foraDeAlcance.length} fora de alcance deste executor`,
+  );
 
   if (mortas.length) {
     console.log("\nFONTES MORTAS — a procedência que o cardiologista clica não existe mais:");
@@ -204,11 +316,46 @@ async function principal() {
     for (const n of naoConferidas) console.log(`  · (${n.detalhe}) ${n.url}`);
   }
 
+  if (foraDeAlcance.length) {
+    const hosts = [...new Set(foraDeAlcance.map((f) => f.host))];
+    console.log(
+      `\nFORA DE ALCANCE DESTE EXECUTOR — ${foraDeAlcance.length} URL(s) em ` +
+      `${hosts.length} host(s). NÃO foram conferidas aqui:`,
+    );
+    for (const h of hosts) console.log(`  · ${h}: ${FORA_DE_ALCANCE[h]}`);
+    console.log(
+      "\nIsto é limite declarado, não resultado: ninguém falou com esses hosts.\n" +
+      "Para cobri-las, rode este script de uma rede que os alcance.",
+    );
+  }
+
+  if (voltaramAoAlcance.size) {
+    console.log(
+      `\nA LISTA ENVELHECEU — ${voltaramAoAlcance.size} host(s) declarado(s) fora de ` +
+      "alcance responderam:",
+    );
+    for (const h of voltaramAoAlcance) console.log(`  · ${h} — tire de FORA_DE_ALCANCE`);
+    console.log(
+      "\nDispensa que sobrevive ao motivo é a que esconde a próxima falha. Sai 2\n" +
+      "para alguém mexer, e não 1: não há nada quebrado nas fontes.",
+    );
+  }
+
   // A ordem importa: morta é pior que não conferida, e o código de saída tem de
-  // dizer a pior coisa que aconteceu.
-  if (mortas.length) process.exit(1);
-  if (naoConferidas.length) process.exit(2);
-  console.log("\nTodas as fontes do catálogo resolvem.");
+  // dizer a pior coisa que aconteceu. `foraDeAlcance` sozinho NÃO reprova — é
+  // limite declarado, com motivo e medição, e o relatório acima o grita.
+  const veredito = vereditoDasFontes({
+    mortas: mortas.length,
+    naoConferidas: naoConferidas.length,
+    foraDeAlcance: foraDeAlcance.length,
+    voltaramAoAlcance: voltaramAoAlcance.size,
+  });
+  if (veredito.codigo !== 0) process.exit(veredito.codigo);
+  console.log(
+    foraDeAlcance.length
+      ? `\nTodas as ${ok} fontes alcançáveis daqui resolvem. ${foraDeAlcance.length} não foram conferidas.`
+      : "\nTodas as fontes do catálogo resolvem.",
+  );
 }
 
 // Só quando EXECUTADO, nunca quando importado.
