@@ -183,3 +183,40 @@ describe("trechos renomeados não ficam órfãos na base", () => {
     ).toEqual([]);
   });
 });
+
+describe("o workflow do banco não escolhe arquivo por você", () => {
+  /**
+   * Em 2026-10-15 disparei o workflow "Banco de dados" para aplicar uma
+   * migração e não passei o input `arquivo`. O GitHub preencheu com o `default`
+   * declarado — `scripts/catalogo/aplicar-no-supabase.sql` —, o workflow
+   * executou AQUELE arquivo, e o job saiu **success**.
+   *
+   * A migração não foi aplicada. Eu só descobri porque fui ler a saída do
+   * SELECT de conferência, que falava de outra coisa. Se tivesse confiado na
+   * conclusão do job, teria reportado uma migração aplicada que não existia —
+   * e o banco e o código ficariam discordando em silêncio, que é a origem de
+   * metade dos defeitos que esta sessão perseguiu.
+   *
+   * `required: true` não protege: um padrão satisfaz a exigência.
+   */
+  const DB = ".github/workflows/db.yml";
+
+  it("o input do arquivo não tem valor padrão", () => {
+    const yml = readFileSync(DB, "utf8");
+    const i = yml.indexOf("arquivo:");
+    expect(i, "não achei o input `arquivo` no workflow").toBeGreaterThan(0);
+    // A janela do input vai até o próximo bloco de topo (`permissions:`).
+    const bloco = yml.slice(i, yml.indexOf("permissions:", i));
+    expect(bloco, "o input voltou a ter default — disparo sem escolha roda outro SQL")
+      .not.toMatch(/^\s+default:/m);
+    expect(bloco, "o input deixou de ser obrigatório").toMatch(/required:\s*true/);
+  });
+
+  it("o workflow confere o caminho recebido antes de executar", () => {
+    // A outra metade: sem padrão, o caminho vem inteiro de quem dispara.
+    const yml = readFileSync(DB, "utf8");
+    expect(yml, "sumiu a recusa de caminho com `..` ou absoluto").toMatch(/\*\.\.\*\|\/\*\)/);
+    expect(yml, "sumiu a exigência de .sql").toMatch(/\*\.sql\)/);
+    expect(yml, "sumiu a conferência de que o arquivo existe").toMatch(/if \[ ! -f "\$ARQUIVO" \]/);
+  });
+});

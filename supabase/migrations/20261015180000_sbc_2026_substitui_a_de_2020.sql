@@ -72,15 +72,48 @@ where slug = 'sbc-valvopatias-2024';
 -- "Popular / atualizar base RAG" em Administração → Base da IA logo após o
 -- deploy; o pg_cron faria isso sozinho na próxima janela.
 
+-- ## O que a medição mostrou, e por que são DOZE e não seis
+--
+-- Antes de apagar, medi (`scripts/sql/listar-trechos-da-sbc.sql`). A base tem
+-- doze trechos debaixo desta fonte:
+--
+--   · seis criados em 2026-07-29, com section terminando em "(SBC 2024)";
+--   · seis criados em 2026-09-05, com section terminando em "(SBC 2020)".
+--
+-- Quer dizer que **este defeito já aconteceu uma vez, e ninguém viu**. Em
+-- setembro o projeto descobriu que a edição de 2024 não existe, corrigiu o seed
+-- para 2020 — e, como a idempotência é por `section`, os seis novos entraram e
+-- os seis antigos FICARAM. Desde 2026-09-05 a base da IA serve dois conjuntos
+-- de recomendação brasileira, um deles atribuído a uma edição que o próprio
+-- projeto concluiu que não existe.
+--
+-- A conferência daquela migração imprimiu `trechos_da_sbc: 12` e ninguém
+-- reparou que o número certo era 6. Número que aparece no relatório e que
+-- ninguém compara com o esperado é decoração.
+--
+-- Então o DELETE abaixo leva os doze. As sections são nomeadas uma a uma, e não
+-- apagadas por padrão de texto: `like '%SBC 20%'` também pegaria um trecho
+-- curado à mão por administrador que mencionasse uma edição antiga de
+-- propósito.
+
 delete from public.knowledge_chunks
 where source_id = (select id from public.knowledge_sources where slug = 'sbc-valvopatias-2024')
   and section in (
+    -- Os seis da correção de setembro (edição de 2020).
     'Estenose aórtica — indicações de intervenção (SBC 2020)',
     'Estenose mitral reumática — contexto brasileiro (SBC 2020)',
     'Insuficiência mitral primária — SBC 2020',
     'Insuficiência aórtica crônica — SBC 2020',
     'Regurgitação tricúspide — SBC 2020',
-    'Epidemiologia e anticoagulação — SBC 2020'
+    'Epidemiologia e anticoagulação — SBC 2020',
+    -- E os seis que sobreviveram àquela correção, atribuídos a uma edição
+    -- inexistente. Estes estão na base desde 2026-07-29.
+    'Estenose aórtica — indicações de intervenção (SBC 2024)',
+    'Estenose mitral reumática — contexto brasileiro (SBC 2024)',
+    'Insuficiência mitral primária — SBC 2024',
+    'Insuficiência aórtica crônica — SBC 2024',
+    'Regurgitação tricúspide — SBC 2024',
+    'Epidemiologia e anticoagulação — SBC 2024'
   );
 
 -- ---------------------------------------------------------------------------
@@ -101,10 +134,18 @@ select
   (s.citation like '%e20260796%')                   as citacao_tem_o_artigo,
   (s.url = 'https://doi.org/10.36660/abc.20260796') as url_e_o_doi,
   (s.description like '%2011 → 2017 → 2020 → 2026%') as linhagem_registrada,
-  -- E a parte que o UPDATE sozinho não provaria: nenhum trecho de 2020
-  -- sobreviveu debaixo da fonte que agora diz 2026.
+  -- E a parte que o UPDATE sozinho não provaria: nenhum trecho de edição
+  -- antiga sobreviveu debaixo da fonte que agora diz 2026. As três contagens
+  -- têm de vir ZERO — inclusive a de 2024, que é a que passou despercebida em
+  -- setembro e ficou cinco semanas na base.
   (select count(*) from public.knowledge_chunks c
     where c.source_id = s.id and c.section like '%SBC 2020%') as trechos_de_2020_restantes,
+  (select count(*) from public.knowledge_chunks c
+    where c.source_id = s.id and c.section like '%SBC 2024%') as trechos_de_2024_restantes,
+  (select count(*) from public.knowledge_chunks c
+    where c.source_id = s.id and c.section not like '%2026%') as trechos_de_edicao_antiga,
+  -- Esta não é zero nem é erro: é o que sobra, e tem de ser só edição 2026.
+  -- Antes de o seed rodar, vem 0; depois, 6.
   (select count(*) from public.knowledge_chunks c
     where c.source_id = s.id) as trechos_da_fonte
 from public.knowledge_sources s

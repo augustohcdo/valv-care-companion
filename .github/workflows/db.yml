@@ -33,9 +33,20 @@ on:
   workflow_dispatch:
     inputs:
       arquivo:
-        description: "Arquivo SQL do repositório a executar"
+        # SEM valor padrão, e isso é o conserto de um defeito real.
+        #
+        # Havia aqui `default: scripts/catalogo/aplicar-no-supabase.sql`. Em
+        # 2026-10-15 eu disparei este workflow para aplicar uma migração e não
+        # passei o input: o GitHub preencheu com o padrão, o workflow executou
+        # o arquivo do CATÁLOGO, e saiu **success**. Eu quase reportei a
+        # migração como aplicada — ela não tinha sido.
+        #
+        # `required: true` não protege: um padrão satisfaz a exigência. Sem
+        # padrão, disparo sem escolha falha, que é o comportamento certo para
+        # uma ação que escreve em banco de prontuário. Quem dispara escolhe o
+        # arquivo, sempre — era o que o cabeçalho deste workflow já dizia.
+        description: "Arquivo SQL do repositório a executar (caminho relativo, obrigatório)"
         required: true
-        default: scripts/catalogo/aplicar-no-supabase.sql
         type: string
 
 permissions:
