@@ -1,6 +1,6 @@
 // Conteúdo educacional ValvePath — linguagem para pacientes
 // Baseado em: 2025 ESC/EACTS, 2020/2021 ACC/AHA, AHA Heart Valve Disease,
-// Diretriz Brasileira de Valvopatias SBC 2020, CDC, Heart Valve Voice,
+// Diretriz Brasileira de Valvopatias 2026 (SBC/SBHCI/SBCCV), CDC, Heart Valve Voice,
 // Cleveland Clinic, Mayo Clinic, NHS UK, UpToDate (patient-level).
 // Conteúdo educacional, não substitui avaliação médica.
 

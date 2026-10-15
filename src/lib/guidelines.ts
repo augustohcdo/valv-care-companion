@@ -47,7 +47,7 @@ export type Recommendation = {
   chave?: ChaveDaDiretriz;
 };
 
-interface Input {
+export interface Input {
   valve_type: string;
   valve_disease: string;
   severity: string;
@@ -84,9 +84,17 @@ interface Input {
  * sintomático é Classe I para troca valvar e o assintomático é vigilância a
  * cada seis meses. Faltando o dado, o sistema recomendava esperar.
  */
-type StatusSintomatico = boolean | null;
+export type StatusSintomatico = boolean | null;
 
-const statusSintomatico = (i: Input): StatusSintomatico => {
+/**
+ * Exportado para a camada da diretriz brasileira usar ESTA definição.
+ *
+ * Não é conveniência: é a mesma decisão clínica em um lugar só. Uma segunda
+ * leitura de "sintomático" na outra camada podia divergir desta — e aí as duas
+ * diretrizes na tela estariam falando de pacientes diferentes, com o mesmo
+ * prontuário aberto na frente do médico.
+ */
+export const statusSintomatico = (i: Input): StatusSintomatico => {
   const temNyha = !!i.nyha;
   const temSintomas = (i.symptoms || []).length > 0;
   if (!temNyha && !temSintomas) return null;

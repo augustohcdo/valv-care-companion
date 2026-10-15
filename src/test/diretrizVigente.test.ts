@@ -4,6 +4,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { DIRETRIZ_2025 } from "@/data/diretriz2025";
+import { FONTE_BR_2026 } from "@/data/diretrizBr2026";
 import { clinicalLibrary } from "@/data/clinicalLibrary";
 
 /**
@@ -316,8 +317,38 @@ const ANO_SBC = (() => {
 describe("a diretriz brasileira citada é a que o projeto consegue apontar", () => {
   it("a citação de referência existe e traz um ano", () => {
     // Sem isto, uma citação renomeada zeraria a regra abaixo em silêncio.
+    //
+    // Não é hipótese: em 2026-10-15 a referência passou de "Diretriz Brasileira
+    // de Valvopatias - Sociedade Brasileira de Cardiologia, 2020" para a
+    // citação Vancouver da edição de 2026, que nomeia o PERIÓDICO e não a
+    // sociedade. O localizador acima parou de achar, `ANO_SBC` virou
+    // `undefined`, e a regra seguinte passaria a comparar tudo contra nada.
+    // Este caso reprovou primeiro.
     expect(ANO_SBC.citacao, "nenhuma referência à SBC em clinicalLibrary").toBeTruthy();
     expect(ANO_SBC.ano, `sem ano em "${ANO_SBC.citacao}"`).toMatch(/^20\d\d$/);
+  });
+
+  it("o ano citado é o de uma edição que o projeto carrega de verdade", () => {
+    /**
+     * O que faltava nesta guarda: ela adotava como verdade o ano que a própria
+     * biblioteca escrevia. Escrever "SBC 2030" na citação faria a regra inteira
+     * acompanhar em silêncio — a guarda seguiria o projeto em vez de conferi-lo,
+     * que é precisamente o defeito que ela foi escrita para impedir.
+     *
+     * Agora o ano tem de ser o de uma fonte que o repositório carrega com DOI,
+     * PDF do periódico e recomendações verbatim: `src/data/diretrizBr2026.ts`.
+     * Para mudar o ano é preciso trazer o documento junto.
+     */
+    const anoDaFonte = FONTE_BR_2026.citacao.match(/\b(20\d\d)\b/)?.[1];
+    expect(anoDaFonte, "a fonte brasileira não traz ano na citação").toMatch(/^20\d\d$/);
+    expect(
+      ANO_SBC.ano,
+      `a biblioteca cita SBC ${ANO_SBC.ano} e o projeto só carrega a edição de ${anoDaFonte}`,
+    ).toBe(anoDaFonte);
+    // E "carregar" quer dizer apresentável: DOI e o PDF do próprio periódico.
+    expect(FONTE_BR_2026.doi, "a fonte brasileira não tem DOI").toMatch(/^10\.\d{4,}\//);
+    expect(FONTE_BR_2026.pdf, "a fonte brasileira não aponta o PDF do periódico")
+      .toMatch(/^https:\/\/abccardiol\.org\//);
   });
 
   it("nenhum arquivo cita a SBC com outro ano", () => {

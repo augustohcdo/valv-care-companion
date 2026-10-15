@@ -1,9 +1,13 @@
 import { Link } from "react-router-dom";
-import { Sparkles, AlertTriangle, Eye, ArrowRight, Info as InfoIcon, PlayCircle } from "lucide-react";
+import { Sparkles, AlertTriangle, Eye, ArrowRight, Info as InfoIcon, PlayCircle, Flag } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getRecommendations } from "@/lib/guidelines";
+import { getRecommendations, statusSintomatico } from "@/lib/guidelines";
 import { FONTE_2025 } from "@/data/diretriz2025";
+import { FONTE_BR_2026 } from "@/data/diretrizBr2026";
+import {
+  divergeNaEscolhaDaTecnica, escTemCondicaoPropria, recomendacoesBrasileiras,
+} from "@/lib/diretrizBrasileira";
 import { MMCTS, tutoriaisDaConduta } from "@/data/mmcts";
 import { ListaDeTutoriais } from "@/components/mmcts/ListaDeTutoriais";
 
@@ -79,17 +83,131 @@ export const GuidelineRecommendations = ({ caso }: Props) => {
           );
         })}
         <TecnicaDaConduta recs={recs} />
+        <DiretrizBrasileira caso={caso} />
 
         {/* Esta linha dizia "ESC 2021 e AHA-ACC 2020" depois que o motor já
             tinha sido reescrito para a ESC/EACTS 2025 — a tela nomeando uma
             fonte que o código não usava mais. O DOI vem do arquivo de citações,
             então a frase não pode voltar a divergir sozinha. */}
         <p className="text-[11px] text-muted-foreground italic pt-1">
-          Recomendações automáticas segundo a ESC/EACTS 2025 (DOI {FONTE_2025.doi}). Não
+          Recomendações automáticas segundo a ESC/EACTS 2025 (DOI {FONTE_2025.doi}), com a
+          Diretriz Brasileira de Valvopatias 2026 (DOI {FONTE_BR_2026.doi}) ao lado. Não
           substituem julgamento clínico nem decisão do Heart Team.
         </p>
       </CardContent>
     </Card>
+  );
+};
+
+/**
+ * O que a diretriz BRASILEIRA diz sobre o mesmo caso.
+ *
+ * Bloco separado, e não misturado às recomendações acima, por dois motivos que
+ * não são de leiaute:
+ *
+ * 1. a escala é outra. A brasileira usa GRADE (Força: Forte/Fraca · Certeza:
+ *    Alta/Moderada/Baixa) e a europeia usa Classe I–III / Nível A–C. Encostar
+ *    uma na outra como se fossem a mesma coluna é inventar equivalência que
+ *    nenhuma das duas publicou;
+ * 2. onde elas divergem, o médico precisa VER que divergem. Fundir as duas
+ *    produziria uma frase só, de origem indistinguível.
+ *
+ * O texto de cada linha é o verbatim do quadro, não paráfrase — é o que permite
+ * ao cardiologista conferir no PDF sem ler uma linha de TypeScript.
+ */
+const DiretrizBrasileira = ({ caso }: Props) => {
+  const sel = recomendacoesBrasileiras({
+    valve_type: caso.valve_type,
+    valve_disease: caso.valve_disease,
+    severity: caso.severity,
+    patient_age: caso.patient_age,
+    risco_cirurgico: caso.risco_cirurgico,
+    // A MESMA leitura de sintomas do motor da ESC — ver `statusSintomatico`.
+    sintomatico: statusSintomatico(caso),
+  });
+
+  if (sel.linhas.length === 0 && sel.faltam.length === 0) return null;
+
+  const idade = caso.patient_age;
+  const divergeAqui =
+    caso.valve_type === "aortica" && caso.valve_disease === "estenose"
+    && typeof idade === "number" && Number.isFinite(idade) && divergeNaEscolhaDaTecnica(idade);
+
+  return (
+    <details className="rounded-lg border border-border bg-secondary/20 px-3 py-2" open={divergeAqui}>
+      <summary className="text-xs font-medium text-foreground cursor-pointer inline-flex items-center gap-1.5">
+        <Flag className="h-3.5 w-3.5 text-primary" />
+        Diretriz Brasileira de Valvopatias 2026 ({sel.linhas.length})
+        {divergeAqui && (
+          <Badge variant="outline" className="text-[10px] border-warning/50">diverge da europeia</Badge>
+        )}
+      </summary>
+
+      <div className="pt-2.5 space-y-2">
+        {divergeAqui && (
+          <p className="text-[11px] text-foreground bg-warning/10 border border-warning/30 rounded px-2 py-1.5 leading-relaxed">
+            <strong>Entre 70 e 80 anos as duas diretrizes dizem coisas diferentes.</strong> A
+            ESC/EACTS 2025 recomenda TAVI a partir de 70 anos (Classe I, Nível A). A brasileira
+            de 2026 chama cirurgia e TAVI de equivalentes nessa faixa — as duas Forte/Alta. A
+            decisão é do Heart Team; o site não escolhe por você.
+          </p>
+        )}
+
+        {sel.linhas.map(({ chave, r, porque }) => (
+          <div key={chave} className="rounded border border-border/70 bg-background px-2.5 py-2">
+            <div className="flex items-start gap-2 flex-wrap">
+              <Badge variant="secondary" className="text-[10px]">
+                SBC {r.forca}/{r.certeza}
+              </Badge>
+              {r.esc && (
+                <Badge variant="outline" className="text-[10px]">
+                  ESC {r.esc}
+                  {escTemCondicaoPropria(r) ? " ⚠" : ""}
+                </Badge>
+              )}
+              {r.aha && <Badge variant="outline" className="text-[10px]">AHA {r.aha}</Badge>}
+              <span className="text-[10px] text-muted-foreground">
+                {r.quadro}, p. {r.pagina}
+              </span>
+            </div>
+            <p className="text-xs text-foreground mt-1.5 leading-relaxed">{r.condicao}</p>
+            <p className="text-xs font-medium text-foreground mt-0.5">→ {r.intervencao}</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Neste caso: {porque}.</p>
+            {r.nota && (
+              <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed border-l-2 border-border pl-2">
+                {r.nota}
+              </p>
+            )}
+          </div>
+        ))}
+
+        {sel.faltam.length > 0 && (
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            A diretriz brasileira divide por dados que este caso não registra:{" "}
+            {sel.faltam.join("; ")}. Sem eles o site não escolhe um ramo — preencher o caso
+            mostra as linhas que se aplicam.
+          </p>
+        )}
+
+        {sel.notaObrigatoria && (
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            <strong>Pré-requisito do Quadro 27:</strong> {sel.notaObrigatoria}
+          </p>
+        )}
+
+        <p className="text-[10px] text-muted-foreground">
+          {sel.fonte.citacao}{" "}
+          <a
+            href={sel.fonte.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="text-primary hover:underline"
+          >
+            Abrir a diretriz
+          </a>
+        </p>
+      </div>
+    </details>
   );
 };
 

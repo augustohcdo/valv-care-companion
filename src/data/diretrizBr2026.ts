@@ -40,11 +40,51 @@
  * redundância: o `diretrizBr2026.test.ts` confronta a coluna ESC daqui com o
  * que o nosso arquivo da ESC diz, e reprova se divergirem. Uma transcrição
  * errada de um lado ou do outro aparece.
+ *
+ * ## O que ESTÁ transcrito aqui, e o que ainda não está
+ *
+ * Transcrito: a **Tabela 1** (as principais novas recomendações) e o **Quadro
+ * 27** inteiro (estenose aórtica, nos três blocos).
+ *
+ * Lido e citado em prosa — nos trechos da base da IA e na biblioteca clínica —,
+ * mas ainda NÃO transcrito linha a linha aqui: Quadro 6 (estenose mitral, p.
+ * 22), Quadro 14 (insuficiência mitral primária, p. 28), Quadro 34
+ * (insuficiência aórtica, p. 50), Quadro 41 (insuficiência tricúspide, p. 56) e
+ * Quadro 71 (anticoagulação oral, p. 75).
+ *
+ * Está escrito porque a falta de um aviso desses é como se conclui que o
+ * arquivo é a diretriz inteira. Ele não é: é a parte que o motor de conduta
+ * usa com guarda de limiar.
+ *
+ * Dois achados da leitura desses quadros que mudam o modelo e ficam registrados
+ * para quem for transcrevê-los:
+ *
+ * · a diretriz separa **reumático de não reumático** na insuficiência mitral
+ *   (Quadro 14) e na insuficiência aórtica (Quadro 34) — divisão que a ESC não
+ *   faz, e que é a razão de existir uma diretriz brasileira: valva reumática
+ *   repara mal, e a plástica cai para Fraca/Baixa no reumático enquanto a troca
+ *   é Forte/Moderada;
+ * · o Quadro 71 usa, na coluna de força, um terceiro valor além de
+ *   Forte/Fraca: **"Não indicada"** (varfarina e DOAC em ritmo sinusal após
+ *   TAVI). Transcrever aquele quadro exige estender `ForcaSbc`.
  */
 
 /** A diretriz brasileira usa GRADE, e não Classe I–III / Nível A–C. */
 export type ForcaSbc = "Forte" | "Fraca";
-export type CertezaSbc = "Alta" | "Moderada" | "Baixa";
+
+/**
+ * Quatro níveis, e não três.
+ *
+ * "Muito baixa" existe e é usada: no Quadro 14 (p. 28), no prolapso de valva
+ * mitral arritmogênico e/ou disjunção do anel mitral, e no Quadro 71 (p. 75),
+ * na anticoagulação de longo prazo de prótese biológica em ritmo sinusal.
+ *
+ * Está aqui mesmo sem linha transcrita que a use. Um tipo que exclui um valor
+ * que o documento imprime força, na próxima transcrição, a escolha entre
+ * arredondar para "Baixa" — afirmando mais certeza do que a diretriz tem — e
+ * mexer no tipo com pressa. Ambas erram para o mesmo lado.
+ */
+export type CertezaSbc = "Alta" | "Moderada" | "Baixa" | "Muito baixa";
 
 export interface RecomendacaoBr {
   /** Onde na diretriz: "Tabela 1", "Quadro 27". */
@@ -106,7 +146,7 @@ export const FONTE_BR_2026 = {
  * "as oito principais novas recomendações", e o teste cobra as oito situações
  * distintas — transcrição que perca uma linha muda essa conta.
  */
-export const TABELA_1_NOVIDADES: Record<string, RecomendacaoBr> = {
+export const TABELA_1_NOVIDADES = {
   eaAssintomaticaPrecoce: {
     quadro: "Tabela 1",
     pagina: 15,
@@ -283,7 +323,7 @@ export const TABELA_1_NOVIDADES: Record<string, RecomendacaoBr> = {
       "ou região periapical do dente, em pacientes com risco elevado de endocardite infecciosa — " +
       "Antibioticoprofilaxia — Forte/Moderada",
   },
-};
+} satisfies Record<string, RecomendacaoBr>;
 
 /**
  * Quadro 27 — Estenose aórtica importante: recomendações (p. 41–42).
@@ -292,7 +332,7 @@ export const TABELA_1_NOVIDADES: Record<string, RecomendacaoBr> = {
  * (SBC, AHA, ESC). As notas de rodapé do quadro valem para o bloco inteiro e
  * estão em `NOTAS_QUADRO_27`.
  */
-export const QUADRO_27_ESTENOSE_AORTICA: Record<string, RecomendacaoBr> = {
+export const QUADRO_27_ESTENOSE_AORTICA = {
   sintomas: {
     quadro: "Quadro 27",
     pagina: 41,
@@ -430,7 +470,7 @@ export const QUADRO_27_ESTENOSE_AORTICA: Record<string, RecomendacaoBr> = {
       "SITUAÇÕES ESPECIAIS — Síndrome de Heyde — SBC Forte/Baixa — AHA – — ESC – " +
       "(nem a AHA nem a ESC registram posição nesta situação)",
   },
-};
+} satisfies Record<string, RecomendacaoBr>;
 
 /**
  * Quadro 27, segundo bloco — a escolha ENTRE cirurgia e TAVI, por risco e idade.
@@ -440,7 +480,7 @@ export const QUADRO_27_ESTENOSE_AORTICA: Record<string, RecomendacaoBr> = {
  * ferramentas, a conduta que recomenda TAVI a quem ainda não tem indicação de
  * intervenção nenhuma.
  */
-export const QUADRO_27_ESCOLHA_DA_INTERVENCAO: Record<string, RecomendacaoBr> = {
+export const QUADRO_27_ESCOLHA_DA_INTERVENCAO = {
   inoperavelTavi: {
     quadro: "Quadro 27",
     pagina: 41,
@@ -579,10 +619,10 @@ export const QUADRO_27_ESCOLHA_DA_INTERVENCAO: Record<string, RecomendacaoBr> = 
     verbatim: "Escolha da intervenção entre cirurgia e TAVI — Baixo risco < 70 anos – Cirurgia — SBC Forte/Alta — AHA I A (< 65 anos) — ESC I B",
     limiares: [70],
   },
-};
+} satisfies Record<string, RecomendacaoBr>;
 
 /** Valvoplastia aórtica por cateter-balão — Quadro 27, p. 42. */
-export const QUADRO_27_VALVOPLASTIA: Record<string, RecomendacaoBr> = {
+export const QUADRO_27_VALVOPLASTIA = {
   ponteTerapeutica: {
     quadro: "Quadro 27",
     pagina: 42,
@@ -614,7 +654,7 @@ export const QUADRO_27_VALVOPLASTIA: Record<string, RecomendacaoBr> = {
       "Valvoplastia aórtica por cateter-balão — Tratamento paliativo em pacientes sintomáticos e " +
       "com contraindicações à cirurgia convencional e/ou TAVI — SBC Fraca/Baixa — AHA – — ESC –",
   },
-};
+} satisfies Record<string, RecomendacaoBr>;
 
 /** As duas notas de rodapé do Quadro 27 — valem para o quadro inteiro. */
 export const NOTAS_QUADRO_27 = {

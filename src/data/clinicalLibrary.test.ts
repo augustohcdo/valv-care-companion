@@ -1,6 +1,11 @@
+/// <reference types="node" />
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { clinicalLibrary } from "./clinicalLibrary";
 import { DIRETRIZ_2025 } from "./diretriz2025";
+
+const raiz = resolve(__dirname, "../..");
 
 /**
  * A biblioteca não pode ensinar o que a ferramenta não faz.
@@ -124,18 +129,63 @@ describe("as referências da biblioteca são conferíveis", () => {
     expect(soltas, "referência sem link e sem motivo escrito").toEqual([]);
   });
 
-  it("todo link é do PubMed, para o npm run pmids alcançar", () => {
-    // O guarda varre `src/` procurando `pubmed.ncbi.nlm.nih.gov/<pmid>`. Link de
-    // outro domínio fica cadastrado e fora da conferência — que é pior do que
-    // não ter link, porque parece conferido.
+  it("todo link é alcançado por alguma conferência automática", () => {
+    /**
+     * A regra original dizia "todo link é do PubMed", e o motivo continua
+     * valendo: o `npm run pmids` varre `src/` procurando
+     * `pubmed.ncbi.nlm.nih.gov/<pmid>`, e link de outro domínio ficaria
+     * cadastrado fora de qualquer conferência — pior do que não ter link,
+     * porque parece conferido.
+     *
+     * A Diretriz Brasileira de Valvopatias 2026 não é indexada no PubMed com
+     * este título: tem DOI, não tem PMID. Havia duas saídas — tirar o link,
+     * perdendo a única forma de abrir a diretriz, ou estender a conferência.
+     * A segunda é a que mantém a promessa desta regra, e foi a feita: o
+     * `conferir-pmids.mjs` passou a perguntar ao Crossref o título de cada DOI
+     * citado e a compará-lo com a citação escrita ao lado, com o mesmo critério
+     * que usa para o PubMed.
+     *
+     * Então a regra não afrouxou de "PubMed" para "qualquer link": ela passou a
+     * ser a lista — fechada — dos domínios que o verificador de fato visita.
+     */
+    const ALCANCADOS = [
+      { nome: "PubMed", forma: /^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/\d+\/$/ },
+      { nome: "DOI", forma: /^https:\/\/doi\.org\/10\.\d{4,}\/\S+$/ },
+    ];
+    let conferidos = 0;
     for (const t of clinicalLibrary) {
       for (const r of t.references) {
-        if (r.url) {
-          expect(r.url, `${t.slug}: link fora do PubMed escapa do guarda`)
-            .toMatch(/^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/\d+\/$/);
-        }
+        if (!r.url) continue;
+        conferidos++;
+        expect(
+          ALCANCADOS.some((a) => a.forma.test(r.url!)),
+          `${t.slug}: link fora do alcance do npm run pmids (${r.url})`,
+        ).toBe(true);
       }
     }
+    // Piso sobre o que o laço olhou: uma biblioteca sem nenhum link passaria
+    // por aqui sem ter conferido nada.
+    expect(conferidos, "nenhuma referência com link: a regra não olhou nada")
+      .toBeGreaterThanOrEqual(10);
+  });
+
+  it("o verificador realmente visita os dois domínios que a regra permite", () => {
+    /**
+     * A ponta solta da regra acima: ela permite DOI porque o verificador passou
+     * a conferir DOI. Se alguém tirar essa parte do script, a regra continua
+     * permitindo — e o link volta a ficar fora de conferência, que é
+     * exatamente o que ela existe para impedir.
+     *
+     * Ancorado no USO (a chamada ao Crossref e o laço que percorre os DOIs),
+     * não na palavra "doi" solta no arquivo.
+     */
+    const script = readFileSync(resolve(raiz, "scripts/conferir-pmids.mjs"), "utf8");
+    expect(script, "o verificador não varre DOI").toMatch(/doi\\\.org\\\/\(10/);
+    expect(script, "o verificador não pergunta ao Crossref")
+      .toMatch(/fetch\(`https:\/\/api\.crossref\.org\/works\//);
+    expect(script, "o verificador não percorre os DOIs achados").toMatch(/for \(const \[doi, c\] of porDoi\)/);
+    expect(script, "o verificador não reprova quando um DOI diverge")
+      .toMatch(/suspeitos\.length \|\| suspeitosDoi\.length/);
   });
 
   it("todo tópico cita a diretriz de 2025", () => {

@@ -131,10 +131,19 @@ const REF = {
     url: "https://pubmed.ncbi.nlm.nih.gov/40834210/",
   },
   sbcValvopatias: {
-    citacao: "Diretriz Brasileira de Valvopatias - Sociedade Brasileira de Cardiologia, 2020.",
+    citacao:
+      "Tarasoutchi F, Fernandes JRC, Rosa VEE, Sampaio RO, et al. Diretriz Brasileira de " +
+      "Valvopatias - 2026. Arq Bras Cardiol. 2026;123(10):e20260796. " +
+      "Realizacao: Sociedade Brasileira de Cardiologia (SBC), Sociedade Brasileira de " +
+      "Hemodinamica e Cardiologia Intervencionista (SBHCI) e Sociedade Brasileira de Cirurgia " +
+      "Cardiovascular (SBCCV).",
+    url: "https://doi.org/10.36660/abc.20260796",
     nota:
-      "Sem PMID: a diretriz da SBC nao e indexada no PubMed com este titulo. Fica citada sem " +
-      "link para nao inventar um numero que pareceria conferido.",
+      "Edicao de 2026, realizacao conjunta da SBC, da SBHCI e da SBCCV. Substitui a atualizacao " +
+      "de 2020 que esta biblioteca citava. Continua sem PMID — a diretriz da SBC nao e indexada " +
+      "no PubMed com este titulo —, mas agora tem DOI, que e link de verdade e nao um numero " +
+      "que pareceria conferido. As recomendacoes citadas estao em src/data/diretrizBr2026.ts, " +
+      "com o texto verbatim de cada quadro.",
   },
 } satisfies Record<string, Referencia>;
 

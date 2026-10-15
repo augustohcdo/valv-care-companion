@@ -16,15 +16,21 @@ type SeedChunk = { source_slug: string; topic: string; section: string; content:
 // AGUARDA REVISÃO DE CARDIOLOGISTA/CIRURGIÃO ANTES DE PUBLICAR
 // ============================================================
 const SEED: SeedChunk[] = [
-  // ===== Diretriz brasileira de valvopatias (SBC 2020) =====
+  // ===== Diretriz Brasileira de Valvopatias — 2026 =====
   //
-  // O rótulo destes trechos dizia "SBC 2024". Procurando a edição para citá-la
-  // direito, duas buscas — uma delas restrita ao site do próprio periódico —
-  // encontram a linhagem 2011 → 2017 → 2020 (Arq Bras Cardiol 2020;115(4):
-  // 720-775) e nenhuma de 2024. Busca não prova ausência, e um cardiologista
-  // resolve isto em um segundo; mas atribuir recomendação clínica a um documento
-  // que não se consegue apresentar é fabricar procedência, e a direção da
-  // cautela é evidente.
+  // ## A história deste bloco, que vale mais que os trechos
+  //
+  // O rótulo dizia "SBC 2024". Procurando a edição para citá-la direito, duas
+  // buscas — uma restrita ao site do próprio periódico — encontravam a linhagem
+  // 2011 → 2017 → 2020 e NENHUMA de 2024. Atribuir recomendação clínica a um
+  // documento que não se consegue apresentar é fabricar procedência, e o bloco
+  // foi corrigido para 2020, que era o que o projeto conseguia mostrar.
+  //
+  // Em outubro de 2026 a SBC publicou a edição nova, com a SBHCI e a SBCCV:
+  // Arq Bras Cardiol. 2026;123(10):e20260796, DOI 10.36660/abc.20260796. Desta
+  // vez o PDF oficial do periódico foi baixado e LIDO — 108 páginas — e cada
+  // trecho abaixo cita o quadro e a página de onde saiu. Quem conferir abre o
+  // PDF na página indicada.
   //
   // O `source_slug` continua `sbc-valvopatias-2024` de propósito: é a chave da
   // linha que JÁ EXISTE em `knowledge_sources` na produção, e trocá-la aqui
@@ -33,44 +39,44 @@ const SEED: SeedChunk[] = [
   {
     source_slug: "sbc-valvopatias-2024",
     topic: "estenose_aortica",
-    section: "Estenose aórtica — indicações de intervenção (SBC 2020)",
+    section: "Estenose aórtica — indicações de intervenção (SBC 2026, Quadro 27)",
     content:
-      "A Atualização das Diretrizes Brasileiras de Valvopatias 2020 recomenda intervenção (SAVR ou TAVI) em pacientes com estenose aórtica grave sintomática (Classe I). Em assintomáticos com FE < 50%, teste ergométrico anormal ou EAo muito grave (Vmax ≥ 5,0 m/s), intervenção é Classe IIa. Para a escolha entre SAVR e TAVI, a SBC pondera a disponibilidade regional de TAVI no SUS e recomenda decisão do Heart Team, com preferência por TAVI em ≥ 75 anos ou alto risco cirúrgico. Em < 65 anos, SAVR é preferido por durabilidade da bioprótese/mecânica.",
+      "A Diretriz Brasileira de Valvopatias 2026 usa GRADE: força da recomendação (Forte ou Fraca) e certeza da evidência (Alta, Moderada, Baixa ou Muito baixa). No Quadro 27 (p. 41), tratamento cirúrgico convencional ou TAVI na estenose aórtica importante é Forte/Alta quando há sintomas (classe funcional ≥ 2, síncope ou angina). Em assintomáticos com complicadores: FE < 50% é Forte/Moderada; teste ergométrico positivo é Forte/Moderada; valvopatia crítica (área valvar aórtica < 0,7 cm², velocidade máxima do jato ≥ 5,0 m/s ou gradiente médio ≥ 60 mmHg) é Forte/Moderada. Queda progressiva de FE < 60% é Fraca/Baixa — a ESC usa FEVE < 55% nesse mesmo cenário. Situações especiais: baixo fluxo e baixo gradiente com FE reduzida, com ou sem reserva contrátil (escore de cálcio elevado), é Forte/Moderada; estenose aórtica paradoxal sintomática é Forte/Moderada; síndrome de Heyde é Forte/Baixa. Pré-requisito obrigatório do quadro: avaliação por Heart Team institucional, contemplando risco cirúrgico, grau de fragilidade, condições anatômicas e comorbidades.",
   },
   {
     source_slug: "sbc-valvopatias-2024",
     topic: "estenose_mitral",
-    section: "Estenose mitral reumática — contexto brasileiro (SBC 2020)",
+    section: "Estenose mitral — indicações de intervenção (SBC 2026, Quadro 6)",
     content:
-      "A doença reumática permanece a causa mais frequente de estenose mitral no Brasil, com pacientes tipicamente mais jovens que em coortes europeias/americanas. A SBC 2020 recomenda valvoplastia mitral percutânea por balão (CMBP) como primeira escolha em pacientes com escore de Wilkins ≤ 8, ausência de trombo em átrio esquerdo e regurgitação mitral ≤ moderada (Classe I). Cirurgia (comissurotomia aberta ou troca valvar) fica reservada a casos com anatomia desfavorável, trombo persistente ou reestenose. Profilaxia secundária com penicilina benzatina IM deve ser mantida.",
+      "No Quadro 6 da Diretriz Brasileira de Valvopatias 2026 (p. 22), a valvoplastia mitral por cateter-balão (VMCB) na estenose mitral REUMÁTICA em classe funcional II–IV, na ausência de contraindicações, é Forte/Alta (AHA I A, ESC I B); na reumática assintomática com fatores complicadores, na ausência de contraindicações, é Forte/Baixa (AHA IIa B, ESC IIa C — a nota do quadro detalha: IIa B se hipertensão pulmonar e IIb C se fibrilação atrial). O tratamento cirúrgico (comissurotomia ou troca valvar) é Forte/Moderada na reumática em classe funcional II–IV com contraindicação à VMCB; Forte/Baixa na reumática assintomática com complicadores não elegível para VMCB; e Forte/Baixa no reumático assintomático em programação de outra cirurgia cardíaca. Na estenose mitral DEGENERATIVA refratária ao tratamento clínico, a cirurgia é Fraca/Baixa e o implante valvar mitral transcateter (valve-in-MAC), com contraindicação ou alto risco cirúrgico e anatomia favorável, também é Fraca/Baixa — as duas com discussão junto ao Heart Team. O escore ecocardiográfico de Wilkins-Block está no Quadro 7 e pontua de 1 a 4 em quatro domínios: mobilidade dos folhetos, acometimento subvalvar, espessura dos folhetos e calcificação valvar.",
   },
   {
     source_slug: "sbc-valvopatias-2024",
     topic: "insuficiencia_mitral",
-    section: "Insuficiência mitral primária — SBC 2020",
+    section: "Insuficiência mitral primária — reumática e não reumática (SBC 2026, Quadro 14)",
     content:
-      "Para IM primária grave sintomática, a SBC 2020 recomenda reparo valvar em centros com expertise (Classe I). Em assintomáticos com FE 60% e LVESD ≥ 40 mm, considerar reparo em centro experiente (Classe IIa). TEER (MitraClip) é opção para pacientes com alto risco cirúrgico e anatomia favorável, ressaltando disponibilidade limitada no SUS. A diretriz europeia era mais ampla já em 2021, estendendo o TEER também à IM secundária; a SBC destaca critérios rigorosos (COAPT-like) para essa indicação. Para a conduta atual na IM, use a ESC/EACTS 2025.",
+      "A diferença mais importante do Quadro 14 da Diretriz Brasileira de Valvopatias 2026 (p. 28) em relação à diretriz europeia é que ele separa pacientes REUMÁTICOS de NÃO REUMÁTICOS — divisão que a ESC não faz e que existe porque valva reumática repara mal. No paciente NÃO REUMÁTICO, a plástica da valva mitral é Forte/Moderada quando há sintomas (dispneia CF ≥ II) com anatomia favorável, e também em assintomáticos com complicadores e anatomia favorável: FEVE < 60% e/ou DSVE ≥ 40 mm (ou DSVEi ≥ 20 mm/m²), ou PSAP ≥ 50 mmHg ou fibrilação atrial relacionada à valvopatia. Em assintomáticos com insuficiência mitral por prolapso, anatomia favorável e sem complicadores, em centros com experiência, a plástica é Forte/Baixa. No paciente REUMÁTICO as mesmas situações caem para Fraca/Baixa na plástica, enquanto a TROCA da valva mitral é Forte/Moderada — é a inversão da preferência. O reparo percutâneo borda a borda é Forte/Moderada na insuficiência mitral não reumática, sintomática, com anatomia favorável e alto risco cirúrgico baseado no Heart Team.",
   },
   {
     source_slug: "sbc-valvopatias-2024",
     topic: "insuficiencia_aortica",
-    section: "Insuficiência aórtica crônica — SBC 2020",
+    section: "Insuficiência aórtica — indicações de intervenção (SBC 2026, Quadro 34)",
     content:
-      "Indicação de cirurgia em IAo crônica grave: sintomas (Classe I); assintomáticos com FE ≤ 55% ou LVESD > 50 mm (> 25 mm/m²) (Classe I). A SBC 2020 alinha-se ao ACC/AHA nesses limiares e recomenda avaliação de aorta ascendente por angioTC quando houver dilatação ≥ 45 mm em pacientes com valva bicúspide, ou ≥ 50 mm em tricúspide.",
+      "No Quadro 34 da Diretriz Brasileira de Valvopatias 2026 (p. 50), a cirurgia de troca valvar na insuficiência aórtica importante é Forte/Moderada quando há sintomas e quando a FEVE é ≤ 50%. Na dilatação ventricular, os limiares diferem por etiologia: no REUMÁTICO, DDVE > 75 mm ou DSVE > 55 mm (Forte/Moderada); no NÃO REUMÁTICO, DDVE > 70 mm ou DSVE > 50 mm ou DSVEi > 25 mm/m² (Forte/Moderada; AHA IIa B, ESC I B). Intervenção por oportunidade, quando o paciente já vai à cirurgia de aorta ascendente, é Forte/Baixa. A plástica valvar com anatomia favorável, em centros especializados, é Fraca/Moderada. O TAVI na insuficiência aórtica é Fraca/Baixa, restrito a sintomáticos com expectativa de vida > 1 ano, contraindicação ou risco proibitivo à cirurgia e anatomia favorável, após avaliação do Heart Team — e entra na Tabela 1 como uma das principais novidades de 2026. O Quadro 33 (p. 50) acrescenta que a troca valvar é o tratamento de escolha para a maioria dos pacientes e que dilatação da aorta ascendente ≥ 4,5 cm indica intervenção combinada de troca valvar mais tubo em aorta ascendente.",
   },
   {
     source_slug: "sbc-valvopatias-2024",
     topic: "valvopatia_tricuspide",
-    section: "Regurgitação tricúspide — SBC 2020",
+    section: "Insuficiência tricúspide — indicações de intervenção (SBC 2026, Quadro 41)",
     content:
-      "RT primária grave sintomática: cirurgia é Classe I quando houver disfunção de VD progressiva. RT funcional secundária a valvopatia esquerda: abordar no mesmo tempo cirúrgico (Classe I). TRI-SCORE é recomendado para estratificação de risco. Intervenção transcateter (T-TEER) é considerada em pacientes inoperáveis e ainda tem disponibilidade limitada no Brasil.",
+      "No Quadro 41 da Diretriz Brasileira de Valvopatias 2026 (p. 56), a plástica tricúspide é Forte/Moderada quando se aborda outra valvopatia e a insuficiência tricúspide é importante; quando se aborda outra valvopatia e o anel tricúspide é ≥ 40 mm na presença de insuficiência moderada ou importante; e na insuficiência tricúspide importante secundária, isolada, refratária ao tratamento clínico. É Forte/Baixa na primária assintomática isolada com dilatação ou perda progressiva de função do ventrículo direito, e na primária sintomática isolada sem disfunção de ventrículo direito. A troca valvar cirúrgica é Forte/Moderada quando há indicação de abordagem sem possibilidade de plástica. A abordagem transcateter — refratária ao tratamento clínico, com contraindicação ou alto risco cirúrgico e anatomia favorável — entra na Tabela 1 como novidade de 2026: reparo borda a borda Forte/Alta, implante ortotópico Forte/Alta e implante heterotópico Forte/Baixa. O algoritmo da Figura 11 vai da gravidade anatômica à etiologia, aos sintomas refratários e aos complicadores antes de chegar à intervenção.",
   },
   {
     source_slug: "sbc-valvopatias-2024",
     topic: "estenose_aortica",
-    section: "Epidemiologia e anticoagulação — SBC 2020",
+    section: "Anticoagulação oral (SBC 2026, Quadro 71)",
     content:
-      "Prótese mecânica: anticoagulação com varfarina é obrigatória e permanente; DOACs (rivaroxabana, apixabana, dabigatrana, edoxabana) são contraindicados. Bioprótese aórtica pós-op: AAS 75-100 mg/dia; anticoagulação plena 3-6 meses é opcional. FA associada a estenose mitral reumática moderada/grave ou a prótese mecânica: somente varfarina, INR-alvo conforme prótese.",
+      "O Quadro 71 da Diretriz Brasileira de Valvopatias 2026 (p. 75) organiza a anticoagulação por cenário. Valva nativa: na estenose mitral reumática com fibrilação atrial e/ou trombo em átrio esquerdo, a varfarina é Forte/Moderada (AHA I C, ESC I B) e os DOACs aparecem como Fraca/Baixa APENAS na impossibilidade de uso de varfarina — a mesma coluna registra que a ESC classifica isso como III B, ou seja, as duas diretrizes divergem nesse ponto e a conduta precisa ser discutida, não copiada. Nas demais valvopatias com fibrilação atrial, varfarina e DOACs são ambos Forte/Moderada. Prótese biológica com fibrilação atrial: varfarina Forte/Moderada nos primeiros 3 meses e Forte/Alta no longo prazo, com DOACs Fraca/Moderada nos primeiros 3 meses e Forte/Alta no longo prazo. Prótese biológica em ritmo sinusal: nos primeiros 3 meses (mitral) ou 3 a 6 meses (aórtica), varfarina, DOACs e AAS são todos Fraca/Baixa; no longo prazo, varfarina e DOACs caem para Fraca/Muito baixa e o AAS fica Fraca/Baixa. Após TAVI: com fibrilação atrial, varfarina e DOACs são Forte/Alta; em ritmo sinusal, varfarina e DOACs são marcados como NÃO INDICADOS, e AAS ou clopidogrel é Forte/Moderada. Este trecho reproduz o Quadro 71; o regime da prótese mecânica e as metas de INR estão em outra parte da diretriz e não estão aqui.",
   },
   // ===== DATASUS =====
   {

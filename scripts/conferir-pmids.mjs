@@ -93,18 +93,47 @@ function literaisComPosicao(texto) {
   return saida;
 }
 
+/** A citação que acompanha uma URL, montada da janela anterior a ela. */
+function citacaoAntesDe(literais, alvo) {
+  return literais
+    .filter((l) => l.fim < alvo && alvo - l.fim <= 900)
+    .map((l) => l.texto)
+    .join(" ");
+}
+
 function citacoes(texto, arquivo) {
   const literais = literaisComPosicao(texto);
   const achados = [];
   const re = /pubmed\.ncbi\.nlm\.nih\.gov\/(\d+)\//g;
   let m;
   while ((m = re.exec(texto))) {
-    const alvo = m.index;
-    const citacao = literais
-      .filter((l) => l.fim < alvo && alvo - l.fim <= 900)
-      .map((l) => l.texto)
-      .join(" ");
-    achados.push({ pmid: m[1], citacao, arquivo });
+    achados.push({ pmid: m[1], citacao: citacaoAntesDe(literais, m.index), arquivo });
+  }
+  return achados;
+}
+
+/**
+ * O mesmo, para DOI — e por que isto precisou existir.
+ *
+ * A Diretriz Brasileira de Valvopatias 2026 não é indexada no PubMed com este
+ * título: não tem PMID, tem DOI. Guardá-la com um link fora do alcance deste
+ * script seria guardar um link que nenhuma conferência visita — exatamente o
+ * que a guarda `todo link é do PubMed` existe para impedir.
+ *
+ * A defesa é a mesma, com outro balcão: perguntar ao registro do DOI qual é o
+ * título do artigo e comparar com a citação escrita ao lado. O Crossref é quem
+ * responde por `10.36660` (SBC) e pela maioria dos periódicos.
+ *
+ * Mesma armadilha que a dos PMIDs, e é por isso que vale: um DOI com formato
+ * certo que aponta para outro artigo passa por qualquer revisão humana.
+ */
+function doisCitados(texto, arquivo) {
+  const literais = literaisComPosicao(texto);
+  const achados = [];
+  const re = /doi\.org\/(10\.\d{4,}\/[^\s"'`)]+)/g;
+  let m;
+  while ((m = re.exec(texto))) {
+    achados.push({ doi: m[1], citacao: citacaoAntesDe(literais, m.index), arquivo });
   }
   return achados;
 }
@@ -125,7 +154,12 @@ const palavras = (s) =>
   );
 
 const todos = [];
-for (const f of arquivos(RAIZ)) todos.push(...citacoes(readFileSync(f, "utf8"), f.slice(RAIZ.length)));
+const todosDoi = [];
+for (const f of arquivos(RAIZ)) {
+  const texto = readFileSync(f, "utf8");
+  todos.push(...citacoes(texto, f.slice(RAIZ.length)));
+  todosDoi.push(...doisCitados(texto, f.slice(RAIZ.length)));
+}
 
 const porPmid = new Map();
 for (const c of todos) if (!porPmid.has(c.pmid)) porPmid.set(c.pmid, c);
@@ -167,4 +201,61 @@ for (const s of suspeitos) {
   console.log(`    PubMed  : ${s.titulo.slice(0, 110)}`);
   console.log(`    palavras em comum: ${s.comuns.join(", ") || "NENHUMA"}\n`);
 }
-process.exit(suspeitos.length ? 1 : 0);
+
+// ---------------------------------------------------------------------------
+// E os DOIs, pelo mesmo critério — ver `doisCitados`.
+// ---------------------------------------------------------------------------
+
+const porDoi = new Map();
+for (const c of todosDoi) if (!porDoi.has(c.doi)) porDoi.set(c.doi, c);
+console.log(`${porDoi.size} DOI distintos citados em src/\n`);
+
+let okDoi = 0;
+const suspeitosDoi = [];
+for (const [doi, c] of porDoi) {
+  let titulo = "";
+  let registro = null;
+  try {
+    const r = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`, {
+      headers: { Accept: "application/json" },
+    });
+    // 404 do Crossref é informação: o DOI não existe. Qualquer outro código é
+    // "não deu para conferir", e os dois não podem sair iguais — mesma regra
+    // dos três estados que este projeto usa em toda conferência.
+    if (r.status === 404) {
+      suspeitosDoi.push({ ...c, titulo: "(DOI não existe no Crossref)", comuns: [] });
+      continue;
+    }
+    if (!r.ok) {
+      console.error(`NÃO CONFERIDO: Crossref respondeu ${r.status} para ${doi}`);
+      process.exit(2);
+    }
+    registro = (await r.json()).message ?? {};
+    titulo = String(registro.title?.[0] ?? "");
+  } catch (e) {
+    console.error(`NÃO CONFERIDO: não foi possível falar com o Crossref (${e instanceof Error ? e.message : e})`);
+    process.exit(2);
+  }
+
+  // O lado do Crossref: título, periódico e primeiro autor — igual ao do
+  // PubMed, e pelo mesmo motivo (citação em português contra título em inglês).
+  const autor = String(registro.author?.[0]?.family ?? "");
+  const periodico = String(registro["container-title"]?.[0] ?? "");
+  const comuns = [...palavras(c.citacao)].filter((p) => palavras(`${titulo} ${autor} ${periodico}`).has(p));
+  if (comuns.length >= 2) { okDoi++; continue; }
+  suspeitosDoi.push({ ...c, titulo, comuns });
+}
+
+console.log(`${okDoi} conferem · ${suspeitosDoi.length} divergem\n`);
+for (const s of suspeitosDoi) {
+  console.log(`✗ DOI ${s.doi}  (${s.arquivo})`);
+  // O FIM da janela, não o começo: a janela junta até 900 caracteres de
+  // literais anteriores, e os mais próximos da URL é que são a citação dela.
+  // Imprimindo o começo, o relatório mostrava a citação da entrada de cima — o
+  // leitor concluiria que o detector pegou o par errado.
+  console.log(`    citação  : …${s.citacao.slice(-110)}`);
+  console.log(`    Crossref : ${s.titulo.slice(0, 110)}`);
+  console.log(`    palavras em comum: ${s.comuns.join(", ") || "NENHUMA"}\n`);
+}
+
+process.exit(suspeitos.length || suspeitosDoi.length ? 1 : 0);

@@ -112,8 +112,8 @@ const TopicDetail = () => {
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed mb-3">
                 Conteúdo baseado nas diretrizes 2025 ESC/EACTS (Eur Heart J. 2025;46(44):4635–4736),
-                2020 ACC/AHA, Diretriz Brasileira de Valvopatias (SBC 2020) e materiais educacionais
-                de AHA e CDC.
+                na Diretriz Brasileira de Valvopatias 2026 (Arq Bras Cardiol. 2026;123(10):e20260796),
+                em 2020 ACC/AHA e em materiais educacionais de AHA e CDC.
               </p>
               <Link to="/referencias" className="text-xs font-medium text-accent hover:underline">
                 Ver referências completas →

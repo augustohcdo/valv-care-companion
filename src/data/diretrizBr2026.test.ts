@@ -248,7 +248,12 @@ describe("citações da diretriz brasileira de 2026", () => {
       expect(r.esc, `${chave}: coluna ESC ausente`).toBeTruthy();
     }
     // E a Tabela 1 não inventa colunas que a tabela não tem.
-    for (const [chave, r] of Object.entries(TABELA_1_NOVIDADES)) {
+    //
+    // O `as` é para o TypeScript, não para afrouxar a regra: com as chaves
+    // literais, as linhas da Tabela 1 nem DECLARAM `aha`/`esc`, e o compilador
+    // recusa a leitura. A garantia em tempo de execução continua valendo e é a
+    // que importa aqui — ela pega quem ACRESCENTAR a coluna.
+    for (const [chave, r] of Object.entries(TABELA_1_NOVIDADES) as [string, RecomendacaoBr][]) {
       expect(r.aha, `${chave}: a Tabela 1 não traz coluna AHA`).toBeUndefined();
       expect(r.esc, `${chave}: a Tabela 1 não traz coluna ESC`).toBeUndefined();
     }
