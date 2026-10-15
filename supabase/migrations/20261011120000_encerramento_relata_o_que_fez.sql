@@ -69,7 +69,8 @@ declare
   _eh_medico boolean;
   _admins integer;
   -- Os contadores. Um por passo, porque "quantas linhas mudaram" é a única
-  -- coisa que o relatório pode afirmar sem supor.
+  -- coisa que o relatório pode afirmar sem supor. São onze aqui mais o `_casos`
+  -- declarado acima, que já existia: doze medições no total.
   _perfil integer := 0;
   _paciente integer := 0;
   _medico integer := 0;
@@ -257,14 +258,20 @@ grant execute on function public.encerrar_conta(uuid, text) to authenticated;
 -- conferência era da primeira espécie.
 --
 -- Agora ela lê o `prosrc` e procura o que SÓ a versão nova tem, incluindo a
--- CONTAGEM de medições: onze `get diagnostics`, um por escrita. Um número é
+-- CONTAGEM de medições: doze `get diagnostics`, um por escrita. Um número é
 -- mais difícil de satisfazer por acidente que um `LIKE`.
+--
+-- (Escrevi "onze" aqui, e a conferência em produção devolveu 12. Eu havia
+-- contado só as medições NOVAS e esquecido a de `_casos`, que já existia antes
+-- desta mudança. Terceiro número que escrevi nesta sessão sem contar — e o
+-- único dos três que foi desmentido pela própria conferência, que é o desenho
+-- funcionando: o número vem do banco, não da minha memória.)
 --
 -- Esperado:
 --   relata_limites ..... true    ← o bloco que declara o que a função não alcança
 --   relata_contagens ... true    ← as onze contagens no relatório
 --   mede_o_perfil ...... true    ← `get diagnostics` na primeira escrita
---   quantas_medicoes ... 11
+--   quantas_medicoes ... 12
 --   security_definer ... true
 --   anon_executa ....... false
 select
