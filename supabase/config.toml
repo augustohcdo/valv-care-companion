@@ -46,3 +46,33 @@ verify_jwt = false
 
 [functions.access-request]
 verify_jwt = false
+
+# As que exigem JWT — escrito, e não herdado do padrão.
+#
+# O comentário no alto diz que function fora desta lista "mantém o default
+# verify_jwt = true", e é verdade: medido em produção em 2026-10-15, as seis
+# abaixo devolvem 401 sem credencial. Mas o alcance destas seis — conversa
+# clínica, encerramento de conta, exportação de LGPD, decisão de acesso,
+# emissão de chave de hospital e ingestão da base de conhecimento — fica melhor
+# escrito aqui do que dependendo do padrão de uma ferramenta de terceiro, que
+# pode mudar de versão sem nos avisar e sem aparecer em teste nenhum.
+#
+# E o comentário do workflow de deploy afirmava que era o config que mantinha a
+# `clinical-ai` exigindo JWT. Ela não estava aqui. Agora está.
+[functions.clinical-ai]
+verify_jwt = true
+
+[functions.account-close]
+verify_jwt = true
+
+[functions.dpo-export]
+verify_jwt = true
+
+[functions.access-decide]
+verify_jwt = true
+
+[functions.hospital-api-key-create]
+verify_jwt = true
+
+[functions.knowledge-ingest]
+verify_jwt = true
