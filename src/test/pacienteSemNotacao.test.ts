@@ -235,6 +235,20 @@ describe("o texto que o paciente lê", () => {
     ["Classe de recomendação", /\bClasse\s+(I{1,3}|IV)\b/],
     ["Classe IIa/IIb", /\bII[ab]\b/],
     ["nível de evidência", /\bNível\s+[ABC]\b/],
+    /**
+     * A notação do GRADE, que entrou no projeto com a diretriz brasileira de
+     * 2026 — força Forte/Fraca sobre certeza Alta/Moderada/Baixa/Muito baixa.
+     *
+     * A lista acima proibia a gramática da ESC e deixaria esta passar: é outra
+     * escala, com as mesmas duas propriedades que a tornam imprópria aqui —
+     * não tem leitura possível para quem não conhece a escala, e transforma uma
+     * conversa em veredito. "Forte/Moderada" dito a um paciente não informa
+     * nada e intimida.
+     *
+     * Escrita antes do conteúdo de 2026 entrar, de propósito: guarda que chega
+     * depois do texto é guarda que já nasceu tendo deixado passar.
+     */
+    ["força/certeza do GRADE", /\b(Forte|Fraca)\s*\/\s*(Alta|Moderada|Baixa|Muito baixa)\b/i],
   ];
 
   it.each(NOTACAO_DE_CONDUTA)("não traz %s em tópico nenhum", (_rotulo, padrao) => {

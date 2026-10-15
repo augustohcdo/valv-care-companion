@@ -212,8 +212,12 @@ export const patientTopics: PatientTopic[] = [
         body: "A decisão de intervir segue critérios bem estabelecidos: (1) estenose importante com sintomas — indicação clara; (2) estenose importante assintomática com fração de ejeção já reduzida (< 50%) — indicação forte; (3) em casos selecionados de assintomáticos com marcadores de alto risco (velocidade > 5 m/s, queda de pressão no teste de esforço, BNP muito elevado, calcificação acentuada com progressão rápida). Não existem medicamentos que revertam a estenose aórtica — o tratamento definitivo é a substituição da válvula.",
       },
       {
+        heading: "Operar antes dos sintomas? O que mudou em 2026",
+        body: "A Diretriz Brasileira de Valvopatias de 2026 passou a permitir considerar a troca da válvula em quem tem estenose importante, ainda sem nenhum sintoma, com risco cirúrgico baixo. É uma possibilidade, não uma indicação para todo mundo — e a própria diretriz é franca sobre o motivo: até agora não se demonstrou que operar antes faça viver mais. O que se discute é intervir em pessoas selecionadas, que tenham sinais de que o coração já está sofrendo em silêncio (alterações na ressonância magnética, exames de sangue como o BNP elevados, muito cálcio na válvula), sempre depois de uma conversa da equipe que reúne cardiologista clínico, cirurgião e hemodinamicista. Se o seu médico propuser operar sem que você sinta nada, esta é a pergunta a fazer: quais marcadores apareceram no meu caso?",
+      },
+      {
         heading: "TAVI ou cirurgia — como é a decisão",
-        body: "Hoje existem duas opções para substituir a válvula aórtica: cirurgia aberta (SAVR) e implante por cateter (TAVI). A escolha é feita pelo Heart Team levando em conta: idade, expectativa de vida, risco cirúrgico calculado por escores, anatomia da válvula e da aorta, presença de doença coronária associada, fragilidade, outras cirurgias necessárias e as preferências do paciente. De forma simplificada: em pacientes mais idosos ou de alto risco, a TAVI tende a ser preferida; em pacientes mais jovens e de baixo risco, a cirurgia costuma ser escolhida por sua durabilidade mais bem estabelecida a longo prazo. Mas cada caso é único.",
+        body: "Hoje existem duas opções para substituir a válvula aórtica: cirurgia aberta (SAVR) e implante por cateter (TAVI). A escolha é feita pelo Heart Team levando em conta: idade, expectativa de vida, risco cirúrgico calculado por escores, anatomia da válvula e da aorta, presença de doença coronária associada, fragilidade, outras cirurgias necessárias e as preferências do paciente. A diretriz brasileira de 2026 é mais explícita sobre a idade em quem tem risco cirúrgico baixo: abaixo de 70 anos a cirurgia é a preferida; entre 70 e 80 anos as duas são consideradas equivalentes, e aí pesam a anatomia, as outras doenças e a sua preferência; acima de 80 anos a preferida é a TAVI. Vale notar que a diretriz europeia, de 2025, recomenda a TAVI já a partir dos 70 — é um ponto em que as duas não dizem a mesma coisa, e o seu médico pode explicar qual caminho faz sentido no seu caso.",
       },
     ],
     alerts: [
@@ -509,7 +513,7 @@ export const patientTopics: PatientTopic[] = [
       },
       {
         heading: "Para quem é indicado",
-        body: "Indicação consolidada: estenose aórtica grave sintomática. Originalmente reservada para pacientes idosos de alto risco cirúrgico, a TAVI hoje tem indicação expandida para risco intermediário e, em muitos centros, já é discutida em risco baixo. A decisão sempre passa pelo Heart Team, que avalia idade, anatomia, comorbidades, expectativa de vida e preferências do paciente. TAVI não é indicada para insuficiência aórtica pura (sem estenose).",
+        body: "Indicação consolidada: estenose aórtica grave sintomática. Originalmente reservada para pacientes idosos de alto risco cirúrgico, a TAVI hoje tem indicação expandida para risco intermediário e, em muitos centros, já é discutida em risco baixo. A decisão sempre passa pelo Heart Team, que avalia idade, anatomia, comorbidades, expectativa de vida e preferências do paciente. Na diretriz brasileira de 2026, quando o risco cirúrgico é baixo a idade orienta a conversa: abaixo de 70 anos a cirurgia é a preferida, entre 70 e 80 as duas opções são tratadas como equivalentes, e acima de 80 a preferência é a TAVI. Uma novidade de 2026: em pacientes sem condições de operar, com anatomia favorável e depois da avaliação da equipe, a TAVI passou a ser uma possibilidade também na insuficiência aórtica — mas é uma recomendação fraca, apoiada em pouca evidência, e segue valendo que a TAVI não é o tratamento habitual da insuficiência aórtica pura.",
       },
       {
         heading: "Como é o procedimento",
@@ -622,7 +626,7 @@ export const patientTopics: PatientTopic[] = [
       },
       {
         heading: "Profilaxia antibiótica",
-        body: "Para pacientes de alto risco — portadores de prótese valvar, endocardite prévia, cardiopatias congênitas cianóticas ou reparos com material protético — recomenda-se antibiótico preventivo antes de procedimentos dentários que envolvam manipulação de gengiva ou perfuração de mucosa. O antibiótico mais usado é amoxicilina, 2g, 1 hora antes do procedimento (ou clindamicina para alérgicos à penicilina). Converse com seu cardiologista e dentista para saber se você tem indicação.",
+        body: "Para pacientes de alto risco — portadores de prótese valvar, endocardite prévia, cardiopatias congênitas cianóticas ou reparos com material protético — recomenda-se antibiótico preventivo antes de procedimentos dentários que envolvam manipulação de gengiva ou perfuração de mucosa. O antibiótico mais usado é amoxicilina, 2g, 1 hora antes do procedimento (ou clindamicina para alérgicos à penicilina). Converse com seu cardiologista e dentista para saber se você tem indicação. Vale dizer que isso foi reafirmado com destaque na Diretriz Brasileira de Valvopatias de 2026: a prevenção com antibiótico antes de extração dentária, cirurgia na boca e outros procedimentos que mexem na gengiva está entre as recomendações principais do documento para quem tem risco elevado. Se você já ouviu que 'isso não se faz mais', essa informação está desatualizada no Brasil.",
       },
       {
         heading: "Prevenção no dia a dia",

@@ -59,6 +59,55 @@ const afirma = (slug: string, ...partes: RegExp[]) =>
 
 const textoDe = (slug: string) => afirmacoesDe(slug).join(" \n ");
 
+describe("a biblioteca ensina a diretriz brasileira de 2026, e onde ela diverge", () => {
+  /**
+   * Mesma regra do bloco de 2025, uma camada adiante: **a biblioteca não pode
+   * ensinar menos do que a ferramenta mostra.**
+   *
+   * A tela de conduta passou a exibir a diretriz brasileira ao lado da europeia
+   * e a avisar que, entre 70 e 80 anos e com risco baixo, as duas discordam
+   * sobre cirurgia e TAVI. Se o texto que o médico lê ao lado não ensinar essa
+   * divergência, ele vê o aviso na tela sem ter onde entendê-lo — e é o mesmo
+   * defeito que gerou este arquivo, com os papéis trocados.
+   */
+  it("estenose aórtica: a divergência de 70 a 80 anos está ensinada numa frase só", () => {
+    expect(
+      afirma("estenose-aortica", /SBC 2026/, /70 e 80/, /EQUIVALENTES|equivalentes/, /ESC/),
+      "nenhuma afirmação ensina que, de 70 a 80 anos, a brasileira trata cirurgia e TAVI como equivalentes enquanto a ESC recomenda TAVI",
+    ).toBe(true);
+  });
+
+  it("estenose aórtica: a intervenção precoce vem com a ressalva da própria diretriz", () => {
+    // Ensinar a recomendação nova sem a ressalva de que não há benefício
+    // demonstrado em mortalidade é ensinar outra recomendação.
+    expect(
+      afirma("estenose-aortica", /Tabela 1|intervenção precoce/i, /Fraca/, /mortalidade/i),
+      "a intervenção precoce de 2026 aparece sem a ressalva de que não há benefício prognóstico demonstrado",
+    ).toBe(true);
+  });
+
+  it("insuficiência mitral: a divisão reumático/não reumático está ensinada", () => {
+    /**
+     * É a recomendação brasileira mais distante da europeia, e a que mais muda
+     * conduta no Brasil: no reumático a preferência entre plástica e troca se
+     * inverte. Um médico que leia só a ESC indica plástica onde a diretriz
+     * local não indica.
+     */
+    expect(
+      afirma("insuficiencia-mitral", /SBC 2026/, /reumátic/i, /troca/i, /Forte\/Moderada/),
+      "nenhuma afirmação ensina que, no reumático, a troca é que é a recomendação forte",
+    ).toBe(true);
+  });
+
+  it("a biblioteca não converte GRADE em Classe", () => {
+    // Converter é inventar equivalência que nenhuma das duas diretrizes
+    // publicou. A mesma regra vale no prompt da IA e na tela.
+    const todo = clinicalLibrary.map((t) => textoDe(t.slug)).join("\n");
+    expect(todo, "a biblioteca atribuiu Classe à SBC").not.toMatch(/SBC[^.\n]{0,24}:\s*Classe/);
+    expect(todo, "a biblioteca atribuiu Forte/Fraca à ESC").not.toMatch(/ESC[^.\n]{0,24}(Forte|Fraca)\//);
+  });
+});
+
 describe("a biblioteca acompanha a diretriz de 2025", () => {
   it("estenose aórtica: a mudança central de 2025 está ensinada, numa frase só", () => {
     // A recomendação IIa A: intervir no assintomático como ALTERNATIVA à

@@ -163,6 +163,9 @@ export const clinicalLibrary: ClinicalGuideline[] = [
       "NOVO em 2025 (IIa A): no assintomático com FEVE ≥ 50%, teste de esforço normal e risco do procedimento baixo, a intervenção é alternativa à vigilância ativa — não mais apenas esperar.",
       "IIa B no assintomático de risco baixo com FEVE ≥ 50% e um critério adicional: gradiente médio ≥ 60 mmHg ou Vmax > 5,0 m/s; calcificação grave com progressão de Vmax ≥ 0,3 m/s/ano; BNP/NT-proBNP mais de três vezes o normal; ou FEVE < 55% sem outra causa.",
       "Modo de intervenção por idade (2025): TAVI a partir de 70 anos com valva tricúspide e anatomia adequada (I A); cirurgia abaixo de 70 anos com risco baixo (I B). O corte era 75 anos em 2021.",
+      "SBC 2026, Quadro 27 — AQUI AS DUAS DIRETRIZES DIVERGEM: no risco baixo, a brasileira preferencia cirurgia abaixo de 70 anos (Forte/Alta), trata cirurgia e TAVI como EQUIVALENTES entre 70 e 80 anos (ambas Forte/Alta) e preferencia TAVI acima de 80 (Forte/Moderada). A ESC recomenda TAVI já a partir dos 70. Na faixa de 70 a 80 o site mostra as duas posições e não escolhe.",
+      "SBC 2026, Tabela 1 — intervenção precoce no assintomático de alto gradiente, sem complicadores e de risco cirúrgico baixo: recomendação Fraca com certeza Alta. A própria diretriz ressalva que não há benefício prognóstico demonstrado em mortalidade; indicada em selecionados com marcadores adversos (realce tardio na RM, strain reduzido, BNP/NT-proBNP elevado, escore de cálcio valvar elevado) após discussão do Heart Team.",
+      "SBC 2026 usa GRADE (força Forte/Fraca sobre certeza Alta/Moderada/Baixa/Muito baixa), não Classe/Nível. Não converta: as escalas não são equivalentes, e a própria diretriz imprime as duas lado a lado.",
       "Decisão SAVR vs TAVI deve ser tomada em Heart Team multidisciplinar.",
       "Avaliação geriátrica e de fragilidade é mandatória em idosos.",
       "EA de baixo fluxo / baixo gradiente paradoxal: FEVE preservada, stroke volume indexado < 35 mL/m², gradiente < 40 mmHg — avaliar escore de cálcio por TC.",
@@ -360,6 +363,7 @@ export const clinicalLibrary: ClinicalGuideline[] = [
     keyPoints: [
       "EM importante: área valvar ≤ 1,5 cm² (normal: 4-6 cm²).",
       "Fibrilação atrial com estenose mitral moderada a grave: o DOAC NÃO é recomendado (Classe III). Anticoagular com antagonista da vitamina K. Na EM reumática com área ≤ 2,0 cm² a recomendação é III B.",
+      "SBC 2026, Quadro 71 — AS DUAS DIRETRIZES NÃO DIZEM O MESMO AQUI: na EM reumática com FA e/ou trombo em átrio esquerdo, a brasileira mantém a varfarina como Forte/Moderada e registra o DOAC como Fraca/Baixa APENAS na impossibilidade de uso da varfarina, imprimindo ao lado que a ESC classifica esse uso como III B. Quer dizer: no paciente brasileiro sem como usar varfarina existe uma opção publicada e fraca, que a diretriz europeia não oferece. A decisão precisa ser deliberada e registrada no prontuário, nunca automática.",
       "Comissurotomia percutânea por balão: tratamento de escolha em anatomia favorável (Wilkins ≤ 8).",
       "Profilaxia secundária da febre reumática é mandatória.",
       "Gravidez: EM pode descompensar gravemente por aumento do débito e frequência cardíaca.",
@@ -434,6 +438,8 @@ export const clinicalLibrary: ClinicalGuideline[] = [
       "Reparo > troca quando viável — durabilidade superior e melhor preservação da função de VE.",
       "Flail leaflet: risco de morte súbita; considerar cirurgia precoce em centros de excelência.",
       "COAPT trial: TEER + TMO > TMO isolada em IM secundária com critérios específicos.",
+      "SBC 2026, Quadro 27 — A DIVISÃO QUE A ESC NÃO FAZ: reumático versus não reumático. No NÃO reumático a plástica é Forte/Moderada (sintomático com anatomia favorável, ou assintomático com complicadores: FEVE < 60% e/ou DSVE ≥ 40 mm, ou DSVEi ≥ 20 mm/m², ou PSAP ≥ 50 mmHg, ou FA relacionada à valvopatia). No REUMÁTICO as mesmas situações caem para Fraca/Baixa na plástica, e a TROCA é que é Forte/Moderada — a preferência se inverte, porque valva reumática repara mal. Perguntar a etiologia antes de indicar plástica não é detalhe acadêmico no Brasil.",
+      "SBC 2026 — reparo percutâneo borda a borda: Forte/Moderada na IM NÃO reumática, sintomática, anatomia favorável e alto risco cirúrgico pelo Heart Team. Está entre as recomendações principais de 2026 (Tabela 1), junto com o mesmo reparo na IM secundária ventricular sintomática após otimização medicamentosa.",
     ],
     sections: [
       {
