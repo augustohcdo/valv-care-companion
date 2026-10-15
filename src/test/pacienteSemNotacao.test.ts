@@ -1,7 +1,7 @@
 // Este teste lê o disco; tsconfig.app.json restringe `types`, daí a referência.
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 
 /**
@@ -31,10 +31,32 @@ import { dirname, join, relative, resolve } from "node:path";
 
 const APP = "src/App.tsx";
 
-/** Arquivos de conteúdo endereçados ao médico. Nenhum pode ser alcançado. */
+/**
+ * Arquivos de conteúdo endereçados ao médico. Nenhum pode ser alcançado.
+ *
+ * A lista é escrita à mão, e por isso há logo abaixo uma guarda que a cobra:
+ * arquivo novo de conteúdo clínico que não entre aqui deixaria a garantia mais
+ * estreita do que o nome dela promete, em silêncio. Foi o que aconteceu quando
+ * o `diretrizBr2026.ts` chegou — a varredura continuaria verde sem nunca ter
+ * olhado para ele.
+ */
 const FONTES_DO_MEDICO = [
   "src/data/clinicalLibrary.ts",
   "src/data/diretriz2025.ts",
+  "src/data/diretrizBr2026.ts",
+];
+
+/**
+ * Como se reconhece conteúdo de diretriz: pela NOTAÇÃO que ele carrega.
+ *
+ * Classe/Nível (ESC, AHA) e Força/Certeza (GRADE, que a diretriz brasileira
+ * usa) são a gramática de uma ordem a um clínico. Arquivo de dados que fala
+ * essa língua é do médico, por definição.
+ */
+const NOTACAO_DE_DIRETRIZ = [
+  /classe:\s*"(?:I|IIa|IIb|III)"/,
+  /forca:\s*"(?:Forte|Fraca)"/,
+  /nivel:\s*"[ABC]"/,
 ];
 
 /** `const Nome = lazy(() => import("./caminho"))` */
@@ -124,6 +146,46 @@ describe("as telas do paciente e o conteúdo do médico", () => {
     ).toBe(nomesDoPaciente.length);
     expect(raizes).toContain("src/pages/app/PacienteAprender.tsx");
     expect(raizes).toContain("src/pages/app/PacienteAprenderDetalhe.tsx");
+  });
+
+  it("a lista de fontes do médico não deixa arquivo novo de fora", () => {
+    /**
+     * A ponta solta desta guarda inteira: `FONTES_DO_MEDICO` é escrita à mão.
+     * Arquivo novo de conteúdo clínico que ninguém acrescente ali fica fora da
+     * varredura — e a guarda continua verde, prometendo uma garantia mais larga
+     * do que a que ela confere. É o defeito que esta sessão persegue, na forma
+     * mais discreta dele.
+     *
+     * Então a lista passa a ser COBRADA: todo arquivo de `src/data/` que fale a
+     * língua de diretriz (Classe/Nível da ESC e da AHA, Força/Certeza do GRADE
+     * que a diretriz brasileira usa) tem de estar nela.
+     *
+     * Aconteceu de verdade em 2026-10-15: o `diretrizBr2026.ts` entrou no
+     * projeto e esta varredura não olharia para ele.
+     */
+    const dir = "src/data";
+    const candidatos = readdirSync(dir)
+      .filter((n) => n.endsWith(".ts") && !n.endsWith(".test.ts"))
+      .map((n) => `${dir}/${n}`)
+      .filter((caminho) => {
+        const fonte = readFileSync(caminho, "utf8");
+        return NOTACAO_DE_DIRETRIZ.some((re) => re.test(fonte));
+      });
+
+    // Piso sobre o que o FILTRO classificou: se ele parar de casar, a lista de
+    // candidatos esvazia e a comparação abaixo passa sem ter olhado nada.
+    expect(
+      candidatos.length,
+      "nenhum arquivo de src/data fala a língua de diretriz — o filtro parou de casar",
+    ).toBeGreaterThanOrEqual(2);
+
+    const faltando = candidatos.filter((c) => !FONTES_DO_MEDICO.includes(c));
+    expect(
+      faltando,
+      `\nArquivo de conteúdo de diretriz fora de FONTES_DO_MEDICO: ${faltando.join(", ")}\n\n` +
+        "Acrescente à lista. Sem isso, a varredura das telas do paciente não\n" +
+        "olha para ele, e a guarda fica verde sem ter conferido.",
+    ).toEqual([]);
   });
 
   it.each(FONTES_DO_MEDICO)("não alcança %s", (fonteDoMedico) => {
