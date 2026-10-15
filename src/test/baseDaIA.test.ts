@@ -1,7 +1,8 @@
 // Este teste lê o disco; tsconfig.app.json restringe `types`, daí a referência.
 /// <reference types="node" />
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import {
   TRECHOS_ESPERADOS_NO_SEED,
   lerResultadoDoSeed,
@@ -111,5 +112,74 @@ describe("a leitura do resultado do seed", () => {
         }
       }
     }
+  });
+});
+
+describe("trechos renomeados não ficam órfãos na base", () => {
+  /**
+   * O defeito que quase foi publicado em 2026-10-15.
+   *
+   * O `knowledge-seed` é idempotente por `(source_id, section)`: trecho cuja
+   * section já existe é PULADO, nunca atualizado. Quando os seis trechos
+   * brasileiros passaram de "… (SBC 2020)" para "… (SBC 2026, Quadro N)", os
+   * novos entrariam e **os velhos ficariam** — debaixo de uma fonte cujo título
+   * agora diz 2026.
+   *
+   * A base serviria dois conjuntos contraditórios de recomendação como se
+   * fossem a mesma fonte concordando consigo mesma, sem erro em lugar nenhum.
+   * Quem lê é um cardiologista decidindo troca valvar.
+   *
+   * Duas regras daqui para a frente.
+   */
+  const seed = readFileSync(SEED, "utf8");
+  const migracoes = "supabase/migrations";
+
+  /** As sections que o seed declara hoje. */
+  function sectionsDoSeed(): string[] {
+    return [...seed.matchAll(/^\s+section:\s*"([^"]+)"/gm)].map((m) => m[1]);
+  }
+
+  /** As sections que alguma migração apaga de `knowledge_chunks`. */
+  function sectionsApagadas(): { arquivo: string; section: string }[] {
+    const achados: { arquivo: string; section: string }[] = [];
+    for (const nome of readdirSync(migracoes)) {
+      if (!nome.endsWith(".sql")) continue;
+      const sql = readFileSync(join(migracoes, nome), "utf8");
+      const i = sql.indexOf("delete from public.knowledge_chunks");
+      if (i < 0) continue;
+      // Só o corpo do DELETE, até o `;` — não o arquivo inteiro.
+      const corpo = sql.slice(i, sql.indexOf(";", i));
+      for (const m of corpo.matchAll(/'([^']{10,})'/g)) achados.push({ arquivo: nome, section: m[1] });
+    }
+    return achados;
+  }
+
+  it("o seed relata os trechos da base que não estão mais nele", () => {
+    // Ancorado no USO: a varredura existir e o resultado não ser devolvido
+    // deixaria tudo verde sobre um seed que não avisa nada.
+    expect(seed, "o seed não procura órfãos").toMatch(/const orfaos: string\[\] = \[\]/);
+    expect(seed, "o seed não compara com o que está na base")
+      .toMatch(/if \(!doArquivo\.has\(linha\.section\)\) orfaos\.push/);
+    expect(seed, "o seed não devolve os órfãos na resposta").toMatch(/\n\s+orfaos,/);
+    expect(seed, "o seed não explica o que fazer com um órfão").toMatch(/atencao_orfaos/);
+  });
+
+  it("nenhuma migração apaga uma section que o seed ainda usa", () => {
+    /**
+     * A outra direção do mesmo risco, e a mais perigosa: uma migração que
+     * apague uma section AINDA viva tira da base um trecho que o seed considera
+     * já inserido — e, por ser idempotente, ele não o recria. O assunto some da
+     * base da IA em silêncio.
+     */
+    const vivas = new Set(sectionsDoSeed());
+    const apagadas = sectionsApagadas();
+    expect(vivas.size, "não achei section nenhuma no seed — o formato mudou").toBeGreaterThan(5);
+    expect(apagadas.length, "não achei nenhuma section apagada por migração").toBeGreaterThan(0);
+
+    const conflito = apagadas.filter((a) => vivas.has(a.section));
+    expect(
+      conflito.map((c) => `${c.arquivo}: apaga "${c.section}", que o seed ainda declara`),
+      "migração apaga trecho vivo; o seed é idempotente e não o recria",
+    ).toEqual([]);
   });
 });

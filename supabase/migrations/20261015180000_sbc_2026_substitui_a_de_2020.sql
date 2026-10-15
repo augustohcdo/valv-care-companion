@@ -48,6 +48,42 @@ set
 where slug = 'sbc-valvopatias-2024';
 
 -- ---------------------------------------------------------------------------
+-- Os trechos de 2020 saem da base — e por que isto NÃO é opcional
+-- ---------------------------------------------------------------------------
+--
+-- O `knowledge-seed` é idempotente por `(source_id, section)`: trecho cuja
+-- section já existe é PULADO, nunca atualizado. Os seis trechos brasileiros
+-- foram reescritos com sections novas (de "… (SBC 2020)" para "… (SBC 2026,
+-- Quadro N)"), então os novos entram — e os velhos FICAM.
+--
+-- Sem este DELETE, o resultado seria a base servindo, debaixo de uma fonte cujo
+-- título diz 2026, dois conjuntos contraditórios de recomendação: o de 2020 e o
+-- de 2026. A IA citaria "[Fonte: SBC 2026]" sobre texto de 2020 — e, pior,
+-- poderia citar os dois na mesma resposta como se fossem duas fontes
+-- concordando. Não daria erro em lugar nenhum.
+--
+-- As seis sections são nomeadas uma a uma, e não apagadas por padrão de texto:
+-- `like '%SBC 2020%'` também pegaria um trecho curado à mão por um
+-- administrador que mencionasse a edição antiga de propósito.
+--
+-- Entre esta migração e a próxima execução do seed, a base fica SEM os trechos
+-- brasileiros. É um estado honesto — a IA responde que não encontrou o assunto
+-- na base — e preferível ao estado mentiroso. Para encurtá-lo, rode
+-- "Popular / atualizar base RAG" em Administração → Base da IA logo após o
+-- deploy; o pg_cron faria isso sozinho na próxima janela.
+
+delete from public.knowledge_chunks
+where source_id = (select id from public.knowledge_sources where slug = 'sbc-valvopatias-2024')
+  and section in (
+    'Estenose aórtica — indicações de intervenção (SBC 2020)',
+    'Estenose mitral reumática — contexto brasileiro (SBC 2020)',
+    'Insuficiência mitral primária — SBC 2020',
+    'Insuficiência aórtica crônica — SBC 2020',
+    'Regurgitação tricúspide — SBC 2020',
+    'Epidemiologia e anticoagulação — SBC 2020'
+  );
+
+-- ---------------------------------------------------------------------------
 -- Conferência — e desta vez ela prova o que afirma
 -- ---------------------------------------------------------------------------
 --
@@ -60,10 +96,16 @@ where slug = 'sbc-valvopatias-2024';
 -- aí os trechos também estão órfãos.
 
 select
-  (year = 2026)                                   as ano_2026,
-  (title like '%2026%')                           as titulo_diz_2026,
-  (citation like '%e20260796%')                   as citacao_tem_o_artigo,
-  (url = 'https://doi.org/10.36660/abc.20260796') as url_e_o_doi,
-  (description like '%2011 → 2017 → 2020 → 2026%') as linhagem_registrada
-from public.knowledge_sources
-where slug = 'sbc-valvopatias-2024';
+  (s.year = 2026)                                   as ano_2026,
+  (s.title like '%2026%')                           as titulo_diz_2026,
+  (s.citation like '%e20260796%')                   as citacao_tem_o_artigo,
+  (s.url = 'https://doi.org/10.36660/abc.20260796') as url_e_o_doi,
+  (s.description like '%2011 → 2017 → 2020 → 2026%') as linhagem_registrada,
+  -- E a parte que o UPDATE sozinho não provaria: nenhum trecho de 2020
+  -- sobreviveu debaixo da fonte que agora diz 2026.
+  (select count(*) from public.knowledge_chunks c
+    where c.source_id = s.id and c.section like '%SBC 2020%') as trechos_de_2020_restantes,
+  (select count(*) from public.knowledge_chunks c
+    where c.source_id = s.id) as trechos_da_fonte
+from public.knowledge_sources s
+where s.slug = 'sbc-valvopatias-2024';

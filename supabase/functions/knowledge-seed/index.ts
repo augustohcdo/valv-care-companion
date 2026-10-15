@@ -350,6 +350,43 @@ Deno.serve(async (req) => {
       inserted++;
     }
 
+    /**
+     * Trechos da base que NÃO estão mais neste arquivo — os órfãos.
+     *
+     * A idempotência deste seed é por `(source_id, section)`: trecho cuja
+     * section já existe é pulado. Isso tem um efeito que só aparece quando
+     * alguém RENOMEIA uma section, e foi o que aconteceu na troca da diretriz
+     * brasileira de 2020 para a de 2026: as sections novas entram, e as antigas
+     * FICAM — agora debaixo de uma fonte cujo título diz 2026.
+     *
+     * O resultado seria a base servindo dois conjuntos contraditórios de
+     * recomendação como se fossem a mesma fonte concordando consigo mesma. É o
+     * pior formato possível do defeito que este projeto persegue, porque não dá
+     * erro em lugar nenhum.
+     *
+     * Aqui o seed só RELATA. Apagar sozinho seria arriscado: um trecho curado à
+     * mão por administrador, para uma destas fontes, também apareceria como
+     * órfão. Quem apaga é uma migração, que nomeia linha por linha o que remove.
+     */
+    const orfaos: string[] = [];
+    const slugsDoSeed = [...new Set(SEED.map((c) => c.source_slug))];
+    for (const slug of slugsDoSeed) {
+      const source_id = slugToId[slug];
+      if (!source_id) continue;
+      const { data: naBase, error: erroBase } = await admin
+        .from("knowledge_chunks")
+        .select("section")
+        .eq("source_id", source_id);
+      if (erroBase) {
+        naoConferidos.push(`${slug}: não foi possível listar os trechos da base (${erroBase.message})`);
+        continue;
+      }
+      const doArquivo = new Set(SEED.filter((c) => c.source_slug === slug).map((c) => c.section));
+      for (const linha of naBase ?? []) {
+        if (!doArquivo.has(linha.section)) orfaos.push(`${slug}/${linha.section}`);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         // `ok` deixa de ser constante. Esta função já respondeu `ok: true,
@@ -364,6 +401,13 @@ Deno.serve(async (req) => {
           atencao_leitura:
             `${naoConferidos.length} trecho(s) não puderam ser conferidos contra a base — ` +
             "não se sabe se já estavam lá. Rode de novo; o seed é idempotente.",
+        }),
+        orfaos,
+        ...(orfaos.length > 0 && {
+          atencao_orfaos:
+            `${orfaos.length} trecho(s) estão na base e NÃO estão mais neste seed. ` +
+            "Se foram renomeados, a base tem agora as duas versões — a velha e a nova — " +
+            "debaixo da mesma fonte. Apague as antigas por migração, nomeando cada uma.",
         }),
         fontes_nao_cadastradas: fontesFaltando,
         ...(fontesFaltando.length > 0 && {
