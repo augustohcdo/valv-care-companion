@@ -242,12 +242,39 @@ $$;
 revoke all on function public.encerrar_conta(uuid, text) from public, anon;
 grant execute on function public.encerrar_conta(uuid, text) to authenticated;
 
--- Conferência: a função existe, é SECURITY DEFINER e o `anon` não a executa.
+-- ---------------------------------------------------------------------------
+-- CONFERÊNCIA — e por que a primeira versão dela não provava nada
+-- ---------------------------------------------------------------------------
+--
+-- Ela conferia três coisas: a função existe, é SECURITY DEFINER, e o `anon` não
+-- a executa. Apliquei, veio `funcao_existe: 1, security_definer: true,
+-- anon_executa: false`, e isso não diz se o CORPO NOVO entrou — um
+-- `create or replace` que tivesse mantido a versão antiga daria exatamente os
+-- mesmos três valores.
+--
+-- É o aviso que o próprio workflow imprime no fim de cada execução: "'Executou
+-- sem erro' não é 'fez o que devia' — é esse resultado que prova". A minha
+-- conferência era da primeira espécie.
+--
+-- Agora ela lê o `prosrc` e procura o que SÓ a versão nova tem, incluindo a
+-- CONTAGEM de medições: onze `get diagnostics`, um por escrita. Um número é
+-- mais difícil de satisfazer por acidente que um `LIKE`.
+--
+-- Esperado:
+--   relata_limites ..... true    ← o bloco que declara o que a função não alcança
+--   relata_contagens ... true    ← as onze contagens no relatório
+--   mede_o_perfil ...... true    ← `get diagnostics` na primeira escrita
+--   quantas_medicoes ... 11
+--   security_definer ... true
+--   anon_executa ....... false
 select
-  (select count(*) from pg_proc p
-     join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public' and p.proname = 'encerrar_conta')          as funcao_existe,
-  (select prosecdef from pg_proc p
-     join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public' and p.proname = 'encerrar_conta')          as security_definer,
-  has_function_privilege('anon', 'public.encerrar_conta(uuid, text)', 'EXECUTE') as anon_executa;
+  (f.prosrc like '%''limites'', jsonb_build_object%')                     as relata_limites,
+  (f.prosrc like '%''linhas'', jsonb_build_object%')                      as relata_contagens,
+  (f.prosrc like '%get diagnostics _perfil%')                             as mede_o_perfil,
+  (length(f.prosrc) - length(replace(f.prosrc, 'get diagnostics', '')))
+    / length('get diagnostics')                                          as quantas_medicoes,
+  f.prosecdef                                                             as security_definer,
+  has_function_privilege('anon', 'public.encerrar_conta(uuid, text)', 'EXECUTE') as anon_executa
+from pg_proc f
+join pg_namespace n on n.oid = f.pronamespace
+where n.nspname = 'public' and f.proname = 'encerrar_conta';
