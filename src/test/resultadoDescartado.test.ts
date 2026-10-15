@@ -3,7 +3,9 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { chamadasDescartadas, totalDeChamadas, varrerFontes } from "./resultadoDescartado";
+import {
+  chamadasDescartadas, contagemPorNome, varreduraDeChamadas, varrerFontes,
+} from "./resultadoDescartado";
 
 /**
  * Nenhum `fetch` tem o resultado inteiramente descartado.
@@ -80,9 +82,10 @@ describe("nenhuma chamada joga o resultado fora", () => {
     let total = 0;
 
     for (const arquivo of arquivos) {
-      const original = readFileSync(arquivo, "utf8");
-      total += totalDeChamadas(original, NOMES, arquivo);
-      for (const c of chamadasDescartadas(original, NOMES, arquivo)) {
+      // Uma passada de AST, não duas: ver `varreduraDeChamadas`.
+      const varredura = varreduraDeChamadas(readFileSync(arquivo, "utf8"), NOMES, arquivo);
+      total += varredura.total;
+      for (const c of varredura.descartadas) {
         ruins.push(`  · ${arquivo}:${c.linha} — \`${c.nome}\`: ${OBRIGATORIAS[c.nome]}`);
       }
     }
@@ -108,10 +111,16 @@ describe("nenhuma chamada joga o resultado fora", () => {
     // exatamente o que esta sessão inteira desconfia. Se alguém acrescentar um
     // nome aqui e a base não tiver chamada nenhuma a ele, isto acusa em vez de
     // ficar verde por vacuidade.
+    /**
+     * Uma passada de AST por arquivo, não uma por nome: `totalDeChamadas(texto,
+     * [nome])` dentro do laço chamava o parser três vezes por arquivo e este
+     * caso reprovava por TEMPO (5,1s contra o limite de 5s), sem defeito
+     * nenhum. A garantia é a mesma; o que mudou foi o custo.
+     */
     const contagem: Record<string, number> = Object.fromEntries(NOMES.map((n) => [n, 0]));
     for (const arquivo of arquivos) {
-      const texto = readFileSync(arquivo, "utf8");
-      for (const nome of NOMES) contagem[nome] += totalDeChamadas(texto, [nome], arquivo);
+      const porNome = contagemPorNome(readFileSync(arquivo, "utf8"), NOMES, arquivo);
+      for (const nome of NOMES) contagem[nome] += porNome[nome];
     }
     const semNenhuma = NOMES.filter((n) => contagem[n] === 0);
     expect(

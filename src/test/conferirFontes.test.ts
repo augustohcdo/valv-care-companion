@@ -6,8 +6,8 @@ import { readFileSync } from "node:fs";
 // próprio `tsc` acusa. Eu já acrescentei essa diretiva por reflexo duas vezes
 // nesta sessão, e as duas vezes a CI a devolveu.
 import {
-  FORA_DE_ALCANCE, dispensaVale, estadoDaResposta, hostDe, urlsDoCatalogo,
-  vereditoDasFontes,
+  FORA_DE_ALCANCE, dispensaVale, dispensasSemMotivo, estadoDaResposta, hostDe,
+  motivoDaDispensaBasta, urlsDoCatalogo, vereditoDasFontes,
 } from "../../scripts/conferir-fontes.mjs";
 import { semComentariosDeCodigo } from "./semComentariosDeCodigo";
 
@@ -143,13 +143,18 @@ describe("o conferidor de fontes do catálogo", () => {
 
   it("fora de alcance DECLARADO não reprova, e aparece no veredito", () => {
     /**
-     * A única concessão, e por quê: sem ela a varredura semanal sai 2 toda
-     * semana, para sempre, pelas mesmas 14 URLs. Verdade e inútil — aviso que
-     * nunca muda é como se ensina alguém a ignorar o aviso. É a terceira vez que
-     * esta frase aparece neste repositório.
+     * A única concessão, e para quê: um limite de ambiente que PERSISTE faria a
+     * varredura semanal sair 2 toda semana pelas mesmas URLs — verdade e
+     * inútil, porque aviso que nunca muda é como se ensina alguém a ignorar o
+     * aviso.
      *
-     * Não é "conferido": é limite declarado, com motivo escrito e medição. O
-     * relatório o grita, com o denominador à vista.
+     * Só que a primeira vez que eu usei esta concessão, o limite não persistia:
+     * eram 14 `fetch failed` de um dia, e a execução seguinte alcançou os dois
+     * hosts. A lista está vazia por causa disso, e `motivoDaDispensaBasta`
+     * passou a cobrar duas medições em datas distintas de quem for usá-la.
+     *
+     * Mesmo com entrada, não é "conferido": é limite declarado, com motivo
+     * escrito e medição. O relatório o grita, com o denominador à vista.
      */
     const v = vereditoDasFontes({
       mortas: 0, naoConferidas: 0, foraDeAlcance: 14, voltaramAoAlcance: 0,
@@ -185,28 +190,111 @@ describe("o conferidor de fontes do catálogo", () => {
 
   it("a dispensa vale SÓ no ambiente que o motivo nomeia", () => {
     /**
-     * O motivo escrito diz "o executor do GitHub Actions (EUA) não alcança este
-     * host". Então a dispensa só pode valer lá.
+     * O motivo escrito tem de dizer "o executor do GitHub Actions não alcança
+     * este host". Então a dispensa só pode valer lá.
      *
      * Isto saiu de uma execução de verdade: rodado do contêiner de
      * desenvolvimento — que alcança o Brasil —, o script entrou no ramo "a lista
-     * envelheceu" e saiu 2, pedindo para tirar da lista dois hosts que o
-     * executor do GitHub de fato não alcança. A declaração estava certa; o
-     * escopo dela, errado. Limite de ambiente que não diz de qual ambiente é
+     * envelheceu" e saiu 2 por dois hosts que o runner do GitHub, naquele dia,
+     * de fato não alcançava. Limite de ambiente que não diz de qual ambiente é
      * vira alarme no ambiente errado.
+     *
+     * A lista real está VAZIA (ver o caso adiante), e por isso este caso corre
+     * sobre uma lista sintética: amarrar a guarda a um host real a deixaria sem
+     * nada a afirmar justamente quando a lista esvaziou.
      */
+    const lista = {
+      "exemplo.invalid":
+        "o executor do GitHub Actions não alcança este host — `fetch failed` nas 3 URLs. "
+        + "Conferido à mão em 2026-01-02 e de novo em 2026-01-09, de rede com alcance: HTTP 200.",
+    };
     expect(
-      dispensaVale({ host: "braile.com.br", noExecutorDoGitHub: true }),
+      dispensaVale({ host: "exemplo.invalid", noExecutorDoGitHub: true, lista }),
       "a dispensa deixou de valer no executor do GitHub",
     ).toBe(true);
     expect(
-      dispensaVale({ host: "braile.com.br", noExecutorDoGitHub: false }),
+      dispensaVale({ host: "exemplo.invalid", noExecutorDoGitHub: false, lista }),
       "a dispensa passou a valer fora do executor do GitHub — ali as URLs são alcançáveis",
     ).toBe(false);
     // Host fora da lista não é dispensado em ambiente nenhum.
-    expect(dispensaVale({ host: "outro.example", noExecutorDoGitHub: true })).toBe(false);
+    expect(dispensaVale({ host: "outro.example", noExecutorDoGitHub: true, lista })).toBe(false);
     // E host ilegível também não.
-    expect(dispensaVale({ host: null, noExecutorDoGitHub: true })).toBe(false);
+    expect(dispensaVale({ host: null, noExecutorDoGitHub: true, lista })).toBe(false);
+  });
+
+  it("host anotado com motivo insuficiente NÃO é dispensado", () => {
+    /**
+     * É o motivo que sustenta a dispensa, não o host estar escrito. Anotar um
+     * host e deixar o motivo pela metade é esquecimento com cara de decisão, e
+     * aqui falha FECHADA: a URL volta a reprovar como NÃO CONFERIDO, que é o
+     * pior dos dois vereditos e o certo quando não se sabe.
+     */
+    const fraca = { "exemplo.invalid": "o executor não alcança este host." };
+    expect(
+      dispensaVale({ host: "exemplo.invalid", noExecutorDoGitHub: true, lista: fraca }),
+      "dispensou por motivo que não se sustenta",
+    ).toBe(false);
+    // E o script tem como DIZER isso, em vez de só falhar fechado em silêncio.
+    const problemas = dispensasSemMotivo(fraca);
+    expect(problemas.map((p: { host: string }) => p.host)).toEqual(["exemplo.invalid"]);
+    expect(problemas[0].faltas.join(" "), "não diz o que falta no motivo").toMatch(/datas|medição/);
+  });
+
+  it("a regra do motivo cobra as quatro coisas, e a quarta é a lição da lista anterior", () => {
+    /**
+     * Esta era uma regra DENTRO do teste, varrendo `FORA_DE_ALCANCE`. Com a
+     * lista vazia o laço não roda e a guarda ficaria verde sem olhar nada —
+     * cobertura não é garantia, é garantia só sobre o que a guarda olha. Virou
+     * função: conferível com entradas sintéticas, aplicável às reais, haja uma
+     * ou nenhuma.
+     *
+     * A quarta exigência — DUAS datas distintas — é o conserto de 2026-10-15.
+     * A lista anterior foi escrita com UMA observação, e uma observação não
+     * distingue limite de ambiente de indisponibilidade passageira. Era
+     * passageira.
+     */
+    const completo =
+      "o executor do GitHub Actions não alcança este host — `fetch failed` nas 9 URLs. "
+      + "Conferido à mão em 2026-01-02 e em 2026-01-09, de rede com alcance: HTTP 200.";
+    expect(motivoDaDispensaBasta(completo).basta, "motivo completo foi recusado").toBe(true);
+
+    const faltando = (m: string) => motivoDaDispensaBasta(m).faltas.join(" | ");
+    // Uma data só: é justamente o motivo que eu escrevi, e ele não basta mais.
+    expect(
+      faltando(completo.replace(" e em 2026-01-09", "")),
+      "uma observação única passou pela regra",
+    ).toMatch(/duas datas/);
+    // A mesma data repetida também não são duas observações.
+    expect(faltando(completo.replace("2026-01-09", "2026-01-02"))).toMatch(/duas datas/);
+    // Sem dizer o que a medição de fora achou, a lista estaria declarando a URL
+    // conferida — que é exatamente o que ela não faz.
+    expect(faltando(completo.replace("HTTP 200", "tudo certo"))).toMatch(/medição/);
+    // Sem dizer que o executor não alcança, o motivo não é de alcance.
+    expect(faltando(completo.replace("não alcança", "prefere não ler").replace("`fetch failed` nas 9 URLs", "9 URLs")))
+      .toMatch(/não alcança/);
+    // E texto curto não é motivo.
+    expect(faltando("fora de alcance")).toMatch(/motivo escrito/);
+    // Lixo não estoura.
+    expect(motivoDaDispensaBasta(undefined).basta).toBe(false);
+  });
+
+  it("a lista real está vazia, e toda entrada que houver se sustenta", () => {
+    /**
+     * O conserto de 2026-10-15, medido: a execução em `main` devolveu 82 de 82
+     * ok e o detector de lista envelhecida acusou os dois hosts que eu havia
+     * declarado fora de alcance. As 14 `fetch failed` da primeira execução eram
+     * PASSAGEIRAS. Eu tinha uma observação e escrevi uma exceção permanente,
+     * com um "para sempre" que era previsão, não medição.
+     *
+     * A guarda não exige que a lista continue vazia — exige que o que estiver
+     * nela se sustente, pela regra acima. Hoje isso dá zero problemas sobre zero
+     * entradas; amanhã, com entrada, dá a mesma conta sobre ela.
+     */
+    expect(dispensasSemMotivo(), "há dispensa real sem motivo que a sustente").toEqual([]);
+    // E os dois hosts que a execução desmentiu não estão de volta.
+    for (const h of ["braile.com.br", "medicicor.com.br"]) {
+      expect(h in FORA_DE_ALCANCE, `${h} voltou à lista; a execução em main o alcançou`).toBe(false);
+    }
   });
 
   it("o script lê o ambiente do executor, e não assume", () => {
@@ -234,25 +322,19 @@ describe("o conferidor de fontes do catálogo", () => {
     expect(hostDe(""), "string vazia virou host").toBeNull();
   });
 
-  it("toda dispensa tem motivo escrito, com a medição que a sustenta", () => {
+  it("o script confere a própria lista antes de conferir URL alguma", () => {
     /**
-     * Dispensa sem motivo é esquecimento com cara de decisão. E o motivo aqui
-     * precisa dizer DUAS coisas: que o executor não alcança, e que alguém
-     * alcançou e mediu — senão a lista estaria declarando as URLs conferidas,
-     * que é justamente o que ela não faz.
+     * A ponta solta das duas regras acima: a função existir e o fluxo não a
+     * chamar deixaria tudo verde sobre um script que dispensa por host anotado
+     * sem motivo. A regra é ancorada na CHAMADA, não no nome — é a quinta vez
+     * nesta sessão que isso importa, e as quatro anteriores foram regras minhas
+     * que casavam com a DEFINIÇÃO da função e passavam pela inversão.
      */
-    const hosts = Object.keys(FORA_DE_ALCANCE);
-    expect(hosts.length, "a lista de fora de alcance esvaziou").toBeGreaterThan(0);
-    for (const h of hosts) {
-      const motivo = FORA_DE_ALCANCE[h];
-      expect(motivo.length, `a dispensa de ${h} não tem motivo escrito`).toBeGreaterThan(60);
-      expect(motivo, `a dispensa de ${h} não diz que o executor não alcança`)
-        .toMatch(/não alcança|fetch failed/i);
-      expect(motivo, `a dispensa de ${h} não traz a medição que a sustenta`)
-        .toMatch(/\d{4}-\d{2}-\d{2}/);
-      expect(motivo, `a dispensa de ${h} não diz o que a medição achou`)
-        .toMatch(/HTTP 200/);
-    }
+    const codigo = semComentariosDeCodigo(readFileSync(SCRIPT, "utf8"), SCRIPT);
+    expect(codigo, "o fluxo não confere as dispensas antes de usá-las")
+      .toMatch(/=\s*dispensasSemMotivo\(\)/);
+    expect(codigo, "o fluxo não para quando uma dispensa não se sustenta")
+      .toMatch(/semMotivo\.length[\s\S]{0,400}process\.exit\(2\)/);
   });
 
   it("o relatório mostra o DENOMINADOR, não só os que passaram", () => {

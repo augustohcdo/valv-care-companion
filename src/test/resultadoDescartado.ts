@@ -83,7 +83,18 @@ export function chamadasDescartadas(
   /** O caminho, para o parser saber se é `.tsx`/`.mjs`. */
   arquivo?: string,
 ): ChamadaDescartada[] {
-  const limpo = semComentarios(original, arquivo).split("\n");
+  return descartadasEmLinhas(semComentarios(original, arquivo).split("\n"), original, nomes);
+}
+
+/**
+ * O mesmo, sobre linhas JÁ sem comentário — para quem vai varrer os dois
+ * vereditos no mesmo arquivo sem pagar `ts.createSourceFile` duas vezes.
+ */
+function descartadasEmLinhas(
+  limpo: string[],
+  original: string,
+  nomes: string[],
+): ChamadaDescartada[] {
   const cru = original.split("\n");
   const achadas: ChamadaDescartada[] = [];
   const padrao = new RegExp(`^(?:await\\s+)?(${nomes.map(escapar).join("|")})\\s*\\(`);
@@ -115,6 +126,59 @@ export function chamadasDescartadas(
 
 /** Toda menção à chamada, para o sanity check da varredura. */
 export function totalDeChamadas(original: string, nomes: string[], arquivo?: string): number {
+  return totalEmLinhas(semComentarios(original, arquivo).split("\n"), nomes);
+}
+
+function totalEmLinhas(limpo: string[], nomes: string[]): number {
   const padrao = new RegExp(`\\b(?:${nomes.map(escapar).join("|")})\\s*\\(`);
-  return semComentarios(original, arquivo).split("\n").filter((l) => padrao.test(l)).length;
+  return limpo.filter((l) => padrao.test(l)).length;
+}
+
+/**
+ * Os dois vereditos do arquivo — o total e as descartadas — numa passada.
+ *
+ * A guarda principal chamava `totalDeChamadas` e `chamadasDescartadas` em
+ * seguida, e cada uma recomeçava do zero: dois `ts.createSourceFile` por
+ * arquivo, sobre ~320 arquivos. Ela estava em 3,7s contra o limite de 5s do
+ * vitest, e a irmã dela já havia reprovado por tempo. Guarda que reprova por
+ * lentidão ensina a reexecutar até passar, que é a forma mais barata de
+ * desaprender a olhar o vermelho.
+ */
+export function varreduraDeChamadas(
+  original: string,
+  nomes: string[],
+  arquivo?: string,
+): { total: number; descartadas: ChamadaDescartada[] } {
+  const limpo = semComentarios(original, arquivo).split("\n");
+  return {
+    total: totalEmLinhas(limpo, nomes),
+    descartadas: descartadasEmLinhas(limpo, original, nomes),
+  };
+}
+
+/**
+ * O mesmo, decomposto por nome, numa única passada de AST.
+ *
+ * A guarda de vacuidade precisa de contagem POR nome e fazia
+ * `totalDeChamadas(texto, [nome])` dentro de um laço — três chamadas a
+ * `semComentarios` por arquivo, que é a parte caríssima (um
+ * `ts.createSourceFile` cada). Sobre ~320 arquivos ela batia em 5,1s contra o
+ * limite de 5s do vitest e reprovava por tempo, sem defeito nenhum. Falso
+ * vermelho custa o mesmo que falso verde: ensina a reexecutar e ignorar.
+ *
+ * Mesma garantia, um terço do trabalho — a contagem continua sendo de LINHAS
+ * que mencionam o nome, igual à de cima.
+ */
+export function contagemPorNome(
+  original: string,
+  nomes: string[],
+  arquivo?: string,
+): Record<string, number> {
+  const linhas = semComentarios(original, arquivo).split("\n");
+  const contagem: Record<string, number> = {};
+  for (const nome of nomes) {
+    const padrao = new RegExp(`\\b${escapar(nome)}\\s*\\(`);
+    contagem[nome] = linhas.filter((l) => padrao.test(l)).length;
+  }
+  return contagem;
 }

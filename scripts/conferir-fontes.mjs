@@ -19,12 +19,16 @@
  * que não abre é pior do que fonte nenhuma: a primeira afirma uma procedência
  * que não existe, a segunda só não afirma nada.
  *
- * ## Os três estados, e por que o 403 não é 404
+ * ## Os quatro estados, e por que o 403 não é 404
  *
  *   · **ok** — 2xx (redirecionamento seguido);
  *   · **MORTA** (saída 1) — 404 ou 410. A página não existe mais;
- *   · **NÃO CONFERIDO** (saída 2) — 403, 429, 5xx, erro de rede, tempo
- *     esgotado. Não deu para olhar.
+ *   · **NÃO CONFERIDO** (saída 2) — 403, 429, 5xx, tempo esgotado. Não deu
+ *     para olhar;
+ *   · **não alcançado** — `fetch failed`: ninguém falou com o host. Reprova
+ *     como NÃO CONFERIDO, e é estado separado porque num 403 o host RESPONDEU
+ *     e recusou. Só é dispensado se o host estiver em `FORA_DE_ALCANCE` —
+ *     que hoje está **vazia**, e o cabeçalho dela diz por quê.
  *
  * Página protegida NÃO é página morta, e contorná-la está fora de questão: este
  * projeto já topou com o desafio do Cloudflare da ANVISA e com a parede de
@@ -117,60 +121,117 @@ export function urlsDoCatalogo(linhas) {
 }
 
 /**
- * Hosts que ESTE executor não alcança — com o motivo e a medição.
+ * Hosts que ESTE executor não alcança — com o motivo e as medições.
  *
- * ## Por que esta lista existe
+ * ## Está vazia, e foi uma medição que a esvaziou
  *
- * Primeira execução do job na CI: **68 ok, 0 mortas, 14 não conferidas**. As 14
- * eram `fetch failed` em dois domínios, e só nesses dois. `fetch failed` é
- * falha de REDE: o executor não chegou a falar com o host.
+ * Ela nasceu com dois hosts. Primeira execução do job na CI: **68 ok, 0 mortas,
+ * 14 não conferidas**, e as 14 eram `fetch failed` em `braile.com.br` e
+ * `medicicor.com.br`, só nesses dois. `fetch failed` é falha de REDE — o
+ * executor não chegou a falar com o host —, e do contêiner de desenvolvimento,
+ * no mesmo dia, os dois respondiam HTTP 200. Daí eu concluí: as fontes estão
+ * vivas, quem não alcança é o runner nos Estados Unidos.
  *
- * Medido no mesmo dia, de uma rede que alcança o Brasil: os dois respondem
- * **HTTP 200**. As fontes estão vivas. Quem não alcança é o executor do GitHub
- * Actions, que roda nos Estados Unidos.
+ * A execução seguinte, em `main`, devolveu **82 de 82 ok** — e, junto, o aviso
+ * de que os dois hosts declarados fora de alcance tinham respondido ao próprio
+ * runner. As 14 falhas foram **passageiras**, não estruturais.
  *
- * Sem esta lista, a varredura semanal sai 2 — NÃO CONFERIDO — toda semana, para
- * sempre, pelas mesmas 14 URLs. Isso é verdade e é inútil: um aviso que nunca
- * muda é como se ensina alguém a ignorar o aviso. Este repositório escreveu a
- * frase sobre a periodicidade desta mesma conferência, e no `lib/chromium.mjs`
- * sobre o `networkidle` — a terceira vez que ela aparece.
+ * O defeito não foi a medição; foi o que eu afirmei com ela. Eu tinha UMA
+ * observação e escrevi aqui uma exceção permanente, com a frase "sai 2 toda
+ * semana, para sempre, pelas mesmas 14 URLs". Esse "para sempre" era
+ * **previsão, não medição** — exatamente o defeito que esta base passou a
+ * sessão inteira caçando, uma camada acima: declarar sem medir, e com tanta
+ * segurança que o leitor não pensa em conferir. Uma indisponibilidade
+ * passageira — o caso que o cabeçalho deste arquivo já nomeava, três
+ * parágrafos acima — virou limite declarado do ambiente.
  *
- * ## O que a lista NÃO faz
+ * O que salvou foi a outra metade do mecanismo: o detector de lista
+ * envelhecida, escrito no mesmo comando que a lista justamente porque dispensa
+ * que sobrevive ao motivo esconde a próxima falha. Ele me desmentiu na primeira
+ * execução em que pôde. É o argumento inteiro a favor de guardas que cobram a
+ * garantia e não a intenção de quem as escreveu: esta apanhou o seu autor.
  *
- * Não declara as 14 URLs conferidas. Declara que **não são conferidas aqui**, e
- * o relatório diz isso com todas as letras, com o denominador à vista. Quem
- * quiser cobri-las roda `node scripts/conferir-fontes.mjs` de uma rede que
- * alcance o Brasil — é o que foi feito para preencher esta lista.
+ * ## O que fica, com a lista vazia
  *
- * E ela é remedida nas duas direções: host da lista que VOLTAR a ser alcançável
- * é relatado (para sair daqui), e host fora da lista que não for alcançado
- * continua reprovando.
+ * O mecanismo todo — e não por apego. Com a lista vazia, `fetch failed` volta a
+ * reprovar como NÃO CONFERIDO (saída 2), que é o veredito correto para falha de
+ * rede: "não sei" não é "está tudo bem". Se as 14 voltarem e PERSISTIREM,
+ * haverá então o que a primeira versão não teve — mais de uma observação —, e
+ * `motivoDaDispensaBasta` passou a cobrar isso de quem for escrever a próxima
+ * entrada.
+ *
+ * E o que a lista nunca fez, se algum dia voltar a ter entrada: declarar URL
+ * conferida. Declara que **não foi conferida aqui**, e o relatório diz isso com
+ * o denominador à vista.
  */
-export const FORA_DE_ALCANCE = {
-  "braile.com.br":
-    "o executor do GitHub Actions (EUA) não alcança este host — `fetch failed` nas 9 URLs. "
-    + "Conferido à mão em 2026-10-15, de rede com alcance ao Brasil: HTTP 200.",
-  "medicicor.com.br":
-    "o executor do GitHub Actions (EUA) não alcança este host — `fetch failed` nas 5 URLs. "
-    + "Conferido à mão em 2026-10-15, de rede com alcance ao Brasil: HTTP 200.",
-};
+export const FORA_DE_ALCANCE = {};
+
+/**
+ * O motivo escrito basta para sustentar uma dispensa?
+ *
+ * Isto era uma regra dentro do teste, varrendo as entradas da lista. Com a
+ * lista vazia o laço não roda, e a guarda viraria verde sem olhar nada —
+ * cobertura não é garantia, é garantia só sobre o que a guarda olha. Virando
+ * função, a regra é conferível com entradas sintéticas e aplicável às reais,
+ * haja uma ou nenhuma.
+ *
+ * As três primeiras exigências já estavam lá. A quarta — **duas datas
+ * distintas** — é a lição da lista anterior: ela foi escrita com uma única
+ * observação, e uma observação não distingue limite de ambiente de
+ * indisponibilidade passageira. Nada aqui prova que a segunda medição é
+ * honesta; o que a regra faz é obrigar quem dispensa a ter voltado a medir, em
+ * outro dia, e a dizer quando.
+ */
+export function motivoDaDispensaBasta(motivo) {
+  const texto = typeof motivo === "string" ? motivo : "";
+  const datas = new Set(texto.match(/\d{4}-\d{2}-\d{2}/g) ?? []);
+  const faltas = [];
+  if (texto.length < 60) faltas.push("motivo escrito");
+  if (!/não alcança|fetch failed/i.test(texto)) faltas.push("dizer que o executor não alcança");
+  if (!/HTTP 200/.test(texto)) faltas.push("dizer o que a medição de fora achou");
+  if (datas.size < 2) faltas.push("duas datas distintas — uma observação não faz limite");
+  return { basta: faltas.length === 0, faltas };
+}
+
+/**
+ * As entradas cuja dispensa não se sustenta — para o script dizer isso e parar.
+ *
+ * A regra só valia dentro de um teste, e teste é onde a regra vale para quem
+ * roda a suíte. Quem acrescentar uma entrada e rodar o script direto merece
+ * ouvir a mesma coisa, no lugar onde a dispensa seria usada.
+ */
+export function dispensasSemMotivo(lista = FORA_DE_ALCANCE) {
+  return Object.entries(lista)
+    .map(([host, motivo]) => ({ host, faltas: motivoDaDispensaBasta(motivo).faltas }))
+    .filter((d) => d.faltas.length > 0);
+}
 
 /**
  * A dispensa vale NESTE ambiente?
  *
- * O motivo escrito em `FORA_DE_ALCANCE` nomeia o ambiente: "o executor do
- * GitHub Actions (EUA) não alcança este host". Então a dispensa só pode valer
- * lá. De qualquer outra rede, as URLs são conferidas normalmente.
+ * O motivo escrito em `FORA_DE_ALCANCE` tem de nomear o ambiente — "o executor
+ * do GitHub Actions não alcança este host" —, e por isso a dispensa só pode
+ * valer lá. De qualquer outra rede, as URLs são conferidas normalmente.
  *
  * Isto saiu de uma execução de verdade: rodado do contêiner de
  * desenvolvimento — que alcança o Brasil —, o script entrou no ramo "a lista
- * envelheceu" e saiu 2, pedindo para tirar da lista dois hosts que o executor
- * do GitHub de fato não alcança. A declaração estava certa; o escopo dela,
- * errado. Limite de ambiente que não diz de qual ambiente é vira alarme no
- * ambiente errado.
+ * envelheceu" e saiu 2 por dois hosts que o runner do GitHub, naquele dia, de
+ * fato não alcançava. Limite de ambiente que não diz de qual ambiente é vira
+ * alarme no ambiente errado. (A execução seguinte mostrou que o runner também
+ * os alcançava, e aí a lista saiu inteira — ver o cabeçalho dela.)
+ *
+ * `lista` é parâmetro para o teste poder exercer a dispensa com entradas
+ * sintéticas: com a lista real vazia, uma guarda que só falasse de hosts reais
+ * não teria o que afirmar.
+ *
+ * E a dispensa depende do motivo BASTAR, não de o host estar escrito: é o
+ * motivo que a sustenta, e um host anotado sem motivo suficiente é
+ * esquecimento com cara de decisão. Falha fechada — a URL volta a reprovar como
+ * NÃO CONFERIDO, que é o pior veredito dos dois e o certo quando não se sabe.
  */
-export function dispensaVale({ host, noExecutorDoGitHub }) {
-  return !!noExecutorDoGitHub && host !== null && host in FORA_DE_ALCANCE;
+export function dispensaVale({ host, noExecutorDoGitHub, lista = FORA_DE_ALCANCE }) {
+  if (!noExecutorDoGitHub || host === null || !(host in lista)) return false;
+  return motivoDaDispensaBasta(lista[host]).basta;
 }
 
 /** O host de uma URL, sem `www.`, ou `null` se não der para ler. */
@@ -253,6 +314,17 @@ async function principal() {
       "NÃO CONFERIDO: faltam VITE_SUPABASE_URL/VITE_SUPABASE_PUBLISHABLE_KEY no ambiente.\n" +
       "São chaves PÚBLICAS — já vão embutidas no pacote que todo visitante baixa.",
     );
+    process.exit(2);
+  }
+
+  // Antes de conferir URL nenhuma: a lista de dispensas se sustenta? Entrada
+  // sem motivo suficiente não é dispensada (falha fechada), e isso tem de ser
+  // dito em voz alta — dispensa que não se justifica, calada, é o defeito desta
+  // sessão inteira.
+  const semMotivo = dispensasSemMotivo();
+  if (semMotivo.length) {
+    console.error("NÃO CONFERIDO: há dispensa em FORA_DE_ALCANCE que o motivo escrito não sustenta:");
+    for (const d of semMotivo) console.error(`  · ${d.host} — falta ${d.faltas.join("; ")}`);
     process.exit(2);
   }
 
