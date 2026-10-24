@@ -314,6 +314,70 @@ const ANO_SBC = (() => {
   return { ano, citacao: ref?.citacao };
 })();
 
+/**
+ * Como a diretriz brasileira é nomeada — e NÃO pela palavra "valvopatias".
+ *
+ * Essa palavra é o nome da doença, não o da diretriz: ela aparece em dezenas de
+ * frases clínicas. A primeira tentativa de consertar a regra de adjacência
+ * usou-a e produziu quatro falsos vermelhos de uma vez, em linhas corretas —
+ * falso vermelho custa o mesmo que falso verde.
+ */
+const NOME_DA_BRASILEIRA = /Diretriz(?:es)? Brasileiras? de Valvopatias|\bSBC\b/gi;
+// `Diretrizes?` seria "Diretrize" com "s" opcional — nunca casaria o SINGULAR
+// "Diretriz Brasileira", que é como a edição de 2026 se chama. A regra passaria
+// a depender só do `SBC` da linha, e uma citação que não o mencionasse ficaria
+// invisível. Quem pegou foi a contraprova plantada, não o corpus.
+
+/**
+ * Quando OUTRA diretriz assume a frase, o ano deixa de ser da brasileira.
+ *
+ * As linhas que produziram os falsos vermelhos são exatamente assim:
+ * "ancoradas na ESC/EACTS 2025, com ACC/AHA 2020 e a diretriz brasileira" —
+ * a brasileira citada SEM ano, e os anos pertencendo às outras duas.
+ */
+const OUTRA_FONTE = /ESC|EACTS|AHA|ACC|DATASUS|ANVISA|PubMed/;
+
+/**
+ * A ressalva que permite falar do passado sem mentir sobre o presente.
+ *
+ * Sem isto, a frase que explica a troca ("substitui a atualização de 2020")
+ * reprovaria — e a guarda passaria a proibir que o projeto contasse a própria
+ * história, que é o oposto do que ela quer.
+ */
+const MARCA_DE_HISTORIA = /\bera\b|anterior|antiga|substitu|linhagem|históric|deixou de/i;
+
+/**
+ * Os anos que a linha atribui à diretriz BRASILEIRA.
+ *
+ * Olha para a frente a partir de cada menção, numa janela curta, e para assim
+ * que outra fonte assume. É o que amarra o ano ao documento certo sem exigir
+ * que ele venha colado ao nome — que era o defeito da regra anterior, cega a um
+ * travessão.
+ */
+function anosDaBrasileiraNaLinha(linha: string): string[] {
+  const anos: string[] = [];
+  for (const m of linha.matchAll(NOME_DA_BRASILEIRA)) {
+    const depois = linha.slice(m.index! + m[0].length, m.index! + m[0].length + 60);
+    const corte = depois.search(OUTRA_FONTE);
+    const janela = corte >= 0 ? depois.slice(0, corte) : depois;
+    /**
+     * Ano colado por hífen é IDENTIFICADOR, não citação.
+     *
+     * `source_slug: "sbc-valvopatias-2024"` é chave de banco, mantida de
+     * propósito: trocá-la faria o seed pular os trechos em silêncio, e as
+     * migrações de setembro e de outubro registram essa decisão. Acusá-la seria
+     * cobrar que o projeto renomeie uma chave para calar um teste — e seis
+     * falsos vermelhos de uma vez, que é como se ensina a ignorar a guarda.
+     *
+     * Em prosa o ano nunca vem colado por hífen: vem depois de espaço, de
+     * travessão com espaço, de vírgula ou de ponto.
+     */
+    const ano = janela.match(/(^|[^-\w])(20\d\d)\b/);
+    if (ano) anos.push(ano[2]);
+  }
+  return anos;
+}
+
 describe("a diretriz brasileira citada é a que o projeto consegue apontar", () => {
   it("a citação de referência existe e traz um ano", () => {
     // Sem isto, uma citação renomeada zeraria a regra abaixo em silêncio.
@@ -352,13 +416,38 @@ describe("a diretriz brasileira citada é a que o projeto consegue apontar", () 
   });
 
   it("nenhum arquivo cita a SBC com outro ano", () => {
+    /**
+     * A regra media ADJACÊNCIA, e por isso deixou passar a página mais pública
+     * do projeto.
+     *
+     * O padrão era `/\bSBC\s*(20\d\d)\b|Valvopatias\s*(20\d\d)\b/`: o ano tinha
+     * de vir colado ao nome, separado no máximo por espaços. A
+     * `src/pages/public/Referencias.tsx` escrevia
+     *
+     *     "Atualização das Diretrizes Brasileiras de Valvopatias — 2020"
+     *     "Sociedade Brasileira de Cardiologia (SBC) — Arq Bras Cardiol. 2020;…"
+     *
+     * e o travessão no meio zerou as duas. Medido: a regra antiga achava ZERO
+     * ocorrências naquele arquivo. A página ficou nove dias apresentando a
+     * edição de 2020 como a referência brasileira do projeto, enquanto o motor
+     * de conduta, a biblioteca e a base da IA já usavam a de 2026.
+     *
+     * É a mesma lição que esta sessão já registrou em outra forma: a regra
+     * casava uma FORMA (nome colado ao ano) em vez do FATO (menção à diretriz
+     * brasileira com um ano). Agora ela olha a linha inteira: havendo menção à
+     * diretriz brasileira, todo ano de quatro dígitos naquela linha tem de ser
+     * o do projeto — ou vir marcado como histórico.
+     */
     const achados: string[] = [];
     for (const arquivo of TODOS) {
       textoVisivel(readFileSync(arquivo, "utf8")).split("\n").forEach((linha, i) => {
-        for (const m of linha.matchAll(/\bSBC\s*(20\d\d)\b|Valvopatias\s*(20\d\d)\b/g)) {
-          const ano = m[1] ?? m[2];
+        if (MARCA_DE_HISTORIA.test(linha)) return;
+        for (const ano of anosDaBrasileiraNaLinha(linha)) {
           if (ano === ANO_SBC.ano) continue;
-          achados.push(`${arquivo}:${i + 1}: cita SBC ${ano} (a referência do projeto é ${ANO_SBC.ano})`);
+          achados.push(
+            `${arquivo}:${i + 1}: cita ${ano} para a diretriz brasileira ` +
+            `(a referência do projeto é ${ANO_SBC.ano}) — ${linha.trim().slice(0, 90)}`,
+          );
         }
       });
     }
@@ -367,6 +456,65 @@ describe("a diretriz brasileira citada é a que o projeto consegue apontar", () 
       "edição da diretriz brasileira que o projeto não consegue apresentar — " +
         "atribuir recomendação a documento inencontrável é fabricar procedência",
     ).toBe("");
+  });
+
+  it("o detector atribui o ano ao documento certo", () => {
+    /**
+     * Contraprova do `anosDaBrasileiraNaLinha`, em material plantado — e ela
+     * vale pelos dois lados, porque a correção desta regra errou duas vezes
+     * antes de acertar:
+     *
+     *   1. a primeira versão usou a palavra "valvopatias" para reconhecer a
+     *      diretriz. Ela é o nome da DOENÇA: quatro linhas corretas foram
+     *      acusadas de uma vez, por anos que pertenciam à ESC e à ACC/AHA;
+     *   2. a segunda acusou os seis `source_slug: "sbc-valvopatias-2024"` —
+     *      chave de banco mantida de propósito e documentada em duas migrações.
+     *
+     * Falso vermelho custa o mesmo que falso verde: as duas versões teriam
+     * ensinado a ignorar esta guarda.
+     */
+
+    // ACUSA: o ano separado do nome por travessão — o defeito real, que a
+    // regra de adjacência não via.
+    expect(
+      anosDaBrasileiraNaLinha('title: "Atualização das Diretrizes Brasileiras de Valvopatias — 2020",'),
+      "não achou o ano separado por travessão",
+    ).toEqual(["2020"]);
+    expect(
+      anosDaBrasileiraNaLinha('org: "Sociedade Brasileira de Cardiologia (SBC) — Arq Bras Cardiol. 2020;115(4):720-775",'),
+      "não achou o ano depois do parêntese",
+    ).toEqual(["2020"]);
+
+    // ABSOLVE: ano de OUTRA fonte na mesma frase.
+    expect(
+      anosDaBrasileiraNaLinha("sugestões ancoradas na ESC/EACTS 2025, com ACC/AHA 2020 e a diretriz brasileira de valvopatias"),
+      "atribuiu à brasileira um ano da ESC ou da ACC/AHA",
+    ).toEqual([]);
+    expect(
+      anosDaBrasileiraNaLinha("trechos preliminares (ESC/EACTS 2025, ACC/AHA 2020, diretriz brasileira de valvopatias, DATASUS)"),
+      "atribuiu à brasileira um ano de outra fonte",
+    ).toEqual([]);
+
+    // ABSOLVE: a linha que cita a brasileira COM o ano certo e outra fonte com
+    // o ano dela.
+    expect(
+      anosDaBrasileiraNaLinha("alinhados à Diretriz Brasileira de Valvopatias 2026 (SBC, SBHCI e SBCCV), com apoio em ACC/AHA 2020"),
+      "confundiu o ano da ACC/AHA com o da brasileira",
+    ).toEqual(["2026"]);
+
+    // ABSOLVE: identificador, não citação.
+    expect(
+      anosDaBrasileiraNaLinha('    source_slug: "sbc-valvopatias-2024",'),
+      "acusou uma chave de banco como se fosse citação",
+    ).toEqual([]);
+
+    // E a regra ANTIGA, para registro do que foi consertado: achava zero
+    // justamente nas duas linhas que estavam erradas.
+    const ANTIGA = /\bSBC\s*(20\d\d)\b|Valvopatias\s*(20\d\d)\b/;
+    expect(
+      ANTIGA.test('title: "Atualização das Diretrizes Brasileiras de Valvopatias — 2020",'),
+      "a regra antiga teria pego — então não foi este o defeito",
+    ).toBe(false);
   });
 });
 

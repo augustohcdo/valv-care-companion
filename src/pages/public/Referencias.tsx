@@ -7,14 +7,23 @@ const refs = [
     section: "Diretrizes clínicas",
     items: [
       {
-        // Esta linha dizia "2024". Procurando a edição para citá-la direito, as
-        // buscas — inclusive uma restrita ao site do próprio periódico —
-        // encontram a linhagem 2011 → 2017 → 2020 e nenhuma de 2024. Busca não
-        // prova ausência, mas atribuir recomendação clínica a um documento que
-        // não se consegue apresentar é fabricar procedência. Fica a edição
-        // apontável, com volume e páginas.
-        title: "Atualização das Diretrizes Brasileiras de Valvopatias — 2020",
-        org: "Sociedade Brasileira de Cardiologia (SBC) — Arq Bras Cardiol. 2020;115(4):720-775",
+        // Esta linha já disse "2024" e depois "2020", e as duas correções
+        // valem como história.
+        //
+        // A de 2024 foi inventada: nenhuma busca, nem a restrita ao site do
+        // próprio periódico, encontrava tal edição — e atribuir recomendação
+        // clínica a documento que não se consegue apresentar é fabricar
+        // procedência. Ficou a de 2020, que era a apontável.
+        //
+        // Em 15/10/2026 a edição nova saiu e o projeto passou a carregá-la
+        // inteira: o `src/data/diretrizBr2026.ts` traz as recomendações
+        // verbatim, com quadro e página, e o motor de conduta a mostra ao lado
+        // da ESC. Esta página, que é a cara pública da procedência, ficou nove
+        // dias dizendo 2020 — a guarda de ano não a via porque procurava o ano
+        // COLADO ao nome, e aqui havia um travessão no meio. Ver
+        // `diretrizVigente.test.ts`.
+        title: "Diretriz Brasileira de Valvopatias — 2026",
+        org: "Sociedade Brasileira de Cardiologia (SBC), Sociedade Brasileira de Hemodinâmica e Cardiologia Intervencionista (SBHCI) e Sociedade Brasileira de Cirurgia Cardiovascular (SBCCV) — Arq Bras Cardiol. 2026;123(10):e20260796. DOI 10.36660/abc.20260796",
       },
       {
         // A citação completa passou a valer a partir do momento em que o motor
