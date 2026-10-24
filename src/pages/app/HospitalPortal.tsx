@@ -106,7 +106,27 @@ export default function HospitalPortal() {
     });
     setSubmitting(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Pedido enviado. O paciente foi notificado.");
+    /**
+     * "O paciente foi notificado" era o que esta linha dizia, e a frase fazia
+     * quem opera o hospital concluir o que ela sugere: ele já sabe, agora é
+     * esperar.
+     *
+     * O que acontece de verdade: o `insert` acima dispara um gatilho que cria
+     * uma linha em `notifications`, e essa linha aparece no sino do app — se e
+     * quando o paciente abrir o ValvePath. Não sai e-mail, não sai SMS, não há
+     * push. A notificação existe; a entrega é passiva.
+     *
+     * Então a tela passa a dizer o canal, que é o que torna a informação
+     * acionável: quem precisa de resposta rápida sabe que tem de usar outro
+     * meio. É o mesmo desenho que `AdminAcessos.tsx` já usava do outro lado do
+     * balcão, lá condicionando no resultado real do e-mail.
+     */
+    toast.success("Pedido enviado", {
+      description:
+        "O paciente verá o aviso no sino de notificações ao abrir o ValvePath. " +
+        "Não enviamos e-mail nem SMS — se for urgente, avise por outro canal.",
+      duration: 8000,
+    });
     setPatientId(""); setDoctorName(""); setDoctorCrm(""); setDetails(""); setMessage("");
     // A releitura depois de enviar. Sem observar o erro, ela zerava a lista logo
     // após o "Pedido enviado" — e o operador via o próprio pedido sumir da tela
