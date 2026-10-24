@@ -82,11 +82,100 @@ export const FORMAS: FormaDeChave[] = [
     consequencia: "pública por construção, mas valor real não entra no repositório",
     re: /\bsb_publishable_[A-Za-z0-9_-]{20,}/g,
   },
+  /**
+   * ## As formas que FALTAVAM, e como elas apareceram
+   *
+   * As cinco de cima são todas do Supabase. Levantando o que este projeto de
+   * fato usa — `Deno.env.get` nas edge functions mais `internal_secrets` —, são
+   * dezesseis credenciais, e seis famílias ficavam invisíveis para esta guarda:
+   * Gemini, Resend, a chave de objeto do backup externo, o segredo do
+   * Turnstile e os segredos de cron.
+   *
+   * Quer dizer que o nome do bloco — "nenhuma chave de verdade commitada" —
+   * prometia mais do que ele conferia. Guarda cujo nome promete mais do que
+   * checa é pior que nenhuma: ela ocupa o lugar da conferência que faltava.
+   *
+   * As três abaixo foram medidas contra o repositório rastreado ANTES de
+   * entrar: zero ocorrências em 644 arquivos. Nenhuma delas produz falso
+   * vermelho hoje.
+   */
+  {
+    nome: "AIza (Google/Gemini)",
+    consequencia: "chave da API do Gemini — gera texto clínico e consome cota paga",
+    re: /\bAIza[A-Za-z0-9_-]{30,}/g,
+  },
+  {
+    nome: "re_ (Resend)",
+    consequencia: "chave de e-mail — manda mensagem em nome do domínio do projeto",
+    re: /\bre_[A-Za-z0-9_-]{20,}/g,
+  },
+  {
+    nome: "AKIA (chave de objeto S3)",
+    consequencia: "identificador de chave do backup externo — lê a cópia fora do Supabase",
+    re: /\bAKIA[A-Z0-9]{12,}/g,
+  },
+  {
+    /**
+     * Segredo de 32 bytes em hex — a forma de `gen_random_bytes(32)`, que é
+     * como nascem `seed_cron_secret`, `export_cron_secret` e
+     * `digest_cron_secret`. Quem tem um deles dispara backup, semeadura e
+     * resumo à vontade.
+     *
+     * Medido antes de entrar: o repositório rastreado tem ZERO cadeias de 64
+     * hex. O risco conhecido é o dia em que alguém commitar um manifesto de
+     * `sha256` — por isso a linha que se chama de hash está dispensada logo
+     * abaixo, em `eExemplo`.
+     */
+    nome: "32 bytes em hex (segredo de cron)",
+    consequencia: "dispara backup, semeadura da base e resumo sem passar por autenticação",
+    re: /\b[a-f0-9]{64}\b/g,
+  },
 ];
+
+/**
+ * O que a FORMA não alcança — escrito porque o verde desta guarda não cobre.
+ *
+ * Duas credenciais em uso neste projeto não têm forma distinguível, e nenhuma
+ * regra de padrão vai pegá-las:
+ *
+ *   · `OFFSITE_SECRET` — a chave secreta do bucket S3-compatível é base64 de
+ *     ~40 caracteres, sem prefixo. É indistinguível de qualquer outra cadeia
+ *     base64 que apareça legitimamente no repositório;
+ *
+ *   · `TURNSTILE_SECRET_KEY` — começa com `0x`, e essa forma colide com ruído
+ *     real: medido, `0x[A-Za-z0-9_-]{30,}` acusa uma cadeia do
+ *     `package-lock.json` que é hash de integridade. Um padrão que grita no
+ *     lockfile a cada execução é um padrão que ensina a ignorar a guarda.
+ *
+ * Para essas duas, a defesa é outra e está fora daqui: elas só existem em
+ * Secrets do GitHub e nas variáveis de ambiente do Supabase, nunca em arquivo.
+ * Este comentário existe para ninguém ler o verde acima como se cobrisse as
+ * dezesseis credenciais do projeto. Ele cobre nove formas.
+ */
+export const FORA_DO_ALCANCE_DA_FORMA = [
+  "OFFSITE_SECRET (base64 sem prefixo)",
+  "TURNSTILE_SECRET_KEY (0x… colide com hash de lockfile)",
+] as const;
 
 /** É um exemplo evidente? O próprio valor tem de dizer. */
 export function eExemplo(valor: string): boolean {
   return /EXEMPLO/i.test(valor);
+}
+
+/**
+ * A linha se declara um HASH? Então a cadeia de 64 hex não é segredo.
+ *
+ * Dispensa estreita e de contexto, e só para a forma hex: `sha256`,
+ * `integrity`, `digest` e `checksum` são as palavras com que um hash se
+ * apresenta. Um segredo de cron não aparece ao lado delas.
+ *
+ * Sem isto, o dia em que alguém commitar um manifesto de backup — que é feito
+ * exatamente de `sha256` em hex — a guarda grita sobre arquivo correto. Hoje o
+ * repositório tem zero cadeias de 64 hex, então esta dispensa não está
+ * escondendo nada; ela existe para o vermelho futuro ser verdadeiro.
+ */
+export function linhaSeDeclaraHash(linha: string): boolean {
+  return /sha-?256|integrity|digest|checksum|\bhash\b/i.test(linha);
 }
 
 /** As cadeias com forma de chave num texto, já classificadas. */
@@ -120,6 +209,11 @@ describe("nenhuma chave de verdade commitada", () => {
       for (const { forma, valor, indice } of chavesNoTexto(texto)) {
         if (eExemplo(valor)) continue;
         const linha = texto.slice(0, indice).split("\n").length;
+        // A dispensa de contexto, só para a forma hex — ver `linhaSeDeclaraHash`.
+        if (
+          forma.nome.startsWith("32 bytes em hex")
+          && linhaSeDeclaraHash(texto.split("\n")[linha - 1] ?? "")
+        ) continue;
         // O valor NÃO vai na mensagem: ela aparece em log de CI, que é copiado
         // sem contexto. O prefixo e o tamanho bastam para achar.
         culpados.push(
@@ -159,7 +253,7 @@ describe("nenhuma chave de verdade commitada", () => {
      */
   }, 30_000);
 
-  it("o detector reconhece as cinco formas", () => {
+  it("o detector reconhece as nove formas", () => {
     /**
      * Provado em cadeia sintética, e não pela varredura: hoje o repositório
      * está limpo, então a varredura passa sem exercitar nenhum dos padrões. Uma
@@ -201,6 +295,17 @@ describe("nenhuma chave de verdade commitada", () => {
         `ey${"J"}0eXAiOiJKV1QiLCJhbA.ey${"J"}yb2xlIjoic2VydmljZV9yb2xl.${hex}`,
       ],
       ["cabeçalho de JWT (eyJhbGciOi…)", `ey${"J"}hbGciOiJIUzI1NiJ9`],
+      /**
+       * As quatro formas acrescentadas, montadas pelo MESMO motivo das de
+       * cima: a proteção de push do GitHub reconhece chave do Google (`AIza…`)
+       * e do AWS (`AKIA…`) tão bem quanto reconhece a do Supabase. Escrevê-las
+       * como literal barraria o commit — e o atalho seria a URL de desbloqueio,
+       * que esta base decidiu nunca usar.
+       */
+      ["AIza (Google/Gemini)", `AI${"za"}Sy${hex}${hex}012`],
+      ["re_ (Resend)", `re${"_"}${hex}${hex}`],
+      ["AKIA (chave de objeto S3)", `AK${"IA"}ABCDEFGHIJKLMNOP`],
+      ["32 bytes em hex (segredo de cron)", `${hex}${hex}${hex}${hex}`],
     ];
     for (const [nomeEsperado, valor] of casos) {
       const achados = chavesNoTexto(`const k = "${valor}";`);
@@ -232,8 +337,56 @@ describe("nenhuma chave de verdade commitada", () => {
       "o token de gestão tem prefixo `sbp_` e a chave secreta `sb_secret_`",
       "eyJ é o começo de todo JWT em base64",
       'import { supabase } from "@/integrations/supabase/client";',
+      // Os vizinhos das formas novas. `re_` é o mais perigoso dos quatro: é um
+      // começo plausível de nome de variável, e por isso a forma exige 20
+      // caracteres depois dele.
+      "const re_export = /x/; const re_teste = /y/;",
+      "a chave do Gemini começa com `AIza` e a do Resend com `re_`",
+      "AKIA é o prefixo de um identificador de chave da AWS",
     ]) {
       expect(chavesNoTexto(inocente), `acusou texto inocente: ${inocente}`).toEqual([]);
     }
+  });
+
+  it("hex de 64 que a linha chama de hash não é segredo", () => {
+    /**
+     * A dispensa de contexto, exercida nos dois sentidos. Sem o lado que
+     * ACUSA, ela poderia virar um buraco: bastaria escrever a palavra "hash"
+     * perto do segredo.
+     */
+    const hex = "0123456789abcdef";
+    const cadeia = `${hex}${hex}${hex}${hex}`;
+
+    expect(linhaSeDeclaraHash(`  "sha256": "${cadeia}",`), "não reconheceu um manifesto de hash").toBe(true);
+    expect(linhaSeDeclaraHash(`  integrity: "${cadeia}"`)).toBe(true);
+    expect(
+      linhaSeDeclaraHash(`const SEGREDO = "${cadeia}";`),
+      "dispensou uma linha que não se declara hash",
+    ).toBe(false);
+
+    // E o detector continua vendo a cadeia nas duas — quem dispensa é o
+    // contexto, não o padrão. Se o padrão parasse de casar, a dispensa não
+    // teria o que dispensar e o buraco seria invisível.
+    expect(chavesNoTexto(`const SEGREDO = "${cadeia}";`).map((a) => a.forma.nome))
+      .toContain("32 bytes em hex (segredo de cron)");
+  });
+
+  it("o que a forma NÃO alcança está escrito", () => {
+    /**
+     * O verde desta guarda cobre nove formas, não as dezesseis credenciais do
+     * projeto. Duas não têm forma distinguível — a chave secreta do bucket
+     * (base64 sem prefixo) e a do Turnstile (`0x…`, que colide com hash de
+     * lockfile; medido no `package-lock.json`).
+     *
+     * A lista existe para que o limite seja lido junto com a garantia. Guarda
+     * cujo nome promete mais do que confere ocupa o lugar da conferência que
+     * falta — e esta prometia "nenhuma chave de verdade" conferindo só as do
+     * Supabase.
+     */
+    expect(FORA_DO_ALCANCE_DA_FORMA.length, "o limite declarado sumiu").toBe(2);
+    expect(FORA_DO_ALCANCE_DA_FORMA.join(" ")).toMatch(/OFFSITE_SECRET/);
+    expect(FORA_DO_ALCANCE_DA_FORMA.join(" ")).toMatch(/TURNSTILE_SECRET_KEY/);
+    // E as formas cobertas são as nove de fato declaradas.
+    expect(FORMAS.length, "o número de formas mudou sem o limite ser revisto").toBe(9);
   });
 });
